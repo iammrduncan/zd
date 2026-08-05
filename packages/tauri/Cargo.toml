@@ -1,0 +1,24 @@
+[package]
+name = "zd"
+version = "0.5.0"
+description = "Zen Suite — focused tools for AI-assisted development"
+authors = ["Duncan"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/iammrduncan/zd"
+
+[lib]
+# The `_lib` suffix keeps the lib name from colliding with the bin name on
+# Windows. See https://github.com/rust-lang/cargo/issues/8519
+name = "zd_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ignore = "0.4"
