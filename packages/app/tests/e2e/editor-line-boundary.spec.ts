@@ -94,7 +94,7 @@ for (const { what, needle } of LINES) {
 test("the keys still reach the line's own edges", async ({ page }) => {
   // A guard against fixing the oscillation by making the keys do nothing. This line
   // has no notation and does not wrap, so both edges are exactly the source line's.
-  const line = await caretInto(page, "9. a single-digit step");
+  const line = await caretInto(page, "the claim above is decoration rather than design");
 
   await page.keyboard.press("ControlOrMeta+ArrowLeft");
   expect(await head(page), "cmd+left did not reach the line start").toBe(line.from);

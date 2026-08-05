@@ -97,18 +97,18 @@ test("an item that wraps across source lines moves as one item", async ({ page }
 test("an ordered item indents by its marker's width, not by a fixed two spaces", async ({
   page,
 }) => {
-  const at = await caretOn(page, "a double-digit step");
+  const at = await caretOn(page, "a three-digit step");
 
   await page.keyboard.press("Tab");
 
   const after = await lines(page);
   /*
-   * `9. ` puts its content at column 3. Two spaces would leave this item short of
+   * `99. ` puts its content at column 4. Two spaces would leave this item short of
    * that, and CommonMark would read it as a new list rather than a nested one —
    * the markdown equivalent of an off-by-one that still parses.
    */
   expect(after[at], "a fixed indent unit was used instead of the sibling's column").toBe(
-    "   10. a double-digit step, whose text starts exactly where the one above does",
+    "    100. a three-digit step, whose text starts exactly where the one above does",
   );
 });
 

@@ -16,3 +16,23 @@ Release work requires a Node version accepted by the `engines.node` range in `pa
 `npm run version:bump` deliberately does not create a commit or tag. Tagged publishing and artifact
 verification belong to the release workflow added with packaging, so the version change remains
 visible for review before any release is created.
+
+## Publish the release
+
+After the prepared version commit is on `main`, validate and push one annotated tag whose name
+exactly matches `package.json`:
+
+```sh
+npm run release:check -- v<version>
+git tag -a v<version> -m "zd v<version>"
+git push origin v<version>
+```
+
+The tag starts `.github/workflows/release.yml`. It runs the static, unit, end-to-end, and native
+checks before packaging. A failed check publishes nothing. A green run builds Apple Silicon and
+Intel DMGs, verifies each image, writes a SHA-256 checksum beside each download, and creates the
+GitHub Release from the existing tag with generated release notes.
+
+The v0.1 line is ad-hoc signed so macOS can verify that the completed bundle has not changed. It is
+not Developer ID signed or notarized; signing and notarization remain explicitly outside this
+prototype's scope in `docs/vision.md` §11.

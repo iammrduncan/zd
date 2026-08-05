@@ -13,6 +13,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "release:check": "node packages/scripts/check-release-tag.mjs",
     "app": "tauri dev --config packages/tauri/tauri.conf.json",
     "app:open": "ZD_CWD=\"$INIT_CWD\" tauri dev --config packages/tauri/tauri.conf.json -- --",
     "tauri": "tauri",

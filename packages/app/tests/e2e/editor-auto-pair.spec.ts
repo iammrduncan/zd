@@ -39,8 +39,11 @@ async function state(page: import("@playwright/test").Page) {
 async function caretAtEndOf(page: import("@playwright/test").Page, needle: string) {
   const at = await page.evaluate((text) => {
     const lines = window.zdEditor!.text().split("\n");
-    const found = lines.map((line, index) => ({ line, index })).filter((row) => row.line.includes(text));
-    if (found.length !== 1) throw new Error(`${found.length} lines contain ${JSON.stringify(text)}`);
+    const found = lines
+      .map((line, index) => ({ line, index }))
+      .filter((row) => row.line.includes(text));
+    if (found.length !== 1)
+      throw new Error(`${found.length} lines contain ${JSON.stringify(text)}`);
     const number = found[0]!.index;
     const start = lines.slice(0, number).reduce((total, line) => total + line.length + 1, 0);
     return start + lines[number]!.length;
@@ -161,7 +164,7 @@ test("an apostrophe inside a word is left alone", async ({ page }) => {
    * trusting the reading, because the reading is of a dependency and the next
    * version of it is not this one.
    */
-  const at = await caretAtEndOf(page, "a single-digit step");
+  const at = await caretAtEndOf(page, "a double-digit step");
 
   await page.keyboard.type(" don't");
 
@@ -222,7 +225,7 @@ test("inline code still closes itself", async ({ page }) => {
    * pass that test and break this one: typing `` `x` `` has to end with one pair,
    * not with the closer skipped and a third backtick appended.
    */
-  const at = await caretAtEndOf(page, "a double-digit step, whose text starts");
+  const at = await caretAtEndOf(page, "a three-digit step, whose text starts");
 
   await page.keyboard.type(" `x`");
 

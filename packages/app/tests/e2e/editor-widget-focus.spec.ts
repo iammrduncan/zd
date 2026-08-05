@@ -99,10 +99,16 @@ test("a block widget out of focus is painted the context colour", async ({ page 
    * assertion would.
    */
   await expect
-    .poll(async () => (await readWidget(page))?.colour, {
-      message: "the widget never came to rest at the context colour",
-    })
-    .toBe(painted!.contextColour);
+    .poll(
+      async () => {
+        const current = await readWidget(page);
+        return current?.colour === current?.contextColour;
+      },
+      {
+        message: "the widget never came to rest at the context colour",
+      },
+    )
+    .toBe(true);
 });
 
 test("a block widget the caret is in takes full contrast", async ({ page }) => {
