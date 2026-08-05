@@ -9,8 +9,7 @@ Accepted
 The first prototype spent most of its code and defect budget on rich-text layout. Lists, headings,
 code, wrapping, columns, and baseline alignment required custom geometry in egui.
 
-The [path-forward record](../../_internal/path-forward.md) identifies document layout as the
-product's main technical need.
+Document layout was the product's main technical need.
 
 ## Decision
 

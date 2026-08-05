@@ -27,7 +27,7 @@ function hasTaskTag(task, tag) {
 }
 
 export function readLatestComparisonHandoff(
-  memoryPath = resolve("docs/_objectives/session-memory.log"),
+  memoryPath = resolve("docs/_internal/objectives/session-memory.log"),
 ) {
   if (!existsSync(memoryPath)) return "";
 

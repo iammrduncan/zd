@@ -9,8 +9,8 @@ Accepted
 `zd md` needs a native desktop application and a fast browser development path. Text layout and
 editing behavior change more often than operating-system integration.
 
-The first Rust/egui prototype mixed product behavior with custom layout and window code. The
-[path-forward record](../../_internal/path-forward.md) shows why that structure amplified changes.
+The first Rust/egui prototype mixed product behavior with custom layout and window code, which
+amplified changes across both concerns.
 
 ## Decision
 

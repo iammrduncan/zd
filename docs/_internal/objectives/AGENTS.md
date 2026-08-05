@@ -1,6 +1,6 @@
 # Objective-record instructions
 
-These instructions apply to `docs/_objectives/` and its child folders.
+These instructions apply to `docs/_internal/objectives/` and its child folders.
 
 - Treat `todo.txt`, `todo-archive.txt`, `FEEDBACK.md`, `feedback-archive.md`, and
   `agent-findings.md` as durable work records.

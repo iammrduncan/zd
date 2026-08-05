@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /*
- * `docs/_objectives/todo.txt` is the plan and the session log in one file, and it is the one
+ * `docs/_internal/objectives/todo.txt` is the plan and the session log in one file, and it is the one
  * file in this repo where a careless write costs work that cannot be rebuilt from
  * the code. Everything else can be re-derived: the tests describe the behaviour,
  * git describes the history. Only this holds *why* a thing was done, what was
@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
  * had landed minutes before.
  *
  * So this checks the shape of every line against the grammar in
- * docs/_objectives/way-of-working/task-format.md, and it runs in `npm test` — which every
+ * docs/_internal/objectives/way-of-working/task-format.md, and it runs in `npm test` — which every
  * session runs before it commits.
  *
  * **Both incidents were reproduced against a copy and both are caught.** The
@@ -34,7 +34,10 @@ import { describe, expect, it } from "vitest";
  * carrying it, so `git checkout` is always one command away.
  */
 
-const TASK_LISTS = ["docs/_objectives/todo.txt", "docs/_objectives/todo-archive.txt"];
+const TASK_LISTS = [
+  "docs/_internal/objectives/todo.txt",
+  "docs/_internal/objectives/todo-archive.txt",
+];
 
 /** `x <done> (P) <created> <subject>…` — the shape of a finished line. */
 const DONE = /^x \d{4}-\d{2}-\d{2} \([ABC]\) \d{4}-\d{2}-\d{2} \S/;
@@ -125,7 +128,10 @@ describe.each(TASK_LISTS)("%s", (path) => {
 
 describe("the open plan", () => {
   it("still has the checkpoints that make /session stop", () => {
-    const contents = readFileSync(resolve(process.cwd(), "docs/_objectives/todo.txt"), "utf8");
+    const contents = readFileSync(
+      resolve(process.cwd(), "docs/_internal/objectives/todo.txt"),
+      "utf8",
+    );
     const checkpoints = contents.split("\n").filter(isCheckpoint);
 
     /*

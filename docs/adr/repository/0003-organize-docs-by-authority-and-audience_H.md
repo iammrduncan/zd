@@ -12,13 +12,14 @@ internal report was required to use the product.
 
 ## Decision
 
-We will separate documentation into five areas:
+We will separate documentation into four top-level areas, with active objective records nested under
+internal records:
 
 - `docs/adr/` for accepted human-owned decisions.
 - `docs/zsip/` for customer- or contributor-authored proposals submitted through pull requests.
 - `docs/user-facing-docs/` for standalone product documentation.
 - `docs/_internal/` for repository meta-docs and historical analysis.
-- `docs/_objectives/` for zdloop tasks, feedback, goals, findings, and workflow rules.
+- `docs/_internal/objectives/` for zdloop tasks, feedback, goals, findings, and workflow rules.
 
 We will remove temporary audit folders after extracting durable decisions. Folder-level AGENTS and
 CLAUDE files will provide automatic writing guidance where a documentation boundary needs it.

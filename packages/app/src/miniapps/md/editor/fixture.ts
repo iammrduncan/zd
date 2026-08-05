@@ -324,7 +324,7 @@ register({
 /*
  * The focus-block jump. See the note beside the same pair in miniapps/md/index.ts —
  * that copy is the product's and this one is the fixture's, and the fact that there
- * are two is filed in docs/_objectives/agent-findings.md rather than fixed here.
+ * are two is filed in docs/_internal/objectives/agent-findings.md rather than fixed here.
  */
 register({
   id: "document.jumpNext",

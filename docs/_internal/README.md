@@ -1,14 +1,12 @@
 # Internal repository records
 
-This folder contains repository information that does not belong in standalone user documentation
-or the active zdloop work queue.
+This folder contains repository-only state that does not belong in standalone user documentation.
+Active zdloop records live under `objectives/`; the other areas preserve operations and history.
 
-## Records
+## Areas
 
-- [Path-forward decision](path-forward.md) preserves the evidence behind the Rust/egui to
-  TypeScript/Tauri rewrite.
-- [Agent development postmortem](agent-development-time-postmortem.md) preserves lessons from the
-  first prototype run.
+- [Objectives](objectives/README.md) contains the active work queue, feedback, findings, goals, and
+  session rules.
 - [Release operations](releasing.md) explains how maintainers publish a version tag.
 - [v0.1.0 promotion kit](promotion/v0.1.0.md) contains release and social copy.
 

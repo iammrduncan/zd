@@ -35,4 +35,4 @@ GitHub Release from the existing tag with generated release notes.
 
 The v0.1 line is ad-hoc signed so macOS can verify that the completed bundle has not changed. It is
 not Developer ID signed or notarized; signing and notarization remain explicitly outside this
-prototype's scope in `docs/_objectives/vision.md` §11.
+prototype's scope in `docs/_internal/objectives/vision.md` §11.

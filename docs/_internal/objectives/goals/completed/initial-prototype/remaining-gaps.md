@@ -14,7 +14,7 @@ acceptance criteria have not yet been met.
 The audit compares the current repository and built application with:
 
 - [goal.md](goal.md) and [initial_thoughts.md](initial_thoughts.md);
-- the canonical [DESIGN.md](../../../../DESIGN.md);
+- the canonical [DESIGN.md](../../../../../../DESIGN.md);
 - the 16 canonical Markdown BDD feature files and their evidence ledger;
 - the F01–F18 user findings in [feedback.md](feedback.md);
 - ADR 0001 (desktop UI stack), ADR 0002 (workspace/catalog performance), and ADR 0003

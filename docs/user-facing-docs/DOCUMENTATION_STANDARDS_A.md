@@ -57,7 +57,7 @@ verification runs.
 The documentation home is `docs/user-facing-docs/README.md`. Its folders represent durable reader
 needs, not releases or implementation phases. Give each topic one canonical page.
 
-Public pages must stand alone. They must not link to `_internal`, `_objectives`, ADRs, or ZSIPs.
+Public pages must stand alone. They must not link to `_internal`, ADRs, or ZSIPs.
 Contributor-only material can link to public pages, but public tasks must not depend on contributor
 records.
 

@@ -29,14 +29,14 @@ flowchart LR
     W --> C{"CHECKPOINT?"}
     C -->|no| W
     C -->|yes| U["use the thing"]
-    U --> F["append to docs/_objectives/FEEDBACK.md"]
+    U --> F["append to docs/_internal/objectives/FEEDBACK.md"]
     F --> S
     U -.->|"a lot to say"| T["/triage"]
     T --> S
 ```
 
 `/status` to decide, `/session` to do one thing, and repeat until the plan says stop. Then **go
-use what you built**. What you hit while using it goes into `docs/_objectives/FEEDBACK.md` as a raw line, and the
+use what you built**. What you hit while using it goes into `docs/_internal/objectives/FEEDBACK.md` as a raw line, and the
 next session triages that before it touches the plan. Real usage outranks the plan — that is the
 entire point of the arrangement.
 
@@ -51,7 +51,7 @@ You do not sit and type `/session` all day. The command that does the work is:
 Sessions run back to back — each one still triages the inbox first, takes one task, tests it, and
 commits it — and the run stops at the next `CHECKPOINT` line in the task list, which is where the
 plan says a human has to go and use the thing. Come back, use it, write raw lines into
-`docs/_objectives/FEEDBACK.md`, and start the next loop.
+`docs/_internal/objectives/FEEDBACK.md`, and start the next loop.
 
 **The `60s` is a gap, not a schedule.** A session finishes, sixty seconds pass, the next one
 starts. It is short enough that an unattended run is still effectively continuous, and long enough
@@ -63,7 +63,7 @@ to matter for the two things that happen in it:
   session's triage output and the only way in is to race it.
 - **The work is committed and quiet.** The gap lands where the tree is clean and nothing is
   half-done: the previous session has committed or cut scope and committed, and the next has not
-  started. That is the safe moment to interrupt, `git log`, or append to `docs/_objectives/FEEDBACK.md` without
+  started. That is the safe moment to interrupt, `git log`, or append to `docs/_internal/objectives/FEEDBACK.md` without
   writing into a file a session is about to reset.
 
 Sixty seconds is the default because it is cheap. Widen it if you want a real chance to intervene
@@ -90,14 +90,14 @@ npm run zdloop -- 60s
 ```
 
 It invokes `$zd-session` once per open task, appends each final handoff to
-`docs/_objectives/session-memory.log`, waits only when another session is needed, and checks both
-`docs/_objectives/FEEDBACK.md` and the task list before every invocation. Pending feedback forces a session even
+`docs/_internal/objectives/session-memory.log`, waits only when another session is needed, and checks both
+`docs/_internal/objectives/FEEDBACK.md` and the task list before every invocation. Pending feedback forces a session even
 when the checkpoint is already next; that session triages the inbox and takes the first resulting
 live-band task. The runner then stops if the inbox is empty and nothing landed above the
 checkpoint. At that point it runs one additional read-only Codex session, with approvals disabled,
 to compare the ending commits against the commit where the loop started and produce a prioritized
 manual test and feedback guide. That final recap is printed and appended to
-`docs/_objectives/session-memory.log` like the work-session handoffs. Preview the current task snapshot,
+`docs/_internal/objectives/session-memory.log` like the work-session handoffs. Preview the current task snapshot,
 pending feedback, minimum session count, work prompt, and final recap prompt without invoking
 Codex or changing files:
 
@@ -106,7 +106,7 @@ text. It shows the tasks before the checkpoint, recently completed tasks, feedba
 the current run, the active task, and a compact stream of commands, file changes, tools, and agent
 messages. Codex is invoked with its JSON event output in this mode, so the runner can label and
 format each event without changing the raw final handoff saved to
-`docs/_objectives/session-memory.log`.
+`docs/_internal/objectives/session-memory.log`.
 
 Non-agent events use deterministic local labels in a stable
 `ONE TO THREE WORD ACTION | one-sentence description` shape. This keeps the dashboard useful
@@ -119,7 +119,7 @@ The dashboard controls are:
   runs, and the dashboard pauses on its formatted summary.
 - `x` or `Ctrl+C` kills the active Codex process immediately and exits with status 130. It does not
   run a recap.
-- On the summary screen, `c` rechecks `docs/_objectives/FEEDBACK.md` and the live task band and continues when work
+- On the summary screen, `c` rechecks `docs/_internal/objectives/FEEDBACK.md` and the live task band and continues when work
   exists; `q` or `x` exits. If the checkpoint is still next, the dashboard remains paused instead
   of running past it. Use `j` and `k` to scroll a long recap.
 
@@ -139,8 +139,8 @@ Archive completed lines deterministically with:
 npm run zdarchive
 ```
 
-It appends every line beginning with `x ` to `docs/_objectives/todo-archive.txt` in file order, then removes
-exactly those lines from `docs/_objectives/todo.txt` while preserving open work and checkpoints.
+It appends every line beginning with `x ` to `docs/_internal/objectives/todo-archive.txt` in file order, then removes
+exactly those lines from `docs/_internal/objectives/todo.txt` while preserving open work and checkpoints.
 
 ## The four commands
 
@@ -214,12 +214,12 @@ One consequence worth knowing: anything counting progress has to read both files
 | the plan | You, before adopting this | Phases and sessions. What order, and what "done" means per session. |
 | `todo.txt` | The commands | The plan and the log in one file. See [`task-format.md`](task-format.md). |
 | `todo-archive.txt` | `/archive` | Finished task lines, verbatim, once the plan got long. Same format, same tags. |
-| `docs/_objectives/FEEDBACK.md` | **You only** | Raw notes from using the thing. No format. `!` means blocking. |
-| `docs/_objectives/agent-findings.md` | **The agent only** | What it hit mid-session that was out of scope, and questions the spec does not answer. |
-| `docs/_objectives/feedback-archive.md` | The commands | Your raw lines, verbatim, after they were triaged. |
+| `docs/_internal/objectives/FEEDBACK.md` | **You only** | Raw notes from using the thing. No format. `!` means blocking. |
+| `docs/_internal/objectives/agent-findings.md` | **The agent only** | What it hit mid-session that was out of scope, and questions the spec does not answer. |
+| `docs/_internal/objectives/feedback-archive.md` | The commands | Your raw lines, verbatim, after they were triaged. |
 | `CLAUDE.md` / `AGENTS.md` | You | The standing instructions, loaded into every session. |
 
-Two inboxes, kept strictly apart. The agent never writes to `docs/_objectives/FEEDBACK.md`, and both feed
+Two inboxes, kept strictly apart. The agent never writes to `docs/_internal/objectives/FEEDBACK.md`, and both feed
 `todo.txt` tagged `+fb` and `+found` so they stay tellable apart afterwards.
 
 That separation is the least obvious rule here and the one worth keeping. When a fix lands wrong,
@@ -313,7 +313,7 @@ text so `grep` is the query language and `git diff` is the history.
    [`anchor-documents.md`](anchor-documents.md). Nothing below works without them.
 2. Copy [`commands/`](commands/) into `.claude/commands/` at your repo root. The filename becomes
    the command name — `session.md` is `/session`.
-3. Copy [`templates/`](templates/) into place: `CLAUDE.md`, `AGENTS.md` and `docs/_objectives/FEEDBACK.md` at the
+3. Copy [`templates/`](templates/) into place: `CLAUDE.md`, `AGENTS.md` and `docs/_internal/objectives/FEEDBACK.md` at the
    repo root where you will actually see them, `agent-findings.md` and `feedback-archive.md` next
    to your docs, `todo.txt` wherever your plan lives. `todo-archive.txt` goes beside `todo.txt`,
    or leave it out — `/archive` creates it the first time you run it.
@@ -324,14 +324,14 @@ text so `grep` is the query language and `git diff` is the history.
 | Token | Replace with | In `zd` |
 | --- | --- | --- |
 | `{PROJECT}` | What you are building | `zd` |
-| `{VISION}` | Path to the vision | `docs/_objectives/vision.md` |
-| `{TODO}` | Path to the task list | `docs/_objectives/todo.txt` |
-| `{TODO_ARCHIVE}` | Where `/archive` moves finished lines. Beside `{TODO}` | `docs/_objectives/todo-archive.txt` |
-| `{INBOX}` | Path to the human inbox | `docs/_objectives/FEEDBACK.md` |
-| `{FINDINGS}` | Path to the agent's queue | `docs/_objectives/agent-findings.md` |
-| `{ARCHIVE}` | Path to the raw-notes archive | `docs/_objectives/feedback-archive.md` |
-| `{RULES}` | The document the operating rules live in | `docs/_internal/agent-development-time-postmortem.md` |
-| `{PRIOR_FINDINGS}` | What `ref:` tags point into. Drop the tag if there was no previous attempt | `docs/_objectives/goals/initial-prototype/feedback.md` |
+| `{VISION}` | Path to the vision | `docs/_internal/objectives/vision.md` |
+| `{TODO}` | Path to the task list | `docs/_internal/objectives/todo.txt` |
+| `{TODO_ARCHIVE}` | Where `/archive` moves finished lines. Beside `{TODO}` | `docs/_internal/objectives/todo-archive.txt` |
+| `{INBOX}` | Path to the human inbox | `docs/_internal/objectives/FEEDBACK.md` |
+| `{FINDINGS}` | Path to the agent's queue | `docs/_internal/objectives/agent-findings.md` |
+| `{ARCHIVE}` | Path to the raw-notes archive | `docs/_internal/objectives/feedback-archive.md` |
+| `{RULES}` | The document the operating rules live in | `docs/GOOD_ENGINEERING_H.md` |
+| `{PRIOR_FINDINGS}` | What `ref:` tags point into. Drop the tag if there was no previous attempt | `docs/_internal/objectives/goals/completed/initial-prototype/feedback.md` |
 | `{CHECK_FAST}` | Unit tests. Must stay under ~5s or it will not get run | `npm test` |
 | `{CHECK_FULL}` | Typecheck + lint + unit | `npm run check` |
 | `{CHECK_SLOW}` | End-to-end. Claims the fast checks cannot make | `npm run test:e2e` |
@@ -341,8 +341,8 @@ text so `grep` is the query language and `git diff` is the history.
 of `/session`. Not a coding-standards document: only the things that get violated in practice and
 are expensive to undo. `zd`'s are
 
-> - Prefer CSS over JavaScript for anything layout, type, or motion. That is the entire reason
->   this app is not in Rust any more — see `docs/_internal/path-forward.md`.
+> - Prefer CSS over JavaScript for anything layout, type, or motion. The accepted boundary is in
+>   `docs/adr/suite/0001-use-tauri-with-portable-web-frontend_H.md`.
 > - Mini apps consume design tokens. A hardcoded hex, font family, or px size in `src/miniapps/**`
 >   is a bug, not a shortcut.
 > - Only `src/platform.ts` imports `@tauri-apps/api`.
@@ -381,7 +381,7 @@ actually read-only (nothing else enforces that — say it in the prompt and chec
 `{PROJECT_RULES}`. Nothing else knows or cares what language you are in.
 
 **Teams.** This is built for one person and one agent working on one branch. Two people appending
-to one `docs/_objectives/FEEDBACK.md` is fine. Two agents running `/session` at once is not — they will both triage
+to one `docs/_internal/objectives/FEEDBACK.md` is fine. Two agents running `/session` at once is not — they will both triage
 the same inbox and both commit the reset. Give them separate worktrees and separate task lists, or
 run them one at a time.
 
@@ -398,12 +398,12 @@ reading when a generalized instruction here is ambiguous:
 | | |
 | --- | --- |
 | `.claude/commands/` | The same commands with the placeholders filled in |
-| `docs/_objectives/vision.md` | ~300 lines, twelve numbered sections, an out-of-scope list and a terminal condition |
+| `docs/_internal/objectives/vision.md` | ~300 lines, twelve numbered sections, an out-of-scope list and a terminal condition |
 | `DESIGN.md` | The design system, `Status: canonical and binding`, thirteen sections |
-| `docs/_internal/path-forward.md` | Phases, sessions, the stack decision, and the operating rules with their evidence |
-| `docs/_objectives/todo.txt` | ~120 tasks, the plan and the session log in one file |
-| `docs/_objectives/feedback-archive.md` | What real use produced on day one, in the user's own words |
-| `docs/_internal/agent-development-time-postmortem.md` | The 18-hour autopsy every rule above is an answer to |
+| `docs/adr/suite/0001-use-tauri-with-portable-web-frontend_H.md` | The accepted frontend and native-shell boundary |
+| `docs/_internal/objectives/todo.txt` | ~120 tasks, the plan and the session log in one file |
+| `docs/_internal/objectives/feedback-archive.md` | What real use produced on day one, in the user's own words |
+| `docs/GOOD_ENGINEERING_H.md` | The repository's engineering principles |
 | `CLAUDE.md`, `AGENTS.md` | The standing instructions — [`templates/`](templates/) holds a verbatim copy of both |
 
 The pair to read together is the archive and the todo lines tagged `fb:2026-07-29`. Fifteen raw

@@ -169,7 +169,7 @@ Status: open — automated coverage exists; rebuilt-native verification is still
 ### F12 — Page hierarchy and ordered lists are unclear
 
 The typographic hierarchy is too weak in real documents. In
-`docs/goals/initial-prototype/goal.md`, for example, an ordered list reads like
+`docs/_internal/objectives/goals/completed/initial-prototype/goal.md`, for example, an ordered list reads like
 a blob of left-aligned text that merely happens to begin with numbers. Headings,
 ordered markers, indentation, continuation lines, and vertical rhythm must make
 the document structure immediately legible without adding decorative chrome.

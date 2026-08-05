@@ -8,7 +8,7 @@ argument-hint: "[optional filter, e.g. +p1 — archives only finished lines matc
 Bookkeeping only. **Write no product code, and change no open task.** This command moves finished
 lines out of the way and does nothing else — not re-prioritising, not re-tagging, not tidying.
 
-Task list: @docs/_objectives/todo.txt
+Task list: @docs/_internal/objectives/todo.txt
 
 Archive only lines matching this, if given: $ARGUMENTS
 
@@ -21,19 +21,19 @@ harder to read every day. Archiving keeps both: the log survives, the plan stays
 
 ## What to do
 
-1. **Count first.** `grep -c '^x ' docs/_objectives/todo.txt` and `grep -vc '^x ' docs/_objectives/todo.txt`. State both
+1. **Count first.** `grep -c '^x ' docs/_internal/objectives/todo.txt` and `grep -vc '^x ' docs/_internal/objectives/todo.txt`. State both
    numbers before touching anything — they are what proves nothing was lost.
 2. Take every line starting with `x `. If `$ARGUMENTS` is given, take only those that also contain
    it — `/archive +p1` archives phase 1's finished lines and leaves the rest alone.
-3. Append them **verbatim and in file order** to `docs/_objectives/todo-archive.txt`, under a `## <today>`
+3. Append them **verbatim and in file order** to `docs/_internal/objectives/todo-archive.txt`, under a `## <today>`
    heading (`date +%F`). Create the file with this header if it does not exist:
 
    ```
-   # zd md — completed tasks, moved out of docs/_objectives/todo.txt by /archive
+   # zd md — completed tasks, moved out of docs/_internal/objectives/todo.txt by /archive
    # Same format as the task list. Newest block last. Nothing here is edited or deleted.
    ```
 
-4. Remove exactly those lines from `docs/_objectives/todo.txt`. Everything else stays untouched and in its
+4. Remove exactly those lines from `docs/_internal/objectives/todo.txt`. Everything else stays untouched and in its
    original order: the `#` legend, the `# ---` phase headers, blank lines, `CHECKPOINT` lines, and
    every open task.
 5. If removing lines left a phase header with nothing under it, leave the header — an empty phase
@@ -42,9 +42,9 @@ harder to read every day. Archiving keeps both: the log survives, the plan stays
 ## Before you commit
 
 - Open-task count is identical to step 1. **This is the check that matters**: if it moved, you
-  deleted live work — `git checkout docs/_objectives/todo.txt` and stop.
-- Lines added to `docs/_objectives/todo-archive.txt` equal lines removed from `docs/_objectives/todo.txt`.
-- `grep -c '^x ' docs/_objectives/todo.txt` is 0, or exactly the finished lines a filter excluded.
+  deleted live work — `git checkout docs/_internal/objectives/todo.txt` and stop.
+- Lines added to `docs/_internal/objectives/todo-archive.txt` equal lines removed from `docs/_internal/objectives/todo.txt`.
+- `grep -c '^x ' docs/_internal/objectives/todo.txt` is 0, or exactly the finished lines a filter excluded.
 - Every `CHECKPOINT` line that was there is still there. A lost checkpoint means a loop runs
   straight past the point where a human was supposed to look.
 

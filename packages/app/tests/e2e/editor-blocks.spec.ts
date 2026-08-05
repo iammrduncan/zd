@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
   // only its viewport. The fixture grows as constructs are added, and a viewport
   // that merely fitted yesterday silently stops rendering the blocks at the bottom
   // today, which shows up as unrelated specs failing. 4200 clears the current
-  // ~3280px with room; see docs/_objectives/agent-findings.md on making these scroll instead.
+  // ~3280px with room; see docs/_internal/objectives/agent-findings.md on making these scroll instead.
   // 9000 is headroom, not a fit. The fixture is ~3700px and grows every time a
   // construct is added; a viewport that merely fitted has silently stopped
   // rendering the bottom of the document four times now, each time failing specs

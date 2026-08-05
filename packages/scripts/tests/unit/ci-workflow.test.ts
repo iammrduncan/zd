@@ -90,7 +90,7 @@ describe.skipIf(!existsSync(WORKFLOW))("the CI workflow", () => {
     /*
      * playwright.config.ts sets `retries: 0` and that is deliberate. There is one
      * known intermittent spec — `focus-keyboard.spec.ts`, about one full run in four
-     * — tracked in docs/_objectives/todo.txt with a note to promote it "when it costs a
+     * — tracked in docs/_internal/objectives/todo.txt with a note to promote it "when it costs a
      * diagnosis rather than a re-run". Retries in CI would take that measurement
      * away and leave the flake permanently invisible.
      *

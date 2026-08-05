@@ -20,13 +20,17 @@ setInterval(() => {}, 1_000);`,
 } = {}): string {
   const root = mkdtempSync(join(tmpdir(), "zd-session-loop-tui-"));
   fixtures.push(root);
-  mkdirSync(join(root, "docs", "_objectives"), { recursive: true });
-  writeFileSync(join(root, "docs", "_objectives", "todo.txt"), todo);
-  writeFileSync(join(root, "docs/_objectives/FEEDBACK.md"), "# Feedback\n\n---\n");
+  mkdirSync(join(root, "docs", "_internal/objectives"), { recursive: true });
+  writeFileSync(join(root, "docs", "_internal/objectives", "todo.txt"), todo);
+  writeFileSync(join(root, "docs/_internal/objectives/FEEDBACK.md"), "# Feedback\n\n---\n");
   spawnSync("git", ["init", "-q"], { cwd: root });
-  spawnSync("git", ["add", "docs/_objectives/todo.txt", "docs/_objectives/FEEDBACK.md"], {
-    cwd: root,
-  });
+  spawnSync(
+    "git",
+    ["add", "docs/_internal/objectives/todo.txt", "docs/_internal/objectives/FEEDBACK.md"],
+    {
+      cwd: root,
+    },
+  );
   spawnSync(
     "git",
     [

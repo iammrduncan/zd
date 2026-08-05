@@ -1,8 +1,8 @@
 # zd md — second prototype vision
 
 Date: 2026-07-28
-Supersedes: `docs/_objectives/goals/initial-prototype/` (Rust/egui, archived at tag `rust-prototype`)
-Stack decision: `docs/_internal/path-forward.md`
+Supersedes: `docs/_internal/objectives/goals/completed/initial-prototype/` (Rust/egui, archived at tag `rust-prototype`)
+Stack decision: `docs/adr/suite/0001-use-tauri-with-portable-web-frontend_H.md`
 
 This document merges the original product intent (`initial-prototype/initial_thoughts.md`) with
 everything the first prototype taught us in use (`initial-prototype/feedback.md`, F01–F18). The
@@ -48,7 +48,7 @@ Mini apps — each one a `zd <thing>` surface you launch into:
 The terminal is **not** a mini app. It is a suite facility: an in-app terminal that opens over
 whatever mini app or studio you are already in, on an in-app hotkey to show/hide plus a global
 hotkey that foregrounds the app and opens it. There is no sense in opening a terminal from a
-terminal. See [`docs/_objectives/goals/zd-terminal/`](goals/zd-terminal/initial_thoughts.md).
+terminal. See [`docs/_internal/objectives/goals/zd-terminal/`](goals/zd-terminal/initial_thoughts.md).
 
 Consequence for this prototype: the design system, settings, window shell, and shortcut registry
 are **suite-owned**, not md-owned. Changing a token changes every mini app. Two structural
@@ -332,7 +332,7 @@ Not a certification program. Three things:
 | F11 column split shortcuts conflict with macOS | §4.4 |
 | F12 page hierarchy and ordered lists unclear | §4.2 |
 | F13 Quick Open flashes while typing | §5.2 |
-| F14 feedback ledger not being closed | process — replaced by `docs/_objectives/FEEDBACK.md`, see `docs/_internal/path-forward.md` |
+| F14 feedback ledger not being closed | process — replaced by `docs/_internal/objectives/FEEDBACK.md` |
 | F15 Shortcut Reference typography cramped | §7.1 |
 | F16 displayed shortcuts do not all execute | §7.1 |
 | F17 tests and evidence miss shipped behavior | §12 |

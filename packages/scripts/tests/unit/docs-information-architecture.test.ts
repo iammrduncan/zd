@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd());
-const DOC_AREAS = ["adr", "zsip", "user-facing-docs", "_internal", "_objectives"];
+const DOC_AREAS = ["adr", "zsip", "user-facing-docs", "_internal", "_internal/objectives"];
 const PUBLIC_PAGES = [
   "README.md",
   "docs/README.md",
@@ -53,7 +53,7 @@ describe("the public documentation map", () => {
     expect(hub).toContain("zsip/README.md");
     expect(hub).toContain("user-facing-docs/README.md");
     expect(hub).toContain("_internal/README.md");
-    expect(hub).toContain("_objectives/README.md");
+    expect(hub).toContain("_internal/objectives/README.md");
   });
 
   it("gives user documentation one entry point for every Diátaxis purpose", () => {

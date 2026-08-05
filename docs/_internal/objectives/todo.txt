@@ -2,10 +2,10 @@
 # Legend (these # lines are a legend, not tasks)
 #   priority  (A) daily-driver path  (B) after daily use  (C) ship
 #   +p0..+p5  phase             @ctx  area of work
-#   sess:N.N  session id from docs/_internal/path-forward.md   est:  target duration
+#   sess:N.N  session id                         est:  target duration
 #   ref:F##   original finding from initial-prototype/feedback.md
-#   +fb       came from docs/_objectives/FEEDBACK.md, the human inbox   +found  agent-findings.md, the agent queue
-#   vis:N.N   section of docs/_objectives/goals/second-prototype/vision.md
+#   +fb       came from docs/_internal/objectives/FEEDBACK.md, the human inbox   +found  agent-findings.md, the agent queue
+#   vis:N.N   section of docs/_internal/objectives/vision.md
 #   Rule: one session = one goal = one commit. Not done at 60m? Cut scope, commit what works.
 #   Done lines start with `x <date>`. Open list: grep -v '^x ' todo.txt
 #   Older done lines live in todo-archive.txt, moved there by /archive. Same format.
@@ -118,4 +118,4 @@ x 2026-08-05 (C) 2026-08-05 Create accurate v0.1.0 product and social media with
 
 (C) 2026-07-29 Simple browser mini app for external links needs design thinking first +p5 @shell +fb fb:2026-07-29 est:60m vis:3
 
-(A) 2026-07-28 RECURRING triage docs/_objectives/FEEDBACK.md into tasks at the start of every session @reset est:5m
+(A) 2026-07-28 RECURRING triage docs/_internal/objectives/FEEDBACK.md into tasks at the start of every session @reset est:5m
