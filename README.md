@@ -51,15 +51,13 @@ npm run dev                          # the frontend alone, in a browser
 
 ### Install globally on macOS
 
-There is not an automated installer yet. Build the release app, copy it into `/Applications`,
-then link the executable inside the app bundle into `/usr/local/bin`:
+Build the release app, then install it into `/Applications` and put its executable on PATH through
+one stable link in `/usr/local/bin`:
 
 ```sh
 npm install
-npm run tauri -- build --config packages/tauri/tauri.conf.json --bundles app
-sudo ditto packages/tauri/target/release/bundle/macos/zd.app /Applications/zd.app
-sudo mkdir -p /usr/local/bin
-sudo ln -sf /Applications/zd.app/Contents/MacOS/zd /usr/local/bin/zd
+npm run package:macos
+sudo npm run install:macos
 ```
 
 The installed command resolves relative paths from the directory where it is invoked, so it works
@@ -71,9 +69,9 @@ zd md .
 zd md README.md
 ```
 
-If `command -v zd` prints nothing, add `/usr/local/bin` to the shell's `PATH` or put the symlink in
-another directory that is already on it. Rebuild and repeat the `ditto` command to update the app;
-the symlink continues pointing at the installed bundle.
+If `command -v zd` prints nothing, add `/usr/local/bin` to the shell's `PATH`. Rebuild and repeat the
+install command to update the app; the symlink continues pointing at the installed bundle. The
+installer refuses to overwrite an unrelated `/usr/local/bin/zd` command.
 
 `app:open` exists because reaching the app by hand is otherwise a puzzle twice over. Tauri wants
 `tauri dev -- [runnerArgs] -- [appArgs]` and `npm run` eats one `--` of its own, so it takes three
