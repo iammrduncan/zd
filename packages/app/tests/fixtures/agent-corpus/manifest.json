@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "provenance": "Deterministic, sanitized, repository-local representatives of common agent reports and native-harness output shapes; no private transcripts, repository secrets, or production logs are captured.",
+  "generator": "generate.py",
+  "documents": [
+    {"name": "01-rollout-plan.md", "genre": "implementation plan", "lines": 220},
+    {"name": "02-review-findings.md", "genre": "code review", "lines": 227},
+    {"name": "03-ci-failure-transcript.md", "genre": "CI harness transcript", "lines": 234},
+    {"name": "04-cross-platform-matrix.md", "genre": "test matrix", "lines": 241},
+    {"name": "05-incident-runbook.md", "genre": "incident runbook", "lines": 248},
+    {"name": "06-benchmark-report.md", "genre": "benchmark report", "lines": 255},
+    {"name": "07-migration-notes.md", "genre": "migration guide", "lines": 262},
+    {"name": "08-api-inventory.md", "genre": "API inventory", "lines": 269},
+    {"name": "09-threat-model.md", "genre": "threat model", "lines": 276},
+    {"name": "10-dependency-audit.md", "genre": "dependency audit", "lines": 283},
+    {"name": "11-agent-handoff.md", "genre": "agent handoff", "lines": 290},
+    {"name": "12-pull-request-summary.md", "genre": "pull request summary", "lines": 297},
+    {"name": "13-repository-exploration.md", "genre": "repository exploration", "lines": 304},
+    {"name": "14-release-checklist.md", "genre": "release checklist", "lines": 311},
+    {"name": "15-accessibility-audit.md", "genre": "accessibility audit", "lines": 318},
+    {"name": "16-rendered-ui-qa.md", "genre": "rendered UI QA", "lines": 325},
+    {"name": "17-database-rollout.md", "genre": "database rollout", "lines": 332},
+    {"name": "18-agent-tool-trace.md", "genre": "agent tool trace", "lines": 339},
+    {"name": "19-fuzzing-report.md", "genre": "fuzzing report", "lines": 346},
+    {"name": "20-incident-postmortem.md", "genre": "incident postmortem", "lines": 353}
+  ]
+}
