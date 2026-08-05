@@ -1,0 +1,517 @@
+/*
+ * Suite-owned design tokens. One definition, every mini app.
+ *
+ * STATUS: the type roles below are ported from DESIGN.md §5.2, which is their
+ * source of truth — change them there first. Colour ramps and the spacing
+ * rhythm are still scaffold placeholders, replaced in sessions 1.1 and 1.2.
+ *
+ * Theming works in two layers:
+ *   1. `prefers-color-scheme` is the default signal.
+ *   2. `[data-theme]` on <html> overrides it when the user picks explicitly.
+ * A mini app selects a semantic role. It never hardcodes a family or a hex.
+ */
+
+:root {
+  /* Families — fixed by DESIGN.md §5.1, not a per-mini-app choice. */
+  --font-prose: "iA Writer Quattro", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "iA Writer Mono", ui-monospace, "SF Mono", monospace;
+
+  /*
+   * The three knobs behind the whole type scale (DESIGN.md §5.2).
+   *
+   * Prose size is adjustable 14–28px, code size 12–24px, and heading scale
+   * 85–125%. Nothing here enforces those limits: font-size commands clamp
+   * silently at them, and that clamping belongs to the settings surface
+   * (session 4.4), which writes these three properties and nothing else.
+   *
+   * There are no six independent heading controls. Every heading is a ratio of
+   * prose size times the heading scale, so changing prose size retains the
+   * ratios and changing heading scale never touches body size.
+   */
+  --type-prose-size: 17px;
+  --type-code-size: 14px;
+  --type-heading-scale: 1;
+
+  /*
+   * DESIGN.md §5.2 type roles. A mini app selects a role; it never picks a
+   * family, a weight, or a size. Line heights are unitless so a role keeps its
+   * rhythm when its size moves.
+   *
+   *   role             family    size / line   weight
+   *   prose            Quattro   17 / 28       Regular
+   *   prose-emphasis   Quattro   17 / 28       Italic
+   *   h1               Quattro   30 / 38       Bold
+   *   h2               Quattro   24 / 32       Bold
+   *   h3               Quattro   22 / 31.9     Bold
+   *   h4               Quattro   20 / 29.5     Bold
+   *   h5               Quattro   18 / 27.5     Bold
+   *   h6               Quattro   16 / 25.4     Bold
+   *   code             Mono      14 / 22       Regular
+   *   inline-code      Mono      15 / 24       Regular
+   *   navigation       Mono      12.5 / 22     Regular
+   *   supporting       Quattro   13 / 20       Regular
+   *   action           Quattro   15 / 24       Regular
+   */
+
+  --type-prose-family: var(--font-prose);
+  --type-prose-weight: 400;
+  --type-prose-style: normal;
+  --type-prose-line: 1.647; /* 28 / 17 */
+
+  /* Emphasis is the drawn italic face, never a slant applied to the upright. */
+  --type-prose-emphasis-family: var(--font-prose);
+  --type-prose-emphasis-weight: 400;
+  --type-prose-emphasis-style: italic;
+  --type-prose-emphasis-size: var(--type-prose-size);
+  --type-prose-emphasis-line: 1.647;
+
+  /* Headings: prose size x canonical ratio x heading scale. 700 is the shipped
+     static Bold face — see fonts.css. Never a synthesized weight. */
+  --type-h1-family: var(--font-prose);
+  --type-h1-weight: 700;
+  --type-h1-style: normal;
+  --type-h1-size: calc(var(--type-prose-size) * 1.7647 * var(--type-heading-scale));
+  --type-h1-line: 1.267; /* 38 / 30 */
+
+  --type-h2-family: var(--font-prose);
+  --type-h2-weight: 700;
+  --type-h2-style: normal;
+  --type-h2-size: calc(var(--type-prose-size) * 1.4118 * var(--type-heading-scale));
+  --type-h2-line: 1.333; /* 32 / 24 */
+
+  --type-h3-family: var(--font-prose);
+  --type-h3-weight: 700;
+  --type-h3-style: normal;
+  --type-h3-size: calc(var(--type-prose-size) * 1.2941 * var(--type-heading-scale));
+  --type-h3-line: 1.45; /* 31.9 / 22; retains the compared treatment's rhythm */
+
+  --type-h4-family: var(--font-prose);
+  --type-h4-weight: 700;
+  --type-h4-style: normal;
+  --type-h4-size: calc(var(--type-prose-size) * 1.1765 * var(--type-heading-scale));
+  --type-h4-line: 1.474; /* 29.5 / 20; retains the compared treatment's rhythm */
+
+  --type-h5-family: var(--font-prose);
+  --type-h5-weight: 700;
+  --type-h5-style: normal;
+  --type-h5-size: calc(var(--type-prose-size) * 1.0588 * var(--type-heading-scale));
+  --type-h5-line: 1.528; /* 27.5 / 18 */
+
+  /* H6 closes the stepped deep-heading ladder one pixel below default prose. */
+  --type-h6-family: var(--font-prose);
+  --type-h6-weight: 700;
+  --type-h6-style: normal;
+  --type-h6-size: calc(var(--type-prose-size) * 0.9412 * var(--type-heading-scale));
+  --type-h6-line: 1.588; /* 25.4 / 16; retains the compared treatment's rhythm */
+
+  /* Fenced blocks and the code editor. Tracks code size, not prose size. */
+  --type-code-family: var(--font-mono);
+  --type-code-weight: 400;
+  --type-code-style: normal;
+  --type-code-line: 1.571; /* 22 / 14 */
+
+  /*
+   * Inline source. The 15px is an optical correction against 17px prose — mono
+   * reads larger at the same nominal size — so it tracks prose, not code size.
+   *
+   * The 24px line here is the role's standalone metric. Inline runs inside a
+   * block inherit that block's line box instead: body inline code sits on the
+   * 28px prose line, and inline code in a heading takes the heading's size and
+   * line. No inline role may create a shorter competing line box. Enforcing
+   * that is the reader's job (session 1.3, DESIGN.md §5.2 F07/F10).
+   */
+  --type-inline-code-family: var(--font-mono);
+  --type-inline-code-weight: 400;
+  --type-inline-code-style: normal;
+  --type-inline-code-size: calc(var(--type-prose-size) * 0.8824); /* 15 / 17 */
+  --type-inline-code-line: 1.6; /* 24 / 15 */
+
+  /* Chrome roles are fixed: they are not prose and do not follow prose size. */
+  --type-navigation-family: var(--font-mono);
+  --type-navigation-weight: 400;
+  --type-navigation-style: normal;
+  --type-navigation-size: 12.5px;
+  --type-navigation-line: 1.76; /* 22 / 12.5 */
+
+  --type-supporting-family: var(--font-prose);
+  --type-supporting-weight: 400;
+  --type-supporting-style: normal;
+  --type-supporting-size: 13px;
+  --type-supporting-line: 1.538; /* 20 / 13 */
+
+  --type-action-family: var(--font-prose);
+  --type-action-weight: 400;
+  --type-action-style: normal;
+  --type-action-size: 15px;
+  --type-action-line: 1.6; /* 24 / 15 */
+
+  /*
+   * Chrome spacing for scaffold and dev surfaces only. This ladder is not a
+   * DESIGN.md concept — reading rhythm is the §5.3 block below, and prose must
+   * never be laid out with these.
+   */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+
+  /* DESIGN.md §6.1's default and minimum sidebar geometry. */
+  --sidebar-width: 208px;
+  --sidebar-width-min: 176px;
+  --sidebar-width-max: 280px;
+
+  /*
+   * Reading measure — DESIGN.md §5.3: 60–75 characters, target 66, inside a
+   * 480–640px envelope with a 560px target.
+   *
+   * 620px, not the stated 560px target, and that needs saying. Measured against
+   * the shipped iA Writer Quattro at 17px, a 560px column fits 57.8 characters —
+   * under §5.3's own floor of 60. Its duospace advances are wider than whatever
+   * the pixel targets were derived from, so the two halves of §5.3 disagree at
+   * 560px and only one of them can hold.
+   *
+   * §5.3 calls the character range authoritative, so it wins: 620px measures
+   * 64.8 characters, near the 66 target and well inside both the range and the
+   * 480–640px envelope. Logged in docs/agent-findings.md for a human call — this
+   * is an engineering reading of a spec that contradicts itself, not licence to
+   * drift from the numbers.
+   *
+   * tests/e2e/reading-surface.spec.ts measures the characters that actually land
+   * on a line. If that count leaves 60–75, this number is what moves.
+   */
+  --reading-measure: 620px;
+
+  /*
+   * Window insets. 64/80 wide, with the horizontal inset widening to 72px at
+   * compact widths so the widest heading marker has room to hang outside the
+   * straight prose edge. The wide inset holds until the target measure plus
+   * two of them stops fitting (560 + 128 = 688). Below that point marker
+   * clearance outranks the nominal 480px reading minimum, so the measure yields
+   * instead of clipping notation or denting the prose edge.
+   */
+  --reading-inset-x: 64px;
+  --reading-inset-top: 80px;
+
+  /* §5.3: at least 120px of breathing room past the last line. */
+  --reading-inset-bottom: 120px;
+
+  /*
+   * The leading and trailing focus gutters. §5.3 sizes the padding as "at least
+   * 120px, or enough virtual padding to bring first and last focus targets to
+   * the anchor", and §7.3 calls them "reachable scroll extent". Without them the
+   * first and last blocks can never reach the anchor at all, so the top of a
+   * document is unfocusable and the first scroll jumps several blocks at once to
+   * whatever happens to be mid-screen.
+   *
+   * Asymmetric, and that is the whole point. The leading gutter needs the
+   * anchor's own distance from the top of the window; the trailing one needs
+   * what is left below it. They were a symmetrical 50vh, which is correct only
+   * while the anchor is the midpoint — so ANCHOR_RATIO moving to 1/3 would have
+   * left the last block of every document a third of a screen short of the
+   * anchor, unfocusable, with nothing in the CSS to say why.
+   *
+   * Rounded outward from thirds on purpose: they sum to 101vh rather than 100.
+   * A fraction of a vh of slack is invisible, and a fraction short means the
+   * first or last block can never be focused. Keep in step with ANCHOR_RATIO in
+   * miniapps/md/focus.ts — tests/unit/anchor-gutters.test.ts fails if
+   * they drift.
+   */
+  --reading-gutter-leading: 34vh;
+  --reading-gutter-trailing: 67vh;
+
+  /*
+   * Block rhythm — DESIGN.md §5.3. Applied to prose blocks in session 1.3.
+   *
+   * These are margins on purpose. §5.3 requires adjacent block margins to
+   * collapse to the larger value and never add — paragraph-to-H2 is 44px, not
+   * 62px — which is exactly what CSS margin collapsing does for free. A flex
+   * or grid `gap` would add instead, so the reading column must not use one.
+   */
+  --gap-paragraph: 18px;
+  --gap-h1-after: 28px;
+  --gap-h2-before: 44px;
+  --gap-h2-after: 18px;
+  --gap-list-item: 6px;
+  --gap-block: 24px;
+
+  /*
+   * H3–H6. §5.3 fixes H1 and H2 and is silent on the rest, so these are derived.
+   *
+   * One value per level, stepping down, rather than one shared value. They used
+   * to share 28px, and reading real documents said the levels did not separate.
+   * The decided §5.2 scale now reinforces this rhythm with stepped type too.
+   *
+   * Space above remains a signal too. Descending 44 / 36 / 28 / 22 / 18 from H2
+   * down, each heading sits in a measurably different amount of silence, and the
+   * gap narrows as the levels do — a shallow heading opens a section, a deep one
+   * introduces a paragraph. The after-gap stays at the paragraph gap throughout,
+   * so every heading stays bound to the text it owns.
+   */
+  --gap-h3-before: 36px;
+  --gap-h4-before: 28px;
+  --gap-h5-before: 22px;
+  --gap-h6-before: 18px;
+  --gap-heading-after: 18px;
+
+  /*
+   * List geometry — DESIGN.md §5.2 names these as suite tokens rather than
+   * renderer literals, so they live here and every surface reads the same ones.
+   *
+   * The bullet is 0.90em Bold: "optically subordinate to body text, but large
+   * enough to remain a clear structural marker at 1x density". Ordered markers
+   * stay body-sized. Each nested level advances exactly 14px.
+   */
+  --list-level-indent: 14px;
+  --reading-bullet-scale: 0.9;
+
+  /*
+   * The marker column. §5.2 says its width is "set by the widest visible
+   * marker", which CSS cannot measure — so this is a fixed column wide enough
+   * for a two-digit ordered marker at the default prose size, and markers
+   * right-align into it. A three-digit list overhangs to the left rather than
+   * pushing its prose out of alignment, which keeps the content origin stable
+   * at the cost of the column no longer being exactly widest-marker wide.
+   * Derived, not transcribed — see docs/agent-findings.md.
+   */
+  --list-marker-column: 1.9em;
+
+  /*
+   * The notation gutter. DESIGN.md §7.4: block notation "sits in the gutter,
+   * outside the prose column ... so the reading column is one straight line at
+   * every width" and "never dents the measure".
+   *
+   * 48px, re-derived 2026-07-29 when markers stopped being code-sized and took
+   * their construct's role instead (§5.2). Measured in the browser at the default
+   * scale, a heading's hash run needs: h1 34px, h2 40px, h3 45px, h4 54px, h5
+   * 62px, h6 69px. 48 covers h1 through h3, which is nearly every heading in a
+   * real document, plus the 8px gap below.
+   *
+   * Markers right-align into the gutter, so its width costs nothing for a short
+   * one — every marker's right edge sits on the text edge whatever the gutter is.
+   * All the width decides is when `####` and deeper begin overhanging further
+   * left, which they do rather than pushing their own prose out of alignment:
+   * the same trade `--list-marker-column` makes above, and for the same reason.
+   *
+   * Not sized for h6. A 72px gutter would clip against `overflow-x: hidden` on a
+   * compact window, where the auto margin beside the measure is only a few pixels
+   * — and clipping a marker is worse than overhanging with one.
+   *
+   * Fixed px rather than em on purpose. The gutter is shared by markers whose
+   * enclosing lines are set at six different heading sizes, and an em would give
+   * each level a different gutter, which is the opposite of a straight line.
+   */
+  --notation-gutter: 48px;
+  --notation-gutter-gap: 8px;
+
+  /*
+   * How far the §7.10 Document Status Strip sits above the bottom edge.
+   *
+   * DESIGN.md gives the strip its behaviour but no number, so this is derived:
+   * 24px is the compact-window inset §6.2 already names, and the strip is a
+   * transient line over the canvas exactly as a transient's content is. Using
+   * the reading bottom inset instead would float it a third of the way up the
+   * window, which is not a bottom strip.
+   */
+  --status-strip-inset: 24px;
+
+  /*
+   * Transient surface geometry — DESIGN.md §6.2, transcribed rather than derived:
+   * "a centred column no wider than 640 px, at least 32 px from either horizontal
+   * edge, at least 48 px from the top and 32 px from the bottom".
+   *
+   * The key column is derived: wide enough for the longest chord the registry can
+   * hold at code size — `Ctrl+Shift+P` is twelve characters, and 12 × 14 × 0.62
+   * ≈ 104px. Fixed rather than max-content so every row's description starts on
+   * one line down the sheet, which is §7.1's "consistent row rhythm".
+   */
+  --transient-measure: 640px;
+  --transient-inset-x: 32px;
+  --transient-inset-top: 48px;
+  --transient-inset-bottom: 32px;
+  --transient-key-column: 104px;
+
+  /*
+   * The hairline. DESIGN.md calls for "one quiet hairline" in several places —
+   * blockquotes, the current-row indicator, the transient content column — and
+   * always exactly one. A token rather than a literal so the suite can decide
+   * once what a hairline is; a hi-DPI panel may eventually want less than 1px.
+   */
+  --hairline: 1px;
+
+  /*
+   * Focus dimming. The user tunes --focus-dim; roles read --focus-*.
+   *
+   * 90%, above DESIGN.md §4.4's stated 65% default. §4.4 already records this
+   * argument happening once — 35% was reviewed and rejected as "too subtle to
+   * make the central reading behavior unmistakable" — and reading real documents
+   * on 2026-07-29 said 65% is still not pronounced enough. So the number moves
+   * again, in the same direction, for the same reason.
+   *
+   * The 3:1 readability floor that used to sit under this is gone, given up by
+   * explicit decision on 2026-07-29 after the same complaint four times: "it
+   * should be barely legible, and isn't mean to fit any accessability limits its
+   * mean to really draw focus to the in focus text."
+   *
+   * So the endpoint below now lands context at 1.99:1 in light and 2.15:1 in
+   * dark against the canvas, against a target of about 14.7:1. That is a
+   * deliberate accessibility trade, made by the person it affects, for a reading
+   * tool whose whole purpose is one passage at a time. **Do not restore the
+   * floor as a bug fix.** Raising these ratios is a product decision and needs
+   * the same person to make it again.
+   *
+   * Confirmed right in use on 2026-07-29 — one iteration, no further tuning
+   * asked for. These numbers are settled, not provisional.
+   *
+   * Dim Level is continuous 0..1, and 0 means no dimming, which is why there is
+   * no separate Focus Mode toggle.
+   */
+  --focus-dim: 0.9;
+  --focus-ease-out: 120ms;
+
+  /*
+   * Warmth hook. 0 is 6500K and an exact identity; 1 is 2700K, the warmest
+   * setting. Nothing consumes this yet.
+   *
+   * DESIGN.md §4.3 is specific about what consuming it must mean: a colour-space
+   * transform over the resolved semantic colours and local images — sRGB to
+   * linear light, interpolate toward a warm-white channel adaptation, encode
+   * sRGB again. Explicitly NOT a translucent orange overlay and not a filter
+   * over the whole plane, because those crush the luminance relationships that
+   * §4.3's contrast floors depend on. A round trip back to 0 must restore the
+   * exact unwarmed colours.
+   */
+  --warmth: 0;
+}
+
+/*
+ * Theme. Three modes, two palettes — DESIGN.md §4.3 keeps System resolving to
+ * Light or Dark rather than being a third slightly different appearance.
+ *
+ * `color-scheme` is the whole switch. Leaving it `light dark` follows the OS,
+ * and `[data-theme]` pins it. Each role below is then declared once with both
+ * values via light-dark(), so the two palettes cannot drift apart the way two
+ * hand-maintained blocks do.
+ */
+:root {
+  color-scheme: light dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/*
+ * Theme and Dim Level are immediate setting changes, not focus movement.
+ * `suite/appearance.ts` holds this state through the frame that resolves the
+ * new colours, then restores the one duration token for the next outgoing
+ * Focus Target (§6.3).
+ */
+:root[data-applying-colour-setting] {
+  --focus-ease-out: 0ms;
+}
+
+/*
+ * Compact windows — DESIGN.md §5.3. Only the insets move here; the measure is
+ * left alone to consume the space that remains.
+ */
+@media (max-width: 687px) {
+  :root {
+    --reading-inset-x: 72px;
+    --reading-inset-top: 56px;
+  }
+}
+
+/*
+ * The closed semantic colour set, verbatim from the DESIGN.md §4.3 table.
+ * A mini app names a role. It never writes a hex.
+ */
+:root {
+  /* Planes */
+  --surface-canvas: light-dark(#fafaf7, #191a19);
+  --surface-sidebar: light-dark(#f3f3ef, #20211f);
+  --surface-transient: light-dark(#f7f7f3, #222320);
+  --surface-selection: light-dark(#e7e8e2, #30322e);
+  --surface-code: light-dark(#f0f1ec, #242622);
+
+  /* Text. secondary and muted describe purpose and contrast, not an emphasis
+     ladder — a source marker is not supporting prose (DESIGN.md §5.2). */
+  --text-primary: light-dark(#242522, #e5e2d9);
+  --text-secondary: light-dark(#5f625c, #b4b1a9);
+  --text-muted: light-dark(#4a4e48, #b4b5ae);
+  --text-link: light-dark(#284c5b, #a8ccd8);
+
+  /* Lines */
+  --line-quiet: light-dark(#dcddd7, #353733);
+  --line-focus: light-dark(#506f78, #86a9b2);
+
+  /* State. Never carried by colour alone — each is paired with a glyph. */
+  --state-added: light-dark(#2d5338, #a6cfb1);
+  --state-changed: light-dark(#85682c, #d1b36c);
+  --state-deleted: light-dark(#8a4d4a, #d99993);
+  --state-error: light-dark(#854943, #db938b);
+
+  /*
+   * Syntax categories. DESIGN.md §5.2 names exactly three — keywords, strings,
+   * comments — and requires they be coloured "through the active DesignSystem…
+   * never with miniapp-local colours", which is why they are here rather than in
+   * a highlighter theme. Any language added later reuses these three; adding a
+   * fourth category is a DESIGN.md change, not a stylesheet one.
+   *
+   * §4.3 also requires syntax to stay "distinguishable at the warmest setting
+   * and without colour", so these are separated by lightness as well as hue and
+   * none of them is the only signal a reader has.
+   */
+  --syntax-keyword: light-dark(#7a3d55, #d9a3b6);
+  --syntax-string: light-dark(#3f5d3f, #a9c8a0);
+  --syntax-comment: light-dark(#6b6f68, #8e938b);
+
+  /*
+   * Focus. DESIGN.md §4.4 derives two roles from the palette: `focus.target` is
+   * the normal semantic rendering, and `focus.context` is "the same semantic
+   * roles moved toward their owning surface by the current Dim Level, never
+   * hidden and never made unreadable".
+   *
+   * Moved toward, not faded: §4.4 says the dim "is never literal opacity,
+   * transparency, or a blend all the way into the canvas". So this is a colour
+   * mix per role, and the far end of the mix is the endpoint below rather than
+   * `surface.canvas` — the Theme "maps 100% to a palette-specific derived
+   * endpoint". At full dim, context sits near 1.7:1 against the canvas: faint
+   * enough that the eye will not read it by accident, still a distinct colour
+   * rather than the canvas itself, so the shape of the document survives. That
+   * last part is the half of §4.4 that outlived the readability floor — "never
+   * hidden", and never "a blend all the way into the canvas".
+   */
+  --focus-context-endpoint: light-dark(#c3c4be, #3e403a);
+
+  --focus-mix: calc(var(--focus-dim) * 100%);
+  --focus-context-text: color-mix(
+    in srgb,
+    var(--text-primary),
+    var(--focus-context-endpoint) var(--focus-mix)
+  );
+  --focus-context-quiet: color-mix(
+    in srgb,
+    var(--text-secondary),
+    var(--focus-context-endpoint) var(--focus-mix)
+  );
+  --focus-context-keyword: color-mix(
+    in srgb,
+    var(--syntax-keyword),
+    var(--focus-context-endpoint) var(--focus-mix)
+  );
+  --focus-context-string: color-mix(
+    in srgb,
+    var(--syntax-string),
+    var(--focus-context-endpoint) var(--focus-mix)
+  );
+  --focus-context-comment: color-mix(
+    in srgb,
+    var(--syntax-comment),
+    var(--focus-context-endpoint) var(--focus-mix)
+  );
+}

@@ -1,0 +1,94 @@
+/*
+ * The Shortcut Reference. Suite-owned, so this file may only consume tokens —
+ * same rule as every mini app stylesheet.
+ *
+ * DESIGN.md §6.2 specifies the whole geometry, and this is that paragraph in CSS:
+ * "Transient surfaces use `surface.transient` as one calm replacement plane. They
+ * are not rounded cards and do not float with shadows. The plane covers the
+ * content region so prose or Sidebar fragments never peek around or below it …
+ * a centred column no wider than 640 px, at least 32 px from either horizontal
+ * edge, at least 48 px from the top and 32 px from the bottom, with vertical
+ * overflow scrolling inside those bounds … There is no scrim, blur, dim, or
+ * decorative backdrop."
+ */
+
+/*
+ * Covers the content region rather than replacing it — finding F02 is a window
+ * that went blank, and the fix is structural: the document stays mounted and
+ * laid out underneath, and this is painted over the top of it. Opaque, because
+ * §6.2 forbids a scrim: the plane's own colour is what hides what is beneath,
+ * not a translucent wash over it.
+ */
+.zd-reference {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: var(--surface-transient);
+  /* No shadow, no radius, no blur. §6.2 names all three. */
+  box-shadow: none;
+  border-radius: 0;
+  overflow-y: auto;
+  /* §6.2's insets. Vertical is asymmetric on purpose — 48 top, 32 bottom. */
+  padding: var(--transient-inset-top) var(--transient-inset-x) var(--transient-inset-bottom);
+}
+
+/* "a centred column no wider than 640 px". */
+.zd-reference-column {
+  max-width: var(--transient-measure);
+  margin-inline: auto;
+}
+
+/*
+ * A row of the two-column table §7.1 asks for: "platform-correct key notation on
+ * the left and the action name on the right", with "consistent row rhythm".
+ *
+ * Grid rather than a table element, so the key column is one width down the whole
+ * sheet without markup saying so. The typographic pass — restrained inline-code
+ * style, aligned columns, minimal scrolling — is its own task; this is the shape.
+ */
+.zd-reference-row {
+  display: grid;
+  grid-template-columns: var(--transient-key-column) 1fr;
+  gap: var(--gap-paragraph);
+  align-items: baseline;
+  padding-block: var(--gap-list-item);
+}
+
+/* §5.2: key notation is code, and quiet. */
+.zd-reference-chord {
+  font-family: var(--type-code-family);
+  font-size: var(--type-code-size);
+  line-height: var(--type-prose-line);
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+/* The action name is prose, because it is prose. */
+.zd-reference-description {
+  font-family: var(--type-prose-family);
+  font-size: var(--type-prose-size);
+  line-height: var(--type-prose-line);
+  color: var(--text-primary);
+}
+
+/*
+ * A command that cannot run here — finding F16 and §7.1.
+ *
+ * Quieter, but the quiet is not the message: the row also carries the words
+ * "not available here", because §9 requires this state to be "understandable
+ * without colour" and a greyed line alone is indistinguishable from a working
+ * one to anyone who cannot see the grey. The colour is reinforcement.
+ *
+ * Not struck through, not hidden, no badge. §7.10 forbids badges, and hiding it
+ * would make the Reference incomplete rather than honest.
+ */
+.zd-reference-row[data-available="false"] .zd-reference-chord,
+.zd-reference-row[data-available="false"] .zd-reference-description {
+  color: var(--text-muted);
+}
+
+.zd-reference-note {
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  color: var(--text-muted);
+}

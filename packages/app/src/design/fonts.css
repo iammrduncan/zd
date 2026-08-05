@@ -1,0 +1,54 @@
+/*
+ * Bundled iA Writer faces. Never fetched. SIL OFL 1.1 — see assets/fonts/.
+ *
+ * The upstream static Bold face reports an OS/2 weight of 400 despite its bold
+ * outlines. The `font-weight: 700` descriptor below overrides that metadata so
+ * the face is selected explicitly rather than inferred. Do not remove it and do
+ * not let the browser synthesize a bold from the regular face.
+ *
+ * The two `V` faces are variable with a wght 400..700 axis. The single-value
+ * `font-weight: 400` descriptor is what keeps that axis pinned: weight matching
+ * picks among the declared faces, so an intermediate request lands on the shipped
+ * Regular or the shipped Bold instead of an interpolated instance. Widening it to
+ * a `400 700` range would expose exactly the unshipped 500-weight face DESIGN.md
+ * §5.2 forbids simulating.
+ *
+ * No Bold Italic ships. Markdown resolves nested strong and emphasis to upright
+ * Bold before face matching; a raw 700 italic request falls back to the drawn
+ * 400 italic. In both cases `font-synthesis: none` in reset.css stops the engine
+ * inventing the missing face. That rule is load-bearing.
+ *
+ * tests/e2e/fonts.spec.ts holds all of this to pixels.
+ */
+
+@font-face {
+  font-family: "iA Writer Quattro";
+  src: url("/fonts/iAWriterQuattroV.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "iA Writer Quattro";
+  src: url("/fonts/iAWriterQuattroV-Italic.ttf") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "iA Writer Quattro";
+  src: url("/fonts/iAWriterQuattroS-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "iA Writer Mono";
+  src: url("/fonts/iAWriterMonoS-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}

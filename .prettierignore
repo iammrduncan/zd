@@ -1,0 +1,15 @@
+# Prettier formats code, not prose. Hand-written docs keep their own line breaks.
+docs/
+*.md
+!src/**/*.md
+
+packages/app/dist
+node_modules
+packages/tauri/target
+packages/tauri/gen
+packages/tauri/icons
+packages/app/assets/fonts
+coverage
+playwright-report
+test-results
+packages/app/tests/fixtures

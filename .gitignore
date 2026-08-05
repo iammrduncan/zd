@@ -1,0 +1,15 @@
+node_modules/
+packages/app/dist/
+packages/tauri/target/
+packages/tauri/gen/
+test-results/
+playwright-report/
+coverage/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+target/
+zd-feedback.md
+zd-feedback.txt

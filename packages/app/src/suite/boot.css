@@ -1,0 +1,21 @@
+/*
+ * The one thing the suite can draw without a mini app.
+ *
+ * DESIGN.md §7.10: a notice is "a sentence on the canvas, never a toast, modal,
+ * banner, badge, or reserved status area" — so there is no background, border,
+ * icon, or control here and there must never be one. It is failure text, and the
+ * temptation to make failure *look* like failure is exactly how a calm surface
+ * grows a red box.
+ *
+ * All it needs is the §5.3 inset. Without one the sentence sits flush in the
+ * corner of the window, which reads as a browser error page rather than as this
+ * app having something to tell you. `body` already supplies the prose face and the
+ * canvas (design/reset.css), so nothing else is restated here.
+ */
+.zd-boot-notice {
+  margin: var(--reading-inset-top) var(--reading-inset-x);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+  color: var(--text-secondary);
+}

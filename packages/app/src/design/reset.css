@@ -1,0 +1,80 @@
+/*
+ * Minimal reset. The product is chrome-free by construction, so this mostly
+ * removes defaults that would fight the typography.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/*
+ * `#zd` is the suite's host element from index.html. It is in the height chain
+ * on purpose: a mini app's scroll container sizes itself against the window, and
+ * a host of `height: auto` would let the surface grow to its content instead, so
+ * nothing would ever scroll.
+ */
+html,
+body,
+#zd {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-prose);
+  font-size: var(--type-prose-size);
+  line-height: var(--type-prose-line);
+
+  /* DESIGN.md §5.1: no synthetic bold, italic, or oblique. Ever. */
+  font-synthesis: none;
+
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Chrome-free: the window is the document. Nothing here is selectable UI. */
+body {
+  overflow: hidden;
+}
+
+/*
+ * The suite's native grab handle. It occupies only the empty part of the top
+ * reading inset, so dragging the chrome-free window never steals a click from
+ * document text. Tauri listens on the element carrying the data attribute;
+ * keeping it childless also keeps that native contract exact.
+ */
+.zd-window-drag-region {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 4;
+  height: var(--space-5);
+}
+
+code,
+pre,
+kbd {
+  font-family: var(--font-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  /*
+   * **Eased scrolling is deliberately not turned off here**, and the empty space is
+   * worth a sentence because the rule was written and then removed on 2026-07-30.
+   *
+   * `scroll-behavior: auto !important` looks like it would cover it and cannot. An
+   * explicit `behavior` passed to `scrollTo` overrides the CSS by specification, and
+   * the `nudge` easing is our own animation on `scrollTop` that no stylesheet can
+   * see. Both are answered in `miniapps/md/scroll.ts`, which asks this media query
+   * directly — a rule that quietly does nothing is worse than no rule.
+   */
+}

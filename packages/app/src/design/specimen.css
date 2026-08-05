@@ -1,0 +1,103 @@
+/*
+ * Specimen chrome. Dev-only, but it consumes the same tokens as the product —
+ * a design tool that invented its own sizes would be lying about the system it
+ * exists to show.
+ */
+
+body {
+  /* The specimen scrolls; the product deliberately does not. */
+  overflow: auto;
+}
+
+#specimen {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4);
+}
+
+.specimen-controls {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--space-3) 0;
+  background: var(--surface-canvas);
+  border-bottom: 1px solid var(--line-quiet);
+}
+
+.specimen-button {
+  font-family: var(--type-action-family);
+  font-size: var(--type-action-size);
+  line-height: var(--type-action-line);
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.specimen-button[aria-pressed="true"] {
+  color: var(--text-primary);
+  border-bottom-color: var(--line-focus);
+}
+
+.specimen-section {
+  margin-top: var(--space-5);
+}
+
+.specimen-section-title {
+  font-family: var(--type-h3-family);
+  font-size: var(--type-h3-size);
+  line-height: var(--type-h3-line);
+  font-weight: var(--type-h3-weight);
+  margin: 0;
+}
+
+.specimen-section-note {
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+  color: var(--text-secondary);
+  margin: var(--space-1) 0 var(--space-4);
+}
+
+.specimen-row {
+  display: grid;
+  grid-template-columns: 10rem 1fr 11rem;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--line-quiet);
+}
+
+.specimen-row--colour {
+  align-items: center;
+}
+
+/* Labels and metrics are navigation texture, not prose — Mono, per §5.2. */
+.specimen-label,
+.specimen-metrics {
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-navigation-size);
+  line-height: var(--type-navigation-line);
+  color: var(--text-secondary);
+}
+
+.specimen-metrics {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.specimen-sample {
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.specimen-swatch {
+  height: var(--space-5);
+  border: 1px solid var(--line-quiet);
+  border-radius: 2px;
+}
