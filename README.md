@@ -7,6 +7,8 @@ motion of a dedicated reading surface.
 `zd md` is the first tool in Zen Suite: one `zd` command for small tools that support
 AI-assisted development and review.
 
+![zd md Markdown reader showing a focused paragraph in a workspace](docs/assets/zd-reader.jpeg)
+
 ## Install on macOS
 
 Download the Apple Silicon or Intel DMG and its checksum from the

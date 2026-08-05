@@ -24,6 +24,7 @@
     "icons:generate": "bash packaging/macos/generate-icons.sh",
     "install:macos": "bash packaging/macos/install.sh",
     "package:macos": "bash packaging/macos/package.sh",
+    "promo:render": "swift packaging/macos/render-social-card.swift docs/assets/zd-reader.jpeg packaging/icon.png packages/app/assets/fonts/iAWriterQuattroV.ttf packages/app/assets/fonts/iAWriterQuattroS-Bold.ttf packages/app/assets/fonts/iAWriterMonoS-Regular.ttf docs/assets/zd-social-card.png",
     "tokens:unused": "node packages/scripts/list-unused-tokens.mjs",
     "zdarchive": "node packages/scripts/archive-tasks.mjs",
     "zdloop": "node packages/scripts/session-loop.mjs",

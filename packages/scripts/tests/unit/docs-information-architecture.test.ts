@@ -13,6 +13,7 @@ const PUBLIC_PAGES = [
   "docs/how-to/develop.md",
   "docs/reference/cli.md",
   "docs/explanation/architecture.md",
+  "docs/promotion/v0.1.0.md",
 ];
 
 function page(path: string) {

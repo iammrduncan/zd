@@ -34,6 +34,7 @@ project history remain available without making the README carry them.
 ## Project records
 
 - [Current task plan](todo.txt)
+- [v0.1.0 promotion kit](promotion/v0.1.0.md)
 - [Open-source readiness audit](audit/2026-08-05-open-source-readiness.md)
 - [Way of working](way-of-working/)
 - [First-prototype goals and evidence](goals/initial-prototype/)
