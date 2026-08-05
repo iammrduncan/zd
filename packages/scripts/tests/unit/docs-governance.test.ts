@@ -16,7 +16,7 @@ const ADRS = [
   "docs/adr/md/0003-confirm-writes-before-marking-a-document-clean_H.md",
   "docs/adr/md/0004-treat-rendered-markdown-as-untrusted_H.md",
   "docs/adr/repository/0001-use-a-feedback-driven-session-loop_H.md",
-  "docs/adr/repository/0002-publish-versioned-macos-releases_H.md",
+  "docs/adr/repository/0002-publish-versioned-desktop-releases_H.md",
   "docs/adr/repository/0003-organize-docs-by-authority-and-audience_H.md",
 ];
 

@@ -18,6 +18,15 @@ but not Developer ID signed or notarized.
 Follow the [macOS installation guide](docs/user-facing-docs/how-to/install-macos.md) to verify the
 download, copy the app, and put `zd` on PATH.
 
+## Install on Windows
+
+Download the Windows x64 setup executable and its checksum from the
+[latest release](https://github.com/iammrduncan/zd/releases/latest). The v0.1 Windows installer is
+not code signed, so Windows may show a SmartScreen warning.
+
+Follow the [Windows installation guide](docs/user-facing-docs/how-to/install-windows.md) to verify
+the installer before running it.
+
 ## Open a document
 
 ```sh
@@ -39,7 +48,7 @@ Once a document is open, hold `Cmd+.` (`Ctrl+.` off macOS) to see the live short
 - Folder workspaces, safe saves, external-change detection, and Markdown file association.
 - Local fonts and local files by default; remote images are not fetched.
 
-macOS is the primary v0.1 target. Windows packaging is still pending.
+macOS is the primary v0.1 target. Tagged releases also include a Windows x64 installer.
 
 ## Documentation
 
@@ -47,6 +56,7 @@ macOS is the primary v0.1 target. Windows packaging is still pending.
 | --- | --- |
 | Learn the reading and editing flow | [Open your first document](docs/user-facing-docs/tutorials/first-document.md) |
 | Install or update the macOS app | [Install on macOS](docs/user-facing-docs/how-to/install-macos.md) |
+| Install or update the Windows app | [Install on Windows](docs/user-facing-docs/how-to/install-windows.md) |
 | Look up command-line behavior | [CLI reference](docs/user-facing-docs/reference/cli.md) |
 | Understand the system boundaries | [Architecture](docs/user-facing-docs/explanation/architecture.md) |
 | Browse guides, decisions, and project records | [Documentation map](docs/README.md) |

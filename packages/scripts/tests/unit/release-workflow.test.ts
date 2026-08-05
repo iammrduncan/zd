@@ -39,6 +39,18 @@ describe("the tagged release workflow", () => {
     expect(source).toContain("if-no-files-found: error");
   });
 
+  it("builds a checksum-verified Windows installer", () => {
+    const source = workflow();
+
+    expect(source).toContain("build-windows:");
+    expect(source).toContain("runs-on: windows-2025");
+    expect(source).toContain("--bundles nsis");
+    expect(source).toContain("Get-FileHash");
+    expect(source).toContain("packages/tauri/target/release/bundle/nsis/zd_*.exe");
+    expect(source).toMatch(/publish:[\s\S]*?needs: \[build-macos, build-windows\]/);
+    expect(source).toContain("dist/*.exe");
+  });
+
   it("publishes existing-tag assets with the narrow write permission", () => {
     const source = workflow();
 
@@ -64,6 +76,7 @@ describe("the tagged release workflow", () => {
     expect(guide).toContain("git tag -a v<version>");
     expect(guide).toContain("git push origin v<version>");
     expect(guide).toMatch(/Apple Silicon and\s+Intel DMGs/);
+    expect(guide).toContain("Windows x64 NSIS installer");
     expect(guide).toContain("SHA-256 checksum");
   });
 });

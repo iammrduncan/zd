@@ -30,9 +30,13 @@ git push origin v<version>
 
 The tag starts `.github/workflows/release.yml`. It runs the static, unit, end-to-end, and native
 checks before packaging. A failed check publishes nothing. A green run builds Apple Silicon and
-Intel DMGs, verifies each image, writes a SHA-256 checksum beside each download, and creates the
-GitHub Release from the existing tag with generated release notes.
+Intel DMGs plus a Windows x64 NSIS installer. It verifies each disk image, writes a SHA-256 checksum
+beside every download, and creates the GitHub Release from the existing tag with generated release
+notes.
 
 The v0.1 line is ad-hoc signed so macOS can verify that the completed bundle has not changed. It is
 not Developer ID signed or notarized; signing and notarization remain explicitly outside this
 prototype's scope in `docs/_internal/objectives/vision.md` §11.
+
+The Windows installer is not code signed. Windows may show a SmartScreen warning even when its
+SHA-256 checksum matches the release.
