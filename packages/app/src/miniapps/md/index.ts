@@ -10,6 +10,7 @@ import { closeConfirmation } from "./close-confirmation";
 import { mountWorkspace, type MountedDocument } from "./workspace";
 import type { ReviewDocument } from "./review";
 import "./styles/md.css";
+import "./styles/content.css";
 import "./styles/review.css";
 
 /** Feedback asks for the launch lesson to stay long enough to read once. */

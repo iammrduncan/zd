@@ -1,5 +1,6 @@
 import "@/design/index.css";
 import "../styles/md.css";
+import "../styles/content.css";
 
 import { createEditor } from "./editor";
 import { setGranularity } from "./focus";
