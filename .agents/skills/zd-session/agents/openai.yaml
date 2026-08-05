@@ -1,0 +1,4 @@
+interface:
+  display_name: "ZD Session"
+  short_description: "Run one scoped zd development session"
+  default_prompt: "Use $zd-session to run the next open zd task."

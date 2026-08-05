@@ -1,0 +1,4 @@
+interface:
+  display_name: "ZD Triage"
+  short_description: "Turn zd feedback into prioritized tasks"
+  default_prompt: "Use $zd-triage to process the feedback inbox without implementing work."

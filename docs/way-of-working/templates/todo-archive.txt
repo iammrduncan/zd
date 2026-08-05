@@ -1,0 +1,10 @@
+# <project> — completed tasks, moved out of todo.txt by /archive
+# Same format as the task list. Newest block last. Nothing here is edited or deleted.
+#
+# This is the session log. todo.txt is the plan. They were one file until the plan got hard to
+# read, and splitting them is the only reason finished work can be kept forever without cost.
+#
+# Still plain text, so it answers the same questions the task list does:
+#   what shipped in phase 1       grep '+p1' todo-archive.txt
+#   what came from real usage     grep '+fb' todo-archive.txt
+#   what a session actually did   grep 'sess:1.3' todo-archive.txt

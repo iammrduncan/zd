@@ -1,0 +1,4 @@
+interface:
+  display_name: "ZD Status"
+  short_description: "Report the current zd project status"
+  default_prompt: "Use $zd-status to report the current project phase, next task, feedback, and health."
