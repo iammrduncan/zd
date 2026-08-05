@@ -88,8 +88,10 @@ test("crossing a rendered link costs far fewer presses than its source is long",
    * than what is drawn, and before atomic ranges every one of those was a press.
    */
   expect(presses, "the caret is walking through hidden source").toBeLessThan(line.source.length);
-  expect(presses, "more presses than the line has visible characters, plus its hidden runs").
-    toBeLessThanOrEqual(visible + 4);
+  expect(
+    presses,
+    "more presses than the line has visible characters, plus its hidden runs",
+  ).toBeLessThanOrEqual(visible + 4);
 });
 
 test("no key press leaves the caret sitting still", async ({ page }) => {
@@ -137,7 +139,9 @@ test("no key press leaves the caret sitting still", async ({ page }) => {
     return worst;
   }, line.to);
 
-  expect(longestStall, "the caret stopped moving while the key kept working").toBeLessThanOrEqual(1);
+  expect(longestStall, "the caret stopped moving while the key kept working").toBeLessThanOrEqual(
+    1,
+  );
 });
 
 test("clicking where the caret is drawn puts the caret back there", async ({ page }) => {
@@ -265,11 +269,7 @@ test("raw mode and rendered mode agree on the source, whatever the caret did", a
  */
 
 /** Type `text` one character at a time on a fresh line after `after`. */
-async function typeOnFreshLine(
-  page: import("@playwright/test").Page,
-  after: string,
-  text: string,
-) {
+async function typeOnFreshLine(page: import("@playwright/test").Page, after: string, text: string) {
   const at = await page.evaluate((needle) => {
     const lines = window.zdEditor!.text().split("\n");
     const index = lines.findIndex((line) => line.includes(needle));
@@ -282,7 +282,10 @@ async function typeOnFreshLine(
   // One character at a time, deliberately. `insertText` hid the fence bug completely
   // because the construct never existed in a half-typed state.
   await page.keyboard.type(text);
-  return { line: at, text: (await page.evaluate((n) => window.zdEditor!.text().split("\n")[n - 1], at)) ?? "" };
+  return {
+    line: at,
+    text: (await page.evaluate((n) => window.zdEditor!.text().split("\n")[n - 1], at)) ?? "",
+  };
 }
 
 test("inline code can be typed without the caret leaving the line", async ({ page }) => {
@@ -298,7 +301,11 @@ test("inline code can be typed without the caret leaving the line", async ({ pag
 
 test("a link can be typed without the caret leaving the line", async ({ page }) => {
   await page.locator(".cm-content").click();
-  const written = await typeOnFreshLine(page, "The paragraph after it starts", "see [here](http://x.dev)");
+  const written = await typeOnFreshLine(
+    page,
+    "The paragraph after it starts",
+    "see [here](http://x.dev)",
+  );
 
   /*
    * The destination hides the instant the closing paren completes the link, and the
@@ -451,7 +458,8 @@ test("a fence's last code line keeps the caret, whatever follows the block", asy
         }
         await new Promise((done) => requestAnimationFrame(done));
         const landed = window.zdEditor!.selection().line;
-        if (landed !== index + 1) missed.push(`${needle} at the ${where}: ${index + 1} -> ${landed}`);
+        if (landed !== index + 1)
+          missed.push(`${needle} at the ${where}: ${index + 1} -> ${landed}`);
       }
     }
     return missed;

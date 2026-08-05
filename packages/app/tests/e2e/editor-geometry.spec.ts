@@ -102,7 +102,13 @@ test("every block widget occupies exactly its own box", async ({ page }) => {
       const occupied = Math.round(
         next.getBoundingClientRect().top - previous.getBoundingClientRect().bottom,
       );
-      return [{ what: `${element.tagName.toLowerCase()}.${element.className || "(unclassed)"}`, box, occupied }];
+      return [
+        {
+          what: `${element.tagName.toLowerCase()}.${element.className || "(unclassed)"}`,
+          box,
+          occupied,
+        },
+      ];
     });
   });
 

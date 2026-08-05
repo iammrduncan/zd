@@ -74,7 +74,10 @@ const leaveBlockquote: StateCommand = ({ state, dispatch }) => {
  * on, and it is the same fact notation-rows.ts uses to decide that an unclosed
  * fence's row must stay on screen.
  */
-function fenceAt(state: EditorState, pos: number): { node: SyntaxNode; marks: SyntaxNode[] } | null {
+function fenceAt(
+  state: EditorState,
+  pos: number,
+): { node: SyntaxNode; marks: SyntaxNode[] } | null {
   // Side 1, looking *forward* from `pos`. Both callers pass the start of a line, and
   // side -1 there resolves to whatever ends at that position — the line before, which
   // is outside the fence. Both commands silently declined on every fence in the

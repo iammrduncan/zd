@@ -223,7 +223,9 @@ function listLine(name: "md-line-item" | "md-line-item-cont", depth: number): De
   const key = `${name}:${depth}`;
   let deco = NESTED.get(key);
   if (!deco) {
-    deco = Decoration.line(depth ? { class: name, attributes: { style: `--nest:${depth}` } } : { class: name });
+    deco = Decoration.line(
+      depth ? { class: name, attributes: { style: `--nest:${depth}` } } : { class: name },
+    );
     NESTED.set(key, deco);
   }
   return deco;

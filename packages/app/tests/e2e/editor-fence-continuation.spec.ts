@@ -43,7 +43,11 @@ async function caretAtEndOfLine(page: import("@playwright/test").Page, needle: s
 /** `count` source lines starting at one-based `at`. */
 async function lines(page: import("@playwright/test").Page, at: number, count: number) {
   return page.evaluate(
-    ({ from, take }) => window.zdEditor!.text().split("\n").slice(from - 1, from - 1 + take),
+    ({ from, take }) =>
+      window
+        .zdEditor!.text()
+        .split("\n")
+        .slice(from - 1, from - 1 + take),
     { from: at, take: count },
   );
 }
@@ -59,11 +63,7 @@ async function lines(page: import("@playwright/test").Page, at: number, count: n
  * removed — and is filed; it is not what these specs are about, and letting it
  * decide the setup would mean measuring it by accident.
  */
-async function openingFence(
-  page: import("@playwright/test").Page,
-  marker: string,
-  at: number,
-) {
+async function openingFence(page: import("@playwright/test").Page, marker: string, at: number) {
   await page.keyboard.insertText(marker);
   // By line number, not by searching for the marker. The fixture already contains a
   // line that is exactly ```rust, so searching found *that* one and quietly moved the

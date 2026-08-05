@@ -68,18 +68,17 @@ describe("markdown notation in the editing surface", () => {
       // The distinction is the whole point of finding F12: the marker line hangs
       // its marker out of the column, and a line that continues the item in the
       // source is already at the text origin and must not hang anything.
-      const doc = ["- an item whose text", "  carries on over a second source line", "- another"].join(
-        "\n",
-      );
+      const doc = [
+        "- an item whose text",
+        "  carries on over a second source line",
+        "- another",
+      ].join("\n");
 
       expect(classesOf(doc)).toEqual([["md-line-item"], ["md-line-item-cont"], ["md-line-item"]]);
     });
 
     it("marks ordered items the same way as unordered ones", () => {
-      expect(classesOf("1. first\n2. second")).toEqual([
-        ["md-line-item"],
-        ["md-line-item"],
-      ]);
+      expect(classesOf("1. first\n2. second")).toEqual([["md-line-item"], ["md-line-item"]]);
     });
 
     it("marks a nested item as an item in its own right", () => {
@@ -128,12 +127,7 @@ describe("markdown notation in the editing surface", () => {
         "```",
       ].join("\n");
 
-      expect(classesOf(doc)).toEqual([
-        [],
-        ["md-line-code"],
-        ["md-line-code"],
-        ["md-line-code"],
-      ]);
+      expect(classesOf(doc)).toEqual([[], ["md-line-code"], ["md-line-code"], ["md-line-code"]]);
     });
   });
 });

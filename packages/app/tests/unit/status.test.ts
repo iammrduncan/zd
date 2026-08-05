@@ -42,9 +42,9 @@ describe("statusLine", () => {
     // The agent logs this app exists to read run to hundreds of thousands of
     // characters, and `418206 characters` is not a number anyone reads at a
     // glance from a line that leaves after ten seconds.
-    expect(statusLine({ words: 41_820, characters: 418_206, lines: 9_120, dirty: false })).toContain(
-      "418,206 characters",
-    );
+    expect(
+      statusLine({ words: 41_820, characters: 418_206, lines: 9_120, dirty: false }),
+    ).toContain("418,206 characters");
   });
 });
 

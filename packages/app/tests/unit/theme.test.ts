@@ -9,10 +9,7 @@ import { describe, expect, it } from "vitest";
 // floors once warmth and focus dimming are applied is a pipeline claim for when
 // those land — §4.3 requires measuring the final output, not just the inputs.
 
-const TOKENS = readFileSync(
-  resolve(process.cwd(), "packages/app/src/design/tokens.css"),
-  "utf8",
-);
+const TOKENS = readFileSync(resolve(process.cwd(), "packages/app/src/design/tokens.css"), "utf8");
 
 /** The §4.3 table: role, light, dark. */
 const COLOUR_ROLES = [

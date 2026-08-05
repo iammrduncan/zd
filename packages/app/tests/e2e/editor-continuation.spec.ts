@@ -46,13 +46,13 @@ async function caretAtEndOfLine(page: import("@playwright/test").Page, needle: s
 }
 
 /** The source lines around line `number`, one-based. */
-async function linesAround(
-  page: import("@playwright/test").Page,
-  number: number,
-  span: number,
-) {
+async function linesAround(page: import("@playwright/test").Page, number: number, span: number) {
   return page.evaluate(
-    ({ at, count }) => window.zdEditor!.text().split("\n").slice(at - 1, at - 1 + count),
+    ({ at, count }) =>
+      window
+        .zdEditor!.text()
+        .split("\n")
+        .slice(at - 1, at - 1 + count),
     { at: number, count: span },
   );
 }

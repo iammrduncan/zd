@@ -10,10 +10,7 @@ import { describe, expect, it } from "vitest";
 // var() or calc() chains.
 
 // jsdom rewrites import.meta.url to an http URL, so resolve from the repo root.
-const TOKENS = readFileSync(
-  resolve(process.cwd(), "packages/app/src/design/tokens.css"),
-  "utf8",
-);
+const TOKENS = readFileSync(resolve(process.cwd(), "packages/app/src/design/tokens.css"), "utf8");
 
 /** Every role in the DESIGN.md §5.2 table, by token stem. */
 const ROLES = [

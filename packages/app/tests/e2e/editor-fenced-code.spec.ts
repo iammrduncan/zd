@@ -61,9 +61,7 @@ test("the three categories are the reader's own colours", async ({ page }) => {
 
   const editing = await page.evaluate(() => {
     const read = (cls: string) => {
-      const node = document.querySelector<HTMLElement>(
-        `.cm-line[data-focus="target"] .${cls}`,
-      );
+      const node = document.querySelector<HTMLElement>(`.cm-line[data-focus="target"] .${cls}`);
       return node ? getComputedStyle(node).color : null;
     };
     return {
@@ -127,9 +125,7 @@ test("dimming a code block keeps its categories distinguishable", async ({ page 
 
   const dimmed = await page.evaluate(() => {
     const colours = ["md-syn-keyword", "md-syn-string", "md-syn-comment"].map((cls) => {
-      const node = document.querySelector<HTMLElement>(
-        `.cm-line[data-focus="context"] .${cls}`,
-      );
+      const node = document.querySelector<HTMLElement>(`.cm-line[data-focus="context"] .${cls}`);
       return node ? getComputedStyle(node).color : null;
     });
     return colours;
@@ -138,7 +134,10 @@ test("dimming a code block keeps its categories distinguishable", async ({ page 
   // §5.2: "syntax remains distinguishable at the warmest setting and without
   // colour", and §4.4 dims context without flattening it — a dimmed code block is
   // still a code block, so the three categories must not collapse into one ink.
-  expect(dimmed.every((c) => c !== null), "no dimmed code was found").toBe(true);
+  expect(
+    dimmed.every((c) => c !== null),
+    "no dimmed code was found",
+  ).toBe(true);
   expect(new Set(dimmed).size, "the categories collapsed when dimmed").toBe(3);
 });
 
@@ -160,7 +159,10 @@ test("the fence markers and language tag are not drawn", async ({ page }) => {
 test("hiding the fence leaves no blank rows of plane", async ({ page }) => {
   const rows = await page.evaluate(() => {
     const all = [...document.querySelectorAll<HTMLElement>(".md-line-code")];
-    return all.map((line) => ({ text: line.textContent ?? "", height: line.getBoundingClientRect().height }));
+    return all.map((line) => ({
+      text: line.textContent ?? "",
+      height: line.getBoundingClientRect().height,
+    }));
   });
 
   // Replacing the fence characters inline would leave the *line* behind — an empty

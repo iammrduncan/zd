@@ -137,12 +137,13 @@ test("the Reference lists it and says when it cannot run", async ({ page }) => {
   await page.keyboard.down("ControlOrMeta");
   await page.keyboard.down("Period");
 
-  const row = await page.locator(".zd-reference-row", { hasText: "caret" }).first().evaluate(
-    (el) => ({
+  const row = await page
+    .locator(".zd-reference-row", { hasText: "caret" })
+    .first()
+    .evaluate((el) => ({
       chord: el.querySelector(".zd-reference-chord")?.textContent?.trim() ?? "",
       available: el.getAttribute("data-available"),
-    }),
-  );
+    }));
 
   // §7.1: the Reference renders the registry, and states honestly whether a
   // binding can run here. No caret has been placed, so this one cannot.

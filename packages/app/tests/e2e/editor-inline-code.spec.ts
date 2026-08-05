@@ -138,7 +138,9 @@ test("the backticks stay on screen and stay quiet", async ({ page }) => {
   expect(marks.markColour, "the backticks are not marked as notation").not.toBeNull();
 });
 
-test("inline code in a heading keeps the heading's size and Mono Regular face", async ({ page }) => {
+test("inline code in a heading keeps the heading's size and Mono Regular face", async ({
+  page,
+}) => {
   const heading = await page.evaluate(() => {
     const line = [...document.querySelectorAll<HTMLElement>(".cm-line")].find(
       (el) => el.className.includes("md-line-h3") && el.textContent?.includes("renderMarkdown"),

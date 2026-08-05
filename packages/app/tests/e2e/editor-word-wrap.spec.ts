@@ -123,7 +123,9 @@ test("toggling keeps the caret, the document, and the scroll position", async ({
    */
   expect(after.head, "the caret moved").toBe(before.head);
   expect(after.text, "the document changed").toBe(before.text);
-  expect(Math.abs(after.lineTop - anchoredAt), "the caret's line jumped on screen").toBeLessThan(40);
+  expect(Math.abs(after.lineTop - anchoredAt), "the caret's line jumped on screen").toBeLessThan(
+    40,
+  );
 });
 
 test("the Reference lists it, so it is discoverable", async ({ page }) => {
@@ -208,7 +210,10 @@ test("with wrapping on, the document never scrolls sideways", async ({ page }) =
     const surface = document.querySelector<HTMLElement>(".md-surface")!;
     surface.scrollLeft = 400;
     await new Promise((done) => requestAnimationFrame(done));
-    return { overflow: surface.scrollWidth - surface.clientWidth, left: Math.round(surface.scrollLeft) };
+    return {
+      overflow: surface.scrollWidth - surface.clientWidth,
+      left: Math.round(surface.scrollLeft),
+    };
   });
 
   /*

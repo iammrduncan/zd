@@ -64,12 +64,7 @@ const cargoManifestUpdated = replaceCargoPackageVersion(
   "zd",
   version,
 );
-const cargoLockUpdated = replaceCargoPackageVersion(
-  cargoLockSource,
-  "[[package]]",
-  "zd",
-  version,
-);
+const cargoLockUpdated = replaceCargoPackageVersion(cargoLockSource, "[[package]]", "zd", version);
 const tauriPath = resolve(root, "packages/tauri/tauri.conf.json");
 const tauri = readJson(tauriPath);
 const tauriSynchronized = tauri.version === "../../package.json";
@@ -77,16 +72,8 @@ tauri.version = "../../package.json";
 
 const updates = [
   [packageLockPath, formatJson(packageLock), packageLockSynchronized],
-  [
-    cargoManifestPath,
-    cargoManifestUpdated,
-    cargoManifestSource === cargoManifestUpdated,
-  ],
-  [
-    cargoLockPath,
-    cargoLockUpdated,
-    cargoLockSource === cargoLockUpdated,
-  ],
+  [cargoManifestPath, cargoManifestUpdated, cargoManifestSource === cargoManifestUpdated],
+  [cargoLockPath, cargoLockUpdated, cargoLockSource === cargoLockUpdated],
   [tauriPath, formatJson(tauri), tauriSynchronized],
 ];
 
