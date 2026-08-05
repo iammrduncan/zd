@@ -14,7 +14,7 @@ Only human notes land here. What the agent notices goes to `docs/agent-findings.
 
 the app is already 1000 times better than the rust version
 why are there random html files in root directory of repo?
-from root folder I ran `npm run app:open -- md README.md` but got error: `Could not read /Users/jdunca/github/zd/src-tauri/README.md — /Users/jdunca/github/zd/src-tauri/README.md: No such file or directory (os error 2)`... solved this by directory traversal attacking it my self to open `../README.md` instead.
+from root folder I ran `npm run app:open -- md README.md` but got error: `Could not read /Users/example/github/zd/src-tauri/README.md — /Users/example/github/zd/src-tauri/README.md: No such file or directory (os error 2)`... solved this by directory traversal attacking it my self to open `../README.md` instead.
 ! the highlight is not pronounced enough. the other part of the document should be more significantly dimmed.
 the highlight should not move by mouse cursor, it should be the focused area of the document.
 reading and editing mode should be one in the same, so I can place my cursor and use that as the area of focus.

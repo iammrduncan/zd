@@ -69,4 +69,19 @@ describe("the public repository boundary", () => {
 
     expect(broken).toEqual([]);
   });
+
+  it("does not publish machine-local home directories in public documentation", () => {
+    const rootMarkdown = readdirSync(ROOT, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+      .map((entry) => resolve(ROOT, entry.name));
+    const markdown = [...rootMarkdown, ...filesUnder(DOCS).filter((path) => path.endsWith(".md"))];
+    const machinePaths = markdown.flatMap((path) => {
+      const source = readFileSync(path, "utf8");
+      return [...source.matchAll(/\/Users\/([^/\s`]+)/g)]
+        .filter((match) => match[1] !== "example")
+        .map((match) => `${relative(ROOT, path)}: /Users/${match[1]}`);
+    });
+
+    expect(machinePaths).toEqual([]);
+  });
 });
