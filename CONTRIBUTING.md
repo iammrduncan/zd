@@ -5,7 +5,7 @@
 ## Before opening a change
 
 1. Read [AGENTS.md](AGENTS.md) for the repository's engineering rules.
-2. Install the Node and Rust prerequisites from [README.md](README.md#development).
+2. Follow [Develop zd](docs/how-to/develop.md) to install dependencies and run the app.
 3. Create a focused branch from `main`.
 4. Add or update tests with every code change. Bug fixes must start with a failing regression test.
 
