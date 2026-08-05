@@ -7,7 +7,7 @@ Accepted
 ## Context
 
 The first rebuild plan separated a reader from a later editor. Human feedback accepted a different
-product model in [ZSIP 0002](../../zsip/0002-make-rendered-markdown-always-editable_H.md).
+product model: the rendered Markdown surface must remain directly editable.
 
 Focus, caret movement, source notation, word wrap, dirty state, and save behavior all refer to one
 document position. Two surfaces would need synchronization or repeated implementation.

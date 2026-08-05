@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -14,13 +14,9 @@ const ADRS = [
   "docs/adr/md/0002-use-one-always-editable-document-surface_H.md",
   "docs/adr/md/0003-confirm-writes-before-marking-a-document-clean_H.md",
   "docs/adr/md/0004-treat-rendered-markdown-as-untrusted_H.md",
-];
-const ZSIPS = [
-  "docs/zsip/0001-rebuild-zd-md-on-a-browser-text-engine_H.md",
-  "docs/zsip/0002-make-rendered-markdown-always-editable_H.md",
-  "docs/zsip/0003-use-a-feedback-driven-session-loop_H.md",
-  "docs/zsip/0004-publish-versioned-macos-releases_H.md",
-  "docs/zsip/0005-organize-docs-by-authority-and-audience_H.md",
+  "docs/adr/repository/0001-use-a-feedback-driven-session-loop_H.md",
+  "docs/adr/repository/0002-publish-versioned-macos-releases_H.md",
+  "docs/adr/repository/0003-organize-docs-by-authority-and-audience_H.md",
 ];
 
 const page = (path: string): string => readFileSync(resolve(ROOT, path), "utf8");
@@ -47,25 +43,15 @@ describe("the Zen Suite documentation governance system", () => {
     }
   });
 
-  it("preserves broad proposal history as numbered ZSIPs", () => {
-    expect(ZSIPS.filter((path) => !existsSync(resolve(ROOT, path)))).toEqual([]);
-
+  it("creates numbered ZSIPs only from submitted pull requests", () => {
+    const numberedProposals = readdirSync(resolve(ROOT, "docs/zsip")).filter((name) =>
+      /^\d{4}-.+\.md$/.test(name),
+    );
     const index = page("docs/zsip/README.md");
-    for (const path of ZSIPS) {
-      const source = page(path);
-      expect(index, `${path} is not indexed`).toContain(path.replace("docs/zsip/", ""));
-      expect(source, path).toMatch(/^# \d{4}: .+$/m);
-      expect(source, path).toMatch(
-        /^## Status\n\n(?:Draft|Submitted|Accepted|Rejected|Withdrawn|Superseded)/m,
-      );
-      expect(source, path).toMatch(/^## Summary$/m);
-      expect(source, path).toMatch(/^## Motivation$/m);
-      expect(source, path).toMatch(/^## Proposal$/m);
-      expect(source, path).toMatch(/^## Alternatives$/m);
-      expect(source, path).toMatch(/^## Effects$/m);
-      expect(source, path).toMatch(/^## If we do not adopt this proposal$/m);
-      expect(source, path).toMatch(/^## Resulting ADRs$/m);
-    }
+
+    expect(numberedProposals).toEqual([]);
+    expect(index).toContain("No ZSIPs have been submitted");
+    expect(index).toContain("pull request");
   });
 
   it("applies folder instructions to ADRs and standalone user documentation", () => {

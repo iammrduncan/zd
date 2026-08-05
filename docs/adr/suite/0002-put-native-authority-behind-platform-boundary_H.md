@@ -9,8 +9,9 @@ Accepted
 The frontend needs files, launch information, external links, and window-close control. Direct
 Tauri calls throughout the product would couple every feature to one desktop shell.
 
-The [browser-engine proposal](../../zsip/0001-rebuild-zd-md-on-a-browser-text-engine_H.md) requires a
-portable frontend. Native operations also cross a security boundary and need one reviewable owner.
+The [portable-frontend decision](0001-use-tauri-with-portable-web-frontend_H.md) requires product
+code to run without a native shell. Native operations also cross a security boundary and need one
+reviewable owner.
 
 ## Decision
 

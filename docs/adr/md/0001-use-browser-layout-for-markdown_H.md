@@ -9,8 +9,8 @@ Accepted
 The first prototype spent most of its code and defect budget on rich-text layout. Lists, headings,
 code, wrapping, columns, and baseline alignment required custom geometry in egui.
 
-The [browser-engine proposal](../../zsip/0001-rebuild-zd-md-on-a-browser-text-engine_H.md) identifies
-document layout as the product's main technical need.
+The [path-forward record](../../_internal/path-forward.md) identifies document layout as the
+product's main technical need.
 
 ## Decision
 

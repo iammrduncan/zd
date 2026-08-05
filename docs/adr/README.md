@@ -25,6 +25,12 @@ changes through a [Zen Suite Improvement Proposal (ZSIP)](../zsip/README.md).
 - [0003: Confirm writes before marking a document clean](md/0003-confirm-writes-before-marking-a-document-clean_H.md)
 - [0004: Treat rendered Markdown as untrusted](md/0004-treat-rendered-markdown-as-untrusted_H.md)
 
+### Repository
+
+- [0001: Use a feedback-driven session loop](repository/0001-use-a-feedback-driven-session-loop_H.md)
+- [0002: Publish versioned macOS releases](repository/0002-publish-versioned-macos-releases_H.md)
+- [0003: Organize docs by authority and audience](repository/0003-organize-docs-by-authority-and-audience_H.md)
+
 ## Minimal format
 
 Each ADR uses the five-part format from Michael Nygard:

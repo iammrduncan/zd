@@ -6,9 +6,9 @@ user need, decision, implementation, and verification together.
 ## Rules
 
 1. File an issue for a bug, question, or small improvement that needs discussion.
-2. Submit a [ZSIP](docs/zsip/README.md) before a meaningful product, process, governance, or
-   architecture change. Small fixes that touch one behavior and a few files can go directly to a
-   pull request.
+2. For a meaningful product, process, governance, or architecture change, open a pull request that
+   submits a [ZSIP](docs/zsip/README.md). Small fixes that touch one behavior and a few files can go
+   directly to a pull request without a ZSIP.
 3. Follow accepted [ADRs](docs/adr/README.md). When an accepted ZSIP creates an architecture
    decision, maintainers record that decision as an ADR.
 4. Read [AGENTS.md](AGENTS.md) for repository engineering rules.
