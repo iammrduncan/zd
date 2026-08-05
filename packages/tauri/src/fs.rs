@@ -6,6 +6,7 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use crate::cli::LaunchState;
 use tauri_plugin_opener::OpenerExt;
 
 /// One file in the workspace tree, named both for opening and for display.
@@ -40,9 +41,6 @@ pub struct WorkspaceListing {
 /// `None` when the app was launched with no path at all. Everything is refused then,
 /// which is right: there is no document, and §5.3's Home surface will set a root
 /// before it offers to open anything.
-#[derive(Debug, Clone, Default)]
-pub struct Scope(pub Option<PathBuf>);
-
 /// Resolve `requested` and refuse it if it lands outside `root`.
 ///
 /// **Canonicalized, and the parent rather than the path itself.** `fs::canonicalize`
@@ -100,24 +98,26 @@ fn within_scope(root: &Path, requested: &str) -> Result<PathBuf, String> {
 ///
 /// A path that does not exist yet is treated as a file, because that is what `zd md
 /// new-file.md` means — the folder it will be created in is the scope.
-pub fn scope_for(path: &Path) -> PathBuf {
-    if path.is_dir() {
-        return path.to_path_buf();
-    }
-    path.parent().unwrap_or(path).to_path_buf()
+#[cfg(test)]
+fn scope_for(path: &Path) -> PathBuf {
+    crate::cli::scope_for(&path.to_string_lossy())
 }
 
 /// Check a path against the window's scope, or say why not.
-fn allowed(scope: &Scope, path: &str) -> Result<PathBuf, String> {
-    match &scope.0 {
+fn allowed(scope: Option<&Path>, path: &str) -> Result<PathBuf, String> {
+    match scope {
         Some(root) => within_scope(root, path),
         None => Err(format!("refused a path with no workspace open: {path}")),
     }
 }
 
 #[tauri::command]
-pub fn read_text_file(scope: tauri::State<'_, Scope>, path: String) -> Result<String, String> {
-    let path = allowed(&scope, &path)?;
+pub fn read_text_file(
+    launch: tauri::State<'_, LaunchState>,
+    path: String,
+) -> Result<String, String> {
+    let scope = launch.scope();
+    let path = allowed(scope.as_deref(), &path)?;
     std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))
 }
 
@@ -165,10 +165,10 @@ fn workspace_files_in(root: &Path) -> Result<WorkspaceListing, String> {
 /// The scoped tree shown by the Markdown workspace sidebar.
 #[tauri::command]
 pub fn workspace_files(
-    scope: tauri::State<'_, Scope>,
+    launch: tauri::State<'_, LaunchState>,
 ) -> Result<Option<WorkspaceListing>, String> {
-    match &scope.0 {
-        Some(root) => workspace_files_in(root).map(Some),
+    match launch.scope() {
+        Some(root) => workspace_files_in(&root).map(Some),
         None => Ok(None),
     }
 }
@@ -186,11 +186,12 @@ pub fn workspace_files(
 /// what you wrote is still there.
 #[tauri::command]
 pub fn write_text_file(
-    scope: tauri::State<'_, Scope>,
+    launch: tauri::State<'_, LaunchState>,
     path: String,
     contents: String,
 ) -> Result<(), String> {
-    let path = allowed(&scope, &path)?;
+    let scope = launch.scope();
+    let path = allowed(scope.as_deref(), &path)?;
     atomic_write(&path, &contents).map_err(|error| format!("{}: {error}", path.display()))
 }
 
@@ -213,7 +214,7 @@ pub fn write_text_file(
 /// not an exception to handle.
 #[tauri::command]
 pub fn file_stamp(
-    scope: tauri::State<'_, Scope>,
+    launch: tauri::State<'_, LaunchState>,
     path: String,
 ) -> Result<Option<FileStamp>, String> {
     /*
@@ -223,7 +224,8 @@ pub fn file_stamp(
      * loudly would put a scope error on the §7.3 notice every time the window came
      * back, about a path the reader never typed. Nothing is read either way.
      */
-    let Ok(path) = allowed(&scope, &path) else {
+    let scope = launch.scope();
+    let Ok(path) = allowed(scope.as_deref(), &path) else {
         return Ok(None);
     };
 
@@ -370,7 +372,7 @@ fn is_web_url(url: &str) -> bool {
 mod tests {
     use super::{
         allowed, atomic_write, is_web_url, scope_for, stamp_of, temporary_beside, within_scope,
-        workspace_files_in, Scope,
+        workspace_files_in,
     };
     use std::path::{Path, PathBuf};
 
@@ -414,12 +416,16 @@ mod tests {
         atomic_write(&scratch.join(".gitignore"), "generated/\n").unwrap();
 
         let workspace = workspace_files_in(&scratch.0).unwrap();
-        let relative: Vec<_> = workspace.files.iter().map(|file| file.relative.as_str()).collect();
+        let relative: Vec<_> = workspace
+            .files
+            .iter()
+            .map(|file| file.relative.as_str())
+            .collect();
 
         assert_eq!(relative, vec!["notes/a.MD", "z.md"]);
     }
 
-#[test]
+    #[test]
     fn a_missing_file_has_no_stamp() {
         let scratch = Scratch::new("stamp-missing");
         let path = scratch.join("never-written.md");
@@ -653,7 +659,7 @@ mod tests {
         let path = scratch.join("notes.md");
         atomic_write(&path, "# Notes\n").unwrap();
 
-        assert!(allowed(&Scope(None), &path.display().to_string()).is_err());
+        assert!(allowed(None, &path.display().to_string()).is_err());
     }
 
     #[test]

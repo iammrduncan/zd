@@ -9,6 +9,7 @@
 //! arguments and behaves like bare `zd md`.
 
 use std::path::{Component, Path, PathBuf};
+use std::sync::Mutex;
 
 use serde::Serialize;
 
@@ -24,6 +25,69 @@ pub struct LaunchRequest {
     pub miniapp: String,
     /// Absolute path, or `None` for "show your home surface".
     pub path: Option<String>,
+}
+
+#[derive(Debug)]
+struct LaunchSession {
+    current: LaunchRequest,
+    pending: Option<LaunchRequest>,
+    scope: Option<PathBuf>,
+}
+
+/// The one native source of truth for what this window may open.
+///
+/// Finder can ask an already-running macOS application to open another file.
+/// That request stays pending until the document confirms switching will not
+/// discard unsaved work; accepting it changes the launch request and filesystem
+/// scope under the same lock.
+#[derive(Debug)]
+pub struct LaunchState(Mutex<LaunchSession>);
+
+impl LaunchState {
+    pub fn new(current: LaunchRequest) -> Self {
+        let scope = current.path.as_deref().map(scope_for);
+        Self(Mutex::new(LaunchSession {
+            current,
+            pending: None,
+            scope,
+        }))
+    }
+
+    pub fn current(&self) -> LaunchRequest {
+        self.0
+            .lock()
+            .expect("launch state was poisoned")
+            .current
+            .clone()
+    }
+
+    pub fn scope(&self) -> Option<PathBuf> {
+        self.0
+            .lock()
+            .expect("launch state was poisoned")
+            .scope
+            .clone()
+    }
+
+    pub fn queue(&self, request: LaunchRequest) {
+        self.0.lock().expect("launch state was poisoned").pending = Some(request);
+    }
+
+    pub fn has_pending(&self) -> bool {
+        self.0
+            .lock()
+            .expect("launch state was poisoned")
+            .pending
+            .is_some()
+    }
+
+    pub fn accept_pending(&self) -> Option<LaunchRequest> {
+        let mut session = self.0.lock().expect("launch state was poisoned");
+        let request = session.pending.take()?;
+        session.scope = request.path.as_deref().map(scope_for);
+        session.current = request.clone();
+        Some(request)
+    }
 }
 
 /// The environment variable a development run uses to report the real cwd.
@@ -47,14 +111,27 @@ fn resolve_dir(override_dir: Option<PathBuf>, working_dir: PathBuf) -> PathBuf {
     }
 }
 
-#[tauri::command]
-pub fn launch_request() -> LaunchRequest {
+pub fn launch_from_environment() -> LaunchRequest {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cwd = resolve_dir(
         std::env::var_os(INVOCATION_DIR).map(PathBuf::from),
         std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
     );
     parse_args(&args, &cwd)
+}
+
+#[tauri::command]
+pub fn launch_request(state: tauri::State<'_, LaunchState>) -> LaunchRequest {
+    state.current()
+}
+
+/// Turn the first local file in a native open event into the default mini app.
+pub fn opened_request(urls: &[tauri::Url]) -> Option<LaunchRequest> {
+    let path = urls.iter().find_map(|url| url.to_file_path().ok())?;
+    Some(LaunchRequest {
+        miniapp: DEFAULT_MINIAPP.to_string(),
+        path: Some(path.to_string_lossy().into_owned()),
+    })
 }
 
 /// Pure so it can be tested without a process.
@@ -106,6 +183,16 @@ fn absolutize(raw: &str, cwd: &Path) -> String {
     cleaned.to_string_lossy().into_owned()
 }
 
+/// A launch path scopes file access to itself when it is a directory and to its
+/// parent when it names a document (including a document not created yet).
+pub fn scope_for(path: &str) -> PathBuf {
+    let path = Path::new(path);
+    if path.is_dir() {
+        return path.to_path_buf();
+    }
+    path.parent().unwrap_or(path).to_path_buf()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -142,7 +229,10 @@ mod tests {
     fn a_relative_override_is_ignored() {
         // An override that is itself relative would resolve against the very
         // directory it exists to replace, which is worse than not having one.
-        let resolved = resolve_dir(Some(PathBuf::from("../up")), PathBuf::from("/repo/src-tauri"));
+        let resolved = resolve_dir(
+            Some(PathBuf::from("../up")),
+            PathBuf::from("/repo/src-tauri"),
+        );
         assert_eq!(resolved, PathBuf::from("/repo/src-tauri"));
     }
 
@@ -206,5 +296,42 @@ mod tests {
             request.path.as_deref(),
             Some("/work/notes/not-created-yet.md")
         );
+    }
+
+    #[test]
+    fn a_finder_file_url_becomes_a_markdown_launch_request() {
+        let urls = vec![tauri::Url::parse("file:///work/notes/plan.md").unwrap()];
+
+        let request = opened_request(&urls).expect("the file URL should be accepted");
+
+        assert_eq!(request.miniapp, "md");
+        assert_eq!(request.path.as_deref(), Some("/work/notes/plan.md"));
+    }
+
+    #[test]
+    fn a_non_file_url_is_not_a_launch_request() {
+        let urls = vec![tauri::Url::parse("https://example.com/plan.md").unwrap()];
+
+        assert_eq!(opened_request(&urls), None);
+    }
+
+    #[test]
+    fn a_queued_open_does_not_replace_the_launch_until_it_is_accepted() {
+        let current = LaunchRequest {
+            miniapp: "md".to_string(),
+            path: Some("/work/notes/old.md".to_string()),
+        };
+        let state = LaunchState::new(current.clone());
+        let next = LaunchRequest {
+            miniapp: "md".to_string(),
+            path: Some("/work/notes/new.md".to_string()),
+        };
+
+        state.queue(next.clone());
+
+        assert_eq!(state.current(), current);
+        assert_eq!(state.accept_pending(), Some(next.clone()));
+        assert_eq!(state.current(), next);
+        assert_eq!(state.accept_pending(), None);
     }
 }

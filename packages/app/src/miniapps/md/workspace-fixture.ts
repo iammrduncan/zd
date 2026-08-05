@@ -16,6 +16,8 @@ const documents = new Map([
 const platform: Platform = {
   kind: "browser",
   launchRequest: async () => ({ miniapp: "md", path: root }),
+  onOpenRequested: () => () => {},
+  acceptOpenRequest: async () => null,
   workspaceFiles: async () => ({
     root,
     files: [

@@ -22,6 +22,8 @@ function stubPlatform(miniapp: string, path: string | null = null): Platform {
   return {
     kind: "browser",
     launchRequest: async () => ({ miniapp, path }),
+    onOpenRequested: () => () => {},
+    acceptOpenRequest: async () => null,
     workspaceFiles: async () => null,
     readTextFile: async () => "",
     writeTextFile: async () => {},

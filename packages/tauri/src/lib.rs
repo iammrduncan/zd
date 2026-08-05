@@ -6,6 +6,8 @@
 mod cli;
 mod fs;
 
+use tauri::{Emitter, Manager};
+
 /// Close the window, having been told it is safe to.
 ///
 /// The counterpart of the refusal below. Only the frontend knows whether there is
@@ -16,28 +18,38 @@ fn close_window(window: tauri::Window) -> Result<(), String> {
     window.destroy().map_err(|error| error.to_string())
 }
 
+/// Whether macOS has delivered a file-open request that the document has not
+/// accepted yet. This closes the small race between the native event and the
+/// webview installing its listener.
+#[tauri::command]
+fn has_pending_open_request(launch: tauri::State<'_, cli::LaunchState>) -> bool {
+    launch.has_pending()
+}
+
+/// Accept the queued Finder request and move the filesystem boundary with it.
+#[tauri::command]
+fn accept_open_request(launch: tauri::State<'_, cli::LaunchState>) -> Option<cli::LaunchRequest> {
+    launch.accept_pending()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     /*
-     * The filesystem scope, settled before the webview exists — audit finding M2.
-     *
-     * Read from the command line here rather than from `launch_request`, and the
-     * difference is the whole point: `launch_request` is a command the *frontend*
-     * calls, so a compromised webview could simply never call it, or call it twice.
-     * A trust boundary the untrusted side can move is not one. This is the same
-     * `parse_args` answer the frontend will be given, taken independently.
+     * The launch request and filesystem scope are one native state — audit M2.
+     * A CLI launch settles both before the webview exists. A Finder request is
+     * queued here and only accepted after the document says switching is safe;
+     * accepting moves both facts under one lock, so the old document never gains
+     * access to the new folder and never loses access while it is still unsaved.
      */
-    let scope = fs::Scope(
-        cli::launch_request()
-            .path
-            .map(|path| fs::scope_for(std::path::Path::new(&path))),
-    );
+    let launch = cli::LaunchState::new(cli::launch_from_environment());
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(scope)
+        .manage(launch)
         .invoke_handler(tauri::generate_handler![
             cli::launch_request,
+            has_pending_open_request,
+            accept_open_request,
             fs::read_text_file,
             fs::workspace_files,
             fs::write_text_file,
@@ -63,6 +75,18 @@ pub fn run() {
                 api.prevent_close();
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running zd");
+        .build(tauri::generate_context!())
+        .expect("error while building zd");
+
+    app.run(|app_handle, event| {
+        let tauri::RunEvent::Opened { urls } = event else {
+            return;
+        };
+        let Some(request) = cli::opened_request(&urls) else {
+            return;
+        };
+
+        app_handle.state::<cli::LaunchState>().queue(request);
+        let _ = app_handle.emit("open-requested", ());
+    });
 }

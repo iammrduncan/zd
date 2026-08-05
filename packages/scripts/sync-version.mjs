@@ -48,30 +48,49 @@ if (typeof version !== "string" || !semver.test(version)) {
 
 const packageLockPath = resolve(root, "package-lock.json");
 const packageLock = readJson(packageLockPath);
+const packageLockSynchronized =
+  packageLock.version === version && packageLock.packages?.[""]?.version === version;
 packageLock.version = version;
 if (!packageLock.packages?.[""]) throw new Error("package-lock.json has no root package");
 packageLock.packages[""].version = version;
 
 const cargoManifestPath = resolve(root, "packages/tauri/Cargo.toml");
 const cargoLockPath = resolve(root, "packages/tauri/Cargo.lock");
+const cargoManifestSource = readFileSync(cargoManifestPath, "utf8");
+const cargoLockSource = readFileSync(cargoLockPath, "utf8");
+const cargoManifestUpdated = replaceCargoPackageVersion(
+  cargoManifestSource,
+  "[package]",
+  "zd",
+  version,
+);
+const cargoLockUpdated = replaceCargoPackageVersion(
+  cargoLockSource,
+  "[[package]]",
+  "zd",
+  version,
+);
 const tauriPath = resolve(root, "packages/tauri/tauri.conf.json");
 const tauri = readJson(tauriPath);
+const tauriSynchronized = tauri.version === "../../package.json";
 tauri.version = "../../package.json";
 
 const updates = [
-  [packageLockPath, formatJson(packageLock)],
+  [packageLockPath, formatJson(packageLock), packageLockSynchronized],
   [
     cargoManifestPath,
-    replaceCargoPackageVersion(readFileSync(cargoManifestPath, "utf8"), "[package]", "zd", version),
+    cargoManifestUpdated,
+    cargoManifestSource === cargoManifestUpdated,
   ],
   [
     cargoLockPath,
-    replaceCargoPackageVersion(readFileSync(cargoLockPath, "utf8"), "[[package]]", "zd", version),
+    cargoLockUpdated,
+    cargoLockSource === cargoLockUpdated,
   ],
-  [tauriPath, formatJson(tauri)],
+  [tauriPath, formatJson(tauri), tauriSynchronized],
 ];
 
-const drift = updates.filter(([path, contents]) => readFileSync(path, "utf8") !== contents);
+const drift = updates.filter(([, , synchronized]) => !synchronized);
 
 if (checkOnly) {
   if (drift.length > 0) {

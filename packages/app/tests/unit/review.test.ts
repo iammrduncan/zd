@@ -21,6 +21,8 @@ function platform(writeTextFile: Platform["writeTextFile"] = async () => {}): Pl
   return {
     kind: "browser",
     launchRequest: async () => ({ miniapp: "md", path: "/workspace" }),
+    onOpenRequested: () => () => {},
+    acceptOpenRequest: async () => null,
     workspaceFiles: async () => null,
     readTextFile: async () => "",
     writeTextFile,

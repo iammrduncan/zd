@@ -33,6 +33,8 @@ describe("quitting with unsaved work", () => {
     const platform: Platform = {
       kind: "browser",
       launchRequest: async () => ({ miniapp: "md", path }),
+      onOpenRequested: () => () => {},
+      acceptOpenRequest: async () => null,
       workspaceFiles: async () => null,
       readTextFile: async () => "# Plan",
       writeTextFile: async () => {},

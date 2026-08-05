@@ -15,6 +15,11 @@ export type DocumentMount = (
   review?: ReviewDocument,
 ) => Promise<MountedDocument>;
 
+interface MountedWorkspace {
+  canSwitch(): boolean;
+  unmount: Unmount;
+}
+
 function fileName(path: string): string {
   return path.split(/[\\/]/).at(-1) ?? path;
 }
@@ -31,11 +36,11 @@ function parentPath(path: string): string {
  * editor completely before mounting the next one, so its path, save stamp, focus
  * listener, and shortcuts cannot leak across files.
  */
-export async function mountWorkspace(
+async function mountWorkspaceSession(
   host: HTMLElement,
   context: SuiteContext,
   mountDocument: DocumentMount,
-): Promise<Unmount> {
+): Promise<MountedWorkspace> {
   const listing = await context.platform.workspaceFiles().catch(() => null);
   if (!listing) {
     const path = context.launch.path;
@@ -49,9 +54,12 @@ export async function mountWorkspace(
       context,
       path ? review.document({ path, relative: fileName(path) }) : undefined,
     );
-    return () => {
-      document_.unmount();
-      review.unmount();
+    return {
+      canSwitch: document_.canSwitch,
+      unmount: () => {
+        document_.unmount();
+        review.unmount();
+      },
     };
   }
 
@@ -137,11 +145,59 @@ export async function mountWorkspace(
     documentHost.append(empty);
   }
 
+  return {
+    canSwitch: () => current?.canSwitch() ?? true,
+    unmount: () => {
+      current?.unmount();
+      resizer.unmount();
+      review.unmount();
+      tree.unmount();
+      shell.remove();
+    },
+  };
+}
+
+/**
+ * Keep one native window aligned with Finder file-open requests.
+ *
+ * The native side queues the new path without widening filesystem access. This
+ * side first asks the mounted document whether replacing it can lose work, then
+ * accepts the request and remounts against the newly scoped workspace.
+ */
+export async function mountWorkspace(
+  host: HTMLElement,
+  context: SuiteContext,
+  mountDocument: DocumentMount,
+): Promise<Unmount> {
+  let mounted = await mountWorkspaceSession(host, context, mountDocument);
+  let switching = false;
+  let disposed = false;
+
+  const stopListening = context.platform.onOpenRequested(() => {
+    if (disposed || switching || !mounted.canSwitch()) return;
+
+    switching = true;
+    void (async () => {
+      const launch = await context.platform.acceptOpenRequest();
+      if (!launch || disposed) return;
+
+      mounted.unmount();
+      mounted = await mountWorkspaceSession(
+        host,
+        {
+          ...context,
+          launch,
+        },
+        mountDocument,
+      );
+    })().finally(() => {
+      switching = false;
+    });
+  });
+
   return () => {
-    current?.unmount();
-    resizer.unmount();
-    review.unmount();
-    tree.unmount();
-    shell.remove();
+    disposed = true;
+    stopListening();
+    mounted.unmount();
   };
 }

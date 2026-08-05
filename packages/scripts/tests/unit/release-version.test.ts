@@ -91,6 +91,21 @@ describe("the release version synchronizer", () => {
     expect(readFileSync(join(root, "packages/tauri/Cargo.toml"), "utf8")).toBe(before);
   });
 
+  it("does not mistake unrelated Tauri metadata formatting for version drift", () => {
+    const root = makeFixture();
+    expect(run(root).status).toBe(0);
+    const tauriPath = join(root, "packages/tauri/tauri.conf.json");
+    const tauri = JSON.parse(readFileSync(tauriPath, "utf8")) as Record<string, unknown>;
+    tauri.bundle = { fileAssociations: [{ ext: ["md", "markdown"] }] };
+    const customized = `${JSON.stringify(tauri)}\n`;
+    writeFileSync(tauriPath, customized);
+
+    const result = run(root, "--check");
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(tauriPath, "utf8")).toBe(customized);
+  });
+
   it("rejects an invalid source version before rewriting metadata", () => {
     const root = makeFixture("next");
     const before = readFileSync(join(root, "package-lock.json"), "utf8");

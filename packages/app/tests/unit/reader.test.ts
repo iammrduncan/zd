@@ -31,6 +31,8 @@ function context(
     platform: {
       kind: "browser",
       launchRequest: async () => ({ miniapp: "md", path }),
+      onOpenRequested: () => () => {},
+      acceptOpenRequest: async () => null,
       workspaceFiles: async () => null,
       readTextFile,
       writeTextFile,

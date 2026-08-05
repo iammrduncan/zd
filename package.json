@@ -21,6 +21,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "icons:generate": "bash packaging/macos/generate-icons.sh",
+    "package:macos": "bash packaging/macos/package.sh",
     "tokens:unused": "node packages/scripts/list-unused-tokens.mjs",
     "zdarchive": "node packages/scripts/archive-tasks.mjs",
     "zdloop": "node packages/scripts/session-loop.mjs",

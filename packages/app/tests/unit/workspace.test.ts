@@ -10,6 +10,8 @@ function context(path: string, listing: WorkspaceListing): SuiteContext {
     platform: {
       kind: "browser",
       launchRequest: async () => ({ miniapp: "md", path }),
+      onOpenRequested: () => () => {},
+      acceptOpenRequest: async () => null,
       workspaceFiles: async () => listing,
       readTextFile: async () => "",
       writeTextFile: async () => {},
@@ -199,5 +201,67 @@ describe("the markdown workspace", () => {
 
     expect(mounted.paths).toEqual(["/w/new.md"]);
     expect(host.querySelector('[aria-current="page"]')?.textContent).toBe("new.md");
+  });
+
+  it("accepts a Finder open only after the current document can switch", async () => {
+    const host = document.createElement("div");
+    const mounted = documentMount(() => true);
+    const next: WorkspaceListing = {
+      root: "/next",
+      files: [{ path: "/next/plan.md", relative: "plan.md" }],
+    };
+    let openRequested: (() => void) | undefined;
+    let activeListing = listing;
+    let accepted = 0;
+    const initial = context("/w/a.md", listing);
+    initial.platform.workspaceFiles = async () => activeListing;
+    initial.platform.onOpenRequested = (handler) => {
+      openRequested = handler;
+      return () => {
+        openRequested = undefined;
+      };
+    };
+    initial.platform.acceptOpenRequest = async () => {
+      accepted += 1;
+      activeListing = next;
+      return { miniapp: "md", path: "/next/plan.md" };
+    };
+
+    const unmount = await mountWorkspace(host, initial, mounted.mount);
+    openRequested?.();
+    await vi.waitFor(() => expect(mounted.paths).toEqual(["/w/a.md", "/next/plan.md"]));
+
+    expect(accepted).toBe(1);
+    expect(mounted.unmounted).toEqual(["/w/a.md"]);
+    expect(host.querySelector(".md-workspace-sidebar")?.getAttribute("aria-label")).toContain(
+      "/next",
+    );
+
+    unmount();
+    expect(openRequested).toBeUndefined();
+  });
+
+  it("leaves a Finder open pending while the current document is unsaved", async () => {
+    const host = document.createElement("div");
+    const mounted = documentMount(() => false);
+    let openRequested: (() => void) | undefined;
+    let accepted = 0;
+    const initial = context("/w/a.md", listing);
+    initial.platform.onOpenRequested = (handler) => {
+      openRequested = handler;
+      return () => {};
+    };
+    initial.platform.acceptOpenRequest = async () => {
+      accepted += 1;
+      return { miniapp: "md", path: "/next/plan.md" };
+    };
+
+    await mountWorkspace(host, initial, mounted.mount);
+    openRequested?.();
+    await Promise.resolve();
+
+    expect(accepted).toBe(0);
+    expect(mounted.paths).toEqual(["/w/a.md"]);
+    expect(mounted.unmounted).toEqual([]);
   });
 });

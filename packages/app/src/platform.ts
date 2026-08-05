@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { LaunchRequest } from "@/suite/types";
 
@@ -36,6 +37,10 @@ export interface Platform {
   readonly kind: "tauri" | "browser";
   /** What the process was launched to open. */
   launchRequest(): Promise<LaunchRequest>;
+  /** A native file-open request is waiting. Returns an unsubscribe. */
+  onOpenRequested(handler: () => void): () => void;
+  /** Accept that request after the current document says switching is safe. */
+  acceptOpenRequest(): Promise<LaunchRequest | null>;
   /** Read a UTF-8 text file. */
   readTextFile(path: string): Promise<string>;
   /** Markdown files inside the launch path's scoped workspace. */
@@ -73,6 +78,23 @@ export interface Platform {
 const tauri: Platform = {
   kind: "tauri",
   launchRequest: () => invoke<LaunchRequest>("launch_request"),
+  onOpenRequested: (handler) => {
+    let active = true;
+    const pending = listen("open-requested", () => {
+      if (active) handler();
+    }).then(async (unlisten) => {
+      // The native event can arrive before WebKit installs this listener. Its
+      // request remains queued, so ask once after listening and replay it here.
+      const waiting = await invoke<boolean>("has_pending_open_request");
+      if (active && waiting) handler();
+      return unlisten;
+    });
+    return () => {
+      active = false;
+      void pending.then((unlisten) => unlisten());
+    };
+  },
+  acceptOpenRequest: () => invoke<LaunchRequest | null>("accept_open_request"),
   workspaceFiles: () => invoke<WorkspaceListing | null>("workspace_files"),
   readTextFile: (path) => invoke<string>("read_text_file", { path }),
   writeTextFile: (path, contents) => invoke<void>("write_text_file", { path, contents }),
@@ -107,6 +129,8 @@ const tauri: Platform = {
 const browser: Platform = {
   kind: "browser",
   launchRequest: async () => ({ miniapp: "md", path: null }),
+  onOpenRequested: () => () => {},
+  acceptOpenRequest: async () => null,
   workspaceFiles: async () => null,
   readTextFile: async (path) => {
     throw new Error(`no filesystem in the browser shell: ${path}`);
