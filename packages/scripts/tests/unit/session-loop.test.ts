@@ -510,19 +510,31 @@ setTimeout(() => {
     let todo = readFileSync(join(root, "docs", "todo.txt"), "utf8");
     expect(todo).toContain("x 2026-07-31 (A) 2026-07-30 First task");
     expect(todo).toContain("(B) 2026-07-30 Second task");
+
+    const summariesBeforeContinue = (tui.stdout().match(/Summary ready/g) ?? []).length;
+    let quitSent = false;
+    const quitAtCheckpoint = () => {
+      const summaryCount = (tui.stdout().match(/Summary ready/g) ?? []).length;
+      if (quitSent || summaryCount <= summariesBeforeContinue) return;
+      quitSent = true;
+      tui.child.stdin.write("q");
+    };
+    tui.child.stdout.on("data", quitAtCheckpoint);
     tui.child.stdin.write("c");
 
     await waitFor(
       () => readFileSync(invocationPath, "utf8").trim().split("\n").length === 4,
       "the continued task and second recap",
     );
+    await waitFor(() => quitSent, "the checkpoint summary prompt");
     await waitFor(
-      () => (tui.stdout().match(/Summary ready/g) ?? []).length >= 2,
-      "the checkpoint summary",
+      () => tui.child.exitCode !== null,
+      `the TUI process to exit; screen=${JSON.stringify(stripAnsi(currentScreen(tui.stdout())))} stderr=${JSON.stringify(tui.stderr())}`,
     );
-    tui.child.stdin.write("q");
     const result = await tui.completed;
+    tui.child.stdout.off("data", quitAtCheckpoint);
 
+    expect(quitSent).toBe(true);
     expect(result.status, result.stderr).toBe(0);
     const screen = stripAnsi(result.stdout);
     expect(screen).toContain("zdloop");

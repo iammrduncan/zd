@@ -376,13 +376,20 @@ async function runTuiRecap(tui, control, startCommit, checkpoint, codexOptions) 
 
 async function pauseAtSummary(tui, control, summary, notice) {
   while (true) {
+    // Make the advertised keys live before painting "Summary ready". A reader
+    // of the pipe can answer as soon as that frame arrives; registering after
+    // the write left a small gap where a valid c/q key was silently discarded.
+    const summaryAction = tui.waitForSummaryAction();
     tui.showSummary(summary, notice);
-    const action = await tui.waitForSummaryAction();
+    const action = await summaryAction;
     if (action === "quit") return false;
 
     const state = readLoopState();
     if (hasRunnableWork(state)) {
       control.resetStop();
+      // The summary action has been consumed, so stop advertising its keys
+      // before loop-state updates render again on the way to the next session.
+      tui.setPhase("waiting", "Continuing from the summary");
       tui.setLoopState(state);
       return true;
     }
