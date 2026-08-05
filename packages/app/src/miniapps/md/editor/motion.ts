@@ -7,7 +7,8 @@ import {
 import type { Extension } from "@codemirror/state";
 import { keymap, type Command, type EditorView } from "@codemirror/view";
 
-import { blockRange, granularityOf, scrollBlockToAnchor, sectionRange } from "./focus";
+import { granularityOf, scrollBlockToAnchor } from "./focus";
+import { blockRange, sectionRange } from "./focus-range";
 import { isTypewriter } from "./typewriter";
 
 /**
