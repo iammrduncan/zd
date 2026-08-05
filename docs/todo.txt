@@ -107,7 +107,7 @@ x 2026-08-05 (A) 2026-08-05 Establish package.json as the 0.1.0 release version 
 (C) 2026-07-28 Measure and hold cold launch near 300ms to first meaningful frame +p5 @perf sess:5.1 est:30m vis:10
 (C) 2026-07-28 Confirm idle CPU is near zero with a document open +p5 @perf sess:5.1 est:20m vis:10
 (C) 2026-07-28 Multiple windows each with their own document and state +p5 @shell sess:5.2 est:45m vis:9
-(B) 2026-07-29 Design our own app icon +p5 @package +fb fb:2026-07-29 est:45m vis:9 MOVED 2026-07-30 out of the top of the file to sit above the bundle task that consumes the icon
+x 2026-08-05 (B) 2026-07-29 Design our own app icon +p5 @package +fb fb:2026-07-29 est:45m vis:9 MOVED 2026-07-30 out of the top of the file to sit above the bundle task that consumes the icon
 (C) 2026-07-28 macOS app bundle with icon and md file association +p5 @package sess:5.2 est:45m vis:9
 (C) 2026-07-28 Install zd on PATH so the three launch forms work from a terminal +p5 @package sess:5.2 est:30m vis:9
 (C) 2026-07-28 Windows build and short native checklist +p5 @package sess:5.3 est:60m vis:9
