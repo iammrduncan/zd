@@ -7,7 +7,7 @@ motion of a dedicated reading surface.
 `zd md` is the first tool in Zen Suite: one `zd` command for small tools that support
 AI-assisted development and review.
 
-![zd md Markdown reader showing a focused paragraph in a workspace](docs/assets/zd-reader.jpeg)
+![zd md Markdown reader showing a focused paragraph in a workspace](docs/user-facing-docs/assets/zd-reader.jpeg)
 
 ## Install on macOS
 
@@ -15,8 +15,8 @@ Download the Apple Silicon or Intel DMG and its checksum from the
 [latest release](https://github.com/iammrduncan/zd/releases/latest). The v0.1 build is ad-hoc signed,
 but not Developer ID signed or notarized.
 
-Follow the [macOS installation guide](docs/how-to/install-macos.md) to verify the download, copy the
-app, and put `zd` on PATH.
+Follow the [macOS installation guide](docs/user-facing-docs/how-to/install-macos.md) to verify the
+download, copy the app, and put `zd` on PATH.
 
 ## Open a document
 
@@ -45,11 +45,11 @@ macOS is the primary v0.1 target. Windows packaging is still pending.
 
 | If you want to… | Start here |
 | --- | --- |
-| Learn the reading and editing flow | [Open your first document](docs/tutorials/first-document.md) |
-| Install or update the macOS app | [Install on macOS](docs/how-to/install-macos.md) |
-| Look up command-line behavior | [CLI reference](docs/reference/cli.md) |
-| Understand the system boundaries | [Architecture](docs/explanation/architecture.md) |
-| Browse every guide and project record | [Documentation map](docs/README.md) |
+| Learn the reading and editing flow | [Open your first document](docs/user-facing-docs/tutorials/first-document.md) |
+| Install or update the macOS app | [Install on macOS](docs/user-facing-docs/how-to/install-macos.md) |
+| Look up command-line behavior | [CLI reference](docs/user-facing-docs/reference/cli.md) |
+| Understand the system boundaries | [Architecture](docs/user-facing-docs/explanation/architecture.md) |
+| Browse guides, decisions, and project records | [Documentation map](docs/README.md) |
 
 ## Develop
 
@@ -59,12 +59,12 @@ npm run app
 npm run check
 ```
 
-See [Develop zd](docs/how-to/develop.md) for browser and native workflows. Contributions are
-welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change.
+See [Develop zd](docs/user-facing-docs/how-to/develop.md) for browser and native workflows.
+Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change.
 
 ## Project status
 
-The product contract is [docs/vision.md](docs/vision.md), the design system is
-[DESIGN.md](DESIGN.md), and current work lives in [docs/todo.txt](docs/todo.txt).
+The design system is [DESIGN.md](DESIGN.md). The [documentation map](docs/README.md) separates
+accepted architecture, proposals, user guidance, internal records, and active objectives.
 
 Licensed under the [MIT License](LICENSE).

@@ -7,7 +7,7 @@ import type { LaunchRequest } from "@/suite/types";
  * The only file in the frontend that knows what shell it is running in.
  *
  * Everything above this line is portable. If Tauri ever stops being the right
- * shell, this file is the change — see docs/path-forward.md.
+ * shell, this file is the change — see suite ADR 0002.
  */
 /**
  * Identity enough to notice someone else wrote the file. See `file_stamp` in

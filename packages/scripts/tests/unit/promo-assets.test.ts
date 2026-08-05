@@ -4,9 +4,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd());
-const SCREENSHOT = resolve(ROOT, "docs/assets/zd-reader.jpeg");
-const SOCIAL_CARD = resolve(ROOT, "docs/assets/zd-social-card.png");
-const COPY = resolve(ROOT, "docs/promotion/v0.1.0.md");
+const SCREENSHOT = resolve(ROOT, "docs/user-facing-docs/assets/zd-reader.jpeg");
+const SOCIAL_CARD = resolve(ROOT, "docs/user-facing-docs/assets/zd-social-card.png");
+const COPY = resolve(ROOT, "docs/_internal/promotion/v0.1.0.md");
 
 function jpegDimensions(path: string) {
   const bytes = readFileSync(path);
@@ -35,7 +35,7 @@ describe("the v0.1 promotional kit", () => {
 
     expect(existsSync(SCREENSHOT)).toBe(true);
     expect(jpegDimensions(SCREENSHOT)).toEqual({ width: 1100, height: 760 });
-    expect(readme).toContain("docs/assets/zd-reader.jpeg");
+    expect(readme).toContain("docs/user-facing-docs/assets/zd-reader.jpeg");
     expect(readme).toMatch(/!\[[^\]]*Markdown reader[^\]]*\]/i);
   });
 

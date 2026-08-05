@@ -1,7 +1,7 @@
 //! The `zd` desktop shell.
 //!
 //! This side stays thin on purpose. It is a file, git, and window layer; the
-//! product lives in `packages/app/src/`. See docs/path-forward.md.
+//! product lives in `packages/app/src/`. See suite ADR 0001.
 
 mod cli;
 mod fs;
@@ -35,7 +35,7 @@ fn accept_open_request(launch: tauri::State<'_, cli::LaunchState>) -> Option<cli
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     /*
-     * The launch request and filesystem scope are one native state — audit M2.
+     * The launch request and filesystem scope are one native state — suite ADR 0003.
      * A CLI launch settles both before the webview exists. A Finder request is
      * queued here and only accepted after the document says switching is safe;
      * accepting moves both facts under one lock, so the old document never gains

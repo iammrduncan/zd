@@ -26,7 +26,9 @@ function hasTaskTag(task, tag) {
   return task.split(/\s+/).includes(tag);
 }
 
-export function readLatestComparisonHandoff(memoryPath = resolve("docs/session-memory.log")) {
+export function readLatestComparisonHandoff(
+  memoryPath = resolve("docs/_objectives/session-memory.log"),
+) {
   if (!existsSync(memoryPath)) return "";
 
   const entries = readFileSync(memoryPath, "utf8").split(/\n(?=## \d{4}-\d{2}-\d{2}T)/);

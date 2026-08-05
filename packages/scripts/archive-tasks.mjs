@@ -5,9 +5,9 @@ import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync }
 import { resolve } from "node:path";
 import process from "node:process";
 
-const TODO_PATH = resolve("docs/todo.txt");
-const ARCHIVE_PATH = resolve("docs/todo-archive.txt");
-const ARCHIVE_HEADER = `# zd md — completed tasks, moved out of docs/todo.txt by /archive
+const TODO_PATH = resolve("docs/_objectives/todo.txt");
+const ARCHIVE_PATH = resolve("docs/_objectives/todo-archive.txt");
+const ARCHIVE_HEADER = `# zd md — completed tasks, moved out of docs/_objectives/todo.txt by /archive
 # Same format as the task list. Newest block last. Nothing here is edited or deleted.
 `;
 
@@ -97,7 +97,7 @@ function nextWork(lines) {
 
 function archiveCompletedTasks() {
   if (!existsSync(TODO_PATH)) {
-    fail("docs/todo.txt does not exist; run this command from the repository root");
+    fail("docs/_objectives/todo.txt does not exist; run this command from the repository root");
   }
 
   const todoBefore = readFileSync(TODO_PATH, "utf8");
@@ -159,7 +159,7 @@ function main() {
   try {
     if (process.argv.includes("--help")) {
       console.log(
-        "Usage: npm run zdarchive\n\nMove every ^x line from docs/todo.txt to docs/todo-archive.txt.",
+        "Usage: npm run zdarchive\n\nMove every ^x line from docs/_objectives/todo.txt to docs/_objectives/todo-archive.txt.",
       );
       return;
     }

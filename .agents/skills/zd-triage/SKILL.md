@@ -1,6 +1,6 @@
 ---
 name: zd-triage
-description: Triage raw zd feedback and agent findings into prioritized todo.txt tasks without implementing product work. Use when the user asks to triage feedback, process FEEDBACK.md, empty the feedback inbox, or capture extra notes into the zd task plan.
+description: Triage raw zd feedback and agent findings into prioritized todo.txt tasks without implementing product work. Use when the user asks to triage feedback, process docs/_objectives/FEEDBACK.md, empty the feedback inbox, or capture extra notes into the zd task plan.
 ---
 
 # Triage zd feedback

@@ -20,7 +20,7 @@ const PROMPT =
   "Use $zd-session to run the next open task. Run exactly one session and stop after its handoff; the outer runner will decide whether another session is allowed.";
 
 function recapPrompt(startCommit: string, checkpoint: string): string {
-  return `This is the final read-only recap for a completed zdloop run. The run started at git commit ${startCommit} and stopped at "${checkpoint}". Review committed changes in ${startCommit}..HEAD and the matching recent work-session handoffs in docs/session-memory.log. Do not change files. Tell the user what changed, give a prioritized manual test checklist, say what feedback to provide for each item, and call out known failures, deferred work, or blocked tasks. Ignore changes that predate the starting commit and treat unrelated uncommitted worktree changes as pre-existing.`;
+  return `This is the final read-only recap for a completed zdloop run. The run started at git commit ${startCommit} and stopped at "${checkpoint}". Review committed changes in ${startCommit}..HEAD and the matching recent work-session handoffs in docs/_objectives/session-memory.log. Do not change files. Tell the user what changed, give a prioritized manual test checklist, say what feedback to provide for each item, and call out known failures, deferred work, or blocked tasks. Ignore changes that predate the starting commit and treat unrelated uncommitted worktree changes as pre-existing.`;
 }
 
 const fixtures: string[] = [];
@@ -28,11 +28,13 @@ const fixtures: string[] = [];
 function makeFixture(todo: string, feedback = "# Feedback\n\n---\n"): string {
   const root = mkdtempSync(join(tmpdir(), "zd-session-loop-"));
   fixtures.push(root);
-  mkdirSync(join(root, "docs"));
-  writeFileSync(join(root, "docs", "todo.txt"), todo);
-  writeFileSync(join(root, "FEEDBACK.md"), feedback);
+  mkdirSync(join(root, "docs", "_objectives"), { recursive: true });
+  writeFileSync(join(root, "docs", "_objectives", "todo.txt"), todo);
+  writeFileSync(join(root, "docs/_objectives/FEEDBACK.md"), feedback);
   spawnSync("git", ["init", "-q"], { cwd: root });
-  spawnSync("git", ["add", "docs/todo.txt", "FEEDBACK.md"], { cwd: root });
+  spawnSync("git", ["add", "docs/_objectives/todo.txt", "docs/_objectives/FEEDBACK.md"], {
+    cwd: root,
+  });
   spawnSync(
     "git",
     [
@@ -177,7 +179,7 @@ CHECKPOINT - stop and test
     expect(result.stdout).toContain(
       `Prompt: ${recapPrompt(headCommit(root), "CHECKPOINT - stop and test")}`,
     );
-    expect(existsSync(join(root, "docs", "session-memory.log"))).toBe(false);
+    expect(existsSync(join(root, "docs", "_objectives", "session-memory.log"))).toBe(false);
   });
 
   it("reports zero runs when the checkpoint is already next", () => {
@@ -280,7 +282,7 @@ CHECKPOINT - stop here
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      "No open checkpoint remains in docs/todo.txt; refusing to loop",
+      "No open checkpoint remains in docs/_objectives/todo.txt; refusing to loop",
     );
   });
 
@@ -317,7 +319,7 @@ describe("the Codex session loop", () => {
       (_, index) => `comparison-detail-${String(index).padStart(2, "0")}`,
     );
     writeFileSync(
-      join(root, "docs", "session-memory.log"),
+      join(root, "docs", "_objectives", "session-memory.log"),
       `# Codex session memory\n\n## 2026-08-03T16:50:37.904Z\n\nTask: ${comparisonTask}\n\nPrompt: session\n\nStatus: success\n\n${reviewLines.join("\n")}\nRun npm run dev -- --open /dev/compare-highlighting.html and inspect both panels.\n`,
     );
     const comparisonFiles = [
@@ -347,7 +349,7 @@ if (prompt.includes("final read-only recap")) {
   emit({ type: "turn.completed", usage: {} });
   process.exit(0);
 }
-const todoPath = join(root, "docs", "todo.txt");
+const todoPath = join(root, "docs", "_objectives", "todo.txt");
 const todo = readFileSync(todoPath, "utf8").split("\\n");
 const decisionIndex = todo.findIndex((line) => line.split(/\\s+/).includes("@DECIDE"));
 todo[decisionIndex] = "x 2026-08-03 " + todo[decisionIndex];
@@ -419,7 +421,9 @@ emit({ type: "turn.completed", usage: {} });
       () => existsSync(join(root, "comparison-stopped")),
       "the comparison dev server to stop",
     );
-    expect(readFileSync(join(root, "docs", "todo.txt"), "utf8")).toContain(`x 2026-08-03 ${task}`);
+    expect(readFileSync(join(root, "docs", "_objectives", "todo.txt"), "utf8")).toContain(
+      `x 2026-08-03 ${task}`,
+    );
   });
 
   it("stops cleanly at @DECIDE without a TUI instead of invoking Codex", () => {
@@ -465,7 +469,7 @@ if (prompt.includes("final read-only recap")) {
 }
 emit({ type: "item.started", item: { id: "command", type: "command_execution", command: "npm test", status: "in_progress" } });
 setTimeout(() => {
-  const todoPath = join(root, "docs", "todo.txt");
+  const todoPath = join(root, "docs", "_objectives", "todo.txt");
   const lines = readFileSync(todoPath, "utf8").split("\\n");
   const index = lines.findIndex((line) => /^\\([ABC]\\) /.test(line));
   lines[index] = "x 2026-07-31 " + lines[index];
@@ -507,7 +511,7 @@ setTimeout(() => {
       "Model gpt-5.6-terra • Thinking medium • Fast mode enabled",
     );
 
-    let todo = readFileSync(join(root, "docs", "todo.txt"), "utf8");
+    let todo = readFileSync(join(root, "docs", "_objectives", "todo.txt"), "utf8");
     expect(todo).toContain("x 2026-07-31 (A) 2026-07-30 First task");
     expect(todo).toContain("(B) 2026-07-30 Second task");
 
@@ -550,10 +554,10 @@ setTimeout(() => {
     expect(screen).toContain("Graceful stop requested");
     expect(screen).toContain("[c] continue");
     expect(result.stdout).toContain("\u001b[1;36mTesting summary\u001b[0m");
-    const memory = readFileSync(join(root, "docs", "session-memory.log"), "utf8");
+    const memory = readFileSync(join(root, "docs", "_objectives", "session-memory.log"), "utf8");
     expect(memory).toContain("# Testing summary\n\n- Check the completed task.");
     expect(memory).not.toContain("\u001b[");
-    todo = readFileSync(join(root, "docs", "todo.txt"), "utf8");
+    todo = readFileSync(join(root, "docs", "_objectives", "todo.txt"), "utf8");
     expect(todo).toContain("x 2026-07-31 (B) 2026-07-30 Second task");
 
     const invocations = readFileSync(invocationPath, "utf8")
@@ -602,7 +606,7 @@ setTimeout(() => process.exit(1), 1500);
     expect(Date.now() - startedAt).toBeLessThan(1_000);
     expect(readFileSync(join(root, "killed"), "utf8")).toContain("SIGTERM");
     expect(readFileSync(invocationPath, "utf8")).not.toContain("final read-only recap");
-    expect(readFileSync(join(root, "docs", "todo.txt"), "utf8")).toContain(
+    expect(readFileSync(join(root, "docs", "_objectives", "todo.txt"), "utf8")).toContain(
       "(A) 2026-07-30 Long task",
     );
   });
@@ -648,7 +652,7 @@ process.stdout.write("# Loop recap\\n\\n- **Test:** run \`npm test\`.\\n");
     expect(result.stdout).toContain("\u001b[36m•\u001b[0m");
     expect(result.stdout).toContain("\u001b[38;5;220mnpm test\u001b[0m");
     expect(result.stdout).not.toContain("# Loop recap");
-    const memory = readFileSync(join(root, "docs", "session-memory.log"), "utf8");
+    const memory = readFileSync(join(root, "docs", "_objectives", "session-memory.log"), "utf8");
     expect(memory).toContain("Task: Final loop recap");
     expect(memory).toContain("# Loop recap\n\n- **Test:** run `npm test`.");
     expect(memory).not.toContain("\u001b[");
@@ -670,7 +674,7 @@ process.stdout.write("# Loop recap\\n\\n- **Test:** run \`npm test\`.\\n");
       `import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 const root = process.cwd();
-const todoPath = join(root, "docs", "todo.txt");
+const todoPath = join(root, "docs", "_objectives", "todo.txt");
 const todo = readFileSync(todoPath, "utf8");
 const prompt = process.argv.at(-1);
 appendFileSync(join(root, "invocations"), prompt.includes("final read-only recap") ? "recap\\n" : "work\\n");
@@ -678,7 +682,7 @@ if (prompt.includes("final read-only recap")) {
   process.stdout.write("Test the completed focus fix.\\n");
   process.exit(0);
 }
-writeFileSync(join(root, "FEEDBACK.md"), "# Feedback\\n\\n---\\n");
+writeFileSync(join(root, "docs/_objectives/FEEDBACK.md"), "# Feedback\\n\\n---\\n");
 writeFileSync(todoPath, "x 2026-07-31 (A) 2026-07-31 Fix the focus jump +p1 @editor +fb fb:2026-07-31 est:20m\\n" + todo);
 process.stdout.write("Triaged feedback and completed: Fix the focus jump\\n");
 `,
@@ -693,7 +697,7 @@ process.stdout.write("Triaged feedback and completed: Fix the focus jump\\n");
     expect(result.status, result.stderr).toBe(0);
     expect(readFileSync(join(root, "invocations"), "utf8")).toBe("work\nrecap\n");
     expect(result.stdout).toContain("Checkpoint reached after 1 Codex session");
-    expect(readFileSync(join(root, "docs", "session-memory.log"), "utf8")).toContain(
+    expect(readFileSync(join(root, "docs", "_objectives", "session-memory.log"), "utf8")).toContain(
       "Triaged feedback and completed: Fix the focus jump",
     );
   });
@@ -717,7 +721,7 @@ if (process.argv.at(-1).includes("final read-only recap")) {
   process.stdout.write("Nothing landed above the checkpoint.\\n");
   process.exit(0);
 }
-writeFileSync(join(process.cwd(), "FEEDBACK.md"), "# Feedback\\n\\n---\\n");
+writeFileSync(join(process.cwd(), "docs/_objectives/FEEDBACK.md"), "# Feedback\\n\\n---\\n");
 process.stdout.write("Triaged feedback; no task belongs above this checkpoint.\\n");
 `,
     );
@@ -744,7 +748,7 @@ CHECKPOINT - inspect the result
       `import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 const root = process.cwd();
-const todoPath = join(root, "docs", "todo.txt");
+const todoPath = join(root, "docs", "_objectives", "todo.txt");
 const lines = readFileSync(todoPath, "utf8").split("\\n");
 const prompt = process.argv.at(-1);
 appendFileSync(join(root, "invocations.jsonl"), JSON.stringify({ args: process.argv.slice(2), at: Date.now() }) + "\\n");
@@ -798,7 +802,7 @@ process.stdout.write("Completed: " + task + "\\n");
       recapPrompt(headCommit(root), "CHECKPOINT - inspect the result"),
     ]);
 
-    const memory = readFileSync(join(root, "docs", "session-memory.log"), "utf8");
+    const memory = readFileSync(join(root, "docs", "_objectives", "session-memory.log"), "utf8");
     expect(memory).toContain("# Codex session memory");
     expect(memory.match(/^## /gm)).toHaveLength(3);
     expect(memory.match(/Status: success/g)).toHaveLength(3);
@@ -807,7 +811,7 @@ process.stdout.write("Completed: " + task + "\\n");
     expect(memory).toContain("Task: Final loop recap");
     expect(memory).toContain("Final testing brief: verify both completed tasks.");
 
-    const todo = readFileSync(join(root, "docs", "todo.txt"), "utf8");
+    const todo = readFileSync(join(root, "docs", "_objectives", "todo.txt"), "utf8");
     expect(todo).toContain("x 2026-07-31 (A) 2026-07-30 First task");
     expect(todo).toContain("x 2026-07-31 (B) 2026-07-30 Second task");
     expect(todo).toContain("(A) 2026-07-30 Past the stop");
@@ -834,10 +838,10 @@ process.stdout.write("I could not complete the task.\\n");
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      "docs/todo.txt did not change; stopping to avoid repeating the same task",
+      "docs/_objectives/todo.txt did not change; stopping to avoid repeating the same task",
     );
     expect(readFileSync(join(root, "invocations"), "utf8").trim().split("\n")).toHaveLength(1);
-    expect(readFileSync(join(root, "docs", "session-memory.log"), "utf8")).toContain(
+    expect(readFileSync(join(root, "docs", "_objectives", "session-memory.log"), "utf8")).toContain(
       "I could not complete the task.",
     );
   });

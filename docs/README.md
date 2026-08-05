@@ -1,42 +1,45 @@
-# zd documentation
+# Zen Suite documentation
 
-Choose the page by what you are trying to do. Each public guide has one job; design records and
-project history remain available without making the README carry them.
+These documents describe Zen Suite direction, accepted architecture, proposals, product use, and
+active work. Start with the kind of information you need.
 
-## Tutorial
+## Table of contents
 
-- [Open your first document](tutorials/first-document.md) — learn the core reading, navigation,
-  editing, and saving loop by doing it once.
+| Area | Contents |
+| --- | --- |
+| [Architecture Decision Records](adr/README.md) | Human-owned records of accepted architecture decisions. |
+| [Zen Suite Improvement Proposals](zsip/README.md) | Proposals for meaningful product, process, governance, and architecture changes. |
+| [User documentation](user-facing-docs/README.md) | Standalone tutorials, how-to guides, reference, and explanation for people using `zd`. |
+| [Internal records](_internal/README.md) | Release operations, implementation history, promotion material, and repository meta-docs. |
+| [Objectives](_objectives/README.md) | The zdloop work queue, feedback, findings, goals, session rules, and archives. |
 
-## How-to guides
+## Document types
 
-- [Install on macOS](how-to/install-macos.md) — verify, install, update, or remove a release build.
-- [Develop zd](how-to/develop.md) — run the browser surface or native shell and choose the right
-  verification command.
-- [Publish a release](releasing.md) — prepare a version tag and let the release workflow build it.
-- [Contribute](../CONTRIBUTING.md) — prepare a focused change for review.
+- **ZSIP:** A contributor-authored proposal for a meaningful Zen Suite improvement.
+- **ADR:** A human-owned record of one accepted architecture decision.
+- **User documentation:** A standalone page that helps a reader use or understand a released tool.
+- **Internal record:** Repository information that does not define product behavior or active work.
+- **Objective:** Agent work state, evidence, feedback, or a plan used by the zdloop workflow.
 
-## Reference
+## Document ownership
 
-- [CLI reference](reference/cli.md) — launch forms, path rules, and exit behavior.
-- Hold `Cmd+.` in the app (`Ctrl+.` on other platforms) for the live shortcut reference. It renders
-  the same registry that handles the keys, so it cannot drift into a second command list.
-- [Design system](../DESIGN.md) — canonical type, colour, spacing, and motion values.
+Some filenames end in an ownership suffix:
 
-## Explanation
+- **`_H`:** Human-owned. An agent changes it only at a human's direction.
+- **`_A`:** Agent-owned. Agents maintain it as part of repository work.
+- **`_S`:** Script-owned. A deterministic process generates or maintains it.
 
-- [Architecture](explanation/architecture.md) — why the product is a web frontend on a thin native
-  shell and where each responsibility stops.
-- [Product vision](vision.md) — the experience and behavior the prototype is working toward.
-- [Stack decision](path-forward.md) — why the first Rust/egui prototype gave way to Tauri and
-  TypeScript.
+Files without a suffix do not declare a special owner.
 
-## Project records
+## Authority
 
-- [Current task plan](todo.txt)
-- [v0.1.0 promotion kit](promotion/v0.1.0.md)
-- [Open-source readiness audit](audit/2026-08-05-open-source-readiness.md)
-- [Way of working](way-of-working/)
-- [First-prototype goals and evidence](goals/initial-prototype/)
+When documents disagree, use this order:
 
-Project records explain decisions and status; they are not prerequisites for using `zd md`.
+1. Human direction and the current [product vision](_objectives/vision.md) define product intent.
+2. Accepted [ADRs](adr/README.md) define architecture decisions.
+3. [DESIGN.md](../DESIGN.md) defines the visual and interaction system.
+4. [User documentation](user-facing-docs/README.md) describes released behavior.
+5. Source code and tests show the current implementation.
+
+A ZSIP preserves a proposal and its tradeoffs. It is not architecture authority. An accepted ZSIP
+can result in zero, one, or several ADRs.

@@ -7,14 +7,14 @@ allowed-tools: Read, Grep, Glob, Bash(git log:*), Bash(git status:*), Bash(grep:
 
 Read-only. Answer the question and stop — do not fix anything you notice, and do not start work.
 
-Task list: @docs/todo.txt
-Inbox: @FEEDBACK.md
-Agent queue: @docs/agent-findings.md
+Task list: @docs/_objectives/todo.txt
+Inbox: @docs/_objectives/FEEDBACK.md
+Agent queue: @docs/_objectives/agent-findings.md
 
 Work out and report, in this order:
 
 1. **Phase** — which `+p<N>` has open tasks, and how many done vs total in it. Lines starting
-   with `x ` are done. `/archive` moves older ones to `docs/todo-archive.txt`, so count done
+   with `x ` are done. `/archive` moves older ones to `docs/_objectives/todo-archive.txt`, so count done
    lines in **both** files — reading only the task list makes finished work look undone and the
    phase look younger than it is.
 2. **Next up** — the next open task the way `/session` would choose it: the **first open line in
@@ -23,8 +23,8 @@ Work out and report, in this order:
    up, however urgent it looks — `/session` cannot take it. If every line in the band is done or
    carries a written block, say so plainly: the checkpoint is next, which means it is time to go
    use the app, not to write code.
-3. **Untriaged feedback** — how many lines sit below the `---` in `FEEDBACK.md`, and how many
-   start with `!`. Report the `docs/agent-findings.md` count separately; human notes outrank it.
+3. **Untriaged feedback** — how many lines sit below the `---` in `docs/_objectives/FEEDBACK.md`, and how many
+   start with `!`. Report the `docs/_objectives/agent-findings.md` count separately; human notes outrank it.
    If there are any, say that `/triage` should run before `/session`.
 4. **Blocking pile** — count of open `(A)` tasks. Note whether it is growing across recent
    commits.

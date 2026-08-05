@@ -129,8 +129,7 @@ function matches(chord: Chord, event: KeyboardEvent, platform: Platform): boolea
    * emacs-style `ctrl+a`, `ctrl+e`, `ctrl+k` as system-wide text-editing keys that
    * `defaultKeymap` implements. Because `attachShortcuts` listens in the capture
    * phase on `window`, this registry won before the editor ever saw the key: a Mac
-   * user reaching for end-of-line toggled raw mode instead. Filed as M1 in
-   * docs/audit/2026-07-30-src-architecture-audit.md.
+   * user reaching for end-of-line toggled raw mode instead.
    *
    * The other physical modifier must be *absent*, not merely ignored, and that is
    * the half a straight "require metaKey on mac" misses. A chord with no `mod` at

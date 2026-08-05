@@ -1,6 +1,6 @@
 ---
 name: zd-session
-description: Run one zd development session from feedback triage through one scoped task, verification, commit, and todo completion. Use when the user asks to run a session, continue with the next task, execute a session id such as 1.3, or implement a task from docs/todo.txt according to the repository workflow.
+description: Run one zd development session from feedback triage through one scoped task, verification, commit, and todo completion. Use when the user asks to run a session, continue with the next task, execute a session id such as 1.3, or implement a task from docs/_objectives/todo.txt according to the repository workflow.
 ---
 
 # Run a zd session

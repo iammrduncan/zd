@@ -24,13 +24,14 @@ describe("the public repository boundary", () => {
   });
 
   it("does not publish empty planning documents or the retired report stub", () => {
-    const goals = resolve(ROOT, "docs/goals");
+    const goals = resolve(ROOT, "docs/_objectives/goals");
     const emptyMarkdown = filesUnder(goals)
       .filter((path) => path.endsWith(".md") && statSync(path).size === 0)
       .map((path) => relative(ROOT, path));
 
     expect(emptyMarkdown).toEqual([]);
     expect(existsSync(resolve(ROOT, "docs/report.txt"))).toBe(false);
+    expect(existsSync(resolve(ROOT, "docs/audit"))).toBe(false);
   });
 
   it("keeps the optional loop display free of the vulnerable image stack", () => {

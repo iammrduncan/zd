@@ -23,9 +23,9 @@ import {
   shouldUseTui,
 } from "./session-loop-tui.mjs";
 
-const TODO_PATH = resolve("docs/todo.txt");
-const FEEDBACK_PATH = resolve("FEEDBACK.md");
-const MEMORY_PATH = resolve("docs/session-memory.log");
+const TODO_PATH = resolve("docs/_objectives/todo.txt");
+const FEEDBACK_PATH = resolve("docs/_objectives/FEEDBACK.md");
+const MEMORY_PATH = resolve("docs/_objectives/session-memory.log");
 const PROMPT =
   "Use $zd-session to run the next open task. Run exactly one session and stop after its handoff; the outer runner will decide whether another session is allowed.";
 const MAX_WAIT_MS = 2_147_483_647;
@@ -33,8 +33,8 @@ const MAX_WAIT_MS = 2_147_483_647;
 function usage() {
   return `Usage: npm run zdloop -- <wait> [--dry-run] [--no-tui]
 
-Run one $zd-session at a time until FEEDBACK.md is empty and the next open
-CHECKPOINT in docs/todo.txt is reached.
+Run one $zd-session at a time until docs/_objectives/FEEDBACK.md is empty and the next open
+CHECKPOINT in docs/_objectives/todo.txt is reached.
 After the checkpoint, run one read-only Codex recap with a manual testing guide.
 The wait is a gap after a completed session, not a wall-clock schedule.
 
@@ -128,7 +128,7 @@ function buildDecisionPrompt(task, answer, removedArtifacts = []) {
 
 function readPlan() {
   if (!existsSync(TODO_PATH))
-    fail("docs/todo.txt does not exist; run this command from the repository root");
+    fail("docs/_objectives/todo.txt does not exist; run this command from the repository root");
 
   const contents = readFileSync(TODO_PATH, "utf8");
   const significantLines = contents
@@ -138,7 +138,8 @@ function readPlan() {
   const checkpointIndex = significantLines.findIndex(
     (line) => !line.startsWith("x ") && isCheckpoint(line),
   );
-  if (checkpointIndex === -1) fail("No open checkpoint remains in docs/todo.txt; refusing to loop");
+  if (checkpointIndex === -1)
+    fail("No open checkpoint remains in docs/_objectives/todo.txt; refusing to loop");
 
   const band = significantLines.slice(0, checkpointIndex);
   const openBand = band.filter((line) => !line.startsWith("x "));
@@ -154,12 +155,12 @@ function readPlan() {
 
 function readFeedback() {
   if (!existsSync(FEEDBACK_PATH))
-    fail("FEEDBACK.md does not exist; run this command from the repository root");
+    fail("docs/_objectives/FEEDBACK.md does not exist; run this command from the repository root");
 
   const contents = readFileSync(FEEDBACK_PATH, "utf8");
   const lines = contents.split("\n");
   const dividerIndex = lines.findIndex((line) => line.trim() === "---");
-  if (dividerIndex === -1) fail("FEEDBACK.md has no --- inbox divider");
+  if (dividerIndex === -1) fail("docs/_objectives/FEEDBACK.md has no --- inbox divider");
 
   const entries = lines
     .slice(dividerIndex + 1)
@@ -192,7 +193,7 @@ function readHeadCommit() {
 }
 
 function buildRecapPrompt(startCommit, checkpoint) {
-  return `This is the final read-only recap for a completed zdloop run. The run started at git commit ${startCommit} and stopped at "${checkpoint}". Review committed changes in ${startCommit}..HEAD and the matching recent work-session handoffs in docs/session-memory.log. Do not change files. Tell the user what changed, give a prioritized manual test checklist, say what feedback to provide for each item, and call out known failures, deferred work, or blocked tasks. Ignore changes that predate the starting commit and treat unrelated uncommitted worktree changes as pre-existing.`;
+  return `This is the final read-only recap for a completed zdloop run. The run started at git commit ${startCommit} and stopped at "${checkpoint}". Review committed changes in ${startCommit}..HEAD and the matching recent work-session handoffs in docs/_objectives/session-memory.log. Do not change files. Tell the user what changed, give a prioritized manual test checklist, say what feedback to provide for each item, and call out known failures, deferred work, or blocked tasks. Ignore changes that predate the starting commit and treat unrelated uncommitted worktree changes as pre-existing.`;
 }
 
 function sessionLabel(count) {
@@ -241,7 +242,9 @@ function printDryRun(state, waitLabel, waitMs, startCommit) {
     console.log(
       "\nFeedback forces the next Codex session before the checkpoint can stop the loop.",
     );
-    console.log("\n1. Triage FEEDBACK.md, then take the first eligible task in the live band");
+    console.log(
+      "\n1. Triage docs/_objectives/FEEDBACK.md, then take the first eligible task in the live band",
+    );
     console.log(`   Prompt: ${PROMPT}`);
     console.log("\nFeedback to triage:");
     for (const entry of feedback.entries) console.log(`  - ${entry}`);
@@ -322,7 +325,7 @@ async function runLoop(waitLabel, waitMs, startCommit, codexOptions) {
 
     const task =
       state.feedback.entries.length > 0
-        ? `Triage ${state.feedback.entries.length} pending FEEDBACK.md entries, then take the first eligible task`
+        ? `Triage ${state.feedback.entries.length} pending docs/_objectives/FEEDBACK.md entries, then take the first eligible task`
         : state.plan.tasks[0];
     if (state.feedback.entries.length === 0 && isDecision(task)) {
       console.log(`Decision required: ${task}`);
@@ -340,10 +343,10 @@ async function runLoop(waitLabel, waitMs, startCommit, codexOptions) {
     const feedbackChanged = nextState.feedback.contents !== state.feedback.contents;
     if (!todoChanged && !feedbackChanged) {
       if (state.feedback.entries.length === 0) {
-        fail("docs/todo.txt did not change; stopping to avoid repeating the same task");
+        fail("docs/_objectives/todo.txt did not change; stopping to avoid repeating the same task");
       }
       fail(
-        "Neither docs/todo.txt nor FEEDBACK.md changed; stopping to avoid repeating the same feedback session",
+        "Neither docs/_objectives/todo.txt nor docs/_objectives/FEEDBACK.md changed; stopping to avoid repeating the same feedback session",
       );
     }
 
@@ -434,7 +437,7 @@ async function runTuiLoop(waitLabel, waitMs, initialCommit, tui, control, codexO
 
       const task =
         state.feedback.entries.length > 0
-          ? `Triage ${state.feedback.entries.length} pending FEEDBACK.md entries, then take the first eligible task`
+          ? `Triage ${state.feedback.entries.length} pending docs/_objectives/FEEDBACK.md entries, then take the first eligible task`
           : state.plan.tasks[0];
       let prompt = PROMPT;
       if (state.feedback.entries.length === 0 && isDecision(task)) {
@@ -467,10 +470,12 @@ async function runTuiLoop(waitLabel, waitMs, initialCommit, tui, control, codexO
       const feedbackChanged = nextState.feedback.contents !== state.feedback.contents;
       if (!todoChanged && !feedbackChanged) {
         if (state.feedback.entries.length === 0) {
-          fail("docs/todo.txt did not change; stopping to avoid repeating the same task");
+          fail(
+            "docs/_objectives/todo.txt did not change; stopping to avoid repeating the same task",
+          );
         }
         fail(
-          "Neither docs/todo.txt nor FEEDBACK.md changed; stopping to avoid repeating the same feedback session",
+          "Neither docs/_objectives/todo.txt nor docs/_objectives/FEEDBACK.md changed; stopping to avoid repeating the same feedback session",
         );
       }
 
