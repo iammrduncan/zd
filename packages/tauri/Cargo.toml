@@ -1,6 +1,6 @@
 [package]
 name = "zd"
-version = "0.5.0"
+version = "0.1.0"
 description = "Zen Suite — focused tools for AI-assisted development"
 authors = ["Duncan"]
 edition = "2021"

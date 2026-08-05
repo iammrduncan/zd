@@ -63,9 +63,9 @@ review output, `.env` files, and OS metadata are already ignored and are not tra
 - The complete npm audit also found a high-severity development-only `brace-expansion` advisory
   with an available lockfile fix. The cleanup updates the lockfile and both production and complete
   audits now report zero vulnerabilities.
-- The current development machine runs Node 22.15.0, while `jsdom@30` requires Node 22.22.2 or a
-  supported newer release and `undici@8` requires Node 22.19.0. Commands still run, but the install
-  and versioning phase must declare and document the actual minimum Node version.
+- The version policy declares the Node releases accepted by the strictest development dependency:
+  `^22.22.2 || ^24.15.0 || >=26.0.0`. The current development machine still runs Node 22.15.0, so
+  existing commands pass but a supported Node version is required before a fresh release install.
 
 ## History rewrite evidence
 
@@ -80,8 +80,6 @@ review output, `.env` files, and OS metadata are already ignored and are not tra
 
 ## Required later phases
 
-- Align the three current `0.5.0` declarations to `0.1.0` through one versioning source and release
-  workflow.
 - Restore CI as part of tagged packaging and publication rather than reviving the intentionally
   disabled prototype workflow.
 - Replace manual macOS installation guidance with tested install paths and downloadable release

@@ -1,11 +1,14 @@
 {
   "name": "zd",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.1.0",
   "type": "module",
   "description": "Zen Suite \u2014 focused tools for AI-assisted development. Tool #1 is zd md.",
   "license": "MIT",
   "repository": "https://github.com/iammrduncan/zd",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -23,7 +26,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "npm run typecheck && npm run lint && npm test"
+    "version": "node packages/scripts/sync-version.mjs",
+    "version:bump": "npm version --no-git-tag-version",
+    "version:check": "node packages/scripts/sync-version.mjs --check",
+    "check": "npm run typecheck && npm run lint && npm test && npm run version:check"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

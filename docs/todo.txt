@@ -102,6 +102,7 @@ CHECKPOINT - Stop and test
 
 x 2026-08-05 (A) 2026-08-05 Audit and clean the repository for an open-source release +p5 @package est:60m vis:9
 x 2026-08-05 (A) 2026-08-05 Back up and rewrite repository history into measurable public commits +p5 @package est:60m vis:9
+x 2026-08-05 (A) 2026-08-05 Establish package.json as the 0.1.0 release version source +p5 @package est:60m vis:9
 (C) 2026-07-28 Performance pass on a multi-megabyte agent log and virtualize if needed +p5 @perf sess:5.1 est:60m vis:10
 (C) 2026-07-28 Measure and hold cold launch near 300ms to first meaningful frame +p5 @perf sess:5.1 est:30m vis:10
 (C) 2026-07-28 Confirm idle CPU is near zero with a document open +p5 @perf sess:5.1 est:20m vis:10
