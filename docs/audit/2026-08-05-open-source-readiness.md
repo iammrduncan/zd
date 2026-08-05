@@ -54,9 +54,9 @@ review output, `.env` files, and OS metadata are already ignored and are not tra
 
 - No tracked private keys, common provider-token formats, or credential assignments were found by
   the working-tree scan.
-- Git history contains 73 commits whose author address is a personal email and 13 commits authored
-  by an automation identity. The history-rewrite phase must normalize attribution before the
-  repository becomes public.
+- The private backup preserves the 426-commit development history, which contained 73 commits using
+  a personal author email and 13 commits using an automation identity. Public `main` contains only
+  attribution-normalized GitHub noreply commits.
 - The repository is currently private on GitHub. Its description is `Markdown Zen Mode`, and
   GitHub does not detect a license yet. Update visibility and public metadata only after the clean
   history and release artifacts are ready.
@@ -67,10 +67,19 @@ review output, `.env` files, and OS metadata are already ignored and are not tra
   supported newer release and `undici@8` requires Node 22.19.0. Commands still run, but the install
   and versioning phase must declare and document the actual minimum Node version.
 
+## History rewrite evidence
+
+- A full mirror backup named `zd-pre-open-source-20260805.git` lives in the sibling `zd-backups`
+  directory. `git fsck --full` passed, and the mirror includes the old `main` tip and the
+  pre-rewrite working-tree stash.
+- The replacement `main` contains eight semantic commits with no merge commits. Its tree preserves
+  the audited application while adding only the history evidence, privacy regression coverage, and
+  the redaction of one archived machine-local username.
+- The annotated `rust-prototype` tag points to one root snapshot commit whose tree exactly matches
+  development commit `5cda12390140dcd05c607de37cc31e28f095e323`.
+
 ## Required later phases
 
-- Back up the current repository, then replace the 425-commit development history with meaningful
-  reviewable chunks while preserving the `rust-prototype` tag separately.
 - Align the three current `0.5.0` declarations to `0.1.0` through one versioning source and release
   workflow.
 - Restore CI as part of tagged packaging and publication rather than reviving the intentionally
