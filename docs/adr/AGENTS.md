@@ -32,5 +32,5 @@ text. Then make the clarification.
 - Confirm the status is permitted by `README.md`.
 - Confirm the record appears in the ADR index.
 - Confirm all local links resolve.
-- Run `sh docs/adr/tag-hash.test.sh` and the documentation governance test.
+- Run the documentation governance test, which exercises `docs/adr/tag-hash.sh`.
 - Run `git diff --check`.
