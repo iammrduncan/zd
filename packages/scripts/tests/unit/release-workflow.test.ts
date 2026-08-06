@@ -60,6 +60,7 @@ describe("the tagged release workflow", () => {
     expect(source).toContain("--verify-tag");
     expect(source).toContain("--generate-notes");
     expect(source).toContain("GH_TOKEN: ${{ github.token }}");
+    expect(source).toContain("GH_REPO: ${{ github.repository }}");
   });
 
   it("pins every action and uses only GitHub-maintained actions", () => {
