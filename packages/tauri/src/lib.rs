@@ -6,7 +6,9 @@
 mod cli;
 mod fs;
 
-use tauri::{Emitter, Manager};
+#[cfg(target_os = "macos")]
+use tauri::Emitter;
+use tauri::Manager;
 
 /// Close the window, having been told it is safe to.
 ///
@@ -79,14 +81,20 @@ pub fn run() {
         .expect("error while building zd");
 
     app.run(|app_handle, event| {
-        let tauri::RunEvent::Opened { urls } = event else {
-            return;
-        };
-        let Some(request) = cli::opened_request(&urls) else {
-            return;
-        };
+        #[cfg(target_os = "macos")]
+        {
+            let tauri::RunEvent::Opened { urls } = event else {
+                return;
+            };
+            let Some(request) = cli::opened_request(&urls) else {
+                return;
+            };
 
-        app_handle.state::<cli::LaunchState>().queue(request);
-        let _ = app_handle.emit("open-requested", ());
+            app_handle.state::<cli::LaunchState>().queue(request);
+            let _ = app_handle.emit("open-requested", ());
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        let _ = (app_handle, event);
     });
 }
