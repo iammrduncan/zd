@@ -10,7 +10,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: genericListen }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => nativeWindow }));
 
-import { detectPlatform } from "@/platform";
+import { detectPlatform, trackAppPresence } from "@/platform";
 
 describe("the Tauri window boundary", () => {
   afterEach(() => {
@@ -18,6 +18,7 @@ describe("the Tauri window boundary", () => {
     invoke.mockReset();
     genericListen.mockClear();
     nativeWindow.onCloseRequested.mockReset();
+    document.querySelectorAll('script[data-site-id="271"]').forEach((script) => script.remove());
   });
 
   it("asks the native shell for the scoped workspace files", async () => {
@@ -72,5 +73,20 @@ describe("the Tauri window boundary", () => {
     stop();
     await Promise.resolve();
     expect(unlisten).toHaveBeenCalledOnce();
+  });
+
+  it("tracks only the launched desktop app as present", () => {
+    trackAppPresence("browser");
+    expect(document.querySelector('script[data-site-id="271"]')).toBeNull();
+
+    trackAppPresence("tauri");
+    trackAppPresence("tauri");
+
+    const trackers = document.querySelectorAll('script[data-site-id="271"]');
+    expect(trackers).toHaveLength(1);
+    expect(trackers[0]).toMatchObject({
+      async: true,
+      src: "https://usessps.com/ssps.js",
+    });
   });
 });

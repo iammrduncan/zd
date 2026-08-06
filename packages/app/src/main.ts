@@ -1,6 +1,6 @@
 import "./design/index.css";
 
-import { detectPlatform } from "./platform";
+import { detectPlatform, trackAppPresence } from "./platform";
 import { boot } from "./suite/boot";
 import { register } from "./suite/registry";
 import { md } from "./miniapps/md";
@@ -11,4 +11,6 @@ register(md);
 const host = document.getElementById("zd");
 if (!host) throw new Error("index.html is missing the #zd host element");
 
-void boot(host, detectPlatform());
+const platform = detectPlatform();
+trackAppPresence(platform.kind);
+void boot(host, platform);
