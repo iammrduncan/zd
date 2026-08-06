@@ -103,6 +103,17 @@ describe("static website", () => {
     expect(sitemap).toContain('dynamic = "force-static"');
     expect(sitemap).toContain("getPublicDocs");
   });
+
+  it("shows how inline comments become an AI-sidekick handoff", () => {
+    const home = readFileSync(resolve(WEBSITE, "app/page.tsx"), "utf8");
+    const commentScreenshot = resolve(ROOT, "docs/user-facing-docs/assets/zd-comments.png");
+
+    expect(existsSync(commentScreenshot)).toBe(true);
+    expect(home).toContain("docs/user-facing-docs/assets/zd-comments.png");
+    expect(home).toContain("AI sidekick");
+    expect(home).toContain("zd-feedback.txt");
+    expect(home).toContain("/docs/how-to/review-with-comments/");
+  });
 });
 
 function htmlUnder(dir: string): string[] {
