@@ -26,6 +26,7 @@ const SECTION_ORDER = new Map([
 ]);
 
 export type PublicDoc = {
+  description: string;
   href: string;
   html: string;
   section: string;
@@ -57,6 +58,25 @@ function hrefFor(slug: string[]): string {
 
 function titleFor(markdown: string): string {
   return markdown.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? "Untitled";
+}
+
+function descriptionFor(markdown: string): string {
+  const withoutTitle = markdown.replace(/^#\s+.+\n+/, "");
+  const paragraph =
+    withoutTitle
+      .split(/\n\s*\n/)
+      .find((block) => !/^(?:#{1,6}\s|```|[-*]\s|\|)/.test(block.trim())) ?? "";
+  const plainText = paragraph
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[`*_]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (plainText.length <= 160) return plainText;
+  const shortened = plainText.slice(0, 157);
+  const lastWord = shortened.lastIndexOf(" ");
+  const endpoint = lastWord > 0 ? lastWord : shortened.length;
+  return `${shortened.slice(0, endpoint).trimEnd()}…`;
 }
 
 function rewriteTarget(target: string, relativePath: string): string {
@@ -99,6 +119,7 @@ export function getPublicDocs(): PublicDoc[] {
       const slug = slugFor(relativePath);
 
       return {
+        description: descriptionFor(source),
         href: hrefFor(slug),
         html: markdown.render(rewriteLinks(source, relativePath)),
         section: sectionFor(slug),

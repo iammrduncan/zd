@@ -3,15 +3,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import "./globals.css";
+import { rootMetadata } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: {
-    default: "zd md — Read the long thing",
-    template: "%s · zd md",
-  },
-  description:
-    "A calm, keyboard-first Markdown reader and editor for the long documents coding agents produce.",
-};
+export const metadata: Metadata = rootMetadata;
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
