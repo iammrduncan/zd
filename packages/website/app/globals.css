@@ -131,6 +131,7 @@ footer a:hover,
 .hero,
 .product,
 .features,
+.sidekick,
 .detail,
 .closing {
   margin: 0 auto;
@@ -310,10 +311,56 @@ code {
 }
 
 .features p,
-.detail-copy > p:not(.eyebrow) {
+.detail-copy > p:not(.eyebrow),
+.sidekick-copy > p:not(.eyebrow) {
   color: var(--secondary);
   font-size: 15px;
   margin: 0;
+}
+
+.sidekick {
+  align-items: center;
+  display: grid;
+  gap: 70px;
+  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
+  padding-bottom: 130px;
+  padding-top: 130px;
+}
+
+.sidekick h2 {
+  font-size: clamp(2rem, 4.5vw, 3.8rem);
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.sidekick-copy > p:not(.eyebrow) {
+  font-size: 17px;
+  margin-top: 28px;
+}
+
+.sidekick-shot {
+  background: var(--transient);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 22px 60px light-dark(rgb(36 37 34 / 8%), rgb(0 0 0 / 22%));
+  margin: 0;
+  overflow: hidden;
+}
+
+.sidekick-shot img {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.sidekick-shot figcaption {
+  border-top: 1px solid var(--line);
+  color: var(--secondary);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 13px 16px;
 }
 
 .detail {
@@ -393,6 +440,7 @@ footer {
   }
 
   .section-heading,
+  .sidekick,
   .detail {
     grid-template-columns: 1fr;
   }
@@ -414,6 +462,12 @@ footer {
   }
 
   .detail {
+    gap: 46px;
+    padding-bottom: 82px;
+    padding-top: 82px;
+  }
+
+  .sidekick {
     gap: 46px;
     padding-bottom: 82px;
     padding-top: 82px;

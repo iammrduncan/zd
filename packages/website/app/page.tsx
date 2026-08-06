@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import commentScreenshot from "../../../docs/user-facing-docs/assets/zd-comments.png";
 import readerScreenshot from "../../../docs/user-facing-docs/assets/zd-reader.jpeg";
 import { pageMetadata, RELEASE_URL, SITE_DESCRIPTION, softwareApplicationJsonLd } from "@/lib/site";
 
@@ -78,6 +79,32 @@ export default function Home() {
             Open ordinary Markdown files and folders. Remote images stay unfetched unless you ask.
           </p>
         </article>
+      </section>
+
+      <section className="sidekick" aria-labelledby="sidekick-heading">
+        <div className="sidekick-copy">
+          <p className="eyebrow">AI sidekick handoff</p>
+          <h2 id="sidekick-heading">Give your AI sidekick the exact line.</h2>
+          <p>
+            Select text, leave an inline instruction, and keep reviewing. zd gathers comments across
+            the workspace into one agent-ready <code>zd-feedback.txt</code> file—with paths, line
+            ranges, and the quoted source intact.
+          </p>
+          <Link className="text-link" href="/docs/how-to/review-with-comments/">
+            Review with inline comments <span aria-hidden="true">→</span>
+          </Link>
+        </div>
+        <figure className="sidekick-shot">
+          <img
+            src={commentScreenshot.src}
+            width={1100}
+            height={760}
+            alt="zd md showing an inline comment attached to selected text in a Markdown file"
+          />
+          <figcaption>
+            Precise feedback in the document. Plain-text context for your agent.
+          </figcaption>
+        </figure>
       </section>
 
       <section className="detail" aria-labelledby="workspace-heading">
