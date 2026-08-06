@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 
 import { getPublicDoc } from "@/lib/docs";
+import { pageMetadata } from "@/lib/site";
 
 import { DocsPage } from "./docs-page";
 
-export const metadata: Metadata = { title: "Documentation" };
+const doc = getPublicDoc([]);
+
+export const metadata: Metadata = pageMetadata({
+  description: doc?.description ?? "Learn how to install, use, and understand zd md.",
+  path: "/docs/",
+  title: "Documentation",
+});
 
 export default function DocumentationHome() {
-  const doc = getPublicDoc([]);
   if (!doc) throw new Error("The documentation home is missing");
 
   return <DocsPage doc={doc} />;

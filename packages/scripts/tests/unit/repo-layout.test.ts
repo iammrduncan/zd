@@ -76,9 +76,32 @@ describe("static website", () => {
     expect(config).toContain('output: "export"');
     expect(config).toContain("trailingSlash: true");
     expect(home).toContain("/docs/");
-    expect(home).toContain("github.com/iammrduncan/zd/releases/latest");
+    expect(home).toContain("RELEASE_URL");
     expect(home).toContain("docs/user-facing-docs/assets/zd-reader.jpeg");
     expect(existsSync(resolve(WEBSITE, "public/screenshots"))).toBe(false);
+  });
+
+  it("publishes canonical crawl and sharing metadata", () => {
+    const seoFiles = ["app/robots.ts", "app/sitemap.ts", "lib/site.ts"];
+    expect(seoFiles.filter((path) => !existsSync(resolve(WEBSITE, path)))).toEqual([]);
+
+    const layout = readFileSync(resolve(WEBSITE, "app/layout.tsx"), "utf8");
+    const home = readFileSync(resolve(WEBSITE, "app/page.tsx"), "utf8");
+    const robots = readFileSync(resolve(WEBSITE, "app/robots.ts"), "utf8");
+    const sitemap = readFileSync(resolve(WEBSITE, "app/sitemap.ts"), "utf8");
+    const site = readFileSync(resolve(WEBSITE, "lib/site.ts"), "utf8");
+
+    expect(site).toContain("https://getzensuite.com");
+    expect(site).toContain("github.com/iammrduncan/zd");
+    expect(site).toContain("/releases/latest");
+    expect(site).toContain("zd-social-card.png");
+    expect(site).toContain("metadataBase");
+    expect(layout).toContain("rootMetadata");
+    expect(home).toContain('type="application/ld+json"');
+    expect(robots).toContain('dynamic = "force-static"');
+    expect(robots).toContain("sitemap.xml");
+    expect(sitemap).toContain('dynamic = "force-static"');
+    expect(sitemap).toContain("getPublicDocs");
   });
 });
 

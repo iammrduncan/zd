@@ -1,12 +1,21 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 
 import readerScreenshot from "../../../docs/user-facing-docs/assets/zd-reader.jpeg";
+import { pageMetadata, RELEASE_URL, SITE_DESCRIPTION, softwareApplicationJsonLd } from "@/lib/site";
 
-const RELEASE_URL = "https://github.com/iammrduncan/zd/releases/latest";
+export const metadata: Metadata = pageMetadata({
+  description: SITE_DESCRIPTION,
+  path: "/",
+});
 
 export default function Home() {
   return (
     <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd) }}
+      />
       <section className="hero">
         <p className="eyebrow">Zen Suite · tool 01</p>
         <h1>

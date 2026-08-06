@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { getPublicDoc, getPublicDocs } from "@/lib/docs";
+import { pageMetadata } from "@/lib/site";
 
 import { DocsPage } from "../docs-page";
 
@@ -16,7 +17,14 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  return { title: getPublicDoc(slug)?.title ?? "Documentation" };
+  const doc = getPublicDoc(slug);
+  if (!doc) return { title: "Documentation" };
+
+  return pageMetadata({
+    description: doc.description,
+    path: doc.href,
+    title: doc.title,
+  });
 }
 
 export default async function DocumentationPage({ params }: Props) {

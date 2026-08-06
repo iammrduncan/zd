@@ -90,6 +90,14 @@ describe("the public documentation map", () => {
     expect(publishedPaths).not.toContain("CLAUDE");
   });
 
+  it("gives every published documentation page a search description", () => {
+    for (const doc of getPublicDocs()) {
+      expect(doc).toHaveProperty("description");
+      expect(doc.description.length).toBeGreaterThan(20);
+      expect(doc.description.length).toBeLessThanOrEqual(160);
+    }
+  });
+
   it("keeps internal planning links out of standalone user documentation", () => {
     for (const path of PUBLIC_PAGES.slice(2)) {
       const source = page(path);
