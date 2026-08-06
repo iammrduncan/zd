@@ -1,5 +1,7 @@
 node_modules/
 packages/app/dist/
+packages/website/.next/
+packages/website/out/
 packages/tauri/target/
 packages/tauri/gen/
 test-results/

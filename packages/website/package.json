@@ -1,0 +1,24 @@
+{
+  "name": "@zd/website",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "preview": "serve out"
+  },
+  "dependencies": {
+    "markdown-it": "14.3.0",
+    "next": "16.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "14.1.2",
+    "@types/node": "22.20.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "serve": "14.2.6",
+    "typescript": "5.9.3"
+  }
+}

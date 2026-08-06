@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd());
 const APP = resolve(ROOT, "packages/app");
+const WEBSITE = resolve(ROOT, "packages/website");
 const SKIP = new Set(["node_modules", "dist", "test-results", "target", ".git"]);
 
 describe("package ownership", () => {
@@ -28,6 +29,8 @@ describe("package ownership", () => {
       "packages/tauri/src/main.rs",
       "packages/scripts/archive-tasks.mjs",
       "packages/scripts/tests/unit/archive-tasks.test.ts",
+      "packages/website/app/page.tsx",
+      "packages/website/package.json",
     ];
 
     expect(ownedInputs.filter((path) => !existsSync(resolve(ROOT, path)))).toEqual([]);
@@ -43,6 +46,39 @@ describe("package ownership", () => {
     const eslint = new ESLint({ cwd: ROOT });
 
     expect(await eslint.isPathIgnored("packages/app/dist/assets/generated.js")).toBe(true);
+  });
+});
+
+describe("static website", () => {
+  it("is a workspace with root-level build and launch commands", () => {
+    const rootPackage = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8"));
+    const websitePackage = JSON.parse(readFileSync(resolve(WEBSITE, "package.json"), "utf8"));
+
+    expect(rootPackage.workspaces).toContain("packages/website");
+    expect(rootPackage.scripts["website:dev"]).toContain("@zd/website");
+    expect(rootPackage.scripts["website:build"]).toContain("@zd/website");
+    expect(rootPackage.scripts["website:preview"]).toContain("@zd/website");
+    expect(websitePackage.private).toBe(true);
+    expect(websitePackage.scripts).toMatchObject({
+      build: "next build",
+      dev: "next dev",
+    });
+    expect(websitePackage.dependencies).toMatchObject({
+      "markdown-it": "14.3.0",
+      next: "16.3.0",
+    });
+  });
+
+  it("exports static HTML and keeps product imagery with the website", () => {
+    const config = readFileSync(resolve(WEBSITE, "next.config.ts"), "utf8");
+    const home = readFileSync(resolve(WEBSITE, "app/page.tsx"), "utf8");
+
+    expect(config).toContain('output: "export"');
+    expect(config).toContain("trailingSlash: true");
+    expect(home).toContain("/docs/");
+    expect(home).toContain("github.com/iammrduncan/zd/releases/latest");
+    expect(home).toContain("docs/user-facing-docs/assets/zd-reader.jpeg");
+    expect(existsSync(resolve(WEBSITE, "public/screenshots"))).toBe(false);
   });
 });
 

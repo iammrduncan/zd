@@ -5,6 +5,8 @@ export default tseslint.config(
   {
     ignores: [
       "packages/app/dist",
+      "packages/website/.next",
+      "packages/website/out",
       "node_modules",
       "packages/tauri",
       "packages/app/assets",

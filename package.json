@@ -6,6 +6,9 @@
   "description": "Zen Suite — focused tools for AI-assisted development. Tool #1 is zd md.",
   "license": "MIT",
   "repository": "https://github.com/iammrduncan/zd",
+  "workspaces": [
+    "packages/website"
+  ],
   "engines": {
     "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
@@ -13,6 +16,9 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "website:dev": "npm run dev --workspace @zd/website",
+    "website:build": "npm run build --workspace @zd/website",
+    "website:preview": "npm run preview --workspace @zd/website",
     "release:check": "node packages/scripts/check-release-tag.mjs",
     "app": "tauri dev --config packages/tauri/tauri.conf.json",
     "app:open": "ZD_CWD=\"$INIT_CWD\" tauri dev --config packages/tauri/tauri.conf.json -- --",

@@ -1,0 +1,148 @@
+.docs-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 680px);
+  justify-content: center;
+  margin: 0 auto;
+  max-width: var(--measure);
+  min-height: calc(100vh - 154px);
+  padding: 64px 28px 110px;
+}
+
+.docs-sidebar {
+  border-right: 1px solid var(--line);
+  font-family: var(--mono);
+  padding-right: 32px;
+}
+
+.docs-sidebar > a,
+.docs-sidebar div > a {
+  color: var(--secondary);
+  display: block;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 5px 8px;
+}
+
+.docs-sidebar a:hover,
+.docs-sidebar a.active {
+  color: var(--ink);
+}
+
+.docs-sidebar a.active {
+  background: var(--selection);
+  border-radius: 2px;
+}
+
+.docs-sidebar h2 {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  margin: 26px 8px 6px;
+  text-transform: uppercase;
+}
+
+.docs-article {
+  min-width: 0;
+  padding-left: 64px;
+}
+
+.docs-article h1 {
+  font-size: clamp(2.5rem, 6vw, 4.2rem);
+  line-height: 1;
+  margin-bottom: 42px;
+}
+
+.docs-article h2 {
+  border-top: 1px solid var(--line);
+  font-size: 1.55rem;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  margin: 54px 0 18px;
+  padding-top: 28px;
+}
+
+.docs-article h3 {
+  font-size: 1.1rem;
+  margin: 34px 0 12px;
+}
+
+.docs-article p,
+.docs-article li {
+  color: var(--secondary);
+}
+
+.docs-article a {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--link) 40%, transparent);
+  text-underline-offset: 3px;
+}
+
+.docs-article pre {
+  background: var(--code);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+  padding: 18px;
+}
+
+.docs-article pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.docs-article table {
+  border-collapse: collapse;
+  display: block;
+  font-size: 14px;
+  overflow-x: auto;
+  width: 100%;
+}
+
+.docs-article th,
+.docs-article td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 14px 10px 0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.docs-article th {
+  color: var(--ink);
+  font-weight: 400;
+}
+
+@media (max-width: 760px) {
+  .docs-layout {
+    display: block;
+    padding-top: 38px;
+  }
+
+  .docs-sidebar {
+    border-bottom: 1px solid var(--line);
+    border-right: 0;
+    margin-bottom: 48px;
+    padding: 0 0 30px;
+  }
+
+  .docs-sidebar div {
+    display: inline;
+  }
+
+  .docs-sidebar > a,
+  .docs-sidebar div > a {
+    display: inline-block;
+    margin: 2px;
+  }
+
+  .docs-sidebar h2 {
+    margin-top: 20px;
+  }
+
+  .docs-article {
+    padding-left: 0;
+  }
+}

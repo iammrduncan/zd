@@ -3,6 +3,8 @@ import { dirname, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { getPublicDocs } from "../../../website/lib/docs";
+
 const ROOT = resolve(process.cwd());
 const DOC_AREAS = ["adr", "zsip", "user-facing-docs", "_internal", "_internal/objectives"];
 const PUBLIC_PAGES = [
@@ -67,6 +69,23 @@ describe("the public documentation map", () => {
     for (const path of PUBLIC_PAGES.slice(3)) {
       expect(hub).toContain(path.replace(/^docs\/user-facing-docs\//, ""));
     }
+  });
+
+  it("publishes the canonical user documentation instead of keeping a website copy", () => {
+    const docsModule = page("packages/website/lib/docs.ts");
+    const docsPage = page("packages/website/app/docs/[...slug]/page.tsx");
+
+    expect(docsModule).toContain('"docs", "user-facing-docs"');
+    expect(docsModule).toContain("readFileSync");
+    expect(docsPage).toContain("generateStaticParams");
+    expect(existsSync(resolve(ROOT, "packages/website/content"))).toBe(false);
+  });
+
+  it("does not publish agent instruction files as product documentation", () => {
+    const publishedPaths = getPublicDocs().map((doc) => doc.slug.join("/"));
+
+    expect(publishedPaths).not.toContain("AGENTS");
+    expect(publishedPaths).not.toContain("CLAUDE");
   });
 
   it("keeps internal planning links out of standalone user documentation", () => {

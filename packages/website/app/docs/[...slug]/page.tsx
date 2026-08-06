@@ -1,0 +1,28 @@
+import type { Metadata } from "next";
+
+import { getPublicDoc, getPublicDocs } from "@/lib/docs";
+
+import { DocsPage } from "../docs-page";
+
+type Props = { params: Promise<{ slug: string[] }> };
+
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+  return getPublicDocs()
+    .filter((doc) => doc.slug.length > 0)
+    .map((doc) => ({ slug: doc.slug }));
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  return { title: getPublicDoc(slug)?.title ?? "Documentation" };
+}
+
+export default async function DocumentationPage({ params }: Props) {
+  const { slug } = await params;
+  const doc = getPublicDoc(slug);
+  if (!doc) throw new Error(`Unknown documentation page: ${slug.join("/")}`);
+
+  return <DocsPage doc={doc} />;
+}
