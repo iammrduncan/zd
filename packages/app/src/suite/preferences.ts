@@ -34,6 +34,8 @@
 const session = new Map<string, string>();
 
 const WORD_WRAP = "zd.wordWrap";
+const SSPS_ENABLED = "zd.sspsEnabled";
+const SSPS_CHANGED = "zd:ssps-enabled";
 
 function read(key: string): string | null {
   const remembered = session.get(key);
@@ -73,6 +75,36 @@ export function wordWrap(): boolean {
 /** Remember whether lines wrap, for every document and for next time. */
 export function setWordWrap(on: boolean): void {
   write(WORD_WRAP, String(on));
+}
+
+/** Does this installation report its native windows as present to SSPS? */
+export function sspsEnabled(): boolean {
+  return read(SSPS_ENABLED) !== "false";
+}
+
+/** Persist the suite-wide SSPS choice and notify this window immediately. */
+export function setSspsEnabled(on: boolean): void {
+  write(SSPS_ENABLED, String(on));
+  window.dispatchEvent(new CustomEvent<boolean>(SSPS_CHANGED, { detail: on }));
+}
+
+/** Follow SSPS preference changes from this window and every other open window. */
+export function onSspsEnabledChange(handler: (on: boolean) => void): () => void {
+  const local = (event: Event) => handler((event as CustomEvent<boolean>).detail);
+  const stored = (event: StorageEvent) => {
+    if (event.key !== SSPS_ENABLED) return;
+
+    if (event.newValue === null) session.delete(SSPS_ENABLED);
+    else session.set(SSPS_ENABLED, event.newValue);
+    handler(event.newValue !== "false");
+  };
+
+  window.addEventListener(SSPS_CHANGED, local);
+  window.addEventListener("storage", stored);
+  return () => {
+    window.removeEventListener(SSPS_CHANGED, local);
+    window.removeEventListener("storage", stored);
+  };
 }
 
 /**
