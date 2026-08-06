@@ -1,3 +1,5 @@
+[Website](https://getzensuite.com) &nbsp;·&nbsp; [docs](https://getzensuite.com/docs) &nbsp;·&nbsp; [Discord](https://discord.gg/3Qs2uejUf9)
+
 # zd
 
 `zd md` is a calm, keyboard-first Markdown reader and editor for the long documents that coding
