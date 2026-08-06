@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
@@ -46,6 +47,17 @@ describe("package ownership", () => {
     const eslint = new ESLint({ cwd: ROOT });
 
     expect(await eslint.isPathIgnored("packages/app/dist/assets/generated.js")).toBe(true);
+  });
+
+  it("limits desktop presence access to the SSPS script and websocket", () => {
+    const config = JSON.parse(
+      readFileSync(resolve(ROOT, "packages/tauri/tauri.conf.json"), "utf8"),
+    ) as { app: { security: { csp: string } } };
+
+    expect(config.app.security.csp).toContain("script-src 'self' https://usessps.com");
+    expect(config.app.security.csp).toContain(
+      "connect-src 'self' ipc: http://ipc.localhost wss://usessps.com",
+    );
   });
 });
 
@@ -111,6 +123,37 @@ describe("static website", () => {
     expect(scriptMatches).toHaveLength(1);
     expect(layout).toContain('data-site="LIDRLGUW"');
     expect(layout).toContain("defer");
+  });
+
+  it("reports desktop presence without counting website visitors", () => {
+    const home = readFileSync(resolve(WEBSITE, "app/page.tsx"), "utf8");
+    const presencePath = resolve(WEBSITE, "app/presence.tsx");
+    const workerPath = resolve(WEBSITE, "public/_worker.js");
+
+    expect(existsSync(presencePath)).toBe(true);
+    expect(existsSync(workerPath)).toBe(true);
+
+    const presence = readFileSync(presencePath, "utf8");
+    const worker = readFileSync(workerPath, "utf8");
+    expect(home).toContain("<AppPresence />");
+    expect(presence).toContain('fetch("/api/zd-presence"');
+    expect(presence).not.toContain("usessps.com/ssps.js");
+    expect(worker).toContain("https://usessps.com/api/sites/271/stats");
+    expect(worker).toContain("env.ASSETS.fetch(request)");
+  });
+
+  it("publishes only the validated live count from SSPS", async () => {
+    const workerURL = pathToFileURL(resolve(WEBSITE, "public/_worker.js")).href;
+    const worker = (await import(workerURL)) as {
+      fetchPresence(fetcher: () => Promise<Response>): Promise<Response>;
+    };
+
+    const response = await worker.fetchPresence(async () =>
+      Response.json({ siteId: 271, live: 4, totalHits: 18, uniqueVisitors: 7 }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ live: 4 });
   });
 
   it("shows how inline comments become an AI-sidekick handoff", () => {

@@ -75,6 +75,19 @@ export interface Platform {
   openExternal(url: string): Promise<void>;
 }
 
+const SSPS_TRACKER = 'script[src="https://usessps.com/ssps.js"][data-site-id="271"]';
+
+/** Count a native zd window as present without counting browser development sessions. */
+export function trackAppPresence(kind: Platform["kind"]): void {
+  if (kind !== "tauri" || document.querySelector(SSPS_TRACKER)) return;
+
+  const script = document.createElement("script");
+  script.async = true;
+  script.src = "https://usessps.com/ssps.js";
+  script.dataset.siteId = "271";
+  document.head.append(script);
+}
+
 const tauri: Platform = {
   kind: "tauri",
   launchRequest: () => invoke<LaunchRequest>("launch_request"),

@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import commentScreenshot from "../../../docs/user-facing-docs/assets/zd-comments.png";
 import readerScreenshot from "../../../docs/user-facing-docs/assets/zd-reader.jpeg";
 import { pageMetadata, RELEASE_URL, SITE_DESCRIPTION, softwareApplicationJsonLd } from "@/lib/site";
+import { AppPresence } from "./presence";
 
 export const metadata: Metadata = pageMetadata({
   description: SITE_DESCRIPTION,
@@ -37,6 +38,7 @@ export default function Home() {
           </Link>
         </div>
         <p className="platform-note">Available for macOS and Windows · local files by default</p>
+        <AppPresence />
       </section>
 
       <section className="product" aria-labelledby="product-heading">
