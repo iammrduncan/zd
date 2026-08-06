@@ -104,6 +104,15 @@ describe("static website", () => {
     expect(sitemap).toContain("getPublicDocs");
   });
 
+  it("loads Fathom analytics once from the shared layout", () => {
+    const layout = readFileSync(resolve(WEBSITE, "app/layout.tsx"), "utf8");
+    const scriptMatches = layout.match(/cdn\.usefathom\.com\/script\.js/g) ?? [];
+
+    expect(scriptMatches).toHaveLength(1);
+    expect(layout).toContain('data-site="LIDRLGUW"');
+    expect(layout).toContain("defer");
+  });
+
   it("shows how inline comments become an AI-sidekick handoff", () => {
     const home = readFileSync(resolve(WEBSITE, "app/page.tsx"), "utf8");
     const commentScreenshot = resolve(ROOT, "docs/user-facing-docs/assets/zd-comments.png");

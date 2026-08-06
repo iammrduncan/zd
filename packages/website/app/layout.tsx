@@ -10,6 +10,9 @@ export const metadata: Metadata = rootMetadata;
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
+      <head>
+        <script src="https://cdn.usefathom.com/script.js" data-site="LIDRLGUW" defer />
+      </head>
       <body>
         <header className="site-header">
           <Link className="wordmark" href="/" aria-label="zd md home">
