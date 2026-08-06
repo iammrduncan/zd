@@ -57,6 +57,7 @@ macOS is the primary v0.1 target. Tagged releases also include a Windows x64 ins
 | Learn the reading and editing flow | [Open your first document](docs/user-facing-docs/tutorials/first-document.md) |
 | Install or update the macOS app | [Install on macOS](docs/user-facing-docs/how-to/install-macos.md) |
 | Install or update the Windows app | [Install on Windows](docs/user-facing-docs/how-to/install-windows.md) |
+| Review Markdown with line comments | [Review with comments](docs/user-facing-docs/how-to/review-with-comments.md) |
 | Look up command-line behavior | [CLI reference](docs/user-facing-docs/reference/cli.md) |
 | Understand the system boundaries | [Architecture](docs/user-facing-docs/explanation/architecture.md) |
 | Browse guides, decisions, and project records | [Documentation map](docs/README.md) |

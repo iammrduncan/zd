@@ -12,6 +12,8 @@ the editable source. Start with the task you want to complete.
 
 - [Install on macOS](how-to/install-macos.md) to verify, install, update, or remove a release build.
 - [Install on Windows](how-to/install-windows.md) to verify and run the x64 release installer.
+- [Review with comments](how-to/review-with-comments.md) to collect line-specific notes in one
+  handoff file without changing the reviewed Markdown.
 - [Develop zd](how-to/develop.md) to run the browser surface or native shell and choose a useful
   verification command.
 

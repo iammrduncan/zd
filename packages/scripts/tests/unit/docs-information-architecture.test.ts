@@ -14,6 +14,7 @@ const PUBLIC_PAGES = [
   "docs/user-facing-docs/tutorials/first-document.md",
   "docs/user-facing-docs/how-to/install-macos.md",
   "docs/user-facing-docs/how-to/install-windows.md",
+  "docs/user-facing-docs/how-to/review-with-comments.md",
   "docs/user-facing-docs/how-to/develop.md",
   "docs/user-facing-docs/reference/cli.md",
   "docs/user-facing-docs/explanation/architecture.md",
@@ -44,6 +45,7 @@ describe("the public documentation map", () => {
     expect(readme.trimEnd().split("\n").length).toBeLessThanOrEqual(90);
     expect(readme).toContain("docs/user-facing-docs/tutorials/first-document.md");
     expect(readme).toContain("docs/user-facing-docs/how-to/install-macos.md");
+    expect(readme).toContain("docs/user-facing-docs/how-to/review-with-comments.md");
     expect(readme).toContain("docs/user-facing-docs/reference/cli.md");
     expect(readme).toContain("docs/user-facing-docs/explanation/architecture.md");
     expect(readme).toContain("CONTRIBUTING.md");
