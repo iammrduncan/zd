@@ -66,10 +66,13 @@ macOS is the primary v0.1 target. Tagged releases also include a Windows x64 ins
 ```sh
 npm ci
 npm run app
+npm run website:dev
 npm run check
 ```
 
 See [Develop zd](docs/user-facing-docs/how-to/develop.md) for browser and native workflows.
+The website runs at `http://localhost:3000`; `npm run website:build` writes the static export to
+`packages/website/out`, and `npm run website:preview` serves that built output locally.
 Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change.
 
 ## Project status
