@@ -45,10 +45,22 @@ describe("the public documentation map", () => {
     expect(readme.trimEnd().split("\n").length).toBeLessThanOrEqual(90);
     expect(readme).toContain("docs/user-facing-docs/tutorials/first-document.md");
     expect(readme).toContain("docs/user-facing-docs/how-to/install-macos.md");
+    expect(readme).toContain("install-macos.md#if-macos-says-zd-not-opened");
+    expect(readme).toContain("Open Anyway");
     expect(readme).toContain("docs/user-facing-docs/how-to/review-with-comments.md");
     expect(readme).toContain("docs/user-facing-docs/reference/cli.md");
     expect(readme).toContain("docs/user-facing-docs/explanation/architecture.md");
     expect(readme).toContain("CONTRIBUTING.md");
+  });
+
+  it("explains how to recover safely from the macOS unverified-app alert", () => {
+    const guide = page("docs/user-facing-docs/how-to/install-macos.md");
+
+    expect(guide).toMatch(/^## If macOS says “zd” Not Opened$/m);
+    expect(guide).toContain("shasum -a 256");
+    expect(guide).toContain("about an hour");
+    expect(guide).toContain("https://support.apple.com/102445");
+    expect(guide).not.toMatch(/\bxattr\b|\bspctl\b/);
   });
 
   it("gives every document type one named entry point", () => {

@@ -19,8 +19,10 @@ Download the Apple Silicon or Intel DMG and its checksum from the
 [latest release](https://github.com/iammrduncan/zd/releases/latest). The v0.1 build is ad-hoc signed,
 but not Developer ID signed or notarized.
 
-Follow the [macOS installation guide](docs/user-facing-docs/how-to/install-macos.md) to verify the
-download, copy the app, and put `zd` on PATH.
+If macOS shows **“zd” Not Opened** after the checksum passes, choose **Done**, then use System
+Settings → Privacy & Security → **Open Anyway** and confirm **Open**. See the
+[macOS installation guide](docs/user-facing-docs/how-to/install-macos.md#if-macos-says-zd-not-opened) for the full
+recovery path and PATH setup.
 
 ## Install on Windows
 
