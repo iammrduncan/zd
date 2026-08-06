@@ -1,4 +1,5 @@
 import type { Platform } from "@/platform";
+import { registerPresenceToggle } from "./presence";
 import { DEFAULT_MINIAPP, resolve } from "./registry";
 import { registerReference } from "./reference";
 import { attachShortcuts } from "./shortcuts";
@@ -74,6 +75,7 @@ export async function boot(host: HTMLElement, platform: Platform): Promise<Unmou
   // The Reference is a suite surface over whatever mini app is mounted (§3), so
   // it is registered here and the mini app never learns it exists.
   const detachReference = registerReference(host);
+  const detachPresenceToggle = platform.kind === "tauri" ? registerPresenceToggle() : NOTHING;
 
   let unmount: Unmount;
   try {
@@ -90,6 +92,7 @@ export async function boot(host: HTMLElement, platform: Platform): Promise<Unmou
      * exist.
      */
     detachReference();
+    detachPresenceToggle();
     detachShortcuts();
     saySoOnScreen(host, `zd could not start: ${reasonFor(cause)}`);
     return NOTHING;
@@ -97,6 +100,7 @@ export async function boot(host: HTMLElement, platform: Platform): Promise<Unmou
 
   return () => {
     detachReference();
+    detachPresenceToggle();
     detachShortcuts();
     unmount();
   };

@@ -49,12 +49,13 @@ describe("package ownership", () => {
     expect(await eslint.isPathIgnored("packages/app/dist/assets/generated.js")).toBe(true);
   });
 
-  it("limits desktop presence access to the SSPS script and websocket", () => {
+  it("limits desktop presence access to the SSPS websocket", () => {
     const config = JSON.parse(
       readFileSync(resolve(ROOT, "packages/tauri/tauri.conf.json"), "utf8"),
     ) as { app: { security: { csp: string } } };
 
-    expect(config.app.security.csp).toContain("script-src 'self' https://usessps.com");
+    expect(config.app.security.csp).toContain("script-src 'self';");
+    expect(config.app.security.csp).not.toContain("script-src 'self' https://usessps.com");
     expect(config.app.security.csp).toContain(
       "connect-src 'self' ipc: http://ipc.localhost wss://usessps.com",
     );

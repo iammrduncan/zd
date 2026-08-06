@@ -54,8 +54,7 @@ Once a document is open, hold `Cmd+.` (`Ctrl+.` off macOS) to see the live short
 - Folder workspaces, safe saves, external-change detection, and Markdown file association.
 - Local fonts and local files by default; remote images are not fetched.
 - The desktop app reports anonymous live presence to [SSPS](https://usessps.com/) while open.
-
-macOS is the primary v0.1 target. Tagged releases also include a Windows x64 installer.
+  `Cmd+Option+P` globally disables or re-enables it for every open window and persists across launches; use `Ctrl+Alt+P` outside macOS.
 
 ## Documentation
 

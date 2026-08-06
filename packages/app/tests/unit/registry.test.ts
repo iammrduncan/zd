@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import type { Platform } from "@/platform";
 import { boot } from "@/suite/boot";
+import { forgetPreferences, sspsEnabled } from "@/suite/preferences";
 import { DEFAULT_MINIAPP, clearRegistry, register, registeredIds, resolve } from "@/suite/registry";
+import { clearCommands, commands } from "@/suite/shortcuts";
 import type { MiniApp } from "@/suite/types";
 
 function stubApp(id: string, onMount?: (host: HTMLElement) => void): MiniApp {
@@ -18,9 +20,13 @@ function stubApp(id: string, onMount?: (host: HTMLElement) => void): MiniApp {
   };
 }
 
-function stubPlatform(miniapp: string, path: string | null = null): Platform {
+function stubPlatform(
+  miniapp: string,
+  path: string | null = null,
+  kind: Platform["kind"] = "browser",
+): Platform {
   return {
-    kind: "browser",
+    kind,
     launchRequest: async () => ({ miniapp, path }),
     onOpenRequested: () => () => {},
     acceptOpenRequest: async () => null,
@@ -62,7 +68,12 @@ describe("mini app registry", () => {
 });
 
 describe("boot", () => {
-  beforeEach(() => clearRegistry());
+  beforeEach(() => {
+    clearRegistry();
+    clearCommands();
+    forgetPreferences();
+    window.localStorage.clear();
+  });
 
   it("mounts the mini app the launch request names", async () => {
     register(stubApp("md", (host) => (host.textContent = "md mounted")));
@@ -99,6 +110,23 @@ describe("boot", () => {
 
     unmount();
     expect(host.textContent).toBe("");
+  });
+
+  it("registers a global hotkey that disables SSPS until toggled back on", async () => {
+    register(stubApp("md"));
+    const host = document.createElement("div");
+    const unmount = await boot(host, stubPlatform("md", null, "tauri"));
+    const command = commands().find(({ id }) => id === "suite.ssps");
+
+    expect(command?.chord).toEqual({ key: "p", mod: true, alt: true });
+    expect(sspsEnabled()).toBe(true);
+    expect(command?.run()).toBe(true);
+    expect(sspsEnabled()).toBe(false);
+    expect(command?.run()).toBe(true);
+    expect(sspsEnabled()).toBe(true);
+
+    unmount();
+    expect(commands().some(({ id }) => id === "suite.ssps")).toBe(false);
   });
 });
 

@@ -10,7 +10,24 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: genericListen }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => nativeWindow }));
 
-import { detectPlatform, trackAppPresence } from "@/platform";
+import { detectPlatform } from "@/platform";
+import { forgetPreferences, setSspsEnabled } from "@/suite/preferences";
+import { trackAppPresence } from "@/suite/presence";
+
+class Socket {
+  static instances: Socket[] = [];
+
+  readonly close = vi.fn();
+  readonly url: string;
+  onclose: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onopen: (() => void) | null = null;
+
+  constructor(url: string) {
+    this.url = url;
+    Socket.instances.push(this);
+  }
+}
 
 describe("the Tauri window boundary", () => {
   afterEach(() => {
@@ -18,7 +35,10 @@ describe("the Tauri window boundary", () => {
     invoke.mockReset();
     genericListen.mockClear();
     nativeWindow.onCloseRequested.mockReset();
-    document.querySelectorAll('script[data-site-id="271"]').forEach((script) => script.remove());
+    Socket.instances = [];
+    forgetPreferences();
+    window.localStorage.clear();
+    vi.unstubAllGlobals();
   });
 
   it("asks the native shell for the scoped workspace files", async () => {
@@ -76,17 +96,39 @@ describe("the Tauri window boundary", () => {
   });
 
   it("tracks only the launched desktop app as present", () => {
-    trackAppPresence("browser");
-    expect(document.querySelector('script[data-site-id="271"]')).toBeNull();
+    vi.stubGlobal("WebSocket", Socket);
 
-    trackAppPresence("tauri");
-    trackAppPresence("tauri");
+    const stopBrowser = trackAppPresence("browser");
+    const stopDesktop = trackAppPresence("tauri");
+    const stopDuplicate = trackAppPresence("tauri");
 
-    const trackers = document.querySelectorAll('script[data-site-id="271"]');
-    expect(trackers).toHaveLength(1);
-    expect(trackers[0]).toMatchObject({
-      async: true,
-      src: "https://usessps.com/ssps.js",
-    });
+    expect(Socket.instances).toHaveLength(1);
+    expect(Socket.instances[0]?.url).toContain("wss://usessps.com/ws?site-id=271");
+    expect(stopDuplicate).toBe(stopDesktop);
+    stopBrowser();
+    stopDesktop();
+  });
+
+  it("disconnects immediately and stays off when globally disabled", () => {
+    vi.stubGlobal("WebSocket", Socket);
+    const stop = trackAppPresence("tauri");
+    const socket = Socket.instances[0]!;
+
+    setSspsEnabled(false);
+
+    expect(socket.close).toHaveBeenCalledOnce();
+    expect(Socket.instances).toHaveLength(1);
+    stop();
+  });
+
+  it("starts a disabled window when the global preference is turned back on", () => {
+    vi.stubGlobal("WebSocket", Socket);
+    setSspsEnabled(false);
+    const stop = trackAppPresence("tauri");
+    expect(Socket.instances).toHaveLength(0);
+
+    setSspsEnabled(true);
+    expect(Socket.instances).toHaveLength(1);
+    stop();
   });
 });

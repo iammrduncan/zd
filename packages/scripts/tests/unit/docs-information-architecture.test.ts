@@ -63,6 +63,18 @@ describe("the public documentation map", () => {
     expect(guide).not.toMatch(/\bxattr\b|\bspctl\b/);
   });
 
+  it("documents the global desktop presence control", () => {
+    const readme = page("README.md");
+    const reference = page("docs/user-facing-docs/reference/cli.md");
+
+    for (const source of [readme, reference]) {
+      expect(source).toContain("Cmd+Option+P");
+      expect(source).toContain("Ctrl+Alt+P");
+      expect(source).toContain("every open window");
+      expect(source).toContain("persists");
+    }
+  });
+
   it("gives every document type one named entry point", () => {
     const hub = page("docs/README.md");
 

@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { forgetPreferences, setWordWrap, wordWrap } from "@/suite/preferences";
+import {
+  forgetPreferences,
+  onSspsEnabledChange,
+  setSspsEnabled,
+  setWordWrap,
+  sspsEnabled,
+  wordWrap,
+} from "@/suite/preferences";
 
 /*
  * Suite preferences — DESIGN.md §7.6's "suite preference applied to every
@@ -51,6 +58,36 @@ describe("word wrap", () => {
     // build's format, a hand-edited value — means the default, because §7.6 gives
     // a default and not an error state.
     expect(wordWrap()).toBe(true);
+  });
+});
+
+describe("SSPS", () => {
+  it("is enabled until globally disabled", () => {
+    expect(sspsEnabled()).toBe(true);
+
+    setSspsEnabled(false);
+    expect(sspsEnabled()).toBe(false);
+
+    forgetPreferences();
+    expect(sspsEnabled()).toBe(false);
+  });
+
+  it("notifies this window and follows a change from another window", () => {
+    const changed = vi.fn();
+    const stop = onSspsEnabledChange(changed);
+
+    setSspsEnabled(false);
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "zd.sspsEnabled",
+        newValue: "true",
+        storageArea: window.localStorage,
+      }),
+    );
+
+    expect(changed.mock.calls).toEqual([[false], [true]]);
+    expect(sspsEnabled()).toBe(true);
+    stop();
   });
 });
 

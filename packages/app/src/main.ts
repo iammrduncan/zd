@@ -1,7 +1,8 @@
 import "./design/index.css";
 
-import { detectPlatform, trackAppPresence } from "./platform";
+import { detectPlatform } from "./platform";
 import { boot } from "./suite/boot";
+import { trackAppPresence } from "./suite/presence";
 import { register } from "./suite/registry";
 import { md } from "./miniapps/md";
 

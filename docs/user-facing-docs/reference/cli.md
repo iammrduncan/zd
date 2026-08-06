@@ -40,3 +40,7 @@ with unsaved work must accept the switch before the native filesystem scope move
 Hold `Cmd+.` on macOS or `Ctrl+.` elsewhere to display the commands available in the current
 context. That view is the authoritative shortcut reference because it is generated from the live
 command registry.
+
+The desktop app reports anonymous live presence to SSPS while it is open. Press `Cmd+Option+P` on
+macOS or `Ctrl+Alt+P` elsewhere to disable or re-enable reporting for every open window. The choice
+persists across launches.
