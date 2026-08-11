@@ -1,0 +1,35 @@
+So as we've been building out ZD, I've been thinking about some stuff.
+
+Wondering if we should build this as a stand-alone app or start thinking about integrating this into existing apps.
+
+For example, I love the Zed editor. And it's pretty great, except that it's kind of clunky and doesn't have the editor that we've built into it and doesn't have project management. I can't have multiple projects open and then quickly swap between them, etc. I can't bring it up on any page that I'm working with. That's, for me, a big thing.
+
+I want to get this to where my operating system is able to bring up my development environment from any screen I'm on on my Mac. I use multiple virtual screens to hold different browsers or context or Discord or Slack or whatever.
+
+And I use command tilde hotkey to bring down warp as a global hotkey terminal. And before that, I did the same thing with iTerm. I want that same kind of interaction to quickly bring up the work that I'm working on. There's a bunch of stuff out there, maybe Herdr or Warp or some other things that might actually start filling this gap. Maybe we think about building extensions on those instead of completely rolling our own application and latching onto the ecosystems that already exist for those.
+
+Some references:
+- https://github.com/get-bb/bb
+- https://herdr.dev/
+- https://ghostty.org/
+- https://www.warp.dev/
+- https://zed.dev/
+- https://www.superlogical.com/
+- https://t3.codes/
+
+I'm cool building my own app if that's still the best direction, but I do want to see if there are things that we can just build on top of. My default is still running CLI versions of agent harnesses, but I want to look at things like Hermes and other agent harnesses like Pi and stuff. I want to start potentially bringing those into my workflow instead of Claude Code or Codex.
+
+The things I'm looking for are:
+- Our editor for Markdown
+- A very similar type setup for code, etc., which we started exploring
+- Terminal interface
+- The ability to switch projects or tabs that each of those projects holds the editors and terminals, etc., that I'm using to both look at stuff and view stuff
+Even better if there's some type of browser integration so I don't have to flop back and forth between systems.
+
+Custom allows us to be unattached to ecosystems and build the way we want, but also building on top of systems allows us to use existing ecosystems. It allows them to solve hard problems that we don't need to solve with terminal emulation, etc.
+
+The other thing is, I'm going to want to manage my to-do system, my goal system, my objective system that I've been building out, and the custom way of working with agents and how to do that. Also, custom state machine graphs and stuff like that. These are all parts of areas I'm thinking about investing in on ZD that we would need to either have natively supported in these tools or build ourselves as extensions, or we just continue building ZD ourselves.
+
+But even right now, ZD, I need to launch it, and I need to go to the window and do stuff. I can't bring up a global hot key, and it appears above the windows that I'm currently looking at. I hit the global hotkey again, and it disappears for me to go back.
+
+For context switching, I would love to be able to do my Command-T to launch it and then Command-1, Command-2, Command-3 to look at my different projects. I can Command-T to close it again and continue doing what I need to do. I want quick access to review, to steer agents, and then continue learning and building.
