@@ -1,3 +1,5 @@
+import { afterEach, beforeEach } from "vitest";
+
 /*
  * jsdom has no layout engine, so a handful of DOM methods that depend on one
  * simply do not exist. They are stubbed here rather than guarded in the app:
@@ -20,3 +22,21 @@ HTMLDialogElement.prototype.showModal ??= function showModal(): void {
 HTMLDialogElement.prototype.close ??= function close(): void {
   this.open = false;
 };
+
+/**
+ * Give every unit test the same clean, non-opaque browser-storage boundary.
+ *
+ * Preference tests used to clean up only their own file. A test elsewhere could
+ * therefore leave a suite preference behind and make the next file depend on
+ * worker order. The configured jsdom URL makes Storage available; these hooks
+ * make each test the complete lifetime of anything it stores.
+ */
+beforeEach(() => {
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+});
+
+afterEach(() => {
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+});
