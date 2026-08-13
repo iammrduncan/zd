@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { tokenPx } from "./anchor";
+import { tokenPx } from "../anchor";
 
 const PROSE = (
   "The window is the document and the text sits on a calm plane. " +

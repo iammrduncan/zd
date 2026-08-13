@@ -18,7 +18,7 @@
  * 400 italic. In both cases `font-synthesis: none` in reset.css stops the engine
  * inventing the missing face. That rule is load-bearing.
  *
- * tests/e2e/fonts.spec.ts holds all of this to pixels.
+ * tests/e2e/design/fonts.spec.ts holds all of this to pixels.
  */
 
 @font-face {

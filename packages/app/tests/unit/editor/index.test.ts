@@ -6,7 +6,7 @@ import { createEditor, type EditorOptions } from "@/miniapps/md/editor/editor";
 
 // The interface, not the library. What CodeMirror does with a keystroke is
 // CodeMirror's business and is measured in a real engine — see
-// tests/e2e/editor-surface.spec.ts. What matters here is that the handle stays
+// tests/e2e/editor/surface.spec.ts. What matters here is that the handle stays
 // four methods wide and that tearing it down leaves nothing behind.
 
 function mount(doc: string) {
@@ -71,7 +71,7 @@ describe("saving", () => {
    * Through `EditorView.findFromDOM`, which is CodeMirror's own documented way
    * back to a view from the element it built — not a hook added to the product
    * for a test. Real typing needs a real engine and is covered in
-   * tests/e2e/editor-surface.spec.ts; what is needed here is only that the buffer
+   * tests/e2e/editor/surface.spec.ts; what is needed here is only that the buffer
    * genuinely differs from what was last written, because every assertion below
    * is vacuous on a document that is already clean.
    */

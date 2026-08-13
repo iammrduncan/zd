@@ -5,7 +5,7 @@ import { createEditor } from "@/miniapps/md/editor/editor";
 // Vision §6.1: notation is visible, and the line it sits on still reads as the
 // block it is. What is asserted here is only *which lines are what* — what those
 // lines then look like is type and geometry, so it is CSS, and it is measured in
-// a real engine in tests/e2e/editor-notation.spec.ts.
+// a real engine in tests/e2e/editor/notation.spec.ts.
 //
 // The interesting case throughout is the one a regex over lines gets wrong: a
 // `#` or a `-` inside a fence is somebody's shell script, and every agent log

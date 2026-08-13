@@ -8,7 +8,7 @@ import { languageFor } from "@/miniapps/md/editor/language";
  *
  * A pure function of a path, so it is measured as one. What needs a browser is
  * whether the surface then *acts* on the answer, and that is in
- * tests/e2e/editor-code.spec.ts.
+ * tests/e2e/editor/code.spec.ts.
  *
  * The `markdown` flag is what every assertion here is really about: it gates the
  * heading decorations, the link rendering, the table widget, Enter continuation,

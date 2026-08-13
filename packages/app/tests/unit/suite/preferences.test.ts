@@ -15,7 +15,7 @@ import {
  *
  * Storage behaviour, measured on the store. That a *document* opens wrapped or
  * unwrapped after a reload is a browser claim and lives in
- * tests/e2e/editor-word-wrap.spec.ts.
+ * tests/e2e/editor/word-wrap.spec.ts.
  */
 
 afterEach(() => {

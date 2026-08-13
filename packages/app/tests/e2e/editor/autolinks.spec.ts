@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { sameColour } from "./colour";
+import { sameColour } from "../colour";
 
 // `<https://…>` is the one link with no label to show, so nothing is hidden in its
 // place — the address *is* the label. But the angle brackets are notation, and the

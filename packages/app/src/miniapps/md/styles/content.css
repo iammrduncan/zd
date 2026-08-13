@@ -28,7 +28,7 @@
  * document looking entirely correct the whole time.
  *
  * Any future block widget follows the same rule — see the invariant test in
- * tests/e2e/editor-caret.spec.ts.
+ * tests/e2e/editor/caret.spec.ts.
  */
 .md-editor table {
   padding-block: var(--gap-block);

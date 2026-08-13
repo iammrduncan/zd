@@ -7,7 +7,7 @@ import { isTypewriter, setTypewriter, typewriterMode } from "@/miniapps/md/edito
  * The Typewriter Mode flag — vision §6.1's "available as a toggle".
  *
  * State only. Where the caret ends up on screen is measured in
- * tests/e2e/editor-typewriter.spec.ts, because it is a claim about pixels after a
+ * tests/e2e/editor/typewriter.spec.ts, because it is a claim about pixels after a
  * scroll and nothing here has a layout.
  */
 
