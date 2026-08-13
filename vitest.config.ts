@@ -12,6 +12,9 @@ export default defineConfig({
     // which has a real engine and can measure computed styles and geometry.
     include: ["packages/*/tests/unit/**/*.test.ts"],
     environment: "jsdom",
+    environmentOptions: {
+      jsdom: { url: "http://localhost/" },
+    },
     setupFiles: ["packages/app/tests/setup.ts"],
   },
 });

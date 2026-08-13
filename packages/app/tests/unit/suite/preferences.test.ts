@@ -61,6 +61,27 @@ describe("word wrap", () => {
   });
 });
 
+describe("unit storage harness", () => {
+  it("provides the browser Storage methods preferences use", () => {
+    expect(window.localStorage.getItem("verification.probe")).toBeNull();
+
+    window.localStorage.setItem("verification.probe", "stored");
+    expect(window.localStorage.getItem("verification.probe")).toBe("stored");
+
+    window.localStorage.removeItem("verification.probe");
+    expect(window.localStorage.getItem("verification.probe")).toBeNull();
+
+    // Deliberately leave one value behind. The next test proves the shared
+    // afterEach/beforeEach boundary removes it rather than this suite doing so.
+    window.localStorage.setItem("verification.left-behind", "yes");
+  });
+
+  it("starts isolated from the preceding test", () => {
+    expect(window.localStorage.getItem("verification.left-behind")).toBeNull();
+    expect(window.localStorage.length).toBe(0);
+  });
+});
+
 describe("SSPS", () => {
   it("is enabled until globally disabled", () => {
     expect(sspsEnabled()).toBe(true);
