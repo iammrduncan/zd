@@ -95,7 +95,7 @@ documents/terminals, tab model, or serialization format.
 
 - [`md/index.ts`](../../../../../packages/app/src/miniapps/md/index.ts) owns one document's load,
   editor, shortcuts, save/reconcile, close confirmation, status, and review wiring.
-- [`workspace.ts`](../../../../../packages/app/src/miniapps/md/workspace.ts) displays one scoped tree and
+- [`workspace/index.ts`](../../../../../packages/app/src/miniapps/md/workspace/index.ts) displays one scoped tree and
   replaces the mounted editor completely when another file is chosen. It safely refuses a switch over
   unsaved work. It does not retain multiple open document buffers or tab state.
 - [`editor/editor.ts`](../../../../../packages/app/src/miniapps/md/editor/editor.ts) composes CodeMirror
@@ -105,7 +105,7 @@ documents/terminals, tab model, or serialization format.
   Markdown-it protocol validation, and removes remote images in an inert template before live DOM
   insertion.
 - Review comments are a workspace ledger persisted in `localStorage`, not yet a repository document
-  or shared service, in [`review.ts`](../../../../../packages/app/src/miniapps/md/review.ts).
+  or shared service, in [`review/index.ts`](../../../../../packages/app/src/miniapps/md/review/index.ts).
 
 CodeMirror is therefore both a strength and a material dependency. ZD's differentiating interaction
 is implemented with CodeMirror state fields, view plugins, decorations, atomic ranges, keymaps, and DOM

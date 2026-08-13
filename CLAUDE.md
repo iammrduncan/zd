@@ -1,2 +1,3 @@
 @AGENTS.md
 @docs/GOOD_ENGINEERING_H.md
+@docs/DESIGN.md

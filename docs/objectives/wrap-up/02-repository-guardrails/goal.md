@@ -45,3 +45,5 @@ chronology has a recorded answer and guard, and a pushed commit receives the res
 - A general command framework or dependency-injection layer.
 - Rewriting historical task subjects, verdicts, or evidence beyond the approved date disposition.
 - New CI jobs unrelated to the existing repository check contract.
+
+after finishing this goal write a goal-summary.md in this folder explaining how you completed the goal.

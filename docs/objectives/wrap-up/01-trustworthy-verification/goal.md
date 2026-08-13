@@ -49,3 +49,5 @@ check passes in three consecutive runs without a retry masking failure.
 - Increasing global timeouts, viewport height, or retries as a substitute for waiting on the
   asserted state.
 - Rewriting every test to use one universal helper.
+
+after finishing this goal write a goal-summary.md in this folder explaining how you completed the goal.

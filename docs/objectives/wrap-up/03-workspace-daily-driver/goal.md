@@ -51,3 +51,5 @@ pass automated checks, and a native checkpoint confirms a folder can be used as 
 - A full source-control client, staging, commits, branches, or diffs.
 - Extracting the navigator before the base app supplies two real consumers or an approved suite
   boundary.
+
+after finishing this goal write a goal-summary.md in this folder explaining how you completed the goal.

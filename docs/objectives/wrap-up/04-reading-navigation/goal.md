@@ -58,3 +58,5 @@ link without leaving an unsafe or unreturnable state.
 - A general-purpose web browser with tabs, downloads, credentials, extensions, or arbitrary
   protocols.
 - Editing the file tree or application settings.
+
+after finishing this goal write a goal-summary.md in this folder explaining how you completed the goal.
