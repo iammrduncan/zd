@@ -43,8 +43,8 @@ session. A decision line carrying an `ANSWERED` verdict will run without asking 
 - Session evidence: `Define COMPARE task workflow` at 2026-08-03 16:43; the comparison/decision
   pairs that follow; decision-context work at 22:07; and `Launch and retire comparisons` at
   2026-08-04 13:41.
-- Current evidence: `packages/scripts/session-loop-decision.mjs`,
-  `session-loop-comparison.mjs`, and `session-loop.mjs` preserve handoffs, launch reviews, remove
+- Current evidence: `packages/scripts/session-loop/decision.mjs`,
+  `comparison.mjs`, and `index.mjs` preserve handoffs, launch reviews, remove
   artifacts, and skip answered prompts.
 - Related accepted ADR: repository 0001 defines the surrounding session loop. This candidate adds
   the human visual-evidence gate without replacing that loop.

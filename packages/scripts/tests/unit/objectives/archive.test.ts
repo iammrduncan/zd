@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-const ARCHIVER = resolve(process.cwd(), "packages/scripts/archive-tasks.mjs");
+const ARCHIVER = resolve(process.cwd(), "packages/scripts/objectives/archive.mjs");
 const fixtures: string[] = [];
 
 function makeFixture(todo: string, archive?: string): string {
@@ -141,8 +141,8 @@ describe("the npm command names", () => {
       scripts: Record<string, string>;
     };
 
-    expect(packageJson.scripts.zdloop).toBe("node packages/scripts/session-loop.mjs");
-    expect(packageJson.scripts.zdarchive).toBe("node packages/scripts/archive-tasks.mjs");
+    expect(packageJson.scripts.zdloop).toBe("node packages/scripts/session-loop/index.mjs");
+    expect(packageJson.scripts.zdarchive).toBe("node packages/scripts/objectives/archive.mjs");
     expect(packageJson.scripts.loop).toBeUndefined();
     expect(packageJson.scripts.archive).toBeUndefined();
   });

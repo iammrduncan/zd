@@ -28,5 +28,5 @@ such as `README.md`, `DESIGN.md`, `CONTRIBUTING.md`, and `SECURITY.md`.
 ## Verification
 
 Update the documentation contract in
-`packages/scripts/tests/unit/docs-information-architecture.test.ts` when public navigation or a
+`packages/scripts/tests/unit/repository/docs-information-architecture.test.ts` when public navigation or a
 documented interface changes. Run that test and the affected product tests before committing.
