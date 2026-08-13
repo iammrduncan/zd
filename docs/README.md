@@ -10,8 +10,8 @@ active work. Start with the kind of information you need.
 | [Architecture Decision Records](adr/README.md) | Human-owned records of accepted architecture decisions. |
 | [Zen Suite Improvement Proposals](zsip/README.md) | Proposals for meaningful product, process, governance, and architecture changes. |
 | [User documentation](user-facing-docs/README.md) | Standalone tutorials, how-to guides, reference, and explanation for people using `zd`. |
-| [Internal records](_internal/README.md) | Release operations, implementation history, promotion material, and repository meta-docs. |
-| [Objectives](_internal/objectives/README.md) | The zdloop work queue, feedback, findings, goals, session rules, and archives. |
+| [Objective operations](objectives/_internal/releasing.md) | Release operations and other records owned by active work. |
+| [Objectives](objectives/) | Bounded goals, research, future mini-app ideas, and the high-level work queue. |
 
 ## Document types
 
@@ -35,9 +35,9 @@ Files without a suffix do not declare a special owner.
 
 When documents disagree, use this order:
 
-1. Human direction and the current [product vision](_internal/objectives/vision.md) define product intent.
+1. Human direction and the current [product vision](VISION.md) define product intent.
 2. Accepted [ADRs](adr/README.md) define architecture decisions.
-3. [DESIGN.md](../DESIGN.md) defines the visual and interaction system.
+3. [DESIGN.md](DESIGN.md) defines the visual and interaction system.
 4. [User documentation](user-facing-docs/README.md) describes released behavior.
 5. Source code and tests show the current implementation.
 

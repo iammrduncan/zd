@@ -22,7 +22,7 @@ the editable source. Start with the task you want to complete.
 - [CLI reference](reference/cli.md) lists launch forms, path rules, and exit behavior.
 - Hold `Cmd+.` in the app (`Ctrl+.` on other platforms) for the live shortcut reference. It uses
   the same command registry that handles each key.
-- [Design system](../../DESIGN.md) defines canonical type, colour, spacing, and motion values.
+- [Design system](../DESIGN.md) defines canonical type, colour, spacing, and motion values.
 
 ## Explanation
 

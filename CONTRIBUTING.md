@@ -34,4 +34,4 @@ Do not add generated output, local logs, credentials, or environment files.
 
 ## Security issues
 
-Follow [SECURITY.md](SECURITY.md) instead of opening a public issue for a vulnerability.
+Follow [SECURITY.md](docs/SECURITY.md) instead of opening a public issue for a vulnerability.

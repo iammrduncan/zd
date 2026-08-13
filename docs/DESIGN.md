@@ -13,10 +13,10 @@ earlier concept draft and has no unresolved design questions.
 
 The sources have distinct authority:
 
-1. [`docs/_internal/objectives/vision.md`](docs/_internal/objectives/vision.md) defines observable `zd md` behavior
+1. [`docs/VISION.md`](VISION.md) defines observable `zd md` behavior
    and product scope.
 2. This document defines how that behavior looks, feels, and composes across the suite.
-3. Accepted [`docs/adr/`](docs/adr/README.md) records define the TypeScript, CodeMirror, Tauri, and
+3. Accepted [`docs/adr/`](adr/README.md) records define the TypeScript, CodeMirror, Tauri, and
    native-authority boundaries.
 4. Automated tests record the behavior that the current implementation can prove.
 
@@ -866,7 +866,7 @@ The implementation must:
 - segment a pathological huge line or block so it cannot monopolise a frame;
 - load all fonts, themes, settings, and content locally with no network dependency.
 
-Visual review is performed in release builds against the budgets in `docs/_internal/objectives/vision.md` §10. A
+Visual review is performed in release builds against the budgets in `docs/VISION.md` §10. A
 beautiful screen that misses those budgets is a failed design.
 
 ## 11. Verification map

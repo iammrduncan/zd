@@ -63,7 +63,7 @@ The current application already proves several hard product decisions:
 - a suite-owned command registry that is both the dispatch source and the shortcut reference
   ([suite ADR 0004](../../../../adr/suite/0004-dispatch-application-commands-from-suite-registry_H.md));
 - a quiet, typography-led, local-first default whose primary measure is sustained comprehension of
-  long agent documents ([vision.md](../../vision.md), [`DESIGN.md`](../../../../../DESIGN.md)); and
+  long agent documents ([VISION.md](../../../../VISION.md), [`DESIGN.md`](../../../../DESIGN.md)); and
 - a static mini-app seam that makes a compiled-in second mini-app cheap without pretending to be a
   runtime plugin system ([mini-app rules](../../../../../packages/app/src/miniapps/README.md)).
 

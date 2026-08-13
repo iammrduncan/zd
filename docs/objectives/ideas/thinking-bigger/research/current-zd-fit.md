@@ -4,7 +4,7 @@ Research snapshot: 2026-08-12, repository commit 4a5fe03.
 
 Status: implementation audit and migration design, not architecture authority. Accepted decisions
 remain in [docs/adr](../../../../adr/README.md); product intent remains in
-[vision.md](../../vision.md). This report evaluates the two proposals in
+[VISION.md](../../../../VISION.md). This report evaluates the two proposals in
 [thoughts.md](../thoughts.md) against the implementation that exists.
 
 The earlier [current-architecture audit](../../thinking-differently/research/zd-current-architecture.md)
@@ -145,7 +145,7 @@ The following are product assets, even when their present code cannot move uncha
   [suite ADR 0003](../../../../adr/suite/0003-scope-file-access-to-launch-workspace_H.md).
 - The design system, fixtures, and observed interaction tests. A native rewrite may replace CSS,
   but it should not silently replace typography, focus semantics, save truthfulness, or the
-  chrome-free product character in [vision.md](../../vision.md).
+  chrome-free product character in [VISION.md](../../../../VISION.md).
 
 The current CodeMirror/DOM surface is intentional product lock-in, not incidental framework debt.
 It uses browser layout for exactly the hard cases the earlier egui prototype failed to make cheap:

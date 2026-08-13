@@ -4,7 +4,7 @@ Research snapshot: 2026-08-11, repository commit `21bc7dd`.
 
 This is a descriptive audit of the implementation that exists, not architecture authority. Accepted
 decisions remain in [`docs/adr/`](../../../../../docs/adr/README.md), while the product intent is in
-[`vision.md`](../../vision.md) and the new questions are in [`thoughts.txt`](../thoughts.txt).
+[`VISION.md`](../../../../VISION.md) and the new questions are in [`thoughts.txt`](../thoughts.txt).
 
 ## Executive finding
 
@@ -121,7 +121,7 @@ the central experience against that host's editing primitives.
 | Code viewing/editing | Language selection and syntax support exist; the vision treats non-Markdown files as a convenience | Workspace enumeration is Markdown-only and there is no IDE/project tooling contract |
 | One workspace file tree | Scoped, ignored-aware Markdown tree is implemented | One active root; no stable project catalog, multi-root session, recents, or retained tabs |
 | Project switching with `Cmd+1…9` | No model or commands | Needs a suite-owned session model below UI |
-| Terminal | Only design notes in [`goals/zd-terminal`](../../goals/zd-terminal/initial_thoughts.md) | No PTY, emulator, process lifecycle, scrollback, tabs, splits, or resize protocol |
+| Terminal | Only design notes in [`mini-apps/zd-terminal`](../../../mini-apps/zd-terminal/initial_thoughts.md) | No PTY, emulator, process lifecycle, scrollback, tabs, splits, or resize protocol |
 | Agent steering | Markdown review feedback and repository session-loop scripts exist | No live agent process abstraction, protocol adapter, permissions UI, or status stream in the app |
 | Global summon/dismiss | No native plugin or window methods | Native global shortcut plus show/focus/hide/Space behavior is required |
 | Browser handoff | A scoped `openExternal(http/https)` boundary exists | The user-visible Markdown navigation path and any integrated browser/session control remain unfinished |

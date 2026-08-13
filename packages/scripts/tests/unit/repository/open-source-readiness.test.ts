@@ -15,7 +15,7 @@ function filesUnder(directory: string): string[] {
 
 describe("the public repository boundary", () => {
   it("ships the basic open-source policy files", () => {
-    const required = ["LICENSE", "CONTRIBUTING.md", "SECURITY.md"];
+    const required = ["LICENSE", "CONTRIBUTING.md", "docs/SECURITY.md"];
 
     expect(required.filter((path) => !existsSync(resolve(ROOT, path)))).toEqual([]);
     expect(readFileSync(resolve(ROOT, "LICENSE"), "utf8")).toContain(
@@ -24,7 +24,7 @@ describe("the public repository boundary", () => {
   });
 
   it("does not publish empty planning documents or the retired report stub", () => {
-    const goals = resolve(ROOT, "docs/_internal/objectives/goals");
+    const goals = resolve(ROOT, "docs/objectives");
     const emptyMarkdown = filesUnder(goals)
       .filter((path) => path.endsWith(".md") && statSync(path).size === 0)
       .map((path) => relative(ROOT, path));
