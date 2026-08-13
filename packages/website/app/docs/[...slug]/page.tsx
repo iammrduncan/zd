@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getPublicDoc, getPublicDocs } from "@/lib/docs";
 import { pageMetadata } from "@/lib/site";
 
-import { DocsPage } from "../docs-page";
+import { DocsPage } from "../_components/document";
 
 type Props = { params: Promise<{ slug: string[] }> };
 

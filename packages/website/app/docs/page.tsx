@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { getPublicDoc } from "@/lib/docs";
 import { pageMetadata } from "@/lib/site";
 
-import { DocsPage } from "./docs-page";
+import { DocsPage } from "./_components/document";
 
 const doc = getPublicDoc([]);
 
