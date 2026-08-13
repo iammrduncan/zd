@@ -205,7 +205,7 @@ test("a link in a cell reads as activatable", async ({ page }) => {
    * still a link, but it is dimmed first".
    *
    * So the claim needs a *when*. Activatable means activatable at full contrast;
-   * the dimmed case is editor-widget-focus.spec.ts.
+   * the dimmed case is focus/widget.spec.ts.
    */
   await page.locator(".cm-content").click();
   await page.evaluate(() => {

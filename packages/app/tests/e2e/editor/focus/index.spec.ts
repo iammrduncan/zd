@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { contrast } from "../colour";
+import { contrast } from "../../colour";
 
 // Vision §4.1 calls focus "the heart of the product", and gives the editing
 // surface two rules the reader does not have:
