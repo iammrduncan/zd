@@ -162,11 +162,11 @@
   font-size: var(--type-h1-size);
   line-height: var(--type-h1-line);
   font-weight: var(--type-h1-weight);
-  padding-block: 0 var(--gap-h1-after);
+  padding-block: var(--gap-h2-before) var(--gap-h1-after);
 }
 
-.md-editor .md-line-h1 ~ .md-line-h1 {
-  padding-block-start: var(--gap-h2-before);
+.md-editor .md-line-h1.md-line-document-title {
+  padding-block-start: 0;
 }
 
 .md-editor .md-line-h2 {
