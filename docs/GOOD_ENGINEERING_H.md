@@ -144,3 +144,4 @@ What follows are short bullet points on what makes good engineering, will be exp
 - Files above 500 lines require a cohesion review.
 - Files above 800 lines should normally be decomposed.
 - Split by responsibility and ownership, not merely to satisfy a line count.
+- Make sure folder structure is well thought out and deep rather than flat. Do not do use compound filenames like `<component>-<name>.tld` instead do `<component>/<name>.tld` directory nesting.

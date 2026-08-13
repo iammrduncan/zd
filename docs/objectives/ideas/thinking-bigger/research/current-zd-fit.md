@@ -110,17 +110,17 @@ CodeMirror state + Lezer + DOM/CSS
   and SSPS enablement in localStorage with an in-memory fallback.
   [presence.ts](../../../../../packages/app/src/suite/presence.ts) separately stores an anonymous
   visitor ID. These are browser-origin values, not a versioned suite database.
-- [workspace.ts](../../../../../packages/app/src/miniapps/md/workspace.ts) mounts one document at a
+- [workspace/index.ts](../../../../../packages/app/src/miniapps/md/workspace/index.ts) mounts one document at a
   time and destroys it on a safe file switch. It has no retained tabs, dirty-buffer collection,
   stable project ID, multi-root catalog, or serializable layout.
 - [editor.ts](../../../../../packages/app/src/miniapps/md/editor/editor.ts) deliberately keeps the
   path outside the editor. It owns source text, selection, history, dirty comparison, queued saves,
   and live CodeMirror configuration. Product behavior is distributed across cohesive editor
   modules for notation, focus, tables, lists, movement, review annotations, and language support.
-- [review.ts](../../../../../packages/app/src/miniapps/md/review.ts) makes an in-memory/localStorage
+- [review/index.ts](../../../../../packages/app/src/miniapps/md/review/index.ts) makes an in-memory/localStorage
   ledger the live owner and regenerates zd-feedback.txt as a handoff file. Its storage key is based
   on the raw root path, not a stable project identity.
-- [workspace-resize.ts](../../../../../packages/app/src/miniapps/md/workspace-resize.ts) keeps panel
+- [workspace/resize.ts](../../../../../packages/app/src/miniapps/md/workspace/resize.ts) keeps panel
   width only in the element style for the mounted session. There is no general panel or layout
   model hiding behind the current sidebar.
 
@@ -385,14 +385,14 @@ Retain or port behavior at the coarsest useful cut points:
 - Pure save/reconciliation decisions in
   [reconcile.ts](../../../../../packages/app/src/miniapps/md/reconcile.ts) become language-neutral
   contract cases.
-- [editor.test.ts](../../../../../packages/app/tests/unit/editor.test.ts) defines the editor facade
-  and save queue behavior; [editor-save.spec.ts](../../../../../packages/app/tests/e2e/editor-save.spec.ts)
+- [editor/index.test.ts](../../../../../packages/app/tests/unit/editor/index.test.ts) defines the editor facade
+  and save queue behavior; [editor/save.spec.ts](../../../../../packages/app/tests/e2e/editor/save.spec.ts)
   covers real browser input. Port outcomes, not CodeMirror implementation calls.
 - Markdown visual/interaction fixtures under
   [packages/app/tests/e2e](../../../../../packages/app/tests/e2e/) provide a parity corpus. Add
   native golden screenshots only for stable layout claims, plus direct interaction tests for
   selection, IME, accessibility, and focus.
-- [workspace.test.ts](../../../../../packages/app/tests/unit/workspace.test.ts) pins safe switch and
+- [workspace.test.ts](../../../../../packages/app/tests/unit/md/workspace.test.ts) pins safe switch and
   teardown. Reuse those lifecycle scenarios for the new suite reducer.
 - Keep one end-to-end test that writes a real temporary file through the GPUI adapter. Unit tests
   of a view model do not prove native file authority or atomic save.

@@ -52,3 +52,5 @@ preferences, review comments, and shared app state.
 - Cloud sync, accounts, roaming preferences, or multi-device conflict resolution.
 - Plugin-defined settings or a general settings schema.
 - A second persistence store retained for convenience after SQLite becomes authoritative.
+
+after finishing this goal write a goal-summary.md in this folder explaining how you completed the goal.

@@ -15,3 +15,4 @@ Always use the task tool to plan out and do what you need and use it to hold you
 
 ## Coding Conventions
 Read @docs/GOOD_ENGINEERING_H.md for your coding best practices, especially before making any decisions.
+Read @docs/DESIGN.md

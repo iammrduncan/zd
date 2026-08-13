@@ -38,3 +38,5 @@ rendered surface.
   clipboard formats.
 - A second table document model stored outside Markdown source.
 - General block-widget editing unrelated to tables.
+
+after finishing this goal write a goal-summary.md in this folder explaining how you completed the goal.

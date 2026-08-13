@@ -49,3 +49,5 @@ Windows build passes the recorded checklist.
 - macOS notarization, Windows code signing, auto-update, or distribution-channel work beyond the
   accepted release ADR.
 - Session restore for an unlimited number of windows or cross-device window synchronization.
+
+after finishing this goal write a goal-summary.md in this folder explaining how you completed the goal.

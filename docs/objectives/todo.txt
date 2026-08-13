@@ -1,0 +1,5 @@
+/ wrap up existing work
+review adrs
+enable code editing
+start work on terminal integration
+start project work
