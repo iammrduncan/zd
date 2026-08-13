@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "./harness";
+
 // The 2026-07-29 decision puts images in vision §6.1's *renders* list, and
 // DESIGN.md §7.3 sets the hard rule they have to obey: "Raw HTML is inert text.
 // Remote images are never fetched. Missing and blocked images receive a quiet,
@@ -9,9 +11,7 @@ import { expect, test } from "@playwright/test";
 // giving a document the ability to announce that it was opened.
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
+  await openEditor(page);
   /*
    * `.md-image`, never a bare `img`. CodeMirror wraps every widget in its own
    * `<img class="cm-widgetBuffer" aria-hidden>` — zero-size and invisible — so a
@@ -19,7 +19,11 @@ test.beforeEach(async ({ page }) => {
    * to become visible. Thirteen `img` elements are on this page and only two are
    * pictures.
    */
-  await page.locator(".md-image").first().waitFor();
+  await materializeEditorTarget(
+    page,
+    page.locator('.md-editor .md-image:has(img[alt="a dot"])'),
+    "the local fixture image",
+  );
 });
 
 test("a local image renders as a picture, not as bracket source", async ({ page }) => {
@@ -43,7 +47,11 @@ test("a remote image is a quiet placeholder and is never requested", async ({ pa
   page.on("request", (r) => requests.push(r.url()));
 
   await page.reload();
-  await page.locator(".md-editor .md-image-blocked").first().waitFor();
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-image-blocked", { hasText: "a diagram that will not load" }),
+    "the blocked remote image",
+  );
 
   const placeholder = await page.evaluate(() => {
     const node = document.querySelector<HTMLElement>(".md-editor .md-image-blocked");
@@ -74,13 +82,16 @@ test("rendering an image does not change the document", async ({ page }) => {
 test("raw mode shows the image source again", async ({ page }) => {
   await page.locator(".cm-line").first().click();
   await page.keyboard.press("ControlOrMeta+e");
-
-  const onScreen = await page.evaluate(
-    () => document.querySelector<HTMLElement>(".cm-content")!.innerText,
+  const line = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: "A local one renders" }),
+    "the raw local-image source line",
   );
 
   // §7.4: raw mode reveals the literal source of every rendered construct. An image
   // you cannot get back to the source of is one you cannot fix the path of.
-  expect(onScreen, "the image source is still hidden under raw mode").toContain("![a dot](data:");
+  await expect(line, "the image source is still hidden under raw mode").toContainText(
+    "![a dot](data:",
+  );
   await expect(page.locator(".md-image"), "the picture survived raw mode").toHaveCount(0);
 });
