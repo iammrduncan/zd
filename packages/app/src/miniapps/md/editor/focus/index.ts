@@ -7,7 +7,12 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 
-import { anchorY, DEFAULT_GRANULARITY, scrollBoxToAnchor, type FocusGranularity } from "../../focus";
+import {
+  anchorY,
+  DEFAULT_GRANULARITY,
+  scrollBoxToAnchor,
+  type FocusGranularity,
+} from "../../focus";
 import type { ScrollMotion } from "../../scroll";
 import { scrollingMeasure, type ScrollingMeasure } from "../measure";
 import { isTypewriter } from "../typewriter";
