@@ -11,14 +11,14 @@ import { jumpFocusBlock, settledMotion } from "./motion";
 import { markdownNotation } from "./notation";
 import { autoPairing } from "./pairing";
 import { isRaw, rawModeState, setRaw } from "./raw";
-import { hiddenNotationRows } from "./notation-rows";
+import { hiddenNotationRows } from "./notation/rows";
 import { markdownTables } from "./table";
 import {
   reviewAnnotations,
   setCommentTags,
   type CommentTag,
   type ReviewSelection,
-} from "./review-annotations";
+} from "../review/annotations";
 
 import "../styles/editor.css";
 
@@ -338,7 +338,7 @@ export function createEditor(
               // See table.ts.
               markdownTables(),
               // Also a StateField, and for the same reason — hiding a whole row is
-              // a block decoration. See notation-rows.ts.
+              // a block decoration. See notation/rows.ts.
               hiddenNotationRows(),
             ]
           : (language.support ?? []),

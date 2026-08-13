@@ -1,8 +1,8 @@
 import type { WorkspaceFile } from "@/platform";
 import type { SuiteContext, Unmount } from "@/suite/types";
-import { mountSidebarResizer } from "./workspace-resize";
-import { buildFileTree } from "./workspace-tree";
-import { mountReview, type ReviewDocument } from "./review";
+import { mountReview, type ReviewDocument } from "../review";
+import { mountSidebarResizer } from "./resize";
+import { buildFileTree } from "./tree";
 
 export interface MountedDocument {
   canSwitch(): boolean;

@@ -66,12 +66,12 @@ const leaveBlockquote: StateCommand = ({ state, dispatch }) => {
  * The fence markers of the `FencedCode` node containing `pos`, or null.
  *
  * Driven off `CodeMark` children rather than by matching backticks in the text, the
- * same way notation-rows.ts finds them to hide their rows — a fence can be tildes,
+ * same way notation/rows.ts finds them to hide their rows — a fence can be tildes,
  * can be longer than three characters, and carries its language as a separate node.
  * The parser knows all of that already.
  *
  * **One mark means the fence is unclosed.** That is the fact both commands below turn
- * on, and it is the same fact notation-rows.ts uses to decide that an unclosed
+ * on, and it is the same fact notation/rows.ts uses to decide that an unclosed
  * fence's row must stay on screen.
  */
 function fenceAt(

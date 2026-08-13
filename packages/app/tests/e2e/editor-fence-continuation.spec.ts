@@ -194,7 +194,7 @@ test("an already closed fence never gains a second closer", async ({ page }) => 
 /*
  * An incomplete fence is a line someone is still typing.
  *
- * §7.4: "Incomplete syntax remains editable plain text." notation-rows.ts said so in
+ * §7.4: "Incomplete syntax remains editable plain text." notation/rows.ts said so in
  * a comment — "An unclosed fence has one mark, and its row must stay: hiding the
  * opening of a block that never ends would swallow the line the caret is on while
  * someone is still typing it" — and then hid the opening row one statement before
