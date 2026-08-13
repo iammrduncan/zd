@@ -1,7 +1,7 @@
 import type { Platform, WorkspaceFile } from "@/platform";
-import type { CommentTag, ReviewSelection } from "./editor/review-annotations";
+import type { CommentTag, ReviewSelection } from "./annotations";
 
-export type { ReviewSelection } from "./editor/review-annotations";
+export type { ReviewSelection } from "./annotations";
 
 const OUTPUT_NAME = "zd-feedback.txt";
 const STORAGE_PREFIX = "zd.review.v1:";

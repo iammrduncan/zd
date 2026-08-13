@@ -7,11 +7,11 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 
-import { anchorY, DEFAULT_GRANULARITY, scrollBoxToAnchor, type FocusGranularity } from "../focus";
-import { blockRange, nearestContentPos, sectionRange } from "./focus-range";
-import type { ScrollMotion } from "../scroll";
-import { scrollingMeasure, type ScrollingMeasure } from "./measure";
-import { isTypewriter } from "./typewriter";
+import { anchorY, DEFAULT_GRANULARITY, scrollBoxToAnchor, type FocusGranularity } from "../../focus";
+import type { ScrollMotion } from "../../scroll";
+import { scrollingMeasure, type ScrollingMeasure } from "../measure";
+import { isTypewriter } from "../typewriter";
+import { blockRange, nearestContentPos, sectionRange } from "./range";
 
 /**
  * Focus on the editing surface. Vision §4.1 calls it the heart of the product.

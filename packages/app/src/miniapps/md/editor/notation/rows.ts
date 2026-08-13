@@ -2,7 +2,7 @@ import { syntaxTree } from "@codemirror/language";
 import { StateField, type EditorState, type Extension, type Range } from "@codemirror/state";
 import { Decoration, EditorView, type DecorationSet } from "@codemirror/view";
 
-import { isRaw, rawModeChanged } from "./raw";
+import { isRaw, rawModeChanged } from "../raw";
 
 /**
  * Whole rows of pure notation, taken off the screen.

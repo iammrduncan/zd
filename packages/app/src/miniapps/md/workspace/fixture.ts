@@ -1,7 +1,7 @@
 import "@/design/index.css";
 
 import type { Platform } from "@/platform";
-import { md } from ".";
+import { md } from "..";
 
 const root = "/workspace";
 const documents = new Map([

@@ -260,7 +260,7 @@ test("raw mode and rendered mode agree on the source, whatever the caret did", a
  *
  * The fence case turned out badly: an incomplete fence's row was hidden, a hidden row
  * is an atomic range, and the caret was pushed off the line between two keystrokes —
- * so a fence with a language could not be typed. Fixed in notation-rows.ts, and
+ * so a fence with a language could not be typed. Fixed in notation/rows.ts, and
  * covered in editor-fence-continuation.spec.ts.
  *
  * These are the same question asked of the other constructs that hide source, because

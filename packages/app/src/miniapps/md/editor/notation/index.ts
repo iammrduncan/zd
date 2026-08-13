@@ -3,9 +3,9 @@ import { syntaxTree } from "@codemirror/language";
 import type { EditorState, Extension } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 
-import { renderInlineMarkdown } from "../markdown";
-import { codeHighlighting, codeLanguages } from "./highlight";
-import { isRaw, rawModeChanged } from "./raw";
+import { renderInlineMarkdown } from "../../markdown";
+import { codeHighlighting, codeLanguages } from "../highlight";
+import { isRaw, rawModeChanged } from "../raw";
 import {
   Decoration,
   EditorView,
@@ -332,7 +332,7 @@ function notationLines(view: EditorView): Notation {
          * Only the *first* line takes the heading role. The node spans both rows, so
          * marking every line it covers would give the underline a 30px face as well,
          * which is the opposite of the point. The underline's row is removed
-         * separately, in notation-rows.ts.
+         * separately, in notation/rows.ts.
          */
         const setext = SETEXT_HEADING.exec(node.name);
         if (setext) {
