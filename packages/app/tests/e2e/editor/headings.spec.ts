@@ -1,12 +1,21 @@
 import { expect, test } from "@playwright/test";
 
 import { sameColour } from "../colour";
+import { materializeEditorTarget, openEditor } from "./harness";
 
 // Vision §6.1: a heading in the editor keeps its `#` on screen while consuming
 // the suite's heading roles. The retired render-only page is no longer an
 // intermediary between those tokens and the product surface.
 
 const LEVELS = [1, 2, 3, 4, 5, 6] as const;
+const HEADING_TEXT = {
+  1: "Typing in the document",
+  2: "Notation",
+  3: "Every level has to read",
+  4: "Four steps down",
+  5: "Five steps down",
+  6: "Six steps down",
+} as const;
 
 interface Type {
   family: string;
@@ -61,27 +70,10 @@ async function typeOf(page: import("@playwright/test").Page, selectors: string[]
 }
 
 test.beforeEach(async ({ page }) => {
-  // Tall enough that CodeMirror has built DOM for the whole fixture — it renders
-  // only its viewport. The fixture grows as constructs are added, and a viewport
-  // that merely fitted yesterday silently stops rendering the blocks at the bottom
-  // today, which shows up as unrelated specs failing. 4200 clears the current
-  // ~3280px with room; see docs/_internal/objectives/agent-findings.md on making these scroll instead.
-  // 9000 is headroom, not a fit. The fixture is ~3700px and grows every time a
-  // construct is added; a viewport that merely fitted has silently stopped
-  // rendering the bottom of the document four times now, each time failing specs
-  // that had nothing to do with the change. A headless viewport costs nothing, so
-  // this buys years rather than one more construct. The proper fix — scroll until
-  // the wanted line is built — is a filed task.
-  await page.setViewportSize({ width: 1100, height: 9000 });
+  await openEditor(page);
 });
 
 test("every heading level consumes its suite type role", async ({ page }) => {
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  const editing = await typeOf(
-    page,
-    LEVELS.map((n) => `.md-line-h${n}`),
-  );
   const roles = await page.evaluate((levels) => {
     const out: Record<number, Pick<Type, "family" | "size" | "weight" | "line">> = {};
     for (const level of levels) {
@@ -106,7 +98,13 @@ test("every heading level consumes its suite type role", async ({ page }) => {
   }, LEVELS);
 
   for (const level of LEVELS) {
-    const edit = editing(`.md-line-h${level}`);
+    const selector = `.md-line-h${level}`;
+    await materializeEditorTarget(
+      page,
+      page.locator(`.md-editor ${selector}`, { hasText: HEADING_TEXT[level] }),
+      `the fixture h${level}`,
+    );
+    const edit = (await typeOf(page, [selector]))(selector);
     expect(
       { family: edit.family, size: edit.size, weight: edit.weight, line: edit.line },
       `h${level} type role`,
@@ -115,8 +113,11 @@ test("every heading level consumes its suite type role", async ({ page }) => {
 });
 
 test("deep headings use stepped type as well as stepped space", async ({ page }) => {
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h6").waitFor();
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-h6", { hasText: "Six steps down" }),
+    "the fixture h6",
+  );
 
   const ladder = await page.evaluate(() =>
     [3, 4, 5, 6].map((level) => {
@@ -138,12 +139,6 @@ test("deep headings use stepped type as well as stepped space", async ({ page })
 });
 
 test("every heading level consumes its suite spacing role", async ({ page }) => {
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  const editing = await typeOf(
-    page,
-    LEVELS.map((n) => `.md-line-h${n}`),
-  );
   const spacing = await page.evaluate(() => {
     const style = getComputedStyle(document.documentElement);
     const px = (name: string) => parseFloat(style.getPropertyValue(name));
@@ -158,30 +153,43 @@ test("every heading level consumes its suite spacing role", async ({ page }) => 
   });
 
   for (const level of LEVELS) {
-    const edit = editing(`.md-line-h${level}`);
+    const selector = `.md-line-h${level}`;
+    await materializeEditorTarget(
+      page,
+      page.locator(`.md-editor ${selector}`, { hasText: HEADING_TEXT[level] }),
+      `the fixture h${level}`,
+    );
+    const edit = (await typeOf(page, [selector]))(selector);
     expect(edit.spaceBefore, `h${level} space above`).toBeCloseTo(spacing[level]![0], 1);
     expect(edit.spaceAfter, `h${level} space below`).toBeCloseTo(spacing[level]![1], 1);
   }
 });
 
 test("later H1s use section spacing while the opening title stays flush", async ({ page }) => {
-  await page.goto("/dev/editor.html");
-  const h1s = page.locator(".md-line-h1");
-  await expect(h1s).toHaveCount(2);
-
-  const headings = await h1s.evaluateAll((nodes) =>
-    nodes.map((node) => ({
+  const read = (locator: import("@playwright/test").Locator) =>
+    locator.evaluate((node) => ({
       text: node.textContent,
       spaceBefore: Number.parseFloat(getComputedStyle(node).paddingTop),
-    })),
+    }));
+  const title = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-h1", { hasText: "Typing in the document" }),
+    "the opening h1",
   );
+  const opening = await read(title);
+  const setext = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-h1", { hasText: "A setext heading underlined" }),
+    "the later setext h1",
+  );
+  const later = await read(setext);
   const sectionGap = await page.evaluate(() =>
     Number.parseFloat(
       getComputedStyle(document.documentElement).getPropertyValue("--gap-h2-before"),
     ),
   );
 
-  expect(headings).toEqual([
+  expect([opening, later]).toEqual([
     { text: "# Typing in the document", spaceBefore: 0 },
     { text: "A setext heading underlined", spaceBefore: sectionGap },
   ]);
@@ -284,8 +292,11 @@ test("the hash hangs in the gutter and the prose edge stays straight", async ({ 
 });
 
 test("a hash inside a fenced code block is not a heading", async ({ page }) => {
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-code", { hasText: "# install and run" }),
+    "the shell comment inside a fence",
+  );
 
   const shellComment = await page.evaluate(() => {
     const line = [...document.querySelectorAll<HTMLElement>(".cm-line")].find(

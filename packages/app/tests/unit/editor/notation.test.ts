@@ -39,7 +39,7 @@ describe("markdown notation in the editing surface", () => {
       ].join("\n");
 
       expect(classesOf(doc)).toEqual([
-        ["md-line-h1"],
+        ["md-line-h1", "md-line-document-title"],
         [],
         ["md-line-h2"],
         [],
@@ -50,6 +50,18 @@ describe("markdown notation in the editing surface", () => {
         ["md-line-h5"],
         [],
         ["md-line-h6"],
+      ]);
+    });
+
+    it("identifies the document-start h1 independently of the rendered viewport", () => {
+      const doc = ["# Opening title", "", "A later setext title", "===================="].join(
+        "\n",
+      );
+
+      expect(classesOf(doc)).toEqual([
+        ["md-line-h1", "md-line-document-title"],
+        [],
+        ["md-line-h1"],
       ]);
     });
 

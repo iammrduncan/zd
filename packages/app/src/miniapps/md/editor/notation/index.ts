@@ -45,6 +45,7 @@ const SETEXT_HEADING = /^SetextHeading([12])$/;
 const LINE = new Map<string, Decoration>(
   [
     "md-line-h1",
+    "md-line-h1 md-line-document-title",
     "md-line-h2",
     "md-line-h3",
     "md-line-h4",
@@ -55,6 +56,12 @@ const LINE = new Map<string, Decoration>(
     "md-line-rule",
   ].map((name) => [name, Decoration.line({ class: name })]),
 );
+
+/** A document title is the h1 at source position zero, not the first h1 currently virtualized. */
+function headingLineClass(level: string, from: number): string {
+  const heading = `md-line-h${level}`;
+  return level === "1" && from === 0 ? `${heading} md-line-document-title` : heading;
+}
 
 /**
  * The run of characters standing between the start of a list line and the start
@@ -322,7 +329,8 @@ function notationLines(view: EditorView): Notation {
       enter: (node) => {
         const heading = ATX_HEADING.exec(node.name);
         if (heading) {
-          mark(state.doc.lineAt(node.from).from, `md-line-h${heading[1]}`);
+          const line = state.doc.lineAt(node.from);
+          mark(line.from, headingLineClass(heading[1]!, line.from));
           return;
         }
 
@@ -336,7 +344,8 @@ function notationLines(view: EditorView): Notation {
          */
         const setext = SETEXT_HEADING.exec(node.name);
         if (setext) {
-          mark(state.doc.lineAt(node.from).from, `md-line-h${setext[1]}`);
+          const line = state.doc.lineAt(node.from);
+          mark(line.from, headingLineClass(setext[1]!, line.from));
           return;
         }
 
