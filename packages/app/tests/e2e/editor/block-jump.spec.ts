@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
 
+import {
+  beginEditorScrollTrace,
+  endEditorScrollTrace,
+  openEditor,
+  waitForEditorScrollToSettle,
+} from "./harness";
+
 /*
  * "we should use short cut option+arrow-keys to jump down to the next 'focus block'…
  * if I just hit arrow key it goes line by line, if I hit option+arrow-keys right now it
@@ -27,12 +34,7 @@ import { expect, test } from "@playwright/test";
  */
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
+  await openEditor(page);
   await page.locator(".cm-content").click();
 });
 
@@ -328,28 +330,19 @@ test("typewriter block jumps ease and settle at the midpoint", async ({ page }) 
     )
     .toBeLessThanOrEqual(2);
 
-  const before = await page.evaluate(() => {
-    const surface = document.querySelector<HTMLElement>(".md-surface")!;
-    (window as unknown as { zdJumpFrames: number[] }).zdJumpFrames = [];
-    const record = () => {
-      const frames = (window as unknown as { zdJumpFrames: number[] }).zdJumpFrames;
-      frames.push(surface.scrollTop);
-      if (frames.length < 40) requestAnimationFrame(record);
-    };
-    requestAnimationFrame(record);
-    return surface.scrollTop;
-  });
+  const before = await page.locator(".md-surface").evaluate((surface) => surface.scrollTop);
+  await beginEditorScrollTrace(page);
 
   // Paragraph 3–5 to paragraph 7–9 is several rows: large enough that the ordinary
   // typewriter nudge cuts immediately, which is the reported hop rather than an ease.
   await page.keyboard.press("Alt+ArrowDown");
   await expect.poll(() => caretLine(page)).toBe(7);
-  await page.waitForTimeout(700);
+  await waitForEditorScrollToSettle(page);
+  const frames = (await endEditorScrollTrace(page)).map(({ top }) => top);
   const after = await page.evaluate(() => {
     const surface = document.querySelector<HTMLElement>(".md-surface")!;
     return {
       scrollTop: surface.scrollTop,
-      frames: (window as unknown as { zdJumpFrames: number[] }).zdJumpFrames,
       row: document.querySelector<HTMLElement>(".cm-line")!.getBoundingClientRect().height,
       midpointDistance: Math.abs(window.zdEditor!.caretY()! - window.zdEditor!.typewriterY()),
     };
@@ -364,18 +357,16 @@ test("typewriter block jumps ease and settle at the midpoint", async ({ page }) 
   const low = Math.min(before, after.scrollTop);
   const high = Math.max(before, after.scrollTop);
   const between = new Set(
-    after.frames.filter((position) => position > low + 1 && position < high - 1).map(Math.round),
+    frames.filter((position) => position > low + 1 && position < high - 1).map(Math.round),
   );
   expect(
     between.size,
-    `the block jump hopped instead of easing: ${after.frames.map(Math.round).join(", ")}`,
+    `the block jump hopped instead of easing: ${frames.map(Math.round).join(", ")}`,
   ).toBeGreaterThanOrEqual(3);
 
-  const frameSteps = after.frames
-    .slice(1)
-    .map((position, index) => Math.abs(position - after.frames[index]!));
+  const frameSteps = frames.slice(1).map((position, index) => Math.abs(position - frames[index]!));
   expect(
     Math.max(...frameSteps),
-    `one frame hopped more than two rows: ${after.frames.map(Math.round).join(", ")}`,
+    `one frame hopped more than two rows: ${frames.map(Math.round).join(", ")}`,
   ).toBeLessThanOrEqual(after.row * 2);
 });

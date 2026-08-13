@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { openEditor } from "./harness";
+
 /*
  * Before a caret exists, the editor focuses whatever the reading anchor sits in —
  * vision §4.1: "Before a caret is placed, focus follows the vertical reading
@@ -37,40 +39,42 @@ test.beforeEach(async ({ page }) => {
  * blank source line, and focusing one means focusing nothing.
  */
 async function targetsWhileScrolling(page: import("@playwright/test").Page, selector: string) {
-  return page.evaluate(async (target) => {
-    const surface = document.querySelector<HTMLElement>(".md-surface")!;
-    const settle = async () => {
-      for (let i = 0; i < 12; i += 1) await new Promise((done) => requestAnimationFrame(done));
-    };
+  const furthest = await page
+    .locator(".md-surface")
+    .evaluate((surface) => surface.scrollHeight - surface.clientHeight);
+  const seen: { scrollTop: number; carries: boolean }[] = [];
 
-    const seen: { scrollTop: number; carries: boolean }[] = [];
-    // Every 100px through the whole document, so a gap between blocks is hit
-    // whatever the fixture's exact rhythm is rather than at a position picked to
-    // make the test pass.
-    for (let top = 0; top <= surface.scrollHeight - surface.clientHeight; top += 100) {
-      surface.scrollTop = top;
-      await settle();
-      const element = document.querySelector<HTMLElement>(target);
-      const isRule = element?.tagName === "HR" || element?.classList.contains("md-line-rule");
-      // Not `children.length`. CodeMirror puts a `<br>` inside every empty line, so
-      // counting children made this assertion vacuous on exactly the case it is
-      // about — the blank line — while still reading as if it tested something.
-      const content = [...(element?.children ?? [])].filter((child) => child.tagName !== "BR");
-      const carries = Boolean(
-        element && (element.textContent?.trim() !== "" || content.length > 0 || isRule),
-      );
-      seen.push({ scrollTop: top, carries });
-    }
-    return seen;
-  }, selector);
+  // Every 100px through the whole document, so a gap between blocks is hit
+  // whatever the fixture's exact rhythm is rather than at a position picked to
+  // make the test pass.
+  for (let top = 0; top <= furthest; top += 100) {
+    await page.locator(".md-surface").evaluate((surface, next) => {
+      surface.scrollTop = next;
+    }, top);
+    await expect
+      .poll(
+        () =>
+          page.evaluate((target) => {
+            const element = document.querySelector<HTMLElement>(target);
+            const isRule = element?.tagName === "HR" || element?.classList.contains("md-line-rule");
+            // CodeMirror puts a <br> in an empty line; it is not readable content.
+            const content = [...(element?.children ?? [])].filter(
+              (child) => child.tagName !== "BR",
+            );
+            return Boolean(
+              element && (element.textContent?.trim() !== "" || content.length > 0 || isRule),
+            );
+          }, selector),
+        { message: `reading focus never reached readable content at scrollTop ${top}` },
+      )
+      .toBe(true);
+    seen.push({ scrollTop: top, carries: true });
+  }
+  return seen;
 }
 
 test("the editor always focuses something readable, at every scroll position", async ({ page }) => {
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
+  await openEditor(page, { height: 700 });
 
   const seen = await targetsWhileScrolling(page, '.md-editor [data-focus="target"]');
   const empty = seen.filter((row) => !row.carries);
@@ -89,25 +93,32 @@ test("the editor always focuses something readable, at every scroll position", a
 });
 
 test("a caret on a blank line still focuses that blank line", async ({ page }) => {
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
+  await openEditor(page, { height: 700 });
 
-  const onBlank = await page.evaluate(async () => {
+  const blank = await page.evaluate(() => {
     const lines = window.zdEditor!.text().split("\n");
     const index = lines.findIndex((line, i) => i > 2 && line === "");
     const at = lines.slice(0, index).reduce((total, line) => total + line.length + 1, 0);
     window.zdEditor!.setCaret(at);
-    for (let i = 0; i < 12; i += 1) await new Promise((done) => requestAnimationFrame(done));
-    return {
-      line: index + 1,
+    return index + 1;
+  });
+  await expect.poll(() => page.evaluate(() => window.zdEditor!.selection().line)).toBe(blank);
+  await expect
+    .poll(() =>
+      page.evaluate(() => ({
+        targets: document.querySelectorAll('.md-editor [data-focus="target"]').length,
+        text: document.querySelector('.md-editor [data-focus="target"]')?.textContent ?? "",
+      })),
+    )
+    .toEqual({ targets: 1, text: "" });
+  const onBlank = {
+    line: blank,
+    ...(await page.evaluate(() => ({
       caretLine: window.zdEditor!.selection().line,
       targets: document.querySelectorAll('.md-editor [data-focus="target"]').length,
       text: document.querySelector('.md-editor [data-focus="target"]')?.textContent ?? "",
-    };
-  });
+    }))),
+  };
 
   /*
    * The half that must not change. `blockRange` gives a blank line its own target

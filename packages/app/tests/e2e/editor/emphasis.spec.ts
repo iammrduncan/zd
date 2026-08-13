@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "./harness";
+
 /*
  * Emphasis, and the identifier that must not be mistaken for it.
  *
@@ -27,14 +29,16 @@ import { expect, test } from "@playwright/test";
  */
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
+  await openEditor(page);
   await page.evaluate(async () => {
-    await document.fonts.load('400 17px "iA Writer Quattro"');
     await document.fonts.load('italic 400 17px "iA Writer Quattro"');
     await document.fonts.ready;
   });
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-emphasis", { hasText: "this run" }),
+    "the fixture emphasis run",
+  );
 });
 
 /**

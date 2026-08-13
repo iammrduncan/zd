@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "../harness";
+
 /*
  * A block widget dims with everything else — vision §4.1.
  *
@@ -32,17 +34,11 @@ import { expect, test } from "@playwright/test";
  * The measurement was re-creating the condition it was waiting on.
  */
 async function revealWidget(page: import("@playwright/test").Page) {
-  await page.evaluate(async () => {
-    const surface = document.querySelector<HTMLElement>(".md-surface")!;
-
-    // CodeMirror virtualises, so the table near the end of the fixture is not in
-    // the DOM until it is scrolled near.
-    for (let y = 0; y <= surface.scrollHeight; y += 400) {
-      surface.scrollTop = y;
-      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-      if (document.querySelector(".md-editor table")) break;
-    }
-  });
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor table"),
+    "the rendered construct table",
+  );
 }
 
 /** How the widget is painted right now, and what the prose beside it resolves to. */
@@ -63,12 +59,7 @@ async function readWidget(page: import("@playwright/test").Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 700 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
+  await openEditor(page, { height: 700 });
 });
 
 test("a block widget out of focus is marked as context", async ({ page }) => {

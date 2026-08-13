@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "./harness";
+
 // A four-space indented block is code, and the editor read it as prose. §5.2 wants
 // "one continuous rectangular plane spanning the full code measure and every row" —
 // which the fenced form already gets, and this is the same construct written the
@@ -11,13 +13,12 @@ import { expect, test } from "@playwright/test";
 // four spaces off the edge every fenced block starts on.
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  // The *decorated* line, not just the line. Waiting on `.cm-line` says only that
-  // the text is on screen; Lezer decorates it a moment later, and this block sits
-  // near the end of the fixture where that gap is widest.
-  await page.locator(".md-line-code", { hasText: "zd md README.md" }).first().waitFor();
+  await openEditor(page);
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-code", { hasText: "zd md README.md" }),
+    "the indented code block",
+  );
 });
 
 const indentedRows = (page: import("@playwright/test").Page) =>
@@ -76,6 +77,12 @@ test("it starts on the same edge a fenced block does", async ({ page }) => {
 test("raw mode brings the four spaces back", async ({ page }) => {
   await page.locator(".cm-line").first().click();
   await page.keyboard.press("ControlOrMeta+e");
+
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: "    zd md README.md" }),
+    "the raw indented-code line",
+  );
 
   const rows = await indentedRows(page);
   expect(rows[0]!.text, "the four-space marker is still hidden under raw mode").toBe(

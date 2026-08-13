@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { openEditor } from "./harness";
+
 /*
  * Vision §6.1: "A fence and its optional language open a code block on Enter, and a
  * second Enter closes it."
@@ -19,12 +21,7 @@ import { expect, test } from "@playwright/test";
  */
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
+  await openEditor(page);
   await page.locator(".cm-content").click();
 });
 

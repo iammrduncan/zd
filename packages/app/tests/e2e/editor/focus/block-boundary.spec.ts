@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "../harness";
+
 /*
  * A paragraph and the code block directly beneath it: how much does focus take?
  *
@@ -66,12 +68,12 @@ const HEADING = "A hash is not always a heading";
 
 test.describe("the editing surface", () => {
   test.beforeEach(async ({ page }) => {
-    await page.setViewportSize({ width: 1100, height: 9000 });
-    await page.goto("/dev/editor.html");
-    await page.locator(".md-line-h1").first().waitFor();
-    await page.evaluate(async () => {
-      await document.fonts.ready;
-    });
+    await openEditor(page);
+    await materializeEditorTarget(
+      page,
+      page.locator(".md-editor .md-line-code", { hasText: INSIDE_FENCE }),
+      "the fixture shell fence",
+    );
     await page.locator(".cm-content").click();
 
     // Caret into the paragraph directly above the fence. By computed line number
@@ -130,6 +132,13 @@ test.describe("the editing surface", () => {
       window.zdEditor!.setCaret(start + 5);
     }, UNPAIRED);
 
+    await materializeEditorTarget(
+      page,
+      page.locator(".md-editor .cm-line", { hasText: UNPAIRED }),
+      "the unpaired prose paragraph",
+    );
+    await expect.poll(async () => rowState(await editorRows(page), UNPAIRED)).toBe("target");
+
     const rows = await editorRows(page);
 
     expect(rowState(rows, UNPAIRED)).toBe("target");
@@ -141,9 +150,7 @@ test.describe("the editing surface", () => {
 
   test("section granularity still takes the whole section", async ({ page }) => {
     await page.evaluate(() => window.zdEditor!.setGranularity("section"));
-    await page.evaluate(
-      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
-    );
+    await expect.poll(async () => rowState(await editorRows(page), HEADING)).toBe("target");
 
     const rows = await editorRows(page);
 

@@ -1,31 +1,16 @@
 import { expect, test } from "@playwright/test";
 
 import { sameColour } from "../colour";
+import { materializeEditorTarget, openEditor, waitForEditorAnimations } from "./harness";
 
 // Vision §6.1, the three block kinds that are not headings. Lists show their
 // literal marker and keep their text column; a quote is indentation and one
 // hairline; a fence is one continuous code plane.
 
 test.beforeEach(async ({ page }) => {
-  // Tall enough that CodeMirror has built DOM for the whole fixture — it renders
-  // only its viewport. The fixture grows as constructs are added, and a viewport
-  // that merely fitted yesterday silently stops rendering the blocks at the bottom
-  // today, which shows up as unrelated specs failing. 4200 clears the current
-  // ~3280px with room; see docs/_internal/objectives/agent-findings.md on making these scroll instead.
-  // 9000 is headroom, not a fit. The fixture is ~3700px and grows every time a
-  // construct is added; a viewport that merely fitted has silently stopped
-  // rendering the bottom of the document four times now, each time failing specs
-  // that had nothing to do with the change. A headless viewport costs nothing, so
-  // this buys years rather than one more construct. The proper fix — scroll until
-  // the wanted line is built — is a filed task.
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
+  await openEditor(page);
   await page.locator(".md-line-item").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.load('400 17px "iA Writer Quattro"');
-    await document.fonts.load('400 14px "iA Writer Mono"');
-    await document.fonts.ready;
-  });
+  await page.evaluate(() => document.fonts.load('400 14px "iA Writer Mono"'));
 });
 
 test("a list item shows its literal marker rather than a typeset bullet", async ({ page }) => {
@@ -40,6 +25,11 @@ test("a list item shows its literal marker rather than a typeset bullet", async 
 });
 
 test("every visual line of an item's text starts at the same origin", async ({ page }) => {
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-item", { hasText: "an item long enough to wrap" }),
+    "the wrapping list item",
+  );
   const origins = await page.evaluate(() => {
     // Skip the marker by counting characters rather than by looking for the
     // element that renders it — the claim is about where the *text* lands, and
@@ -197,6 +187,13 @@ test("each nested level advances exactly 14px", async ({ page }) => {
 });
 
 test("a nested item's continuation returns to its own text origin", async ({ page }) => {
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-item-cont", {
+      hasText: "enough to wrap comes back to its own text origin",
+    }),
+    "the nested item continuation",
+  );
   const origins = await page.evaluate(
     ([fn, marker, indent]) => {
       const read = new Function("needle", "lead", `return (${fn})(needle, lead)`) as (
@@ -222,6 +219,11 @@ test("a nested item's continuation returns to its own text origin", async ({ pag
 });
 
 test("a three-digit ordered marker overhangs rather than moving its own text", async ({ page }) => {
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-item", { hasText: "a three-digit step" }),
+    "the three-digit ordered item",
+  );
   const origins = await page.evaluate(
     ([fn, marker]) => {
       const read = new Function("needle", "lead", `return (${fn})(needle, lead)`) as (
@@ -246,6 +248,18 @@ test("a three-digit ordered marker overhangs rather than moving its own text", a
 });
 
 test("a blockquote is indentation and one quiet hairline, nothing else", async ({ page }) => {
+  const proseTarget = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: "Underscores inside an identifier" }),
+    "the prose beside the fixture blockquote",
+  );
+  await proseTarget.click();
+  await waitForEditorAnimations(page);
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-quote", { hasText: "A blockquote continues" }),
+    "the fixture blockquote",
+  );
   const quote = await page.evaluate(() => {
     const line = document.querySelector<HTMLElement>(".md-line-quote")!;
     const style = getComputedStyle(line);
@@ -260,9 +274,10 @@ test("a blockquote is indentation and one quiet hairline, nothing else", async (
     };
   });
 
-  const prose = await page.evaluate(
-    () => getComputedStyle(document.querySelector(".cm-line:not([class*='md-line-'])")!).color,
-  );
+  const prose = await page.evaluate(() => {
+    const line = document.querySelector('.cm-line[data-focus="context"]:not([class*="md-line-"])');
+    return line ? getComputedStyle(line).color : null;
+  });
 
   // §7.3: indentation and one quiet hairline is the whole resting state. The
   // `>` stays in the text because it is source.
@@ -271,10 +286,16 @@ test("a blockquote is indentation and one quiet hairline, nothing else", async (
   expect(quote.borderWidth).toBe(1);
   expect(quote.background, "a quote is not a plane").toBe("rgba(0, 0, 0, 0)");
   expect(quote.style, "a quote is not italic").toBe("normal");
-  expect(sameColour(quote.colour, prose), "a quote is still prose").toBe(true);
+  expect(prose, "no context prose was available beside the quote").not.toBeNull();
+  expect(sameColour(quote.colour, prose!), "a quote is still prose").toBe(true);
 });
 
 test("a quote's marker stays inside the hairline without denting its text", async ({ page }) => {
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-quote", { hasText: "A blockquote continues" }),
+    "the fixture blockquote",
+  );
   const editing = await page.evaluate(
     ([fn, lead]) => {
       const read = new Function("needle", "lead", `return (${fn})(needle, lead)`) as (
@@ -306,6 +327,11 @@ test("a quote's marker stays inside the hairline without denting its text", asyn
 });
 
 test("a fenced block is one continuous code plane over every row", async ({ page }) => {
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-code", { hasText: "npm run dev" }),
+    "the fixture shell fence",
+  );
   /*
    * One block, not every code row in the document.
    *
@@ -373,6 +399,11 @@ test("a fenced block is one continuous code plane over every row", async ({ page
 });
 
 test("the code plane consumes the suite's code role", async ({ page }) => {
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-code", { hasText: "npm run dev" }),
+    "the fixture shell fence",
+  );
   const measured = await page.evaluate(() => {
     const line = getComputedStyle(document.querySelector(".md-line-code")!);
     const probe = document.createElement("span");
@@ -415,14 +446,6 @@ test("prose lines are untouched by any of it", async ({ page }) => {
 });
 
 test("every source marker is quiet ink and dims with its line", async ({ page }) => {
-  const settle = () =>
-    page.evaluate(async () => {
-      // §6.3 eases the outgoing dim over 120ms, so a colour read straight after a
-      // click is a frame of that ease rather than either resting state.
-      const frame = () => new Promise((done) => requestAnimationFrame(done));
-      for (let i = 0; i < 20; i += 1) await frame();
-    });
-
   // Resolved through a probe, not read as a token string: `--text-muted` is a
   // `light-dark()` pair, and comparing against that literal text would fail
   // against every real colour the browser ever computes from it.
@@ -439,14 +462,34 @@ test("every source marker is quiet ink and dims with its line", async ({ page })
   // target — a marker on a dimmed line is *correctly* not `text.muted`, so
   // reading whichever happened to be first would prove nothing.
   const markers = [
-    { name: "heading hash", line: ".md-line-h2", mark: ".md-notation-mark" },
-    { name: "list marker", line: ".md-line-item", mark: ".md-line-marker" },
-    { name: "quote mark", line: ".md-line-quote", mark: ".md-quote-mark" },
+    {
+      name: "heading hash",
+      line: ".md-line-h2",
+      mark: ".md-notation-mark",
+      text: "Notation",
+    },
+    {
+      name: "list marker",
+      line: ".md-line-item",
+      mark: ".md-line-marker",
+      text: "the source is what is on screen",
+    },
+    {
+      name: "quote mark",
+      line: ".md-line-quote",
+      mark: ".md-quote-mark",
+      text: "A blockquote continues",
+    },
   ];
 
-  for (const { name, line, mark } of markers) {
-    await page.locator(line).first().click();
-    await settle();
+  for (const { name, line, mark, text } of markers) {
+    const owner = await materializeEditorTarget(
+      page,
+      page.locator(`.md-editor ${line}`, { hasText: text }),
+      name,
+    );
+    await owner.click();
+    await waitForEditorAnimations(page);
 
     const measured = await page.evaluate(
       ([lineSelector, markSelector]) => {
@@ -473,10 +516,7 @@ test("every source marker is quiet ink and dims with its line", async ({ page })
 
 test("a marker dims with its line rather than staying bright on a dimmed row", async ({ page }) => {
   await page.locator(".md-line-h2").first().click();
-  await page.evaluate(async () => {
-    const frame = () => new Promise((done) => requestAnimationFrame(done));
-    for (let i = 0; i < 20; i += 1) await frame();
-  });
+  await waitForEditorAnimations(page);
 
   const dimmed = await page.evaluate(() => {
     const probe = document.createElement("span");

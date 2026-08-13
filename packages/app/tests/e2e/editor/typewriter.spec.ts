@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+import {
+  beginEditorScrollTrace,
+  endEditorScrollTrace,
+  waitForEditorScrollToSettle,
+} from "./harness";
+
 /*
  * Typewriter Mode — vision §6.1 and DESIGN.md §7.6.
  *
@@ -88,6 +94,12 @@ async function distanceFromMidpoint(page: import("@playwright/test").Page) {
   return caret === null ? null : Math.round(Math.abs(caret - midpoint));
 }
 
+async function engineDistanceFromMidpoint(page: import("@playwright/test").Page) {
+  return page.evaluate(() =>
+    Math.round(Math.abs(window.zdEditor!.caretY()! - window.zdEditor!.typewriterY())),
+  );
+}
+
 /**
  * Wait until the caret's row is on the midpoint.
  *
@@ -99,6 +111,43 @@ async function distanceFromMidpoint(page: import("@playwright/test").Page) {
  */
 async function settledOnMidpoint(page: import("@playwright/test").Page, message: string) {
   await expect.poll(() => distanceFromMidpoint(page), { message }).toBeLessThanOrEqual(2);
+}
+
+async function beginCaretTrace(page: import("@playwright/test").Page) {
+  await page.evaluate(() => {
+    type Trace = { active: boolean; frame: number; positions: (number | null)[] };
+    const host = window as unknown as { zdCaretTrace?: Trace };
+    if (host.zdCaretTrace) {
+      host.zdCaretTrace.active = false;
+      cancelAnimationFrame(host.zdCaretTrace.frame);
+    }
+
+    const trace: Trace = { active: true, frame: 0, positions: [] };
+    host.zdCaretTrace = trace;
+    const record = () => {
+      const selection = window.getSelection();
+      const rect =
+        selection && selection.rangeCount > 0
+          ? selection.getRangeAt(0).cloneRange().getBoundingClientRect()
+          : null;
+      trace.positions.push(rect && rect.height > 0 ? rect.top + rect.height / 2 : null);
+      if (trace.active) trace.frame = requestAnimationFrame(record);
+    };
+    trace.frame = requestAnimationFrame(record);
+  });
+}
+
+async function endCaretTrace(page: import("@playwright/test").Page) {
+  return page.evaluate(() => {
+    const trace = (
+      window as unknown as {
+        zdCaretTrace: { active: boolean; frame: number; positions: (number | null)[] };
+      }
+    ).zdCaretTrace;
+    trace.active = false;
+    cancelAnimationFrame(trace.frame);
+    return trace.positions;
+  });
 }
 
 test("the caret's line is pinned to the midpoint", async ({ page }) => {
@@ -163,9 +212,9 @@ test("manual scrolling is always allowed", async ({ page }) => {
   await page.evaluate(() => {
     document.querySelector<HTMLElement>(".md-surface")!.scrollTop += 400;
   });
-  await page.evaluate(
-    () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
-  );
+  await expect
+    .poll(() => page.locator(".md-surface").evaluate((surface) => surface.scrollTop))
+    .toBe(pinned.scrollTop + 400);
 
   const scrolled = await page.evaluate(caretAgainstMidpoint);
 
@@ -286,28 +335,14 @@ test("Enter eases the line back rather than cutting it back", async ({ page }) =
    *
    * Two assertions, and the second is what stops "eased" becoming "late".
    */
-  await page.evaluate(() => {
-    (window as unknown as { zdFrames: (number | null)[] }).zdFrames = [];
-    const record = () => {
-      const frames = (window as unknown as { zdFrames: (number | null)[] }).zdFrames;
-      const selection = window.getSelection();
-      const rect =
-        selection && selection.rangeCount > 0
-          ? selection.getRangeAt(0).cloneRange().getBoundingClientRect()
-          : null;
-      frames.push(rect && rect.height > 0 ? rect.top + rect.height / 2 : null);
-      if (frames.length < 20) requestAnimationFrame(record);
-    };
-    requestAnimationFrame(record);
-  });
+  await beginCaretTrace(page);
 
   await page.keyboard.press("Enter");
-  await page.waitForTimeout(400);
+  await settledOnMidpoint(page, "the Enter ease never returned the caret to the midpoint");
+  await waitForEditorScrollToSettle(page);
 
   const midpoint = await page.evaluate(() => window.zdEditor!.typewriterY());
-  const frames = await page.evaluate(
-    () => (window as unknown as { zdFrames: (number | null)[] }).zdFrames,
-  );
+  const frames = await endCaretTrace(page);
 
   const drift = frames
     .filter((frame): frame is number => frame !== null)
@@ -355,47 +390,51 @@ for (const key of ["Enter", "ArrowDown", "ArrowUp"] as const) {
     await typewriterOn(page);
     await settledOnMidpoint(page, "the caret did not start pinned");
 
-    await page.evaluate(() => {
-      const surface = document.querySelector<HTMLElement>(".md-surface")!;
-      const samples: number[] = [];
-      (window as unknown as { zdRepeatScroll: number[] }).zdRepeatScroll = samples;
-
-      const record = () => {
-        samples.push(surface.scrollTop);
-        if (samples.length < 60) requestAnimationFrame(record);
-      };
-      requestAnimationFrame(record);
-    });
+    await beginEditorScrollTrace(page);
 
     // Repeated keydown events are what the browser receives while a key is held.
     // Calling `down` again keeps the key depressed and marks the later events as
     // repeats, instead of turning this into separate key presses.
     for (let repeat = 0; repeat < 14; repeat += 1) {
+      const head = await page.evaluate(() => window.zdEditor!.selection().head);
       await page.keyboard.down(key);
-      await page.waitForTimeout(30);
+      const moved = expect.poll(() => page.evaluate(() => window.zdEditor!.selection().head), {
+        message: `repeated ${key} did not move the caret`,
+      });
+      if (key === "ArrowUp") await moved.toBeLessThan(head);
+      else await moved.toBeGreaterThan(head);
+      await expect
+        .poll(() => engineDistanceFromMidpoint(page), {
+          message: `typewriter motion did not keep up with repeated ${key}`,
+        })
+        .toBeLessThan(60);
     }
     await page.keyboard.up(key);
-    await page.waitForTimeout(600);
+    await expect
+      .poll(() => engineDistanceFromMidpoint(page), {
+        message: `holding ${key} never returned to the midpoint`,
+      })
+      .toBeLessThanOrEqual(2);
+    await waitForEditorScrollToSettle(page);
+
+    const values = (await endEditorScrollTrace(page)).map(({ top }) => top);
 
     const result = await page.evaluate(() => {
-      const values = (window as unknown as { zdRepeatScroll: number[] }).zdRepeatScroll;
       const line = document.querySelector<HTMLElement>(".cm-line")!;
       const row = Number.parseFloat(getComputedStyle(line).lineHeight);
-      return {
-        deltas: values.slice(1).map((value, index) => value - values[index]!),
-        distance: values[values.length - 1]! - values[0]!,
-        row,
-      };
+      return { row };
     });
+    const deltas = values.slice(1).map((value, index) => value - values[index]!);
+    const distance = values[values.length - 1]! - values[0]!;
 
-    expect(Math.abs(result.distance), `holding ${key} did not move the document`).toBeGreaterThan(
+    expect(Math.abs(distance), `holding ${key} did not move the document`).toBeGreaterThan(
       result.row * 8,
     );
 
-    const largestFrame = Math.max(...result.deltas.map(Math.abs));
+    const largestFrame = Math.max(...deltas.map(Math.abs));
     expect(
       largestFrame,
-      `holding ${key} cut the document by a row in one frame: ${result.deltas.join(", ")}`,
+      `holding ${key} cut the document by a row in one frame: ${deltas.join(", ")}`,
     ).toBeLessThan(result.row * 0.9);
   });
 }

@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "./harness";
+
 // A setext heading is `text` over `===` or `---`. The parser already knows it is a
 // heading; the editor did not, so it read as a paragraph with a row of punctuation
 // under it.
@@ -12,28 +14,18 @@ import { expect, test } from "@playwright/test";
 // underline is a whole row of it.
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  /*
-   * Wait for *this* construct and for the faces.
-   *
-   * `.md-line-h1` is the ATX title at the top and says nothing about a setext
-   * heading near the end — Lezer parses incrementally, and the isolated run of one
-   * test measured before the decoration landed while the whole-file run happened to
-   * be slow enough not to. Typography comparisons also need the faces loaded, the
-   * way every other heading spec does.
-   */
-  // The *setext* heading, identified by its own text. `.md-line-h2` matches
-  // `## Notation` near the top of the fixture and says nothing about whether the
-  // setext decoration near the end has landed yet.
-  await page.locator(".md-line-h1", { hasText: "A setext heading underlined" }).waitFor();
-  await page.locator(".md-line-h2", { hasText: "A second level, underlined too" }).waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.load('400 17px "iA Writer Quattro"');
-    await document.fonts.load('700 17px "iA Writer Quattro"');
-    await document.fonts.ready;
-  });
+  await openEditor(page);
+  await page.evaluate(() => document.fonts.load('700 17px "iA Writer Quattro"'));
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-h1", { hasText: "A setext heading underlined" }),
+    "the fixture setext h1",
+  );
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-h2", { hasText: "A second level, underlined too" }),
+    "the fixture setext h2",
+  );
 });
 
 test("a setext heading takes its level's typography", async ({ page }) => {
@@ -92,10 +84,12 @@ test("raw mode brings the underline back", async ({ page }) => {
   await page.locator(".cm-line").first().click();
   await page.keyboard.press("ControlOrMeta+e");
 
-  const onScreen = await page.evaluate(
-    () => document.querySelector<HTMLElement>(".cm-content")!.innerText,
+  const underline = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: /^=+$/ }),
+    "the raw setext underline",
   );
-  expect(onScreen, "the underline is still hidden under raw mode").toContain("===");
+  await expect(underline, "the underline is still hidden under raw mode").toContainText("===");
 });
 
 test("hiding the underline does not change the document", async ({ page }) => {

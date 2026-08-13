@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { sameColour } from "../colour";
+import { materializeEditorTarget, openEditor, waitForEditorAnimations } from "./harness";
 
 // Finding F08: "Multiline fenced code blocks do not form coherent code sections…
 // A fenced block must render as a distinct, readable code passage and use
@@ -12,27 +13,12 @@ import { sameColour } from "../colour";
 // rather than receiving misleading language colour".
 
 test.beforeEach(async ({ page }) => {
-  // 9000 is headroom, not a fit. The fixture is ~3700px and grows every time a
-  // construct is added; a viewport that merely fitted has silently stopped
-  // rendering the bottom of the document four times now, each time failing specs
-  // that had nothing to do with the change. A headless viewport costs nothing, so
-  // this buys years rather than one more construct. The proper fix — scroll until
-  // the wanted line is built — is a filed task.
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
-  /*
-   * Wait for the decoration, not just for the first heading.
-   *
-   * Lezer parses incrementally, so a construct near the end of a long document is
-   * on screen as plain text for a moment before its decoration lands. Waiting on
-   * `.md-line-h1` says nothing about the last paragraph — and once the fixture
-   * passed ~4000px that gap started failing these specs intermittently.
-   */
-  await page.locator(".md-syn-keyword").first().waitFor();
+  await openEditor(page);
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-syn-keyword", { hasText: "fn" }),
+    "the highlighted Rust fence",
+  );
 });
 
 test("a declared rust block colours its three categories", async ({ page }) => {
@@ -117,27 +103,37 @@ test("an undeclared or unsupported language stays honest monospace", async ({ pa
 });
 
 test("dimming a code block keeps its categories distinguishable", async ({ page }) => {
-  await page.locator(".cm-line", { hasText: "A paragraph here should be" }).first().click();
-  await page.evaluate(async () => {
-    const frame = () => new Promise((done) => requestAnimationFrame(done));
-    for (let i = 0; i < 20; i += 1) await frame();
-  });
-
-  const dimmed = await page.evaluate(() => {
-    const colours = ["md-syn-keyword", "md-syn-string", "md-syn-comment"].map((cls) => {
-      const node = document.querySelector<HTMLElement>(`.cm-line[data-focus="context"] .${cls}`);
-      return node ? getComputedStyle(node).color : null;
-    });
-    return colours;
-  });
+  const paragraph = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: "A paragraph here should be" }),
+    "the prose focus target",
+  );
+  await paragraph.click();
+  await waitForEditorAnimations(page);
+  const categories = [
+    { className: "md-syn-keyword", text: "fn" },
+    { className: "md-syn-string", text: "{path}: {e}" },
+    { className: "md-syn-comment", text: "Read a document" },
+  ];
+  const dimmed: string[] = [];
+  for (const category of categories) {
+    const node = await materializeEditorTarget(
+      page,
+      page.locator(`.md-editor .${category.className}`, { hasText: category.text }),
+      `the dimmed ${category.className} sample`,
+    );
+    await expect
+      .poll(() =>
+        node.evaluate((element) => element.closest<HTMLElement>(".cm-line")?.dataset.focus),
+      )
+      .toBe("context");
+    await waitForEditorAnimations(page);
+    dimmed.push(await node.evaluate((element) => getComputedStyle(element).color));
+  }
 
   // §5.2: "syntax remains distinguishable at the warmest setting and without
   // colour", and §4.4 dims context without flattening it — a dimmed code block is
   // still a code block, so the three categories must not collapse into one ink.
-  expect(
-    dimmed.every((c) => c !== null),
-    "no dimmed code was found",
-  ).toBe(true);
   expect(new Set(dimmed).size, "the categories collapsed when dimmed").toBe(3);
 });
 
