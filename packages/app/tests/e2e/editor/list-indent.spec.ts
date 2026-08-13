@@ -167,7 +167,7 @@ test("a selection spanning several items indents all of them and keeps their nes
    * ancestor-dropping filter in lists.ts leaves this passing, because
    * Shift+ArrowDown walks *wrapped visual rows* and the selection does not end
    * where the line arithmetic here suggests. The case that goes red for it is in
-   * tests/unit/list-indent.test.ts, where the selection is stated as offsets.
+   * tests/unit/editor/list-indent.test.ts, where the selection is stated as offsets.
    * What this one covers is that a real multi-line selection made from the
    * keyboard reaches the command at all.
    */

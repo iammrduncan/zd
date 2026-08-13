@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { sameColour } from "./colour";
+import { sameColour } from "../colour";
 
 // The complaint was one line long: "links are not links...". The decision that
 // answers it (2026-07-29, vision §6.1) puts links in the *renders* list: "links

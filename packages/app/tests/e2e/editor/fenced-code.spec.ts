@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { sameColour } from "./colour";
+import { sameColour } from "../colour";
 
 // Finding F08: "Multiline fenced code blocks do not form coherent code sections…
 // A fenced block must render as a distinct, readable code passage and use

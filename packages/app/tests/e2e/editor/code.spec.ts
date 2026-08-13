@@ -16,7 +16,7 @@ import { expect, test } from "@playwright/test";
  * unstyled — it was rewritten on screen.
  *
  * Which extensions mean what is a pure function of a path and lives in
- * tests/unit/language.test.ts. What needs a browser is whether the surface then
+ * tests/unit/editor/language.test.ts. What needs a browser is whether the surface then
  * acts on the answer, and that is everything below.
  */
 

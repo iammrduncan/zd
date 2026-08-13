@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { sameColour } from "./colour";
+import { sameColour } from "../colour";
 
 // Vision §6.1, the three block kinds that are not headings. Lists show their
 // literal marker and keep their text column; a quote is indentation and one

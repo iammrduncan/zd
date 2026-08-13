@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 // DESIGN.md §4.3: three modes, two palettes. System resolves to Light or Dark
 // rather than being a third appearance. The palette values themselves are locked
-// in tests/unit/theme.test.ts; what needs a real engine is that light-dark()
+// in tests/unit/design/theme.test.ts; what needs a real engine is that light-dark()
 // resolves at all and that [data-theme] beats the OS preference.
 
 const CANVAS = { light: "rgb(250, 250, 247)", dark: "rgb(25, 26, 25)" };

@@ -25,7 +25,7 @@ describe("package ownership", () => {
       "packages/app/index.html",
       "packages/app/src/main.ts",
       "packages/app/assets/fonts/iAWriterQuattroV.ttf",
-      "packages/app/tests/unit/editor.test.ts",
+      "packages/app/tests/unit/editor/index.test.ts",
       "packages/tauri/Cargo.toml",
       "packages/tauri/src/main.rs",
       "packages/scripts/archive-tasks.mjs",

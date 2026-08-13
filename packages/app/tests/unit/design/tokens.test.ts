@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 // DESIGN.md §5.2 is the source of truth for the type roles. This test guards the
 // *shape* of the token file: every role in the table exists, and it names a
 // family, weight, size, and line. The resolved pixel values are a real-engine
-// claim and live in tests/e2e/typography.spec.ts, because jsdom does not resolve
+// claim and live in tests/e2e/design/typography.spec.ts, because jsdom does not resolve
 // var() or calc() chains.
 
 // jsdom rewrites import.meta.url to an http URL, so resolve from the repo root.

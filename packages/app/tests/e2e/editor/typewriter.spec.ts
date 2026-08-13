@@ -12,7 +12,7 @@ import { expect, test } from "@playwright/test";
  *
  * Every claim here is about where something sits after something else moved, so
  * all of it is in a browser. What is *not* here is the flag itself, which is a
- * `StateField` and a pure function — tests/unit/typewriter.test.ts.
+ * `StateField` and a pure function — tests/unit/editor/typewriter.test.ts.
  *
  * The midpoint is the midpoint, deliberately, and not the reading anchor at a
  * third. §7.6 names both positions in the same paragraph as different numbers:

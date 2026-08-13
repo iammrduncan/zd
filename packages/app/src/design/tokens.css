@@ -177,7 +177,7 @@
    * is an engineering reading of a spec that contradicts itself, not licence to
    * drift from the numbers.
    *
-   * tests/e2e/reading-surface.spec.ts measures the characters that actually land
+   * tests/e2e/design/reading-surface.spec.ts measures the characters that actually land
    * on a line. If that count leaves 60–75, this number is what moves.
    */
   --reading-measure: 620px;
@@ -214,7 +214,7 @@
    * Rounded outward from thirds on purpose: they sum to 101vh rather than 100.
    * A fraction of a vh of slack is invisible, and a fraction short means the
    * first or last block can never be focused. Keep in step with ANCHOR_RATIO in
-   * miniapps/md/focus.ts — tests/unit/anchor-gutters.test.ts fails if
+   * miniapps/md/focus.ts — tests/unit/design/anchor-gutters.test.ts fails if
    * they drift.
    */
   --reading-gutter-leading: 34vh;

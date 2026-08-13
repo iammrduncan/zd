@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { sameColour } from "./colour";
+import { sameColour } from "../colour";
 
 // Vision §6.1: a heading in the editor keeps its `#` on screen while consuming
 // the suite's heading roles. The retired render-only page is no longer an

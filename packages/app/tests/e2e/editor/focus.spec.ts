@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { contrast } from "./colour";
+import { contrast } from "../colour";
 
 // Vision §4.1 calls focus "the heart of the product", and gives the editing
 // surface two rules the reader does not have:
@@ -64,7 +64,7 @@ test("the whole block stays the target at the end of it, and while typing there"
    * every single keystroke typed at the end of a paragraph, so in use it was not
    * an edge case at all.
    *
-   * Kept in the browser rather than folded into tests/unit/focus-block.test.ts
+   * Kept in the browser rather than folded into tests/unit/editor/focus/range.test.ts
    * because the claim here is about what is painted across several lines while
    * the document is being edited. The rule itself is measured on state there.
    */

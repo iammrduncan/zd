@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { FIRST_BLOCK, textBox } from "./geometry";
+import { FIRST_BLOCK, textBox } from "../geometry";
 
 /*
  * Where a document opens — vision §4.1:
