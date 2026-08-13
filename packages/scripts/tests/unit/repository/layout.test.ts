@@ -19,6 +19,13 @@ const APP = resolve(ROOT, "packages/app");
 const WEBSITE = resolve(ROOT, "packages/website");
 const SKIP = new Set(["node_modules", "dist", "test-results", "target", ".git"]);
 
+function directFiles(directory: string, suffix: string): string[] {
+  return readdirSync(resolve(ROOT, directory), { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(suffix))
+    .map((entry) => entry.name)
+    .sort();
+}
+
 describe("package ownership", () => {
   it("files product, shell, and automation inputs under their package", () => {
     const ownedInputs = [
@@ -35,6 +42,40 @@ describe("package ownership", () => {
     ];
 
     expect(ownedInputs.filter((path) => !existsSync(resolve(ROOT, path)))).toEqual([]);
+  });
+
+  it("uses directories rather than filename prefixes for component families", () => {
+    const componentRoots = [
+      "packages/app/src/miniapps/md/workspace/index.ts",
+      "packages/app/src/miniapps/md/editor/focus/index.ts",
+      "packages/app/src/miniapps/md/editor/notation/index.ts",
+      "packages/app/src/miniapps/md/review/index.ts",
+      "packages/scripts/session-loop/index.mjs",
+      "packages/scripts/objectives/archive.mjs",
+      "packages/scripts/release/check-tag.mjs",
+      "packages/scripts/audit/unused-tokens.mjs",
+      "packages/website/app/docs/_components/document.tsx",
+    ];
+
+    expect(componentRoots.filter((path) => !existsSync(resolve(ROOT, path)))).toEqual([]);
+    expect(directFiles("packages/scripts", ".mjs")).toEqual([]);
+  });
+
+  it("mirrors app and automation tests below their owning component", () => {
+    expect(directFiles("packages/app/tests/e2e", ".spec.ts")).toEqual([]);
+    expect(directFiles("packages/app/tests/unit", ".test.ts")).toEqual([]);
+    expect(directFiles("packages/scripts/tests/unit", ".test.ts")).toEqual([]);
+
+    expect(
+      directFiles("packages/app/tests/e2e/editor", ".spec.ts").filter((name) =>
+        name.startsWith("editor-"),
+      ),
+    ).toEqual([]);
+    expect(
+      directFiles("packages/scripts/tests/unit/session-loop", ".test.ts").filter((name) =>
+        name.startsWith("session-loop-"),
+      ),
+    ).toEqual([]);
   });
 
   it("leaves no loose package inputs at the repository root", () => {
