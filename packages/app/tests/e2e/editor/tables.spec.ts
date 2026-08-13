@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "./harness";
+
 // "tables are not tables, they are the raw markdown" — the loudest of the look
 // complaints, and the one the 2026-07-29 decision puts squarely in the *renders*
 // list: "tables draw as tables … Tables are the case that forced this: a raw pipe
@@ -10,27 +12,12 @@ import { expect, test } from "@playwright/test";
 // cell background."
 
 test.beforeEach(async ({ page }) => {
-  // 9000 is headroom, not a fit. The fixture is ~3700px and grows every time a
-  // construct is added; a viewport that merely fitted has silently stopped
-  // rendering the bottom of the document four times now, each time failing specs
-  // that had nothing to do with the change. A headless viewport costs nothing, so
-  // this buys years rather than one more construct. The proper fix — scroll until
-  // the wanted line is built — is a filed task.
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
-  /*
-   * Wait for the decoration, not just for the first heading.
-   *
-   * Lezer parses incrementally, so a construct near the end of a long document is
-   * on screen as plain text for a moment before its decoration lands. Waiting on
-   * `.md-line-h1` says nothing about the last paragraph — and once the fixture
-   * passed ~4000px that gap started failing these specs intermittently.
-   */
-  await page.locator(".md-editor table").first().waitFor();
+  await openEditor(page);
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor table.md-rendered", { hasText: "Construct" }),
+    "the fixture table",
+  );
 });
 
 test("a table is a table, not a run of pipe lines", async ({ page }) => {
