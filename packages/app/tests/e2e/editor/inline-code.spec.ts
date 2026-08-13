@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "./harness";
+
 // Finding F07: "Text inside single backticks is visibly unaligned with the
 // surrounding prose. Inline code must share the surrounding baseline and line
 // rhythm while retaining a restrained semantic distinction."
@@ -13,22 +15,12 @@ import { expect, test } from "@playwright/test";
 // padding that pushes the plane into the line gap.
 
 test.beforeEach(async ({ page }) => {
-  // Headroom, not a fit — see editor-blocks.spec.ts.
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
-  /*
-   * Wait for the decoration, not just for the first heading.
-   *
-   * Lezer parses incrementally, so a construct near the end of a long document is
-   * on screen as plain text for a moment before its decoration lands. Waiting on
-   * `.md-line-h1` says nothing about the last paragraph — and once the fixture
-   * passed ~4000px that gap started failing these specs intermittently.
-   */
-  await page.locator(".md-inline-code").first().waitFor();
+  await openEditor(page);
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-inline-code", { hasText: "renderMarkdown" }),
+    "the fixture inline-code run",
+  );
 });
 
 /** The first inline-code run inside a plain paragraph. */
@@ -141,6 +133,11 @@ test("the backticks stay on screen and stay quiet", async ({ page }) => {
 test("inline code in a heading keeps the heading's size and Mono Regular face", async ({
   page,
 }) => {
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-h3", { hasText: "Calling" }),
+    "the heading with inline code",
+  );
   const heading = await page.evaluate(() => {
     const line = [...document.querySelectorAll<HTMLElement>(".cm-line")].find(
       (el) => el.className.includes("md-line-h3") && el.textContent?.includes("renderMarkdown"),

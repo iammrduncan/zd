@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "./harness";
+
 /*
  * "everything with caret placement and arrow key navigation and text selection
  * work in raw code mode but not in rendered editing mode" (feedback, 2026-07-30).
@@ -17,15 +19,12 @@ import { expect, test } from "@playwright/test";
  */
 
 test.beforeEach(async ({ page }) => {
-  // Tall enough that the whole fixture is built — see the note in
-  // editor-links.spec.ts. Headroom, not a fit.
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.locator(".md-link-label").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
+  await openEditor(page);
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-link-label", { hasText: "its label" }),
+    "the fixture link",
+  );
 });
 
 /** The source line carrying `needle`, as a document range. */
@@ -341,52 +340,32 @@ test("a link can be typed without the caret leaving the line", async ({ page }) 
 
 test("clicking the far right of a line lands in that line", async ({ page }) => {
   await page.locator(".cm-content").click();
+  const samples = [
+    "Everything that makes reading good",
+    "the source is what is on screen",
+    "# install and run",
+    "A blockquote continues on Enter",
+    "A setext heading underlined",
+    "The paragraph after it starts",
+  ];
 
-  const wrong = await page.evaluate(async () => {
-    const lines = window.zdEditor!.text().split("\n");
-    const content = document.querySelector<HTMLElement>(".cm-content")!;
-    const missed: string[] = [];
-    let tested = 0;
-
-    const all = [...document.querySelectorAll<HTMLElement>(".cm-line")];
-    /*
-     * A stride, not every line. Each click costs a frame, and at 115 lines this test
-     * held a worker long enough to starve the rest of a 7-way parallel run — the full
-     * suite went from 16 seconds to 12 minutes with unrelated specs timing out. Every
-     * seventh line still crosses prose, headings, list items, fences and the region
-     * after the table, which is the whole point; the exhaustive version proved nothing
-     * the sample does not.
-     */
-    for (const element of all.filter((_, at) => at % 7 === 0)) {
-      const drawn = element.textContent ?? "";
-      if (drawn.trim() === "") continue;
-      // Only lines whose drawn text is their source, so the line number is knowable
-      // without guessing. A rendered link or table cell is a different subject.
-      const index = lines.findIndex((line) => line === drawn);
-      if (index < 0) continue;
-
-      tested += 1;
-      const box = element.getBoundingClientRect();
-      for (const type of ["mousedown", "mouseup"]) {
-        content.dispatchEvent(
-          new MouseEvent(type, {
-            bubbles: true,
-            clientX: box.right - 2,
-            clientY: box.top + box.height / 2,
-            detail: 1,
-          }),
-        );
-      }
-      await new Promise((done) => requestAnimationFrame(done));
-
-      const landed = window.zdEditor!.selection().line;
-      if (landed !== index + 1) missed.push(`line ${index + 1} -> ${landed}`);
-    }
-    return { missed, tested };
-  });
-
-  expect(wrong.tested, "no lines were measured").toBeGreaterThan(8);
-  expect(wrong.missed, "a click at the end of a line landed in another line").toEqual([]);
+  /*
+   * Representative semantic positions rather than every currently mounted row.
+   * The old stride depended on a 9000px viewport and silently changed coverage as
+   * the fixture grew. These six named lines cross prose, list, fence, quote,
+   * heading, and the region after a block widget, which are the distinct mappings
+   * the claim needs.
+   */
+  for (const needle of samples) {
+    const line = await materializeEditorTarget(
+      page,
+      page.locator(".md-editor .cm-line", { hasText: needle }),
+      `the caret sample ${JSON.stringify(needle)}`,
+    );
+    const expected = (await sourceLine(page, needle)).number;
+    await line.click({ position: { x: (await line.boundingBox())!.width - 2, y: 4 } });
+    await expect.poll(() => page.evaluate(() => window.zdEditor!.selection().line)).toBe(expected);
+  }
 });
 
 test("a fence's last code line keeps the caret, whatever follows the block", async ({ page }) => {

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { contrast } from "../../colour";
+import { waitForEditorAnimations } from "../harness";
 
 // Vision §4.1 calls focus "the heart of the product", and gives the editing
 // surface two rules the reader does not have:
@@ -93,7 +94,9 @@ test("scrolling for context leaves the target where the caret is", async ({ page
   await page.evaluate(() => {
     document.querySelector(".md-surface")!.scrollBy(0, 600);
   });
-  await page.waitForTimeout(200);
+  await expect
+    .poll(() => page.locator(".md-surface").evaluate((surface) => surface.scrollTop))
+    .toBeGreaterThan(0);
 
   // Reading ahead is not the same as moving.
   expect(await target(page)).toEqual(before);
@@ -105,9 +108,9 @@ test("until a caret is placed, scrolling does move the target", async ({ page })
   await page.evaluate(() => {
     document.querySelector(".md-surface")!.scrollBy(0, 600);
   });
-  await page.waitForTimeout(200);
-
-  expect(await target(page)).not.toEqual(before);
+  await expect
+    .poll(() => target(page), { message: "scrolling never moved reading focus" })
+    .not.toEqual(before);
 });
 
 /**
@@ -118,10 +121,7 @@ test("until a caret is placed, scrolling does move the target", async ({ page })
  * how a dim test can report that context is exactly as dark as its target.
  */
 async function settled(page: import("@playwright/test").Page): Promise<void> {
-  const ease = await page.evaluate(() =>
-    getComputedStyle(document.documentElement).getPropertyValue("--focus-ease-out").trim(),
-  );
-  await page.waitForTimeout(parseFloat(ease) * (ease.endsWith("ms") ? 1 : 1000) + 100);
+  await waitForEditorAnimations(page);
 }
 
 test("context is dimmed toward the canvas, never hidden", async ({ page }) => {
@@ -193,21 +193,30 @@ test("colour settings change immediately without borrowing focus motion", async 
       suppressed: root.hasAttribute("data-applying-colour-setting"),
     };
 
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    const after = {
-      duration: duration(),
-      suppressed: root.hasAttribute("data-applying-colour-setting"),
-    };
-
-    return { theme, dim, after };
+    return { theme, dim };
   });
 
   // DESIGN.md §6.3 reserves the duration token for a focus target becoming
   // context. Theme and Dim Level are mode/setting changes, so both are one frame.
   expect(result.theme).toEqual({ applied: "dark", duration: "0s", suppressed: true });
   expect(result.dim).toEqual({ applied: "0.2", duration: "0s", suppressed: true });
-  expect(result.after.suppressed).toBe(false);
-  expect(parseFloat(result.after.duration)).toBeGreaterThan(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const root = document.documentElement;
+        const context = document.querySelector<HTMLElement>('.cm-line[data-focus="context"]')!;
+        return {
+          duration: getComputedStyle(context).transitionDuration,
+          suppressed: root.hasAttribute("data-applying-colour-setting"),
+        };
+      }),
+    )
+    .toMatchObject({ suppressed: false });
+  const restoredDuration = await page
+    .locator('.cm-line[data-focus="context"]')
+    .first()
+    .evaluate((context) => getComputedStyle(context).transitionDuration);
+  expect(parseFloat(restoredDuration)).toBeGreaterThan(0);
 });
 
 // §7.6: "section means a heading and its descendants up to the next peer or

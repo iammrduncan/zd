@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
 
+import {
+  beginEditorScrollTrace,
+  endEditorScrollTrace,
+  openEditor,
+  waitForEditorScrollToSettle,
+} from "./harness";
+
 /*
  * Scrolls the surface makes on its own are eased — vision §2.
  *
@@ -25,33 +32,9 @@ import { expect, test } from "@playwright/test";
  */
 
 test.beforeEach(async ({ page }) => {
-  // A window a document can actually scroll in. The other editor specs use a 9000px-tall
-  // viewport so every line is built; here the scrolling is the subject.
-  await page.setViewportSize({ width: 1100, height: 800 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
+  await openEditor(page);
   await page.locator(".cm-content").click();
 });
-
-/** Record `.md-surface`'s scrollTop once per animation frame, for `count` frames. */
-async function recordScroll(page: import("@playwright/test").Page, count = 70) {
-  await page.evaluate((frames) => {
-    const surface = document.querySelector(".md-surface")!;
-    const samples: { at: number; top: number }[] = [];
-    (window as unknown as { zdScroll: { at: number; top: number }[] }).zdScroll = samples;
-    const record = () => {
-      samples.push({ at: performance.now(), top: surface.scrollTop });
-      if (samples.length < frames) requestAnimationFrame(record);
-    };
-    requestAnimationFrame(record);
-  }, count);
-}
-
-const samples = (page: import("@playwright/test").Page) =>
-  page.evaluate(() => (window as unknown as { zdScroll: { at: number; top: number }[] }).zdScroll);
 
 test("a block jump eases the document rather than cutting to it", async ({ page }) => {
   // The paragraph on lines 3–5 jumps to the paragraph on lines 7–9. Their centres
@@ -63,11 +46,20 @@ test("a block jump eases the document rather than cutting to it", async ({ page 
     window.zdEditor!.setCaret(lineThree + 5);
   });
 
-  await recordScroll(page);
+  const before = await page.locator(".md-surface").evaluate((surface) => surface.scrollTop);
+  await beginEditorScrollTrace(page);
   await page.keyboard.press("Alt+ArrowDown");
-  await page.waitForTimeout(1200);
+  await expect.poll(() => page.evaluate(() => window.zdEditor!.selection().line)).toBe(7);
+  await expect
+    .poll(() =>
+      page
+        .locator(".md-surface")
+        .evaluate((surface, start) => Math.abs(surface.scrollTop - start), before),
+    )
+    .toBeGreaterThan(60);
+  await waitForEditorScrollToSettle(page);
 
-  const recorded = await samples(page);
+  const recorded = await endEditorScrollTrace(page);
   expect(recorded.length, "the frame recorder never ran").toBeGreaterThan(10);
   const frames = recorded.map(({ top }) => top);
 
@@ -142,17 +134,21 @@ test("successive block jumps do not catch and release", async ({ page }) => {
    * internal scroll write that the ease mistook for a reader taking control.
    */
   for (let jump = 0; jump < 5; jump += 1) {
+    const line = await page.evaluate(() => window.zdEditor!.selection().line);
     await page.keyboard.press("Alt+ArrowDown");
-    await page.waitForTimeout(550);
+    await expect
+      .poll(() => page.evaluate(() => window.zdEditor!.selection().line))
+      .toBeGreaterThan(line);
+    await waitForEditorScrollToSettle(page);
   }
   expect(await page.evaluate(() => window.zdEditor!.selection().line)).toBe(16);
 
-  await recordScroll(page);
+  await beginEditorScrollTrace(page);
   await page.keyboard.press("Alt+ArrowDown");
-  await page.waitForTimeout(1200);
-  expect(await page.evaluate(() => window.zdEditor!.selection().line)).toBe(25);
+  await expect.poll(() => page.evaluate(() => window.zdEditor!.selection().line)).toBe(25);
+  await waitForEditorScrollToSettle(page);
 
-  const recorded = await samples(page);
+  const recorded = await endEditorScrollTrace(page);
   const start = recorded[0]!.top;
   const firstMoving = recorded.findIndex(({ top }) => Math.abs(top - start) > 0.01);
   let lastMoving = -1;
@@ -179,20 +175,21 @@ test("a direct scroll takes over from a block jump", async ({ page }) => {
     window.zdEditor!.setCaret(lineThree + 5);
   });
 
+  const before = await page.locator(".md-surface").evaluate((surface) => surface.scrollTop);
   await page.keyboard.press("Alt+ArrowDown");
-  await page.waitForTimeout(100);
+  await expect
+    .poll(() =>
+      page
+        .locator(".md-surface")
+        .evaluate((surface, start) => Math.abs(surface.scrollTop - start), before),
+    )
+    .toBeGreaterThan(2);
   await page.locator(".md-surface").hover();
   await page.mouse.wheel(0, 200);
-  await page.evaluate(
-    () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
-  );
-
-  const taken = await page.locator(".md-surface").evaluate((surface) => surface.scrollTop);
-  await page.waitForTimeout(600);
-  const settled = await page.locator(".md-surface").evaluate((surface) => surface.scrollTop);
-
-  expect(settled, "the focal journey resumed after the reader scrolled directly").toBeCloseTo(
-    taken,
-    0,
-  );
+  const taken = await waitForEditorScrollToSettle(page);
+  await expect
+    .poll(() => page.locator(".md-surface").evaluate((surface) => surface.scrollTop), {
+      message: "the focal journey resumed after the reader scrolled directly",
+    })
+    .toBeCloseTo(taken, 0);
 });

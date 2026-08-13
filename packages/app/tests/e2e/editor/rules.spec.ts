@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "./harness";
+
 // DESIGN.md §7.3 gives the rule its resting state: "The
 // one place a line is the content rather than decoration, so it is the same quiet
 // hairline and nothing more — no shadow, no double border, no centred ornament."
@@ -8,10 +10,12 @@ import { expect, test } from "@playwright/test";
 // go and the line arrives.
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.locator(".md-line-rule").waitFor();
+  await openEditor(page);
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-line-rule"),
+    "the fixture horizontal rule",
+  );
 });
 
 test("the dashes are gone and a line is drawn", async ({ page }) => {
@@ -53,10 +57,12 @@ test("raw mode shows the dashes again", async ({ page }) => {
   await page.locator(".cm-line").first().click();
   await page.keyboard.press("ControlOrMeta+e");
 
-  const onScreen = await page.evaluate(
-    () => document.querySelector<HTMLElement>(".cm-content")!.innerText,
+  const line = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: /^---$/ }),
+    "the raw horizontal-rule source",
   );
-  expect(onScreen, "the rule's source is still hidden under raw mode").toContain("---");
+  await expect(line, "the rule's source is still hidden under raw mode").toHaveText("---");
 });
 
 test("drawing the rule does not change the document", async ({ page }) => {

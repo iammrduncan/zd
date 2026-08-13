@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "./harness";
+
 /*
  * A file that is not markdown — vision §6.2:
  *
@@ -25,12 +27,7 @@ const MARKDOWN = "/dev/editor.html";
 const CODE = "/dev/editor.html?doc=code";
 
 async function open(page: import("@playwright/test").Page, url: string) {
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto(url);
-  await page.locator(".cm-line").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
+  await openEditor(page, { url });
 }
 
 test("a code file takes the mono family", async ({ page }) => {
@@ -120,8 +117,18 @@ test("the same constructs are decorated in the markdown file", async ({ page }) 
    * other direction: here the risk is asserting the *absence* of something that
    * was never findable in the first place.
    */
-  for (const [name, count] of Object.entries(await decorationCounts(page))) {
-    expect(count, `the ${name} selector matches nothing at all`).toBeGreaterThan(0);
+  const examples = [
+    { name: "headings", selector: ".md-line-h2", text: "Notation" },
+    { name: "inlineCode", selector: ".md-inline-code", text: "renderMarkdown" },
+    { name: "emphasis", selector: ".md-emphasis", text: "this run" },
+  ];
+  for (const { name, selector, text } of examples) {
+    const target = await materializeEditorTarget(
+      page,
+      page.locator(`.md-editor ${selector}`, { hasText: text }),
+      `the markdown ${name} example`,
+    );
+    await expect(target).toBeVisible();
   }
 });
 

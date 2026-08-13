@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "./harness";
+
 // Vision §6.1: "Raw mode is a toggle, and it is off by default. It reveals the
 // literal source of everything in the renders list — brackets, destinations, pipes,
 // fences, language tags — for when you need to see the file exactly as it is
@@ -14,45 +16,59 @@ import { expect, test } from "@playwright/test";
 const RAW = "ControlOrMeta+e";
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  // Every construct this spec asserts about, waited for by name. Lezer parses
-  // incrementally, so "the table is up" says nothing about whether the links near
-  // the end of the document have been decorated yet.
-  await page.locator(".md-editor table").waitFor();
-  await page.locator(".md-link-label").first().waitFor();
-  await page.locator(".md-syn-keyword").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
+  await openEditor(page);
 });
 
-const onScreen = (page: import("@playwright/test").Page) =>
-  page.evaluate(() => document.querySelector<HTMLElement>(".cm-content")!.innerText);
-
 test("it is off by default", async ({ page }) => {
-  const text = await onScreen(page);
+  const link = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-link-label", { hasText: "its label" }),
+    "the rendered fixture link",
+  );
+  await expect(link, "brackets are showing before the toggle").toHaveText("its label");
 
-  // The rendered default, which every other render spec already asserts. Stated
-  // here too because "off by default" is half of what the decision says.
-  expect(text, "brackets are showing before the toggle").not.toContain("[its label]");
-  expect(text, "a fence marker is showing before the toggle").not.toContain("```");
-  await expect(page.locator(".md-editor table"), "no table before the toggle").toHaveCount(1);
+  const table = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor table.md-rendered", { hasText: "Construct" }),
+    "the rendered fixture table",
+  );
+  await expect(table, "no table before the toggle").toBeVisible();
 });
 
 test("the toggle reveals every hidden construct at once", async ({ page }) => {
   await page.locator(".cm-line").first().click();
   await page.keyboard.press(RAW);
 
-  const text = await onScreen(page);
-
   // Everything in the *renders* list, in one place, because the decision names
   // them together: "brackets, destinations, pipes, fences, language tags".
-  expect(text, "link brackets are still hidden").toContain("[its label](https://example.com/spec)");
-  expect(text, "the fence and its language tag are still hidden").toContain("```rust");
-  expect(text, "the table pipes are still hidden").toContain("| Construct | Resting state |");
-  expect(text, "the delimiter row is still hidden").toContain("| --- | --- |");
+  const link = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: "[its label](https://example.com/spec)" }),
+    "the raw link source",
+  );
+  await expect(link, "link brackets are still hidden").toContainText(
+    "[its label](https://example.com/spec)",
+  );
+  const fence = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: "```rust" }),
+    "the raw Rust fence",
+  );
+  await expect(fence, "the fence and its language tag are still hidden").toHaveText("```rust");
+  const table = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: "| Construct | Resting state |" }),
+    "the raw table header",
+  );
+  await expect(table, "the table pipes are still hidden").toContainText(
+    "| Construct | Resting state |",
+  );
+  const delimiter = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: "| --- | --- |" }),
+    "the raw table delimiter",
+  );
+  await expect(delimiter, "the delimiter row is still hidden").toContainText("| --- | --- |");
 
   // A rendered table and its source cannot both be on screen.
   await expect(page.locator(".md-editor table"), "the table widget survived raw mode").toHaveCount(
@@ -63,17 +79,26 @@ test("the toggle reveals every hidden construct at once", async ({ page }) => {
 test("toggling again returns to the rendered default", async ({ page }) => {
   await page.locator(".cm-line").first().click();
   await page.keyboard.press(RAW);
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: "| Construct | Resting state |" }),
+    "the raw table header",
+  );
   await expect(page.locator(".md-editor table")).toHaveCount(0);
 
   await page.keyboard.press(RAW);
-  await expect(page.locator(".md-editor table"), "the table did not come back").toHaveCount(1);
-  // The link decorations come back on their own transaction, so wait for one of
-  // them rather than reading the text the instant the table reappears.
-  await page.locator(".md-link-label").first().waitFor();
-
-  const text = await onScreen(page);
-  expect(text, "brackets stayed revealed").not.toContain("[its label]");
-  expect(text, "a fence marker stayed revealed").not.toContain("```");
+  const table = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor table.md-rendered", { hasText: "Construct" }),
+    "the restored rendered table",
+  );
+  await expect(table, "the table did not come back").toBeVisible();
+  const link = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-link-label", { hasText: "its label" }),
+    "the restored rendered link",
+  );
+  await expect(link, "brackets stayed revealed").toHaveText("its label");
 });
 
 test("neither state changes the document", async ({ page }) => {

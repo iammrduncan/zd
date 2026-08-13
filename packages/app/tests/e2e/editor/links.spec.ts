@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { sameColour } from "../colour";
+import { materializeEditorTarget, openEditor } from "./harness";
 
 // The complaint was one line long: "links are not links...". The decision that
 // answers it (2026-07-29, vision §6.1) puts links in the *renders* list: "links
@@ -12,28 +13,12 @@ import { sameColour } from "../colour";
 // and the URL are not, and the document text is untouched by either.
 
 test.beforeEach(async ({ page }) => {
-  // Tall enough that the whole fixture is built; the links sit near the end.
-  // 9000 is headroom, not a fit. The fixture is ~3700px and grows every time a
-  // construct is added; a viewport that merely fitted has silently stopped
-  // rendering the bottom of the document four times now, each time failing specs
-  // that had nothing to do with the change. A headless viewport costs nothing, so
-  // this buys years rather than one more construct. The proper fix — scroll until
-  // the wanted line is built — is a filed task.
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
-  /*
-   * Wait for the decoration, not just for the first heading.
-   *
-   * Lezer parses incrementally, so a construct near the end of a long document is
-   * on screen as plain text for a moment before its decoration lands. Waiting on
-   * `.md-line-h1` says nothing about the last paragraph — and once the fixture
-   * passed ~4000px that gap started failing these specs intermittently.
-   */
-  await page.locator(".md-link-label").first().waitFor();
+  await openEditor(page);
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-link-label", { hasText: "its label" }),
+    "the fixture inline link",
+  );
 });
 
 /** The line carrying the inline link, and what it puts on screen. */
@@ -98,6 +83,11 @@ test("the label reads as activatable, not as prose", async ({ page }) => {
 });
 
 test("a relative link renders the same way as an external one", async ({ page }) => {
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-link-label", { hasText: "relative one" }),
+    "the fixture relative link",
+  );
   const relative = await page.evaluate(() => {
     const line = [...document.querySelectorAll<HTMLElement>(".cm-line")].find((el) =>
       el.textContent?.includes("relative one"),
@@ -125,6 +115,11 @@ test("hiding the punctuation does not change the document", async ({ page }) => 
 });
 
 test("an autolink still shows its address, having no label to show instead", async ({ page }) => {
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-link-label", { hasText: "https://example.com/autolink" }),
+    "the fixture autolink",
+  );
   const auto = await page.evaluate(() => {
     const line = [...document.querySelectorAll<HTMLElement>(".cm-line")].find((el) =>
       el.textContent?.includes("autolink"),

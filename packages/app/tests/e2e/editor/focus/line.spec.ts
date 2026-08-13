@@ -186,7 +186,7 @@ test("anchor-following reading paints one shaped row without a caret", async ({ 
   const line = page.locator(".cm-line", { hasText: "Everything that makes reading good" }).first();
   const whole = await line.textContent();
 
-  await page.evaluate(async () => {
+  await page.evaluate(() => {
     const surface = document.querySelector<HTMLElement>(".md-surface")!;
     const paragraph = [...document.querySelectorAll<HTMLElement>(".cm-line")].find((row) =>
       row.textContent?.includes("Everything that makes reading good"),
@@ -197,9 +197,6 @@ test("anchor-following reading paints one shaped row without a caret", async ({ 
     // is the reader's input in this state; a click would turn this back into the
     // editing case the tests above already cover.
     surface.scrollTop += paragraph.getBoundingClientRect().top - anchor + 4;
-    for (let i = 0; i < 12; i += 1) {
-      await new Promise((done) => requestAnimationFrame(done));
-    }
   });
 
   await expect

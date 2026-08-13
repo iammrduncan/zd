@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { sameColour } from "../colour";
+import { materializeEditorTarget, openEditor } from "./harness";
 
 // `<https://…>` is the one link with no label to show, so nothing is hidden in its
 // place — the address *is* the label. But the angle brackets are notation, and the
@@ -10,10 +11,12 @@ import { sameColour } from "../colour";
 // its own, rather than as a `Link`. Same shape underneath: LinkMark, URL, LinkMark.
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 9000 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.locator(".md-link-label").first().waitFor();
+  await openEditor(page);
+  await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .md-link-label", { hasText: "https://example.com/autolink" }),
+    "the fixture autolink",
+  );
 });
 
 const autolinkLine = (page: import("@playwright/test").Page) =>
@@ -72,10 +75,12 @@ test("raw mode brings the brackets back", async ({ page }) => {
   await page.locator(".cm-line").first().click();
   await page.keyboard.press("ControlOrMeta+e");
 
-  const onScreen = await page.evaluate(
-    () => document.querySelector<HTMLElement>(".cm-content")!.innerText,
+  const line = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: "<https://example.com/autolink>" }),
+    "the raw autolink source",
   );
-  expect(onScreen, "the angle brackets are still hidden under raw mode").toContain(
+  await expect(line, "the angle brackets are still hidden under raw mode").toContainText(
     "<https://example.com/autolink>",
   );
 });

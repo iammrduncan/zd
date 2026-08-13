@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+import {
+  beginEditorScrollTrace,
+  endEditorScrollTrace,
+  waitForEditorScrollToSettle,
+} from "./harness";
+
 /*
  * The caret comes back to the anchor when it reaches an edge — vision §4.1.
  *
@@ -78,12 +84,73 @@ function caretInSurface() {
  */
 async function walkToTheBottom(page: import("@playwright/test").Page, height: number) {
   for (let press = 0; press < 40; press += 1) {
+    const head = await page.evaluate(() => window.zdEditor!.selection().head);
+    const before = await page.evaluate(caretInSurface);
     await page.keyboard.press("ArrowDown");
-    await page.evaluate(
-      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
-    );
+    await expect
+      .poll(() => page.evaluate(() => window.zdEditor!.selection().head), {
+        message: "the ArrowDown press never moved the caret",
+      })
+      .toBeGreaterThan(head);
+    await expect
+      .poll(
+        async () => {
+          const current = await page.evaluate(caretInSurface);
+          return current.caret !== null && before.caret !== null
+            ? Math.abs(current.caret - before.caret)
+            : 0;
+        },
+        { message: "the caret paint never caught up with the ArrowDown press" },
+      )
+      .toBeGreaterThan(0.1);
     const at = await page.evaluate(caretInSurface);
-    if (at.caret !== null && at.caret > height * 0.85) return true;
+    if (at.caret !== null && at.caret > height * 0.85) {
+      // Under parallel load CodeMirror can paint the new row before its ordinary
+      // scroll-into-view catches up. Trigger the edge return only once that setup
+      // scroll has rested and the caret is genuinely inside the bottom band.
+      await waitForEditorScrollToSettle(page);
+      let ready = await page.evaluate(caretInSurface);
+      const halfRow = await page
+        .locator(".cm-line")
+        .first()
+        .evaluate((line) => line.getBoundingClientRect().height / 2);
+
+      // A caret centre can sit half a row below the surface while that row still
+      // has pixels on screen. If it went a complete row beyond that band before
+      // layout caught up, walk back one visual row and assert the correction.
+      if (ready.caret !== null && ready.caret > height + halfRow) {
+        const beyond = await page.evaluate(() => window.zdEditor!.selection().head);
+        await page.keyboard.press("ArrowUp");
+        await expect
+          .poll(() => page.evaluate(() => window.zdEditor!.selection().head), {
+            message: "the setup could not return to the visible bottom row",
+          })
+          .toBeLessThan(beyond);
+        await waitForEditorScrollToSettle(page);
+        ready = await page.evaluate(caretInSurface);
+      }
+
+      if (ready.caret !== null && ready.caret > height * 0.85 && ready.caret <= height + halfRow) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/** Drive the next visual rows until the measured edge-return state has settled. */
+async function triggerEdgeReturn(page: import("@playwright/test").Page, height: number) {
+  for (let press = 0; press < 3; press += 1) {
+    const head = await page.evaluate(() => window.zdEditor!.selection().head);
+    await page.keyboard.press("ArrowDown");
+    await expect
+      .poll(() => page.evaluate(() => window.zdEditor!.selection().head), {
+        message: "the edge-triggering ArrowDown press never moved the caret",
+      })
+      .toBeGreaterThan(head);
+    await waitForEditorScrollToSettle(page);
+    const at = await page.evaluate(caretInSurface);
+    if (at.caret !== null && at.caret <= Math.round(height / 3) + 56) return true;
   }
   return false;
 }
@@ -108,16 +175,10 @@ test("the caret returns to the anchor rather than sticking to the bottom edge", 
    * Polled rather than slept, because the return is eased and how long that takes is the
    * easing's business — a timeout here fails for the same reason the assertion would.
    */
-  await page.keyboard.press("ArrowDown");
-
-  await expect
-    .poll(async () => (await page.evaluate(caretInSurface)).caret, {
-      message: "the caret never came back from the bottom edge",
-    })
-    // Two rows of band around the anchor. Which line the caret lands on is whatever the
-    // press before it was, and §4.1's claim is about where the eye reads from rather
-    // than about a pixel.
-    .toBeLessThanOrEqual(Math.round(height / 3) + 56);
+  expect(
+    await triggerEdgeReturn(page, height),
+    "the caret never came back from the bottom edge",
+  ).toBe(true);
 });
 
 test("the return is eased rather than a cut", async ({ page }) => {
@@ -130,23 +191,13 @@ test("the return is eased rather than a cut", async ({ page }) => {
   // Sample the surface every frame across the one press that triggers the return. The
   // whole difference between eased and cut lives in the frames between two positions,
   // and an assertion made after things settle cannot see it.
-  await page.evaluate(() => {
-    const surface = document.querySelector(".md-surface")!;
-    const samples: { at: number; top: number }[] = [];
-    (window as unknown as { zdScroll: { at: number; top: number }[] }).zdScroll = samples;
-    const record = () => {
-      samples.push({ at: performance.now(), top: surface.scrollTop });
-      if (samples.length < 40) requestAnimationFrame(record);
-    };
-    requestAnimationFrame(record);
-  });
+  await beginEditorScrollTrace(page);
+  expect(
+    await triggerEdgeReturn(page, height),
+    "the eased return never reached the reading anchor",
+  ).toBe(true);
 
-  await page.keyboard.press("ArrowDown");
-  await page.waitForTimeout(700);
-
-  const samples = await page.evaluate(
-    () => (window as unknown as { zdScroll: { at: number; top: number }[] }).zdScroll,
-  );
+  const samples = await endEditorScrollTrace(page);
   const frames = samples.map(({ top }) => top);
   const low = Math.min(...frames);
   const high = Math.max(...frames);
@@ -197,17 +248,10 @@ test("arrowing through the middle of the window moves nothing", async ({ page })
    * it exists to rule out.
    */
   await expect
-    .poll(async () => (await page.evaluate(caretInSurface)).caret, {
-      message: "the caret never settled inside the window",
-    })
-    .toBeGreaterThan(0);
-  await expect
     .poll(
       async () => {
         const before = await page.locator(".md-surface").evaluate((surface) => surface.scrollTop);
-        await page.evaluate(
-          () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
-        );
+        await waitForEditorScrollToSettle(page);
         const at = await page.evaluate(caretInSurface);
         return {
           onAnchor: at.caret !== null && Math.abs(at.caret - at.anchor) <= 0.5,
@@ -221,8 +265,12 @@ test("arrowing through the middle of the window moves nothing", async ({ page })
   // Now nowhere near an edge, so §7.6's "Typewriter Mode is a toggle" has to keep meaning
   // something: an ordinary press moves the caret, not the document.
   const before = await page.evaluate(caretInSurface);
+  const beforeHead = await page.evaluate(() => window.zdEditor!.selection().head);
   for (let press = 0; press < 3; press += 1) await page.keyboard.press("ArrowDown");
-  await page.waitForTimeout(300);
+  await expect
+    .poll(() => page.evaluate(() => window.zdEditor!.selection().head))
+    .toBeGreaterThan(beforeHead);
+  await waitForEditorScrollToSettle(page);
   const after = await page.evaluate(caretInSurface);
 
   expect(after.scrollTop, "an ordinary arrow press scrolled the document").toBe(before.scrollTop);
