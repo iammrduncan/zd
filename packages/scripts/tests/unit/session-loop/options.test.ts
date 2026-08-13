@@ -2,7 +2,7 @@ import { PassThrough } from "node:stream";
 
 import { describe, expect, it } from "vitest";
 
-import { promptCodexOptions } from "../../session-loop-options.mjs";
+import { promptCodexOptions } from "../../../session-loop/options.mjs";
 
 async function answerPrompts(answers: string[]) {
   const input = new PassThrough();

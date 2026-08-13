@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import process from "node:process";
 
-import { shorten } from "./session-loop-tui.mjs";
+import { shorten } from "./tui.mjs";
 
 function unwrapShellCommand(command) {
   const shellCommand = String(command ?? "").trim();

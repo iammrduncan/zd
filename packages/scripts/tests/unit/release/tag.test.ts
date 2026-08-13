@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd());
-const CHECKER = resolve(ROOT, "packages/scripts/check-release-tag.mjs");
+const CHECKER = resolve(ROOT, "packages/scripts/release/check-tag.mjs");
 const version = (
   JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
     version: string;

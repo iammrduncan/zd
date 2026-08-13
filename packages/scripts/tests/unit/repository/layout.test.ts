@@ -28,8 +28,8 @@ describe("package ownership", () => {
       "packages/app/tests/unit/editor/index.test.ts",
       "packages/tauri/Cargo.toml",
       "packages/tauri/src/main.rs",
-      "packages/scripts/archive-tasks.mjs",
-      "packages/scripts/tests/unit/archive-tasks.test.ts",
+      "packages/scripts/objectives/archive.mjs",
+      "packages/scripts/tests/unit/objectives/archive.test.ts",
       "packages/website/app/page.tsx",
       "packages/website/package.json",
     ];

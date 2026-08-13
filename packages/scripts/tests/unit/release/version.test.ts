@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd());
-const SYNCHRONIZER = resolve(ROOT, "packages/scripts/sync-version.mjs");
+const SYNCHRONIZER = resolve(ROOT, "packages/scripts/release/sync-version.mjs");
 const fixtures: string[] = [];
 
 function makeFixture(version = "1.2.3"): string {
@@ -127,10 +127,10 @@ describe("the 0.1.0 release", () => {
     };
 
     expect(manifest.version).toBe("0.1.0");
-    expect(manifest.scripts.version).toBe("node packages/scripts/sync-version.mjs");
+    expect(manifest.scripts.version).toBe("node packages/scripts/release/sync-version.mjs");
     expect(manifest.scripts["version:bump"]).toBe("npm version --no-git-tag-version");
     expect(manifest.scripts["version:check"]).toBe(
-      "node packages/scripts/sync-version.mjs --check",
+      "node packages/scripts/release/sync-version.mjs --check",
     );
     expect(manifest.engines.node).toBe("^22.22.2 || ^24.15.0 || >=26.0.0");
     expect(readFileSync(resolve(ROOT, "CHANGELOG.md"), "utf8")).toContain(

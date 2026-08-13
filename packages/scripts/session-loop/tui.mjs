@@ -1,12 +1,12 @@
 import process from "node:process";
 import { clearTimeout, setTimeout } from "node:timers";
 
-import { readLatestComparisonHandoff, renderDecision } from "./session-loop-decision.mjs";
+import { readLatestComparisonHandoff, renderDecision } from "./decision.mjs";
 import {
   printCodexOutput,
   renderTerminalMarkdown,
   terminalColorsEnabled,
-} from "./session-terminal.mjs";
+} from "./terminal.mjs";
 
 const ANSI_RESET = "\u001b[0m";
 const TUI_ENTER = "\u001b[?1049h\u001b[?25l\u001b[?1000h\u001b[?1006h";

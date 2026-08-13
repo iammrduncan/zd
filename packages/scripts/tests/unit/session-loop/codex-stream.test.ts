@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { describeCodexEvent } from "../../session-codex-stream.mjs";
+import { describeCodexEvent } from "../../../session-loop/codex-stream.mjs";
 
 describe("Codex command stream labels", () => {
   it("describes Git intent instead of exposing the shell lifecycle", () => {

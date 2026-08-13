@@ -15,7 +15,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-const RUNNER = resolve(process.cwd(), "packages/scripts/session-loop.mjs");
+const RUNNER = resolve(process.cwd(), "packages/scripts/session-loop/index.mjs");
 const PROMPT =
   "Use $zd-session to run the next open task. Run exactly one session and stop after its handoff; the outer runner will decide whether another session is allowed.";
 
@@ -332,7 +332,7 @@ describe("the Codex session loop", () => {
       "packages/app/dev/compare-highlighting.html",
       "packages/app/src/design/compare-highlighting.ts",
       "packages/app/src/design/compare-highlighting.css",
-      "packages/app/tests/e2e/compare-highlighting.spec.ts",
+      "packages/app/tests/e2e/design/compare-highlighting.spec.ts",
     ];
     for (const path of comparisonFiles) {
       mkdirSync(join(root, path, ".."), { recursive: true });

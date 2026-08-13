@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { getPublicDocs } from "../../../website/lib/docs";
+import { getPublicDocs } from "../../../../website/lib/docs";
 
 const ROOT = resolve(process.cwd());
 const DOC_AREAS = ["adr", "zsip", "user-facing-docs", "_internal", "_internal/objectives"];

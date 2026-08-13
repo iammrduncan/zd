@@ -15,7 +15,7 @@ export function comparisonReviewFromHandoff(handoff) {
       `packages/app/dev/${basename}.html`,
       `packages/app/src/design/${basename}.ts`,
       `packages/app/src/design/${basename}.css`,
-      `packages/app/tests/e2e/${basename}.spec.ts`,
+      `packages/app/tests/e2e/design/${basename}.spec.ts`,
     ],
     path: `/dev/${basename}.html`,
   };

@@ -7,21 +7,21 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { setTimeout } from "node:timers";
 
-import { runCodex } from "./session-codex-stream.mjs";
+import { runCodex } from "./codex-stream.mjs";
 import {
   comparisonReviewFromHandoff,
   launchComparisonReview,
   removeComparisonArtifacts,
-} from "./session-loop-comparison.mjs";
-import { readLatestComparisonHandoff } from "./session-loop-decision.mjs";
-import { promptCodexOptions, shouldPromptForCodexOptions } from "./session-loop-options.mjs";
+} from "./comparison.mjs";
+import { readLatestComparisonHandoff } from "./decision.mjs";
+import { promptCodexOptions, shouldPromptForCodexOptions } from "./options.mjs";
 import {
   createLoopControl,
   createTui,
   LoopKilledError,
   printCodexOutput,
   shouldUseTui,
-} from "./session-loop-tui.mjs";
+} from "./tui.mjs";
 
 const TODO_PATH = resolve("docs/_internal/objectives/todo.txt");
 const FEEDBACK_PATH = resolve("docs/_internal/objectives/FEEDBACK.md");
@@ -282,7 +282,7 @@ function appendMemory(task, prompt, result) {
   if (!existsSync(MEMORY_PATH)) {
     appendFileSync(
       MEMORY_PATH,
-      "# Codex session memory\n\nFinal handoffs captured by scripts/session-loop.mjs. Newest entries are last.\n",
+      "# Codex session memory\n\nFinal handoffs captured by scripts/session-loop/index.mjs. Newest entries are last.\n",
     );
   }
 

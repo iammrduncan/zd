@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-const AUDITOR = resolve(process.cwd(), "packages/scripts/list-unused-tokens.mjs");
+const AUDITOR = resolve(process.cwd(), "packages/scripts/audit/unused-tokens.mjs");
 const fixtures: string[] = [];
 
 function makeFixture(tokens: string, styles: Record<string, string>): string {
@@ -82,7 +82,7 @@ describe("the unused design token inventory", () => {
     ) as { scripts: Record<string, string> };
 
     expect(packageJson.scripts["tokens:unused"]).toBe(
-      "node packages/scripts/list-unused-tokens.mjs",
+      "node packages/scripts/audit/unused-tokens.mjs",
     );
     expect(packageJson.scripts.test).not.toContain("tokens:unused");
     expect(packageJson.scripts.check).not.toContain("tokens:unused");

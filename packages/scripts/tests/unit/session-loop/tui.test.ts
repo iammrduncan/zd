@@ -6,7 +6,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-const RUNNER = resolve(process.cwd(), "packages/scripts/session-loop.mjs");
+const RUNNER = resolve(process.cwd(), "packages/scripts/session-loop/index.mjs");
 const fixtures: string[] = [];
 
 function makeFixture({
