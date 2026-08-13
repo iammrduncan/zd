@@ -1,8 +1,7 @@
 # ADR candidates from session memory
 
-This folder records architecture candidates found by comparing
-[`session-memory.log`](../../_internal/objectives/session-memory.log) with the accepted
-[`docs/adr/`](../../adr/README.md) records.
+This folder records architecture candidates found by comparing the retired session-memory record
+with the accepted [`docs/adr/`](../../adr/README.md) records.
 
 These files are review material. They are not architecture authority. A maintainer must accept a
 candidate, assign the next unused number in its area, move it into `docs/adr/`, change its status to

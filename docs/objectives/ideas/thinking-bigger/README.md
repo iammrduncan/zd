@@ -62,7 +62,7 @@ block any stage. The two direction reports describe conditional, disposable tech
 do not widen the recommended product scope without an explicit product/design decision.
 [`research/source-projects.md`](research/source-projects.md) establishes upstream facts and adoption
 checks only. [`synthesis.md`](synthesis.md) reconciles these roles but does not supersede accepted
-ADRs or [`DESIGN.md`](../../../../DESIGN.md).
+ADRs or [`DESIGN.md`](../../../DESIGN.md).
 
 ## Snapshot qualification
 

@@ -36,7 +36,7 @@ notes.
 
 The v0.1 line is ad-hoc signed so macOS can verify that the completed bundle has not changed. It is
 not Developer ID signed or notarized; signing and notarization remain explicitly outside this
-prototype's scope in `docs/_internal/objectives/vision.md` §11.
+prototype's scope in `docs/VISION.md` §11.
 
 The Windows installer is not code signed. Windows may show a SmartScreen warning even when its
 SHA-256 checksum matches the release.

@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 const ROOT = resolve(process.cwd());
 const SCREENSHOT = resolve(ROOT, "docs/user-facing-docs/assets/zd-reader.jpeg");
 const SOCIAL_CARD = resolve(ROOT, "docs/user-facing-docs/assets/zd-social-card.png");
-const COPY = resolve(ROOT, "docs/_internal/promotion/v0.1.0.md");
 
 function jpegDimensions(path: string) {
   const bytes = readFileSync(path);
@@ -49,16 +48,12 @@ describe("the v0.1 promotional kit", () => {
     expect(manifest.scripts["promo:render"]).toContain("render-social-card.swift");
   });
 
-  it("keeps reusable launch copy and honest release limits together", () => {
-    const copy = readFileSync(COPY, "utf8");
-    const socialPost = copy.split("## Social post\n\n")[1]!.split("\n\n##", 1)[0]!.trim();
+  it("keeps honest release limits beside the public download guidance", () => {
+    const readme = readFileSync(resolve(ROOT, "README.md"), "utf8");
 
-    expect(copy).toMatch(/^## GitHub Release$/m);
-    expect(copy).toMatch(/^## Social post$/m);
-    expect(copy).toMatch(/^## Image alt text$/m);
-    expect(copy).toContain("Apple Silicon and Intel");
-    expect(copy).toContain("not notarized");
-    expect(copy).toContain("https://github.com/iammrduncan/zd/releases/tag/v0.1.0");
-    expect(socialPost.length).toBeLessThanOrEqual(280);
+    expect(readme).toContain("Apple Silicon or Intel DMG");
+    expect(readme).toContain("not Developer ID signed or notarized");
+    expect(readme).toContain("Windows x64 setup executable");
+    expect(readme).toContain("not code signed");
   });
 });

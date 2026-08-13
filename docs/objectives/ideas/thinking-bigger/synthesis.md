@@ -110,7 +110,7 @@ broken extension.
 
 ### Product decision that must be explicit
 
-The current binding [`DESIGN.md`](../../../../DESIGN.md) says ZD is not a dashboard, IDE, cockpit, or
+The current binding [`DESIGN.md`](../../../DESIGN.md) says ZD is not a dashboard, IDE, cockpit, or
 panel collection; it permits one primary surface plus one quiet support/navigation surface and its
 closed Settings inventory excludes a keybinding editor. The new direction asks for panels, hotkeys,
 and eventual UI redesign.

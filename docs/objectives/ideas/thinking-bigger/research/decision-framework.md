@@ -485,7 +485,7 @@ model by accident.
 ### ZD authority and prior research
 
 - [`thoughts.md`](../thoughts.md)
-- [`vision.md`](../../vision.md)
+- [`VISION.md`](../../../../VISION.md)
 - [`Good Engineering`](../../../../GOOD_ENGINEERING_H.md)
 - [ADR 0001: Tauri with a portable web frontend](../../../../adr/suite/0001-use-tauri-with-portable-web-frontend_H.md)
 - [ADR 0002: native authority behind one platform boundary](../../../../adr/suite/0002-put-native-authority-behind-platform-boundary_H.md)

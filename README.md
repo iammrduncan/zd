@@ -84,7 +84,7 @@ Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before openin
 
 ## Project status
 
-The design system is [DESIGN.md](DESIGN.md). The [documentation map](docs/README.md) separates
+The design system is [DESIGN.md](docs/DESIGN.md). The [documentation map](docs/README.md) separates
 accepted architecture, proposals, user guidance, internal records, and active objectives.
 
 Licensed under the [MIT License](LICENSE).

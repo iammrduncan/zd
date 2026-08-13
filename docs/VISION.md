@@ -48,7 +48,7 @@ Mini apps — each one a `zd <thing>` surface you launch into:
 The terminal is **not** a mini app. It is a suite facility: an in-app terminal that opens over
 whatever mini app or studio you are already in, on an in-app hotkey to show/hide plus a global
 hotkey that foregrounds the app and opens it. There is no sense in opening a terminal from a
-terminal. See [`docs/_internal/objectives/goals/zd-terminal/`](goals/zd-terminal/initial_thoughts.md).
+terminal. See [`docs/objectives/mini-apps/zd-terminal/`](objectives/mini-apps/zd-terminal/initial_thoughts.md).
 
 Consequence for this prototype: the design system, settings, window shell, and shortcut registry
 are **suite-owned**, not md-owned. Changing a token changes every mini app. Two structural
