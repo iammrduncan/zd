@@ -44,6 +44,10 @@ implementation choices and credible adjacent tools rather than hiding them in th
 | [`libghostty-vt-node.md`](libghostty-vt-node.md) | Does the proposed Ghostty Node binding actually render a terminal? |
 | [`subagent-fanout.md`](subagent-fanout.md) | What parallel investigations were assigned and what did each return? |
 
+Focused follow-up: [`ZD as a Zed-native Markdown experience`](../../zed-extension-reader/README.md)
+tests whether the reader/editor styling and focus modes can live inside Zed, and separates what a
+supported extension can prove from what requires Zed core or a fork.
+
 ## Research method
 
 - Product capability claims prefer current official docs, product repositories, release notes, API
