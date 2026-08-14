@@ -11,10 +11,10 @@ used to build it.
 | Candidate | Cost to learn | Fidelity ceiling | Reversible? | Decision it informs |
 | --- | --- | --- | --- | --- |
 | Theme/settings profile | Hours to a few days | Low | Yes | Does ZD's static reading environment improve Zed enough to use? |
-| Language-server focus spike | Several days | Low–medium | Yes | Is contextual focus itself valuable in Zed? |
+| Existing-preview source patch | Days to weeks | High reader fidelity | Mostly | Does Zed's existing preview become a sufficient ZD reader with focus, anchors, and source handoff? |
+| Language-server focus spike | Several days | Low–medium | Yes | Is contextual focus itself valuable in Zed's source editor? |
 | Daily-use trial | One to two weeks | Whatever prototypes provide | Yes | Which missing behaviors cause real context switching? |
-| Upstream native focus spike | Days to weeks | Medium | Mostly | Can the dominant behavior become a clean Zed primitive? |
-| Native rendered Markdown | Multi-week to multi-month | High, except hard typography limits | No cheap exit | Is deep integration worth sustained core ownership? |
+| Direct editing in rendered content | Multi-week to multi-month | Highest | No cheap exit | Is preview/editor handoff still costly enough to justify a new input model? |
 
 ## Stage 0: freeze the comparison contract
 
@@ -76,9 +76,48 @@ reader.
 - native preview/editor switching is more disruptive than the current app switch;
 - typography and measure remain unacceptable even after using supported settings.
 
-## Stage 2: language-server focus spike
+## Stage 2: existing-preview source-build spike
 
-Implement only after the stock profile is stable. Keep the server intentionally tiny: Markdown
+Modify Zed's compiled-in `MarkdownPreviewView` rather than creating another Markdown renderer or
+custom editor.
+
+### Deliverables
+
+- ZD reader typography, bounded measure, spacing, and calm chrome in the native preview;
+- line, paragraph, and section focus using rendered elements and their source ranges;
+- one-third reading-anchor behavior with clear suspension during manual scrolling;
+- source-editor selection tracking in the existing Follow mode;
+- click and keyboard actions that return to the precise source range for editing;
+- settings that preserve stock preview behavior when disabled;
+- focused tests added to Zed's existing Markdown preview test module.
+
+### Reuse requirements
+
+- keep the existing source `Editor` and buffer authoritative;
+- keep Zed's current Markdown parser, render entity, image cache, links, search, and task-item logic;
+- extend the current normal, side-by-side, and Follow preview modes;
+- do not introduce a second Markdown parser, webview, or editor stack;
+- do not implement direct text input in the preview during this stage.
+
+### Success gate
+
+The enhanced preview replaces the standalone ZD reader for ordinary reading and review sessions,
+focus/anchor behavior remains stable while the source changes, and activating rendered content
+makes editing in the source editor feel like one continuous workflow.
+
+### Kill conditions
+
+- source mapping is too coarse for predictable return-to-editor behavior;
+- focus or anchor state jumps during normal preview refreshes;
+- changes require invasive edits outside the Markdown and Markdown-preview crates;
+- the preview cannot match the core reader typography or layout without duplicating the renderer;
+- upstream maintainers reject the generic feature shape and the measured value does not justify a
+  maintained patch.
+
+## Optional comparison: language-server focus spike
+
+This experiment is no longer the preferred reader implementation. Run it only when a supported,
+installable comparison is worth the extra work. Keep the server intentionally tiny: Markdown
 parsing, caret inference from document-highlight requests, focus-range selection, and one output
 transport.
 
@@ -105,13 +144,13 @@ The focused range follows ordinary cursor movement without visible lag, no diagn
 appears to the user or tools, and at least one focus scope is preferred over the same theme without
 focus during real writing sessions.
 
-Passing this gate means “native focus deserves investigation.” It does not authorize expanding the
-language server into a rendered editor.
+Passing this gate means a supported source-editor focus mode may be useful alongside the enhanced
+preview. It does not authorize expanding the language server into a rendered editor.
 
 ## Stage 3: daily-use trial
 
-Use the best supported prototype for real Markdown work while keeping the current ZD reader one
-shortcut away. Each exit from Zed should produce a tiny observation:
+Use the enhanced native preview and normal Zed source editor for real Markdown work while keeping
+the current ZD reader one shortcut away. Each exit from Zed should produce a tiny observation:
 
 | Observation | Example classification |
 | --- | --- |
@@ -125,41 +164,43 @@ At the end of the trial, rank missing capabilities by observed exits, not by vis
 the Zed profile already captures most value or if the app-level qualities users need are unrelated
 to the editor surface.
 
-## Stage 4: upstream native focus spike
+## Stage 4: refine the preview/editor handoff
 
-If focus/viewport behavior dominates the exit log, prototype the smallest general Zed editor
-feature in a source build.
+If the reader succeeds but users still leave because editing feels disconnected, improve the seam
+between `MarkdownPreviewView` and its existing source `Editor` before adding input to the preview.
 
 Scope:
 
-- line, paragraph, and syntax-node focus ranges;
-- composable fading that retains syntax colors, selections, diagnostics, and collaboration marks;
-- an optional caret or reading anchor with clear suspension during manual scroll;
-- commands/settings that fit Zed rather than encode ZD branding;
-- focused tests around wrapping, multi-cursor, edits, buffer switches, and scroll restoration.
+- precise click-to-source and keyboard-to-source activation;
+- source selection reflected as the active rendered element;
+- preview position restoration after a source editing round trip;
+- an efficient single-pane toggle and a stable side-by-side workflow;
+- actions/settings that fit Zed rather than encode ZD branding;
+- focused tests around edits, buffer switches, preview refresh, and scroll restoration.
 
-Do not include rendered Markdown, mixed fonts, tables, or images in this patch. Those additions would
-make it impossible to tell whether a broadly useful focus feature is independently mergeable.
+Do not add text input, cursor painting, IME, multi-cursor behavior, or mini-editors to the preview in
+this stage. First determine whether a well-designed round trip makes direct editing unnecessary.
 
 ### Success gate
 
-- behavior is stable across the fixture and normal code buffers;
+- handoff feels continuous in both single-pane and side-by-side use;
+- selection and scroll restoration remain stable across edits and reparses;
 - the change is architecturally acceptable to Zed maintainers or small enough to carry temporarily;
-- upstream feedback gives a credible path rather than indefinite dependence on a private patch;
-- daily-use evidence still shows a meaningful improvement over Stage 2.
+- the exit log shows that remaining problems truly require editing inside rendered content.
 
-## Stage 5: rendered-presentation decision
+## Stage 5: direct-editing decision
 
-Only reach this stage if the exit log shows that rendered constructs, not focus alone, remain the
-dominant reason to leave Zed.
+Only reach this stage if the enhanced reader is valuable and the measured preview/editor handoff,
+rather than app-level behavior or habit, remains the dominant reason to leave Zed.
 
 Choose explicitly among:
 
-1. contribute reusable inline/block presentation primitives upstream;
-2. build a uniform-metric native Markdown presentation mode and accept its typography limits;
-3. maintain a ZD-specific Zed fork with release and GPL compliance ownership;
-4. preserve the standalone reader and improve handoff between ZD and stock Zed;
-5. stop because the extra fidelity does not repay the maintenance surface.
+1. add narrowly scoped edit affordances to individual preview constructs;
+2. embed or project the normal editor into locally revealed preview ranges;
+3. build an editor-level Markdown presentation mode and accept its typography limits;
+4. preserve the enhanced preview plus normal editor as the intentional product model;
+5. maintain a ZD-specific Zed fork with release and GPL compliance ownership;
+6. stop because direct editing does not repay the input, layout, and maintenance surface.
 
 Before implementation, write a short decision record covering:
 
@@ -179,7 +220,7 @@ Do not:
 - make diagnostics a permanent hidden UI protocol without proving zero leakage;
 - build a general extension UI ABI as a prerequisite for this product question;
 - add a webview to Zed solely to embed ZD's web editor;
-- replace the normal editor with the existing read-only preview;
+- assume source mappings automatically give the preview complete editor semantics;
 - fragment a document into many mini-editors to fake mixed typography;
 - fork before a supported prototype and daily-use log establish the missing value;
 - make rendered state mutate or become more authoritative than Markdown source;
@@ -200,7 +241,8 @@ against a newer extension contract instead of restarting from product intuition.
 
 ## Recommended first action
 
-Start with Stage 0 and Stage 1. They have the highest information-to-cost ratio, create no platform
-dependency, and make the later focus comparison honest. In parallel with ordinary use—but not as a
-shipping promise—prepare the smallest possible Stage 2 server to learn whether Zed's existing fade
-path is clean enough for a one-week experiment.
+Start with Stage 0 and Stage 1, then make Stage 2 the first native experiment. The existing preview
+already solves rendering and source synchronization, so adding reader focus, anchors, styling, and
+source activation has a much better information-to-cost ratio than building an editor presentation
+layer. Treat the language-server spike as an optional supported-extension comparison, not a gate for
+the preview work.

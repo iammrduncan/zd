@@ -5,15 +5,16 @@
 
 ## Finding
 
-Zed core already contains many of the low-level mechanisms needed for a native ZD Markdown
-presentation layer. They are internal Rust/GPUI facilities, not extension APIs. Focus dimming and
-typewriter scrolling look like bounded editor features. A fully editable, rendered Markdown surface
-with ZD's mixed typography is a much deeper text-layout project.
+Zed core already contains two different implementation paths. The preferred first path is to extend
+the existing, separate `MarkdownPreviewView`, which already renders rich Markdown and follows a real
+source `Editor`. That can deliver most of ZD's reader experience without changing Zed's text-layout
+model.
 
-The best native architecture would retain Zed's normal `Editor` and text buffer as the authority,
-then add source-mapped presentation through existing highlight, fold, crease, and block mechanisms.
-Replacing the editor with the existing preview would discard too much of what makes the Zed
-integration valuable.
+Only direct editing inside rendered content requires the deeper second path: retaining Zed's normal
+`Editor` and text buffer as the authority while adding source-mapped presentation through highlight,
+fold, crease, and block mechanisms. Those mechanisms are internal Rust/GPUI facilities, not
+extension APIs. A fully editable rendered surface with ZD's mixed typography remains a substantial
+editor-layout project.
 
 ## Existing primitives
 
@@ -73,9 +74,29 @@ References:
 - [pinned Markdown crate](https://github.com/zed-industries/zed/tree/0ad5441b5370428eaa353a36f63c50c5448eead5/crates/markdown)
 - [pinned Markdown preview view](https://github.com/zed-industries/zed/blob/0ad5441b5370428eaa353a36f63c50c5448eead5/crates/markdown_preview/src/markdown_preview_view.rs)
 
-## Proposed native pipeline
+## Preferred first pipeline: enhance the preview
 
-If smaller experiments justify native work, use this shape:
+The built-in preview already provides the separation ZD needs for a strong reader:
+
+```text
+Normal Markdown Editor ── source buffer + events ──> MarkdownPreviewView
+       ▲                                                │
+       │                                                ├── ZD reader styling
+       └──────── precise source navigation ─────────────┼── focus controller
+                                                        └── reading anchor
+```
+
+The preview can use proportional prose, monospaced code, heading scale, images, tables, and other
+variable-height blocks because it is not constrained by the editor's uniform text metrics. It can
+compute focus from rendered elements and their source ranges, control its own `ScrollHandle`, and
+return to the existing source editor for actual editing.
+
+This path is detailed in [`existing-preview-seam.md`](existing-preview-seam.md). It should be
+evaluated before adding any presentation mechanism to the editor display map.
+
+## Advanced pipeline: edit inside rendered content
+
+If real use shows that preview-to-editor handoff is still the dominant problem, use this shape:
 
 ```text
 Markdown buffer + syntax tree
@@ -99,6 +120,10 @@ editing state without reflowing unrelated blocks. A global raw command should re
 presentation layers instantly.
 
 ## Feature feasibility
+
+The following table applies to the advanced direct-editing path. Reader-only versions of focus,
+anchors, typography, headings, images, tables, and code are materially easier inside the existing
+preview.
 
 | ZD behavior | Likely Zed-core mechanism | Difficulty | Main risk |
 | --- | --- | --- | --- |
@@ -172,9 +197,10 @@ A Zed implementation should earn its cost by being genuinely native to Zed's buf
 
 Small general features are plausible upstream candidates:
 
-- editor-level focus dimming with line/paragraph/syntax scopes;
-- a configurable typewriter scroll anchor;
-- better Markdown preview/editor position synchronization;
+- preview focus dimming with line/paragraph/section scopes;
+- a configurable preview reading or typewriter anchor;
+- precise Markdown preview/editor position synchronization and source activation;
+- editor-level focus dimming if it proves useful beyond the preview;
 - narrowly reusable presentation primitives.
 
 A ZD-specific rendered Markdown mode is a much larger product decision and may not match Zed's
@@ -198,8 +224,8 @@ References:
 
 ## Conclusion
 
-A native ZD experience is technically possible in Zed core, but “possible” spans two very
-different projects. Focus and viewport behavior can be explored as contained editor features.
-Mixed-typography, always-editable rendered Markdown changes the editor's layout model and carries
-far more risk. Validate them separately and do not let the second silently become acceptance
-criteria for the first.
+A native ZD reader is technically plausible as a contained enhancement to Zed's existing Markdown
+preview. That should be the first source-build experiment. Direct mixed-typography editing inside
+the rendered surface changes the editor's input and layout model and carries far more risk. Validate
+the reader and its handoff to the normal editor before allowing direct editing to become an
+acceptance criterion.

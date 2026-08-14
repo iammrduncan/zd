@@ -10,26 +10,31 @@ The product hypothesis is credible: ZD's calm Markdown reading and focused writi
 be much more useful when it lives beside code, search, Git, terminals, and AI in Zed. The proposed
 implementation mechanism is not currently credible as a normal Zed extension.
 
-Zed's public extension API can add languages, language servers, themes, snippets, debuggers, MCP
-servers, and a few label/command integrations. It cannot register a custom editor, render an
-interactive document surface, observe editor events directly, control scrolling, add arbitrary
-decorations or widgets, or contribute GPUI views. Zed's roadmap lists webviews via extensions only
-as **Triage**, and the active visual-extension proposal explicitly excludes custom editor
-implementations from its first version.
+Zed already has the right native starting point: a separate `MarkdownPreviewView` that owns a
+reference to the source editor, follows edits, maps rendered content back to source, renders rich
+Markdown, and participates as a normal workspace tab. Extending that preview with ZD styling,
+focus, reading anchors, and precise source handoff is much smaller than creating a custom editor.
 
-That leaves four materially different options:
+The catch is distribution. `MarkdownPreviewView` is compiled into Zed core. Zed's public extension
+API can add languages, language servers, themes, snippets, debuggers, MCP servers, and a few
+label/command integrations, but it cannot register a workspace item, screen, panel, webview, custom
+editor, or GPUI renderer—and it cannot hook the existing preview. The first faithful prototype must
+therefore be a Zed source patch even though it reuses most of Zed's preview implementation.
+
+That leaves five materially different options:
 
 | Option | What it can prove or deliver | Main limitation | Recommendation |
 | --- | --- | --- | --- |
 | ZD theme + Zed settings profile | Measure, typography, low chrome, centered layout, wrapping, Markdown preview styling | Static appearance only; no focus behavior or rendered editing | Do first |
 | Conventional extension + Markdown language server | A narrow experiment for caret-driven focus dimming using supported LSP messages | No scroll control, widgets, rich typography, raw/rendered state, or robust pre-caret behavior | Spike, then keep only if clean |
-| Zed core contribution or maintained fork | Native focus, scroll anchoring, inline/block rendering, source-linked Markdown presentation | Significant Zed-core work, GPL distribution obligations, continuing merge/release cost | Explore only after the smaller experiments establish daily value |
+| Existing preview + small Zed-core patch | Full reader typography, focus, scroll anchors, rich Markdown, and source handoff using `MarkdownPreviewView` | Cannot ship as an ordinary extension; direct inline editing remains separate | Primary native prototype |
+| Editor-level presentation or maintained fork | Direct editing in a rendered surface | Deep input/layout work, GPL distribution obligations, continuing merge/release cost | Consider only if preview/editor handoff remains the problem |
 | Existing ZD reader/editor | Full design control and the current product reference | Context switch and duplicated editor/app behavior | Keep as the control and fallback |
 
 The key correction is therefore:
 
-> Treat “ZD inside Zed” as a product hypothesis to validate in layers, not as a presently available
-> custom-editor extension API.
+> Reuse Zed's existing Markdown preview for the reader. Do not turn direct rendered editing or a
+> general UI-extension API into a prerequisite for proving that integration.
 
 ## The decision we actually need to make
 
@@ -38,10 +43,11 @@ and a separate native Markdown preview. The decision is whether enough of ZD's d
 survives inside Zed to justify one of these escalating investments:
 
 1. a shareable ZD-flavored Zed configuration;
-2. a deliberately constrained extension/LSP experiment;
-3. an upstream Zed editor feature;
-4. a ZD-maintained Zed fork or another native integration;
-5. continued investment in the standalone Tauri surface.
+2. an enhanced native Markdown preview contributed upstream;
+3. a deliberately constrained extension/LSP experiment;
+4. a ZD-maintained Zed patch or fork;
+5. direct editing inside the rendered preview or editor;
+6. continued investment in the standalone Tauri surface.
 
 The experiments must test the behaviors that make ZD more than a color theme:
 
@@ -73,13 +79,15 @@ The useful target is a compatibility envelope, not line-for-line reuse:
 ## Recommended sequence
 
 1. Build a stock-Zed theme/settings profile and test it on a fixed Markdown corpus.
-2. Run a time-boxed language-server focus experiment, with explicit UX and performance kill
-   conditions.
-3. Use both in real work and record every reason a user still leaves Zed for the standalone reader.
-4. If focus mode is the dominant missing capability, propose or prototype that small primitive in
-   Zed core before attempting rich rendered editing.
-5. Consider a native Markdown presentation layer or fork only when the evidence shows that it would
-   replace enough context switching to pay for ongoing core maintenance.
+2. In a Zed source build, add ZD reader styling, focus, anchors, and source handoff to the existing
+   `MarkdownPreviewView`.
+3. Optionally run the language-server focus experiment as the supported-extension comparison.
+4. Use the enhanced preview beside the normal editor and record every reason a user still leaves Zed
+   for the standalone reader.
+5. Only investigate direct editing inside rendered content if preview/editor handoff remains the
+   dominant problem.
+6. Decide whether the proven preview changes belong upstream, behind a narrow future extension
+   seam, or in a maintained ZD patch/fork.
 
 The detailed gates and measurements are in [`prototype-plan.md`](prototype-plan.md).
 
@@ -87,8 +95,11 @@ The detailed gates and measurements are in [`prototype-plan.md`](prototype-plan.
 
 - [`research/extension-boundary.md`](research/extension-boundary.md) — what a supported Zed extension
   can and cannot do today, including the LSP focus experiment.
+- [`research/existing-preview-seam.md`](research/existing-preview-seam.md) — how the compiled-in
+  `MarkdownPreviewView` already bridges rendered Markdown and the source editor, and the smallest
+  patch that would turn it into a ZD-style reader.
 - [`research/native-core-feasibility.md`](research/native-core-feasibility.md) — which existing Zed
-  internals could support a native implementation and where the hard layout problems begin.
+  internals would be needed only if direct editing moves into the rendered surface.
 - [`prototype-plan.md`](prototype-plan.md) — staged prototypes, success criteria, kill conditions,
   and the resulting decision records.
 
