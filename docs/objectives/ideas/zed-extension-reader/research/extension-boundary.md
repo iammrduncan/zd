@@ -5,10 +5,10 @@
 
 ## Finding
 
-A normal Zed extension cannot currently supply the custom Markdown editor described by ZD's reader
-and focus modes. It can deliver a useful static style profile and may support one narrow behavioral
-experiment through a Markdown language server. That experiment should be treated as evidence, not
-as the architecture for the finished reader.
+A normal Zed extension cannot currently enhance or replace Zed's built-in Markdown preview with
+ZD's reader and focus behavior. It can deliver a useful static style profile and may support one
+narrow source-editor experiment through a Markdown language server. The faithful reader path is a
+source-level enhancement to the existing `MarkdownPreviewView`, not a new custom editor.
 
 ## Evidence from the public contract
 
@@ -47,6 +47,31 @@ The surrounding roadmap reinforces that boundary:
   open requests or discussions.
 
 These are signals of interest, not dependencies ZD can plan against.
+
+## Why the built-in preview does not change the public boundary
+
+Zed already has custom screens. Its Markdown preview is a GPUI `MarkdownPreviewView` implementing
+the internal workspace `Item` and `SerializableItem` traits. Zed registers it during native
+application initialization, and the view directly owns references to editor, workspace, rendering,
+scrolling, image, and persistence types.
+
+That is precisely the capability a third-party extension does not receive. The public WebAssembly
+trait cannot register an `Item`, add a pane or panel, execute GPUI rendering, or obtain a handle to
+the built-in preview. The distinction is therefore:
+
+- **Zed core can add screens:** Markdown preview, settings, terminals, and other compiled-in items.
+- **A normal extension cannot add arbitrary screens:** it can contribute only the public manifest
+  features and host callbacks.
+
+This differs materially from VS Code's webview and custom-editor contribution model. Reusing the
+preview is still the smallest native approach, but it must begin as a Zed-core patch or fork until a
+specific extension seam exists.
+
+References:
+
+- [native preview registration](https://github.com/zed-industries/zed/blob/0ad5441b5370428eaa353a36f63c50c5448eead5/crates/markdown_preview/src/markdown_preview.rs)
+- [`MarkdownPreviewView` workspace item](https://github.com/zed-industries/zed/blob/0ad5441b5370428eaa353a36f63c50c5448eead5/crates/markdown_preview/src/markdown_preview_view.rs)
+- [`existing-preview-seam.md`](existing-preview-seam.md)
 
 ## What a theme and settings profile can do
 
@@ -174,6 +199,7 @@ platform before validating the reader.
 
 ## Conclusion
 
-Build the theme/settings profile because it is cheap and honest. Use the language-server focus idea
-only as a time-boxed behavioral test. A successful result is evidence for a native focus primitive;
-it is not evidence that the whole ZD reader belongs in a language server.
+Build the theme/settings profile because it is cheap and honest. Make a source-build enhancement of
+the existing Markdown preview the primary faithful prototype. Use the language-server focus idea
+only as a time-boxed comparison for the source editor; it cannot customize the preview and is not
+the architecture for the ZD reader.
