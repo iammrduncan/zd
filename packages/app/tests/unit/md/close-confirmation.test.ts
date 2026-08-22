@@ -7,7 +7,7 @@ import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { unavailableTerminalAdapter } from "@/terminal";
 
 import { mountCurrentWorkspace } from "@/miniapps/md";
-import type { Platform } from "@/platform";
+import { unavailableThreadWorktree, type Platform } from "@/platform";
 import { attachShortcuts, clearCommands } from "@/workbench/shortcuts";
 import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
 import type { ProjectGrant } from "@/workbench/resources";
@@ -89,6 +89,7 @@ describe("quitting with unsaved work", () => {
       recordDiagnostic: async () => ({ recorded: false, problem: null }),
       revealDiagnostics: async () => {},
       terminal: unavailableTerminalAdapter,
+      createThreadWorktree: unavailableThreadWorktree,
       fileTree: unavailableFileTreeAdapter,
       git: unavailableGitAdapter,
       workspaceFiles: async () => {

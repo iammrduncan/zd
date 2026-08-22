@@ -133,6 +133,42 @@ describe("the Tauri window boundary", () => {
     expect(invoke).not.toHaveBeenCalled();
   });
 
+  it("creates thread worktrees only through a closed project-scoped request", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    invoke.mockResolvedValue({ status: "refused", kind: "collision", reason: "already exists" });
+    const request = {
+      projectId: "project-a",
+      name: "review",
+      branch: "feature/review",
+      baseRevision: "main",
+    };
+
+    await detectPlatform().createThreadWorktree(request);
+
+    expect(invoke).toHaveBeenCalledExactlyOnceWith("create_thread_worktree", { request });
+    expect(request).not.toHaveProperty("destination");
+    expect(request).not.toHaveProperty("command");
+  });
+
+  it("refuses worktree creation honestly without a desktop shell", async () => {
+    await expect(
+      detectPlatform().createThreadWorktree({
+        projectId: "project-a",
+        name: "review",
+        branch: "feature/review",
+        baseRevision: null,
+      }),
+    ).resolves.toMatchObject({
+      status: "refused",
+      kind: "git-failed",
+      reason: expect.stringContaining("desktop shell"),
+    });
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
   it("opens and recovers projects only through native picker commands", async () => {
     Object.defineProperty(window, "__TAURI_INTERNALS__", {
       configurable: true,

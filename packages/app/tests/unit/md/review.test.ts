@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Platform, WorkspaceFile } from "@/platform";
+import { unavailableThreadWorktree, type Platform, type WorkspaceFile } from "@/platform";
 import { unavailableFileTreeAdapter } from "@/files";
 import { unavailableGitAdapter } from "@/git";
 import { unavailableTerminalAdapter } from "@/terminal";
@@ -84,6 +84,7 @@ function platform(writeTextFile: Platform["writeTextFile"] = async () => {}): Pl
     recordDiagnostic: async () => ({ recorded: false, problem: null }),
     revealDiagnostics: async () => {},
     terminal: unavailableTerminalAdapter,
+    createThreadWorktree: unavailableThreadWorktree,
     fileTree: unavailableFileTreeAdapter,
     git: unavailableGitAdapter,
     workspaceFiles: async () => {

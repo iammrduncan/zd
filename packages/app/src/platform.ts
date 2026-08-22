@@ -66,6 +66,38 @@ export interface GlobalShortcutRegistration {
   readonly problem: string | null;
 }
 
+export interface CreateThreadWorktreeRequest {
+  readonly projectId: string;
+  readonly name: string;
+  readonly branch: string;
+  readonly baseRevision: string | null;
+}
+
+export type WorktreeRefusalKind =
+  | "unknown-project"
+  | "not-repository"
+  | "invalid-name"
+  | "invalid-revision"
+  | "collision"
+  | "locked"
+  | "git-failed";
+
+export type CreateThreadWorktreeResult =
+  | { readonly status: "created"; readonly worktree: ProjectGrant["worktrees"][number] }
+  | {
+      readonly status: "refused";
+      readonly kind: WorktreeRefusalKind;
+      readonly reason: string;
+    };
+
+export function unavailableThreadWorktree(): Promise<CreateThreadWorktreeResult> {
+  return Promise.resolve({
+    status: "refused",
+    kind: "git-failed",
+    reason: "thread worktree creation requires the desktop shell",
+  });
+}
+
 export interface Platform {
   readonly kind: "tauri" | "browser";
   /** What the process was launched to open. */
@@ -82,6 +114,8 @@ export interface Platform {
   chooseProject(): Promise<ProjectGrant | null>;
   /** Locate an unavailable project through the native picker without changing its identity. */
   recoverProjectGrant(projectId: string): Promise<ProjectGrant | null>;
+  /** Create and approve one native-derived Git worktree for a thread. */
+  createThreadWorktree(request: CreateThreadWorktreeRequest): Promise<CreateThreadWorktreeResult>;
   /** Revoke an inactive project after root lifecycle guards approve it. */
   removeProjectGrant(projectId: string): Promise<ProjectGrant>;
   /** Read direct `<name>.theme.config` children of the platform `zd` config directory. */
@@ -171,6 +205,7 @@ const tauri: Platform = {
   chooseProject: () => invoke<ProjectGrant | null>("choose_project"),
   recoverProjectGrant: (projectId) =>
     invoke<ProjectGrant | null>("recover_project_grant", { projectId }),
+  createThreadWorktree: (request) => invoke("create_thread_worktree", { request }),
   removeProjectGrant: (projectId) => invoke<ProjectGrant>("remove_project_grant", { projectId }),
   themeConfigFiles: () => invoke<readonly ThemeConfigFile[]>("theme_config_files"),
   registerGlobalSummon: () => invoke<GlobalShortcutRegistration>("register_global_summon"),
@@ -246,6 +281,7 @@ const browser: Platform = {
   projectGrants: async () => [],
   chooseProject: async () => null,
   recoverProjectGrant: async () => null,
+  createThreadWorktree: unavailableThreadWorktree,
   removeProjectGrant: async (projectId) => {
     throw new Error(`no project grants in the browser shell: ${projectId}`);
   },
