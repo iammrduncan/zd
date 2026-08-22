@@ -1,9 +1,9 @@
 # App source map
 
-Status: **implementation context for the merged workbench foundation (Gate 2, 2026-08-22)**
+Status: **current implementation context (2026-08-22)**
 
-This map helps contributors find the current code owner. It is not released-product documentation
-and does not claim that later workspace features are complete. Start with
+This map helps contributors find the current code owner. It is not released-product documentation.
+Start with
 [`docs/VISION.md`](../../../docs/VISION.md), [`docs/DESIGN.md`](../../../docs/DESIGN.md), and the
 [expanded-scope execution plan](../../../docs/planning/goals/expanded-scope/goal.md) when a change
 affects behavior or architecture.
@@ -24,7 +24,7 @@ Treat `workbench/boot.ts`, the state facade, `platform.ts`, the command registry
 configuration as integration-owner files. A feature should request a narrow interface change
 instead of creating another state, command, or native-authority owner.
 
-## Feature boundaries present at this checkpoint
+## Feature boundaries
 
 | Directory | Current responsibility |
 | --- | --- |
@@ -33,9 +33,15 @@ instead of creating another state, command, or native-authority owner.
 | [`instrumentation/`](instrumentation/) | Closed diagnostic schema and the local opt-in frontend client. |
 | [`editor/`](editor/) | Bounded buffer classification, language selection, Find/Replace, and the workbench editor facade. |
 | [`terminal/`](terminal/) | Structured terminal-session adapter, viewport validation, and bounded scrollback contract. |
+| [`threads/`](threads/) | Project-scoped thread model, lifecycle, attention event, create flow, and terminal presentation. |
+| [`files/`](files/) | Persistent compact file-tree model, controller, filtering, Git reconciliation, and virtualization. |
+| [`git/`](git/) | Scoped read-only Git adapter and stable status/history/comparison reconciliation. |
+| [`changes/`](changes/) | Working-tree changes, bounded history, comparisons, and read-only diff presentation. |
+| [`notifications/`](notifications/) | Attention policy, local preferences, platform request schema, and outcome routing. |
 | [`workbench/`](workbench/) | Root shell, state, current-file ownership, settings surfaces, commands, and lifecycle composition. |
 
-The native side of file grants, themes, diagnostics, quick access, and terminal sessions is mapped
+The native side of grants, files, Git, themes, diagnostics, quick access, terminal sessions, and
+notifications is mapped
 in the [native source map](../../tauri/src/README.md).
 
 ## Retained Markdown location

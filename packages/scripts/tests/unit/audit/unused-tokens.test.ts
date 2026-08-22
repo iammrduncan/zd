@@ -45,7 +45,7 @@ describe("the unused design token inventory", () => {
 }
 `,
       {
-        "miniapps/example.css": `/* var(--comment-only) is documentation, not consumption. */
+        "features/example.css": `/* var(--comment-only) is documentation, not consumption. */
 .example { color: var(--used-by-token); }
 `,
       },

@@ -77,4 +77,6 @@ sudo rm /usr/local/bin/zd
 sudo rm -rf /Applications/zd.app
 ```
 
-Your Markdown files are ordinary files and are not removed with the application.
+Your projects, files, and Git worktrees are ordinary filesystem content and are not removed with the
+application. Local `zd` settings and opt-in diagnostic files remain in your user configuration and
+data directories unless you remove them separately.

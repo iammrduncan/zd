@@ -17,7 +17,7 @@ them.
 
 ## Choose one primary page type
 
-Zen Suite uses the four documentation needs described by Diátaxis:
+ZenSuite uses the four documentation needs described by Diátaxis:
 
 | Page type | Reader need | Shape |
 | --- | --- | --- |

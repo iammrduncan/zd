@@ -15,8 +15,8 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       </head>
       <body>
         <header className="site-header">
-          <Link className="wordmark" href="/" aria-label="zd md home">
-            <span>zd</span> md
+          <Link className="wordmark" href="/" aria-label="zd home">
+            <span>zd</span>
           </Link>
           <nav aria-label="Primary navigation">
             <Link href="/docs/">Docs</Link>
@@ -28,7 +28,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         </header>
         {children}
         <footer>
-          <span>zd md is open source under MIT.</span>
+          <span>zd is open source under MIT.</span>
           <a href="https://github.com/iammrduncan/zd">View the source</a>
         </footer>
       </body>

@@ -4,6 +4,16 @@ Notable user-facing changes to zd are recorded here.
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced the single-document product shell with one local workbench for approved projects,
+  terminal-backed threads, current files, and Git inspection.
+- Simplified launch forms to `zd`, `zd <folder>`, and `zd <file>`.
+- Moved project-scoped Threads to the left and the compact Files/Changes region to the right.
+- Added CodeMirror language-aware editing, bounded terminal sessions, file-tree filtering, Git
+  status/history/comparisons, read-only diffs, validated themes, opt-in local diagnostics, and
+  opt-in macOS completion attention.
+
 ## [0.1.0] - 2026-08-05
 
 ### Added

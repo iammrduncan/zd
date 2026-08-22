@@ -1,10 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import commentScreenshot from "../../../docs/user-facing-docs/assets/zd-comments.png";
-import readerScreenshot from "../../../docs/user-facing-docs/assets/zd-reader.jpeg";
+import workbenchScreenshot from "../../../docs/user-facing-docs/assets/zd-workbench.png";
+import sideBySideScreenshot from "../../../docs/user-facing-docs/assets/zd-workbench-side-by-side.png";
 import { pageMetadata, RELEASE_URL, SITE_DESCRIPTION, softwareApplicationJsonLd } from "@/lib/site";
-import { AppPresence } from "./presence";
 
 export const metadata: Metadata = pageMetadata({
   description: SITE_DESCRIPTION,
@@ -19,15 +18,15 @@ export default function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationJsonLd) }}
       />
       <section className="hero">
-        <p className="eyebrow">Zen Suite · tool 01</p>
+        <p className="eyebrow">ZenSuite · local agent workbench</p>
         <h1>
-          Read the long thing.
+          Keep every thread.
           <br />
-          Keep it editable.
+          Keep the context.
         </h1>
         <p className="hero-copy">
-          <code>zd md</code> gives Markdown the measure, focus, and calm of a reading
-          surface—without splitting your work between a preview and an editor.
+          <code>zd</code> keeps projects, terminal-backed agent threads, files, and Git in one calm
+          local workbench.
         </p>
         <div className="hero-actions">
           <a className="button button-primary" href={RELEASE_URL}>
@@ -37,24 +36,23 @@ export default function Home() {
             Read the docs
           </Link>
         </div>
-        <p className="platform-note">Available for macOS and Windows · local files by default</p>
-        <AppPresence />
+        <p className="platform-note">Available for macOS and Windows · local by default</p>
       </section>
 
       <section className="product" aria-labelledby="product-heading">
         <div className="section-heading">
-          <p className="eyebrow">The document is the interface</p>
-          <h2 id="product-heading">One surface for reading and writing.</h2>
+          <p className="eyebrow">One workbench</p>
+          <h2 id="product-heading">Projects and agent sessions stay visible together.</h2>
         </div>
         <figure className="app-frame">
           <img
-            src={readerScreenshot.src}
-            width={1100}
-            height={760}
-            alt="zd md showing a repository sidebar and a focused paragraph in README.md"
+            src={workbenchScreenshot.src}
+            width={1440}
+            height={900}
+            alt="The light zd workbench with projects and terminal threads on the left, an editable file in the centre, and Files on the right"
           />
           <figcaption>
-            Folder navigation, rendered Markdown, and the source caret stay together.
+            Project-scoped threads, the current file, and the compact file tree share one state.
           </figcaption>
         </figure>
       </section>
@@ -62,81 +60,83 @@ export default function Home() {
       <section className="features" aria-label="Product highlights">
         <article>
           <span className="feature-number">01</span>
-          <h2>Always editable</h2>
+          <h2>Several projects</h2>
           <p>
-            Type directly into the rendered source. There is no mode switch and no second document.
+            Add only the folders you approve. Switch projects without tearing down inactive files or
+            terminal sessions.
           </p>
         </article>
         <article>
           <span className="feature-number">02</span>
-          <h2>Attention, directed</h2>
+          <h2>Terminal-backed threads</h2>
           <p>
-            Focus a line, paragraph, or section while the shape of the surrounding document remains.
+            Organize shells, Codex, Claude Code, and OpenCode sessions by project root or Git
+            worktree.
           </p>
         </article>
         <article>
           <span className="feature-number">03</span>
-          <h2>Local by default</h2>
+          <h2>Files and Git</h2>
           <p>
-            Open ordinary Markdown files and folders. Remote images stay unfetched unless you ask.
+            Edit Markdown and code, filter a dense file tree, and inspect status, history,
+            comparisons, and read-only diffs.
           </p>
         </article>
       </section>
 
       <section className="sidekick" aria-labelledby="sidekick-heading">
         <div className="sidekick-copy">
-          <p className="eyebrow">AI sidekick handoff</p>
-          <h2 id="sidekick-heading">Give your AI sidekick the exact line.</h2>
+          <p className="eyebrow">Thread and file context</p>
+          <h2 id="sidekick-heading">Stay with the agent and the source.</h2>
           <p>
-            Select text, leave an inline instruction, and keep reviewing. zd gathers comments across
-            the workspace into one agent-ready <code>zd-feedback.txt</code> file—with paths, line
-            ranges, and the quoted source intact.
+            A thread remembers its project, worktree, and current file. The paired centre layout
+            keeps terminal output beside the selected source while Files and Changes remain on the
+            right.
           </p>
-          <Link className="text-link" href="/docs/how-to/review-with-comments/">
-            Review with inline comments <span aria-hidden="true">→</span>
+          <Link className="text-link" href="/docs/how-to/manage-projects-and-threads/">
+            Manage projects and threads <span aria-hidden="true">→</span>
           </Link>
         </div>
         <figure className="sidekick-shot">
           <img
-            src={commentScreenshot.src}
-            width={1100}
-            height={760}
-            alt="zd md showing an inline comment attached to selected text in a Markdown file"
+            src={sideBySideScreenshot.src}
+            width={1440}
+            height={900}
+            alt="The light zd workbench showing a terminal thread beside an editable source file, with project threads on the left and Files on the right"
           />
-          <figcaption>
-            Precise feedback in the document. Plain-text context for your agent.
-          </figcaption>
+          <figcaption>Terminal and file context together, with no second project state.</figcaption>
         </figure>
       </section>
 
-      <section className="detail" aria-labelledby="workspace-heading">
+      <section className="detail" aria-labelledby="local-heading">
         <div className="detail-copy">
-          <p className="eyebrow">Built for real repositories</p>
-          <h2 id="workspace-heading">The folder stays visible. The document gets the room.</h2>
+          <p className="eyebrow">Native authority, narrowly held</p>
+          <h2 id="local-heading">Your source stays local.</h2>
           <p>
-            Work across Markdown files in stable path order, save safely, and notice external
-            changes without handing the app more filesystem access than the workspace needs.
+            Native grants constrain project and worktree access. Terminal sessions start only in an
+            approved scope, Git operations are fixed and read-only, remote images stay blocked, and
+            local diagnostics are opt-in.
           </p>
-          <Link className="text-link" href="/docs/tutorials/first-document/">
-            Open your first document <span aria-hidden="true">→</span>
+          <Link className="text-link" href="/docs/explanation/architecture/">
+            Understand the architecture <span aria-hidden="true">→</span>
           </Link>
         </div>
         <div className="detail-shot">
           <img
-            src={readerScreenshot.src}
-            width={1100}
-            height={760}
-            alt="A closer view of zd md's workspace sidebar and reading surface"
+            src={workbenchScreenshot.src}
+            width={1440}
+            height={900}
+            alt="A closer view of the zd workbench file editor and compact project navigation"
           />
         </div>
       </section>
 
       <section className="closing">
-        <p className="eyebrow">Small tool. Quiet surface.</p>
-        <h2>Stay with the thought.</h2>
+        <p className="eyebrow">Fast. Local. Quiet.</p>
+        <h2>Keep the work in view.</h2>
         <div className="hero-actions">
           <a className="button button-primary" href={RELEASE_URL}>
-            Get zd md
+            Get zd
           </a>
           <Link className="button" href="/docs/">
             Browse documentation

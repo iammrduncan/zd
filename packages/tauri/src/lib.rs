@@ -1,7 +1,8 @@
 //! The `zd` desktop shell.
 //!
 //! This side stays thin on purpose. It is a file, git, and window layer; the
-//! product lives in `packages/app/src/`. See suite ADR 0001.
+//! product lives in `packages/app/src/`. See
+//! `docs/adr/suite/0001-use-tauri-with-portable-web-frontend_H.md`.
 
 mod cli;
 mod file_tree;
@@ -33,7 +34,7 @@ fn close_window(window: tauri::Window) -> Result<(), String> {
     window.destroy().map_err(|error| error.to_string())
 }
 
-/// Whether macOS has delivered a file-open request that the document has not
+/// Whether macOS has delivered a file-open request that the current file has not
 /// accepted yet. This closes the small race between the native event and the
 /// webview installing its listener.
 #[tauri::command]
@@ -124,10 +125,10 @@ pub fn run() {
          *
          * So the shell refuses every close while the frontend listens to Tauri's
          * native close-request event and answers through `close_window` when it is
-         * ready, immediately when the document is clean.
+         * ready, immediately when the current file is clean.
          *
          * The refusal is unconditional on purpose. A shell that closed when it
-         * *believed* the document was clean would be keeping a second copy of a
+         * *believed* the current file was clean would be keeping a second copy of a
          * fact it does not own, and that copy is wrong exactly when it matters.
          */
         .on_window_event(|window, event| match event {

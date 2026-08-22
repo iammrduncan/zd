@@ -1,47 +1,53 @@
 # Architecture
 
-`zd` is a TypeScript product surface inside a thin Tauri shell. That split keeps fast-changing
-reading and editing behavior close together while trapping operating-system authority behind one
-narrow boundary.
+`zd` is a portable TypeScript workbench inside a thin Tauri desktop shell. The frontend owns
+interaction and rendering. Native Rust owns filesystem grants, terminal processes, Git inspection,
+window behavior, notifications, and local diagnostic files.
 
-## One workbench, shared owners
+## One workbench state
 
-The native executable is `zd`; every supported launch enters the same root workbench. Workbench code
-owns boot, versioned state, preferences, shortcut dispatch, the Shortcut Reference, and region
-composition. The retained Markdown implementation supplies the current-file surface while its deep
-CodeMirror behavior migrates behind editor contracts.
+One versioned state owner holds the active project, worktree, thread, file, region geometry, window
+presentation, and theme selection. Projects, Threads, Files, Changes, the editor, and the terminal
+observe that state and request guarded transitions from it.
 
-This is why shared application behavior lives in `src/workbench/`, while Markdown continuation and
-focus remain temporarily under `src/miniapps/md/`.
+This is why choosing a thread can restore its project, worktree, file, and terminal together.
+Features do not stitch a context switch together with independent setters, and a dirty file or live
+process can refuse an unsafe transition.
 
-## A deep native boundary
+## Narrow native authority
 
-The frontend knows the native world only through `packages/app/src/platform.ts`. The Tauri side
-resolves launch arguments, owns the permitted filesystem scope, performs whole-file reads and
-atomic writes, handles external URLs, and mediates window close requests.
+The frontend reaches the operating system only through a typed platform boundary. Native code
+mints opaque project, worktree, file, and terminal identities after a launch path, folder picker, or
+structured Git worktree operation approves them. Later calls use those identities; they do not send
+arbitrary paths or commands.
 
-That boundary absorbs security-sensitive details instead of asking every editor feature to reason
-about paths or permissions. A document launched from one folder cannot name an arbitrary file
-outside its native scope. A queued Finder open moves both launch state and scope only after the
-current document agrees it can switch without losing work.
+The terminal boundary starts the user’s shell inside an approved project/worktree. Git status,
+history, comparisons, and diffs use fixed read-only operations with output, time, and page bounds.
+File scans avoid descending ignored dependency/build trees indefinitely. File writes are atomic.
 
-## The rendered source is the editor
+## One editor engine
 
-There is no reader component synchronized with a separate editor. CodeMirror holds the one source
-buffer while decorations shape Markdown as a reading surface. The caret, focus target, save state,
-and rendered notation therefore cannot drift between two modes or two copies of the document.
+CodeMirror owns the current Markdown or code buffer, language selection, Find/Replace, selection,
+undo history, and dirty state. Markdown decorations shape the editable source as a reading surface;
+code files use a compact code presentation. Git comparisons create separate read-only buffers with
+explicit revision identities, so they cannot overwrite the live document.
 
-This decision trades some decoration complexity for a much simpler product model: the thing being
-read is exactly the thing being edited and saved.
+## Local and opt-in behavior
 
-## Tests follow the boundaries
+Theme files are bounded, closed-schema configuration rather than executable extensions. Remote
+images are not fetched. Desktop completion notifications and sound are off by default and currently
+use native macOS presentation. Local diagnostics are also off by default, redact path-like values,
+rotate bounded files, and remain on the computer until you reveal or remove them.
 
-- Unit and contract tests cover pure document behavior, repository invariants, release scripts,
-  and native launch/filesystem rules.
-- Playwright covers the browser-visible reading and editing paths at their assembled cut point.
-- Rust tests cover authority and path behavior without requiring a webview.
-- Packaging checks inspect the real application bundle and disk image where metadata or signatures
-  cannot be proven in the browser.
+The plain browser build has no filesystem, terminal, Git, notification, or diagnostic authority. It
+reports those capabilities as unavailable instead of pretending to emulate the desktop shell.
 
-The result is one simple rule for product code: document behavior stays in the portable frontend,
-and operating-system authority stays behind the native platform boundary.
+## Verification at the boundaries
+
+- Unit and contract tests cover state, adapters, parsing, limits, and repository invariants.
+- Browser tests cover assembled interaction, accessibility, virtualization, and idle behavior.
+- Rust tests cover grants, files, Git, PTYs, notifications, diagnostics, and process cleanup.
+- Packaging checks inspect release metadata, installers, checksums, and application bundles.
+
+This split keeps the fast-changing workbench portable while containing security-sensitive details
+behind one small native boundary.

@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  AttentionNotificationAdapter,
-  NotificationActionV1,
-} from "@/notifications";
+import type { AttentionNotificationAdapter, NotificationActionV1 } from "@/notifications";
 import type { ThreadAttentionEventV1, ThreadWorkbenchSnapshot } from "@/threads";
 import { createWorkbenchAttentionRuntime } from "@/workbench/notifications";
 import { forgetPreferences, setAttentionDesktopEnabled } from "@/workbench/preferences";

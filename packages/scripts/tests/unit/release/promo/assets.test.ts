@@ -4,23 +4,9 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd());
-const SCREENSHOT = resolve(ROOT, "docs/user-facing-docs/assets/zd-reader.jpeg");
+const SCREENSHOT = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench.png");
+const SIDE_BY_SIDE = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-side-by-side.png");
 const SOCIAL_CARD = resolve(ROOT, "docs/user-facing-docs/assets/zd-social-card.png");
-
-function jpegDimensions(path: string) {
-  const bytes = readFileSync(path);
-  let offset = 2;
-  while (offset < bytes.length) {
-    if (bytes[offset] !== 0xff) throw new Error(`invalid JPEG marker at ${offset}`);
-    const marker = bytes[offset + 1]!;
-    const length = bytes.readUInt16BE(offset + 2);
-    if (marker >= 0xc0 && marker <= 0xc3) {
-      return { width: bytes.readUInt16BE(offset + 7), height: bytes.readUInt16BE(offset + 5) };
-    }
-    offset += length + 2;
-  }
-  throw new Error("JPEG has no dimensions");
-}
 
 function pngDimensions(path: string) {
   const bytes = readFileSync(path);
@@ -28,14 +14,16 @@ function pngDimensions(path: string) {
   return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
 }
 
-describe("the v0.1 promotional kit", () => {
-  it("uses a legible native product capture on the repository front page", () => {
+describe("the workbench promotional kit", () => {
+  it("uses a legible implemented-workbench capture on the repository front page", () => {
     const readme = readFileSync(resolve(ROOT, "README.md"), "utf8");
 
     expect(existsSync(SCREENSHOT)).toBe(true);
-    expect(jpegDimensions(SCREENSHOT)).toEqual({ width: 1100, height: 760 });
-    expect(readme).toContain("docs/user-facing-docs/assets/zd-reader.jpeg");
-    expect(readme).toMatch(/!\[[^\]]*Markdown reader[^\]]*\]/i);
+    expect(existsSync(SIDE_BY_SIDE)).toBe(true);
+    expect(pngDimensions(SCREENSHOT)).toEqual({ width: 1440, height: 900 });
+    expect(pngDimensions(SIDE_BY_SIDE)).toEqual({ width: 1440, height: 900 });
+    expect(readme).toContain("docs/user-facing-docs/assets/zd-workbench.png");
+    expect(readme).toMatch(/!\[[^\]]*workbench[^\]]*\]/i);
   });
 
   it("provides a social preview at the exact sharing-card size", () => {

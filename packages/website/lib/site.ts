@@ -5,10 +5,10 @@ import appIcon from "../../../packaging/icon.png";
 import websitePackage from "../package.json";
 
 export const SITE_URL = new URL("https://getzensuite.com");
-export const SITE_NAME = "zd md";
-export const HOME_TITLE = "zd md — Read the long thing";
+export const SITE_NAME = "zd";
+export const HOME_TITLE = "zd — A fast, local agent workbench";
 export const SITE_DESCRIPTION =
-  "A calm, keyboard-first Markdown reader and editor for the long documents coding agents produce.";
+  "ZenSuite’s fast, local agent workbench for projects, threads, terminals, files, and Git.";
 export const REPOSITORY_URL = "https://github.com/iammrduncan/zd";
 export const RELEASE_URL = `${REPOSITORY_URL}/releases/latest`;
 
@@ -33,7 +33,7 @@ export function pageMetadata({ description, path, title }: PageMetadata): Metada
       description,
       images: [
         {
-          alt: "zd md — Read the long thing. Keep it editable.",
+          alt: "zd — Keep projects, agent threads, files, and Git in one local workbench.",
           height: 630,
           url: socialCard.src,
           width: 1200,
@@ -57,13 +57,19 @@ export const rootMetadata: Metadata = {
   metadataBase: SITE_URL,
   applicationName: SITE_NAME,
   category: "technology",
-  creator: "Zen Suite",
+  creator: "ZenSuite",
   description: SITE_DESCRIPTION,
   icons: {
     apple: [{ url: appIcon.src }],
     icon: [{ type: "image/png", url: appIcon.src }],
   },
-  keywords: ["Markdown editor", "Markdown reader", "developer tools", "writing app"],
+  keywords: [
+    "agent workbench",
+    "terminal threads",
+    "local developer tools",
+    "Git workbench",
+    "code editor",
+  ],
   title: {
     default: HOME_TITLE,
     template: `%s · ${SITE_NAME}`,

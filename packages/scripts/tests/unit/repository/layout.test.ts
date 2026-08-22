@@ -1,6 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 
 import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
@@ -157,7 +156,8 @@ describe("static website", () => {
     expect(config).toContain("trailingSlash: true");
     expect(home).toContain("/docs/");
     expect(home).toContain("RELEASE_URL");
-    expect(home).toContain("docs/user-facing-docs/assets/zd-reader.jpeg");
+    expect(home).toContain("docs/user-facing-docs/assets/zd-workbench.png");
+    expect(home).toContain("docs/user-facing-docs/assets/zd-workbench-side-by-side.png");
     expect(existsSync(resolve(WEBSITE, "public/screenshots"))).toBe(false);
   });
 
@@ -175,6 +175,8 @@ describe("static website", () => {
     expect(site).toContain("github.com/iammrduncan/zd");
     expect(site).toContain("/releases/latest");
     expect(site).toContain("zd-social-card.png");
+    expect(site).toContain('SITE_NAME = "zd"');
+    expect(site).toContain('creator: "ZenSuite"');
     expect(site).toContain("metadataBase");
     expect(layout).toContain("rootMetadata");
     expect(home).toContain('type="application/ld+json"');
@@ -193,46 +195,15 @@ describe("static website", () => {
     expect(layout).toContain("defer");
   });
 
-  it("reports desktop presence without counting website visitors", () => {
+  it("does not claim a live desktop presence feed", () => {
     const home = readFileSync(resolve(WEBSITE, "app/page.tsx"), "utf8");
     const presencePath = resolve(WEBSITE, "app/presence.tsx");
     const workerPath = resolve(WEBSITE, "public/_worker.js");
 
-    expect(existsSync(presencePath)).toBe(true);
-    expect(existsSync(workerPath)).toBe(true);
-
-    const presence = readFileSync(presencePath, "utf8");
-    const worker = readFileSync(workerPath, "utf8");
-    expect(home).toContain("<AppPresence />");
-    expect(presence).toContain('fetch("/api/zd-presence"');
-    expect(presence).not.toContain("usessps.com/ssps.js");
-    expect(worker).toContain("https://usessps.com/api/sites/271/stats");
-    expect(worker).toContain("env.ASSETS.fetch(request)");
-  });
-
-  it("publishes only the validated live count from SSPS", async () => {
-    const workerURL = pathToFileURL(resolve(WEBSITE, "public/_worker.js")).href;
-    const worker = (await import(workerURL)) as {
-      fetchPresence(fetcher: () => Promise<Response>): Promise<Response>;
-    };
-
-    const response = await worker.fetchPresence(async () =>
-      Response.json({ siteId: 271, live: 4, totalHits: 18, uniqueVisitors: 7 }),
-    );
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ live: 4 });
-  });
-
-  it("shows how inline comments become an AI-sidekick handoff", () => {
-    const home = readFileSync(resolve(WEBSITE, "app/page.tsx"), "utf8");
-    const commentScreenshot = resolve(ROOT, "docs/user-facing-docs/assets/zd-comments.png");
-
-    expect(existsSync(commentScreenshot)).toBe(true);
-    expect(home).toContain("docs/user-facing-docs/assets/zd-comments.png");
-    expect(home).toContain("AI sidekick");
-    expect(home).toContain("zd-feedback.txt");
-    expect(home).toContain("/docs/how-to/review-with-comments/");
+    expect(existsSync(presencePath)).toBe(false);
+    expect(existsSync(workerPath)).toBe(false);
+    expect(home).not.toContain("AppPresence");
+    expect(home).not.toMatch(/live app activity|live desktop presence/i);
   });
 });
 
@@ -271,11 +242,10 @@ describe("app entry points", () => {
 /*
  * The platform is the bottom layer — audit finding L1.
  *
- * "Mini apps consume it through `ctx.platform`, so the bottom layer naming a type
- * owned by the layer above it is backwards, and it means a future `zd td` that
- * touches files inherits a type from `md`'s directory."
+ * Feature surfaces consume it through the root runtime, so the bottom layer
+ * naming a type owned by the layer above it is backwards.
  *
- * It was one import — `FileStamp` from `@/miniapps/md/reconcile` — and one import
+ * It was one import — `FileStamp` from the retained reconcile module — and one import
  * is exactly how a layering rule stops being true: nothing announces it, the
  * typechecker is satisfied, and the next one is easier than the first.
  */
@@ -283,7 +253,7 @@ describe("app entry points", () => {
 const PLATFORM = resolve(APP, "src/platform.ts");
 
 describe("layering", () => {
-  it("keeps the platform from importing anything a mini app owns", () => {
+  it("keeps the platform from importing the retained legacy source tree", () => {
     const source = readFileSync(PLATFORM, "utf8");
     const imports = [...source.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]!);
 
