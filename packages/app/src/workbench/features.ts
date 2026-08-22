@@ -42,7 +42,16 @@ function threadsNavigationMount(threads: ThreadsController): WorkbenchMount {
       createProjectWorkbenchAdapter(context.state, context.platform, context.instrumentation),
     );
     const stopProjects = mountProjectList(host, projects, {
-      renderChildren: (project, children) => mountProjectThreads(children, threads, project.id),
+      renderChildren: (project, children) =>
+        mountProjectThreads(children, threads, project.id, {
+          projectName: project.name,
+          workspaces: project.worktrees.map((worktree) => ({
+            id: worktree.id,
+            label: worktree.name,
+            kind: worktree.root === project.root ? "project-root" : "worktree",
+            availability: worktree.availability,
+          })),
+        }),
     });
     const stopDiagnostics = mountDiagnosticSettings(
       host,

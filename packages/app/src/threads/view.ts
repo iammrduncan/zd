@@ -2,12 +2,12 @@ import "./threads.css";
 
 import { orderedProjectThreads } from "./model";
 import type { ThreadsController } from "./controller";
-import type {
-  ThreadActionResult,
-  ThreadProjectGroup,
-  ThreadRecord,
-  ThreadWorkbenchSnapshot,
-} from "./types";
+import { createThreadCreator, type ProjectThreadsOptions } from "./create-view";
+import { renderThreadActions } from "./row-actions";
+import type { ThreadProjectGroup, ThreadRecord, ThreadWorkbenchSnapshot } from "./types";
+import { performThreadAction } from "./view-actions";
+
+export type { ProjectThreadsOptions } from "./create-view";
 
 export type ThreadRegionUnmount = () => void;
 
@@ -43,29 +43,6 @@ interface RenderContext {
   readonly status: HTMLElement;
   readonly controller: ThreadsController;
   readonly projectId?: string;
-}
-
-function showProblem(status: HTMLElement, reason: string): void {
-  status.textContent = reason;
-  status.hidden = false;
-}
-
-async function perform(
-  status: HTMLElement,
-  operation: () => Promise<ThreadActionResult | null>,
-): Promise<void> {
-  try {
-    const result = await operation();
-    if (result === null) return;
-    if (result.status === "committed") {
-      status.textContent = "";
-      status.hidden = true;
-    } else {
-      showProblem(status, result.reason);
-    }
-  } catch (cause) {
-    showProblem(status, cause instanceof Error ? cause.message : String(cause));
-  }
 }
 
 function focusRelative(root: HTMLElement, current: HTMLElement, offset: number): void {
@@ -124,7 +101,7 @@ function renderRecovery(
   action.className = "zd-thread-text-action";
   action.textContent = thread.recovery.actionLabel;
   action.addEventListener("click", () => {
-    void perform(status, () => controller.recoverThread(thread.id));
+    void performThreadAction(status, () => controller.recoverThread(thread.id));
   });
   recovery.append(action);
   return recovery;
@@ -169,7 +146,7 @@ function renderThreadRows(
     }
     row.append(dot, icon, labels);
     row.addEventListener("click", () => {
-      void perform(context.status, () => context.controller.activateThread(thread.id));
+      void performThreadAction(context.status, () => context.controller.activateThread(thread.id));
     });
     installKeyboardNavigation(row, context.root);
 
@@ -187,12 +164,13 @@ function renderThreadRows(
       if (!movedId) return;
       const bounds = row.getBoundingClientRect();
       const insertionIndex = index + (event.clientY >= bounds.top + bounds.height / 2 ? 1 : 0);
-      void perform(context.status, () =>
+      void performThreadAction(context.status, () =>
         context.controller.moveThread(thread.projectId, movedId, insertionIndex),
       );
     });
 
     wrapper.append(row);
+    renderThreadActions(wrapper, thread, context.controller, context.status);
     const recovery = renderRecovery(thread, index, context.controller, context.status);
     if (recovery) {
       row.setAttribute("aria-describedby", recovery.id);
@@ -266,6 +244,7 @@ function mountThreadView(
   host: HTMLElement,
   controller: ThreadsController,
   projectId?: string,
+  options: ProjectThreadsOptions = {},
 ): ThreadRegionUnmount {
   const root = document.createElement("div");
   root.className = projectId ? "zd-project-threads" : "zd-threads-region";
@@ -286,7 +265,8 @@ function mountThreadView(
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
   status.hidden = true;
-  root.append(list, status);
+  const creator = projectId ? createThreadCreator(controller, projectId, status, options) : null;
+  root.append(...(creator ? [creator] : []), list, status);
   host.append(root);
 
   const context = { root, list, status, controller, ...(projectId ? { projectId } : {}) };
@@ -312,6 +292,7 @@ export function mountProjectThreads(
   host: HTMLElement,
   controller: ThreadsController,
   projectId: string,
+  options: ProjectThreadsOptions = {},
 ): ThreadRegionUnmount {
-  return mountThreadView(host, controller, projectId);
+  return mountThreadView(host, controller, projectId, options);
 }

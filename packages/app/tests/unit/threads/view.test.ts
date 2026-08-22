@@ -79,7 +79,11 @@ function adapter(initial = initialSnapshot()) {
   let current = initial;
   const listeners = new Set<(next: ThreadWorkbenchSnapshot) => void>();
   const workbench: ThreadWorkbenchAdapter & {
+    createThread: ReturnType<typeof vi.fn>;
+    renameThread: ReturnType<typeof vi.fn>;
     activateThread: ReturnType<typeof vi.fn>;
+    closeThread: ReturnType<typeof vi.fn>;
+    removeThread: ReturnType<typeof vi.fn>;
     recoverThread: ReturnType<typeof vi.fn>;
     reorderThreads: ReturnType<typeof vi.fn>;
     publish(next: ThreadWorkbenchSnapshot): void;
@@ -201,5 +205,117 @@ describe("the Threads region", () => {
 
     unmount();
     expect(host.children).toHaveLength(0);
+  });
+
+  it("creates, renames, closes, and removes threads through explicit compact controls", async () => {
+    const workbench = adapter();
+    const host = document.createElement("div");
+    mountProjectThreads(host, new ThreadsController(workbench), "alpha", {
+      projectName: "Alpha",
+      workspaces: [
+        {
+          id: "alpha-root",
+          label: "project root",
+          kind: "project-root",
+          availability: "available",
+        },
+        {
+          id: "alpha-review",
+          label: "feature/review",
+          kind: "worktree",
+          availability: "available",
+        },
+      ],
+    });
+
+    host.querySelector<HTMLButtonElement>("[data-thread-create-toggle]")!.click();
+    const create = host.querySelector<HTMLFormElement>("[data-thread-create]")!;
+    const name = create.querySelector<HTMLInputElement>('[name="thread-name"]')!;
+    const agent = create.querySelector<HTMLSelectElement>('[name="thread-agent"]')!;
+    const workspace = create.querySelector<HTMLSelectElement>('[name="thread-workspace"]')!;
+    name.value = "Implement search";
+    agent.value = "codex";
+    workspace.value = "new-worktree";
+    workspace.dispatchEvent(new Event("change", { bubbles: true }));
+    create.querySelector<HTMLInputElement>('[name="worktree-name"]')!.value = "search";
+    create.querySelector<HTMLInputElement>('[name="worktree-branch"]')!.value = "feature/search";
+    create.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    await settle();
+
+    expect(workbench.createThread).toHaveBeenCalledExactlyOnceWith({
+      name: "Implement search",
+      type: { kind: "terminal", agent: "codex" },
+      workspace: {
+        kind: "new-worktree",
+        projectId: "alpha",
+        name: "search",
+        branch: "feature/search",
+        baseRevision: null,
+      },
+    });
+
+    host.querySelector<HTMLButtonElement>('[data-thread-rename="review"]')!.click();
+    const rename = host.querySelector<HTMLFormElement>('[data-thread-rename-form="review"]')!;
+    rename.querySelector<HTMLInputElement>("input")!.value = "Reviewed changes";
+    rename.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    host.querySelector<HTMLButtonElement>('[data-thread-close="review"]')!.click();
+    host.querySelector<HTMLButtonElement>('[data-thread-remove="shell"]')!.click();
+    await settle();
+
+    expect(workbench.renameThread).toHaveBeenCalledExactlyOnceWith("review", "Reviewed changes");
+    expect(workbench.closeThread).toHaveBeenCalledExactlyOnceWith("review");
+    expect(workbench.removeThread).toHaveBeenCalledExactlyOnceWith("shell");
+  });
+
+  it("renders the owning safe action when closing a live thread is refused", async () => {
+    const workbench = adapter();
+    const terminate = vi.fn(async () => undefined);
+    workbench.closeThread.mockResolvedValue({
+      status: "refused",
+      reason: "Review changes is still running",
+      recovery: { label: "Terminate Review changes", run: terminate },
+    });
+    const host = document.createElement("div");
+    mountProjectThreads(host, new ThreadsController(workbench), "alpha");
+
+    host.querySelector<HTMLButtonElement>('[data-thread-close="review"]')!.click();
+    await settle();
+    const status = host.querySelector<HTMLElement>('[role="status"]')!;
+    expect(status.textContent).toContain("Review changes is still running");
+    status.querySelector("button")!.click();
+    await settle();
+
+    expect(terminate).toHaveBeenCalledOnce();
+  });
+
+  it("does not let hidden new-worktree requirements block a project-root thread", async () => {
+    const workbench = adapter();
+    const host = document.createElement("div");
+    mountProjectThreads(host, new ThreadsController(workbench), "alpha", {
+      projectName: "Alpha",
+      workspaces: [
+        {
+          id: "alpha-root",
+          label: "project root",
+          kind: "project-root",
+          availability: "available",
+        },
+      ],
+    });
+    host.querySelector<HTMLButtonElement>("[data-thread-create-toggle]")!.click();
+    const form = host.querySelector<HTMLFormElement>("[data-thread-create]")!;
+    form.querySelector<HTMLInputElement>('[name="thread-name"]')!.value = "New shell";
+    form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    await settle();
+
+    expect(workbench.createThread).toHaveBeenCalledExactlyOnceWith({
+      name: "New shell",
+      type: { kind: "terminal", agent: "shell" },
+      workspace: {
+        kind: "project-root",
+        projectId: "alpha",
+        worktreeId: "alpha-root",
+      },
+    });
   });
 });
