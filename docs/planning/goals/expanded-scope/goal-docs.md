@@ -22,25 +22,29 @@ Planning concepts must be labelled as concepts anywhere they are published. Rele
 use verified screenshots from the implemented workbench. Apply the shared Visual Reference Contract
 in `goal.md`.
 
-## Settled Naming Decision
+## Settled Product and Platform Decisions
 
-- `ZenSuite` is the product-family and repository identity.
-- The application, workbench, and command are named `zd`; product copy does not expand those
-  letters into a longer name.
-- Documentation must not invent or publish a spelled-out expansion for `zd`.
-- ZenSuite names the product family, not a suite launcher or permission to add miniapps.
-
-## Remaining Required Decisions
-
-Record these owner decisions before public identity or compatibility text is finalized:
-
-1. Whether `zd md` remains a temporary compatibility alias or is removed immediately.
-2. One-app, multi-window, and global-summon behavior.
-3. The canonical website/domain and package description.
-4. Whether the existing desktop bundle identifier is retained for upgrade/settings compatibility.
-5. The final macOS and Windows bindings for Focus, Find, project switching, terminal focus, and
-   global summon.
-6. Whether `docs/planning/` is the permanent objective/planning location.
+1. `ZenSuite` is the product-family and repository identity. The application, workbench, and
+   command are named `zd`; product copy does not expand those letters into a longer name. ZenSuite
+   names the product family, not a suite launcher or permission to add miniapps.
+2. `zd md` is removed rather than retained as a compatibility alias. The supported launch forms are
+   `zd`, `zd <folder>`, and `zd <file>`.
+3. One running application process owns one root workbench window. Ordinary Dock, Spotlight, Start
+   menu, or CLI activation uses that window normally. The global shortcut reuses the same window in
+   a quick-access presentation that appears on the active display/Space and hides on repeated summon,
+   Escape, or focus loss without closing work. The initial product does not create independent
+   document windows.
+4. `https://getzensuite.com` is the canonical website. Package and desktop copy use: “ZenSuite — a
+   fast, local agent workbench for projects, threads, terminals, files, and Git.”
+5. Retain the existing desktop bundle identifier, `com.zensuite.zd`, so the workbench inherits the
+   current application identity, settings, and upgrade path.
+6. The shared command registry owns these defaults on macOS / Windows: Focus
+   `Cmd+Shift+F` / `Ctrl+Shift+F`; current-file Find `Cmd+F` / `Ctrl+F`; projects
+   `Cmd+1`…`Cmd+9` / `Ctrl+1`…`Ctrl+9`; terminal/thread focus `Cmd+J` / `Ctrl+J`; command list
+   `Cmd+Shift+P` / `Ctrl+Shift+P`; global summon `Cmd+Shift+Space` / `Ctrl+Shift+Space`.
+7. `docs/planning/` is the sole active planning root. `docs/planning/objectives/` owns objective and
+   session-loop state; `docs/planning/goals/` owns active cross-objective execution plans; and
+   `docs/planning/ideas/` owns non-authoritative exploration.
 
 ## Acceptance Criteria
 
