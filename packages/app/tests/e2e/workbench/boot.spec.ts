@@ -4,16 +4,16 @@ import { expect, test } from "@playwright/test";
 // and the bundled faces load. Reading, focus, and typography specs join these
 // from session 1.2 onward.
 
-test("boots the styled workbench editor at the root route", async ({ page }) => {
+test("boots the styled workbench at the root route", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle("zd");
 
-  const surface = page.locator('[data-centre-surface="file"] > .md-surface');
-  await expect(surface, "the root route did not mount the md surface").toBeVisible();
-  await expect(surface.locator(".md-document-error")).toContainText("No document open.");
+  const surface = page.locator('[data-centre-surface="file"] > .current-file');
+  await expect(surface, "the root route did not mount the current-file owner").toBeVisible();
+  await expect(surface.locator(".zd-region-empty")).toContainText("No file selected.");
 
   const styled = await surface.evaluate((element) => {
-    const notice = element.querySelector<HTMLElement>(".md-document-error")!;
+    const notice = element.querySelector<HTMLElement>(".zd-region-empty")!;
     const tokenProbe = document.createElement("div");
     tokenProbe.style.background = "var(--surface-canvas)";
     document.body.append(tokenProbe);
@@ -27,7 +27,7 @@ test("boots the styled workbench editor at the root route", async ({ page }) => 
     };
   });
   expect(styled.background, "the workbench canvas token was not applied").toBe(styled.canvas);
-  expect(styled.height, "the md surface did not fill the app window").toBeGreaterThan(0);
+  expect(styled.height, "the file surface did not fill the app window").toBeGreaterThan(0);
   expect(styled.noticeFamily).toContain("iA Writer Quattro");
 });
 
