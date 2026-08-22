@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorView } from "@codemirror/view";
 import type { BoundedFileRead } from "@/editor";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
-import type { Platform } from "@/platform";
+import type { FileStamp, Platform } from "@/platform";
 import { mountCurrentFile } from "@/workbench/current-file";
 import { attachOpenRequests } from "@/workbench/open-requests";
 import type { LaunchRequest } from "@/workbench/resources";
@@ -44,8 +44,14 @@ function context(read: BoundedFileRead) {
     relativePath: "src/main.ts",
     problem: null,
   };
-  const readBoundedFile = vi.fn(async () => read);
+  let currentRead = read;
+  let stamp: FileStamp | null = {
+    modified: 1,
+    length: "byteLength" in read ? read.byteLength : 0,
+  };
+  const readBoundedFile = vi.fn(async () => currentRead);
   const writeTextFile = vi.fn(async () => {});
+  const fileStamp = vi.fn(async () => stamp);
   let requestClose: (() => void) | null = null;
   let requestOpen: (() => void) | null = null;
   let pending: LaunchRequest | null = null;
@@ -58,6 +64,7 @@ function context(read: BoundedFileRead) {
   const platform = {
     readBoundedFile,
     writeTextFile,
+    fileStamp,
     onCloseRequested: (handler: () => void) => {
       requestClose = handler;
       return () => {
@@ -84,6 +91,7 @@ function context(read: BoundedFileRead) {
     },
     readBoundedFile,
     writeTextFile,
+    fileStamp,
     closeWindow,
     requestClose: () => requestClose?.(),
     requestOpen: (request: LaunchRequest) => {
@@ -91,6 +99,12 @@ function context(read: BoundedFileRead) {
       requestOpen?.();
     },
     acceptOpenRequest,
+    setRead: (next: BoundedFileRead) => {
+      currentRead = next;
+    },
+    setStamp: (next: FileStamp | null) => {
+      stamp = next;
+    },
   };
 }
 
@@ -162,6 +176,86 @@ describe("the root current-file owner", () => {
 
     fixture.requestClose();
     await vi.waitFor(() => expect(fixture.closeWindow).toHaveBeenCalledOnce());
+    unmount();
+    host.remove();
+  });
+
+  it("refuses to save over bytes changed by another writer", async () => {
+    const fixture = context({
+      status: "text",
+      text: "const value = 1;",
+      byteLength: 16,
+      writable: true,
+    });
+    const host = document.createElement("div");
+    document.body.append(host);
+    const unmount = await mountCurrentFile(host, fixture.runtime);
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".md-editor")!)!;
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "\nconst mine = 2;" } });
+    fixture.setStamp({ modified: 2, length: 20 });
+
+    commands()
+      .find(({ id }) => id === "document.save")
+      ?.run();
+
+    await vi.waitFor(() => {
+      expect(host.querySelector(".current-file-notice")?.textContent).toContain("changed on disk");
+    });
+    expect(fixture.writeTextFile).not.toHaveBeenCalled();
+    expect(view.state.doc.toString()).toContain("const mine = 2;");
+    unmount();
+    host.remove();
+  });
+
+  it("reloads an externally changed clean file when the window regains focus", async () => {
+    const fixture = context({
+      status: "text",
+      text: "const value = 1;",
+      byteLength: 16,
+      writable: true,
+    });
+    const host = document.createElement("div");
+    document.body.append(host);
+    const unmount = await mountCurrentFile(host, fixture.runtime);
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".md-editor")!)!;
+    fixture.setRead({
+      status: "text",
+      text: "const value = 2;",
+      byteLength: 16,
+      writable: true,
+    });
+    fixture.setStamp({ modified: 2, length: 16 });
+
+    window.dispatchEvent(new FocusEvent("focus"));
+
+    await vi.waitFor(() => expect(view.state.doc.toString()).toBe("const value = 2;"));
+    expect(host.querySelector(".current-file-notice")?.textContent).toContain("reloaded");
+    expect(fixture.readBoundedFile).toHaveBeenCalledTimes(2);
+    unmount();
+    host.remove();
+  });
+
+  it("keeps dirty text when the file also changes on disk", async () => {
+    const fixture = context({
+      status: "text",
+      text: "const value = 1;",
+      byteLength: 16,
+      writable: true,
+    });
+    const host = document.createElement("div");
+    document.body.append(host);
+    const unmount = await mountCurrentFile(host, fixture.runtime);
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".md-editor")!)!;
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "\nconst mine = 2;" } });
+    fixture.setStamp({ modified: 2, length: 20 });
+
+    window.dispatchEvent(new FocusEvent("focus"));
+
+    await vi.waitFor(() => {
+      expect(host.querySelector(".current-file-notice")?.textContent).toContain("unsaved edits");
+    });
+    expect(view.state.doc.toString()).toContain("const mine = 2;");
+    expect(fixture.readBoundedFile).toHaveBeenCalledOnce();
     unmount();
     host.remove();
   });
