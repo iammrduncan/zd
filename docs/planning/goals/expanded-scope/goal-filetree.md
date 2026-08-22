@@ -1,5 +1,7 @@
 # File Tree Goal
 
+Status: **complete — 2026-08-22**
+
 ## Outcome
 
 The project navigation region has two coherent views: Files for the active project/worktree and
@@ -50,6 +52,23 @@ paths. Apply the shared Visual Reference Contract in `goal.md`.
     Git state, non-repository behavior, ignored-path bounds, history, comparison, and editor diff
     integration.
 13. file tree/directory tree updates as files on disk change.
+
+## Completion Evidence
+
+- `packages/app/src/files/` owns the persistent Files controller, compact 19 px virtualized tree,
+  roving keyboard navigation, filtering, expansion/selection/scroll restoration, bounded refresh,
+  and Git-state reconciliation without continuous polling.
+- Native file snapshots use project/worktree IDs, cap ordinary and ignored entries, never descend
+  ignored directories, report unreadable/truncated states, and reject path/traversal knobs.
+- `packages/app/src/git/`, native Git inspection, and `packages/app/src/changes/` provide bounded
+  read-only status, progressive frozen-head history, commit comparison, Changes virtualization, and
+  identity-safe read-only editor diffs without staging or repository mutation.
+- A 10,004-entry browser fixture mounted 23 live rows in 27.2 ms and preserved state through filter,
+  expansion, and refresh. The native 4,096-file fixture returned its 2,048-entry proof cap in
+  14.02 ms; Git release fixtures remained within their documented process/output bounds.
+- Unit, Chromium, and Rust fixtures cover every represented Git state, ignored/deleted synthesis,
+  non-repositories, large trees, history paging, comparisons, diff safety, accessibility, and idle
+  behavior.
 
 ## Terminal Condition
 

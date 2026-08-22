@@ -1,5 +1,7 @@
 # Projects Goal
 
+Status: **complete — 2026-08-22**
+
 ## Outcome
 
 One `zd` session can hold multiple user-approved folders as projects. Activating a project changes
@@ -38,6 +40,18 @@ the exact sample project names. Apply the shared Visual Reference Contract in `g
    state rather than causing launch failure or being silently removed.
 10. Unit, browser, and native tests cover identity, duplicate roots, ordering, shortcuts, context
     synchronization, unavailable roots, grant boundaries, dirty buffers, and live terminals.
+
+## Completion Evidence
+
+- `packages/app/src/projects/` owns the persistent model, controller, compact project list, recovery
+  states, and one injected workbench adapter; it does not own root context mutation.
+- The root state owner accepts native-approved grants and serializes add, reorder, remove, recover,
+  and activation through the same transition/guard boundary used by threads and files.
+- Project headings contain their nested thread rows, restore remembered worktree/thread/file
+  context, and keep modified-click, ordinary-click, and keyboard activation on one transaction.
+- Focused model/controller/view tests and Chromium fixtures cover lifecycle operations, recovery,
+  accessibility, large lists, and the no-polling render path; integrated state tests cover unsafe
+  removal and crossed project/worktree contexts.
 
 ## Terminal Condition
 

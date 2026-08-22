@@ -1,5 +1,7 @@
 # Workbench Reorganization Goal
 
+Status: **complete — 2026-08-22**
+
 ## Outcome
 
 ZenSuite's `zd` is one fast, beautiful agent workbench. The `zd md` command and growing-miniapp
@@ -67,6 +69,20 @@ Apply the authority and interpretation rules in the execution plan's Visual Refe
 10. Unit, browser, and native tests cover launch migration, state transitions, authority grants,
     theme validation/fallback, global summon/hide, focus restoration, and preservation of dirty or
     running work.
+
+## Completion Evidence
+
+- `packages/app/src/workbench/` now owns boot, the versioned state codec/owner, serialized transition
+  guards, shell regions, commands, preferences, themes, current-file coordination, and feature
+  mounting through one root path.
+- The Tauri launch/grant store owns approved project and worktree identities; frontend platform
+  calls use those identities instead of accepting arbitrary paths or processes.
+- Project, thread, worktree, and file activation publish as one guarded context transaction, while
+  dirty-file, live-process, and missing-resource paths can refuse or recover explicitly.
+- Unit, browser, and Rust coverage exercise state migration, launch/open requests, shell geometry,
+  shortcut dispatch, global window behavior, configuration fallback, safe close, and grant scope.
+- The former boot path is retained only as clearly labelled Markdown compatibility code behind the
+  current editor/workbench owners; it is no longer a launch or extension boundary.
 
 ## Terminal Condition
 

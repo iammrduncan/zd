@@ -1,5 +1,7 @@
 # Documentation Migration Goal
 
+Status: **complete — 2026-08-22**
+
 ## Outcome
 
 Repository context, architecture authority, contributor guidance, product documentation, website
@@ -96,6 +98,20 @@ implemented workbench is stable.
     workflows, and generated-site inputs for misleading current-product terminology.
 15. Documentation links, information-architecture tests, objective/archive/session-loop tests,
     website build, CLI/title tests, package metadata checks, and relevant release checks pass.
+
+## Completion Evidence
+
+- Phase A established the current authority in `docs/VISION.md`, `docs/DESIGN.md`, the ADR indexes,
+  contributor maps, the one planning root, and the multi-project native grant decision.
+- Phase B rewrote the root and user documentation, website, SEO/JSON-LD and package copy around the
+  implemented workbench and removed the retired public presence surface.
+- `packages/scripts/release/capture-workbench.mjs` captures both light centre modes from the actual
+  assembled workbench fixture; asset tests pin both captures to 1440×900 and the social card to
+  1200×630.
+- Repository documentation tests verify public routes, local links, generated assets, current
+  naming, qualified historical language, and the absence of the reserved external product name.
+- Prototype wrap-up goals and early application-surface ideas now carry explicit superseded
+  boundaries without rewriting accepted ADRs, completed summaries, or dated research.
 
 ## Terminal Condition
 

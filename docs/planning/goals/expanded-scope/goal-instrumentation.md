@@ -1,5 +1,7 @@
 # Instrumentation Goal
 
+Status: **complete — 2026-08-22**
+
 ## Outcome
 
 Local, opt-in instrumentation gives a person or agent enough structured evidence to diagnose high
@@ -30,6 +32,18 @@ remote telemetry or meaningful overhead while disabled.
 9. Unit and native tests cover default-off behavior, enable/disable, schemas, redaction, rotation,
    write failures, and clean shutdown. A diagnostic fixture proves an agent can reconstruct one
    slow action and one memory-growth interval.
+
+## Completion Evidence
+
+- `packages/app/src/instrumentation/` owns the versioned schema, path/URL redaction, lazy client,
+  bounded identifiers, and honest unavailable behavior.
+- `packages/tauri/src/instrumentation/` owns opt-in sessions, immediate crash-evidence flushes,
+  rotation, retention, bounded process sampling, catalog/reveal behavior, and shutdown cleanup.
+- The workbench diagnostics control and persisted preference remain off by default; enabling and
+  disabling are serialized so background sampling cannot survive a completed disable action.
+- `instrumentation-format-v1.md` plus reconstructable fixtures document the local format. Unit and
+  native tests cover redaction, races, cadence, retention, failure states, runtime wiring, and idle
+  behavior while disabled.
 
 ## Terminal Condition
 

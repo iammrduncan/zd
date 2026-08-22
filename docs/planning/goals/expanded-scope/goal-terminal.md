@@ -1,5 +1,7 @@
 # Terminal Goal
 
+Status: **complete — 2026-08-22**
+
 ## Outcome
 
 `zd` provides fast, bounded native terminal sessions that can run ordinary shells and supported
@@ -45,6 +47,21 @@ process behavior remain governed by this goal. Apply the shared Visual Reference
 10. Unit, integration, browser, and native tests cover session lifecycle, cwd, resize, Unicode,
     scrollback limits, process-tree cleanup, agent states, shortcuts, theme changes, failures, and
     project isolation.
+
+## Completion Evidence
+
+- `packages/tauri/src/terminal/` starts only the user's shell from native-approved project/worktree
+  identities and owns PTY handles, cwd/environment policy, input, resize, output offsets and drops,
+  exit state, idempotent disposal, and descendant cleanup without generic command IPC.
+- Unix sessions use isolated process groups; Windows sessions use a kill-on-close Job Object with a
+  `cfg(windows)` cleanup test. Platform-specific runtime checks remain owned by their native hosts.
+- `packages/app/src/threads/terminal/` uses xterm for VT/ANSI state, Unicode input and selection,
+  search, resize/reflow, theme updates, accessible focus, and bounded scrollback. Output drains only
+  from native readiness events; inactive terminals do not poll.
+- Native PTY lifecycle tests and browser interaction tests cover shell start/read/write/resize/exit,
+  cursor updates, escape sequences, graphemes, copy/paste, search, themes, cleanup, and scope.
+- The release terminal fixture moved more than 1 MiB at about 9.0 MiB/s and recorded zero idle
+  adapter calls; queued native output is bounded to 4 MiB by default and 16 MiB maximum.
 
 ## Terminal Condition
 
