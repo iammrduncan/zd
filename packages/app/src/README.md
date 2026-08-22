@@ -1,0 +1,60 @@
+# App source map
+
+Status: **implementation context for the merged workbench foundation (Gate 2, 2026-08-22)**
+
+This map helps contributors find the current code owner. It is not released-product documentation
+and does not claim that later workspace features are complete. Start with
+[`docs/VISION.md`](../../../docs/VISION.md), [`docs/DESIGN.md`](../../../docs/DESIGN.md), and the
+[expanded-scope execution plan](../../../docs/planning/goals/expanded-scope/goal.md) when a change
+affects behavior or architecture.
+
+## Root ownership
+
+| Path | Current responsibility |
+| --- | --- |
+| [`main.ts`](main.ts) | Detect the platform and boot one root workbench. |
+| [`workbench/boot.ts`](workbench/boot.ts) | Compose the shell, shared services, feature mounts, commands, and teardown. |
+| [`workbench/state.ts`](workbench/state.ts) | Export the versioned state contract and its one transition owner. |
+| [`workbench/state-core.ts`](workbench/state-core.ts) | Define state data, stable identities, parsing, and pure context helpers. |
+| [`workbench/state-owner.ts`](workbench/state-owner.ts) | Serialize guarded project, worktree, thread, and file transitions. |
+| [`workbench/resources.ts`](workbench/resources.ts) | Define ID-scoped launch and file resources shared with native grants. |
+| [`platform.ts`](platform.ts) | Be the frontend's only importer of Tauri APIs and expose narrow typed adapters. |
+
+Treat `workbench/boot.ts`, the state facade, `platform.ts`, the command registry, and shared theme
+configuration as integration-owner files. A feature should request a narrow interface change
+instead of creating another state, command, or native-authority owner.
+
+## Feature boundaries present at this checkpoint
+
+| Directory | Current responsibility |
+| --- | --- |
+| [`design/`](design/) | Shared semantic roles, bundled fonts, validated themes, and appearance ownership. |
+| [`projects/`](projects/) | Project-list model, controller, view, and workbench adapter contract. |
+| [`instrumentation/`](instrumentation/) | Closed diagnostic schema and the local opt-in frontend client. |
+| [`editor/`](editor/) | Bounded buffer classification, language selection, Find/Replace, and the workbench editor facade. |
+| [`terminal/`](terminal/) | Structured terminal-session adapter, viewport validation, and bounded scrollback contract. |
+| [`workbench/`](workbench/) | Root shell, state, current-file ownership, settings surfaces, commands, and lifecycle composition. |
+
+The native side of file grants, themes, diagnostics, quick access, and terminal sessions is mapped
+in the [native source map](../../tauri/src/README.md).
+
+## Retained Markdown location
+
+Some editor implementation and styles still live under [`miniapps/md/`](miniapps/md/). The root
+workbench consumes them through the `editor/` facade where that boundary exists, while the current
+file owner still has two direct compatibility imports. Read the
+[legacy-location note](miniapps/README.md) before moving or importing that code.
+
+The directory name records source history. It is not an extension mechanism. New work belongs with
+the root owner or the feature boundary that owns the behavior.
+
+## Verification
+
+- Pure state and boundary tests live under [`packages/app/tests/unit/`](../tests/unit/).
+- Rendered interaction and accessibility evidence lives under
+  [`packages/app/tests/e2e/`](../tests/e2e/).
+- Native authority and lifecycle tests live beside or below the native owner; follow the
+  [native source map](../../tauri/src/README.md).
+
+Add or update the smallest test that proves a code change. Rendering and accessibility claims need
+browser or native evidence in addition to pure state tests.
