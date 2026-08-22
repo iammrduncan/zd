@@ -60,37 +60,58 @@ export function createInstrumentationClient(
   let transport: DiagnosticTransport | null = null;
   let status = OFF;
   let accepting = false;
+  let desiredEnabled = false;
   let identity = 0;
+  let transition = Promise.resolve();
 
   function native(): DiagnosticTransport {
     transport ??= transportFactory();
     return transport;
   }
 
+  function serialize(task: () => Promise<DiagnosticStatus>): Promise<DiagnosticStatus> {
+    const result = transition.then(task, task);
+    transition = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
+
   const client: InstrumentationClient = {
     snapshot: () => status,
 
-    async enable() {
-      if (status.enabled) return status;
-      try {
-        status = await native().enable();
-        accepting = status.enabled;
-      } catch {
-        accepting = false;
-        status = safeFailure("diagnostic writer could not start");
-      }
-      return status;
+    enable() {
+      desiredEnabled = true;
+      return serialize(async () => {
+        if (!desiredEnabled) return status;
+        if (status.enabled) {
+          accepting = true;
+          return status;
+        }
+        try {
+          status = await native().enable();
+          accepting = desiredEnabled && status.enabled;
+        } catch {
+          accepting = false;
+          status = safeFailure("diagnostic writer could not start");
+        }
+        return status;
+      });
     },
 
-    async disable() {
-      if (!transport) return status;
+    disable() {
+      desiredEnabled = false;
       accepting = false;
-      try {
-        status = await transport.disable();
-      } catch {
-        status = safeFailure("diagnostic writer could not close cleanly");
-      }
-      return status;
+      return serialize(async () => {
+        if (!transport) return status;
+        try {
+          status = await transport.disable();
+        } catch {
+          status = safeFailure("diagnostic writer could not close cleanly");
+        }
+        return status;
+      });
     },
 
     async record(input) {
