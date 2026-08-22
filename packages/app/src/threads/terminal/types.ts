@@ -1,4 +1,5 @@
 import type { TerminalExitStatus, TerminalViewport } from "@/terminal";
+import type { SupportedAgentDetector } from "../agent-detector";
 import type { TerminalEmulatorFactory } from "./emulator";
 import type { ThreadLifecycleSignal } from "../types";
 
@@ -47,6 +48,7 @@ export interface TerminalThreadInstrumentationEvent {
 }
 
 export interface TerminalThreadSessionOptions {
+  readonly detector?: SupportedAgentDetector;
   readonly maximumRows?: number;
   /** Testable frame-yield seam used only between bounded output chunks. */
   readonly yieldForOutput?: () => Promise<void>;

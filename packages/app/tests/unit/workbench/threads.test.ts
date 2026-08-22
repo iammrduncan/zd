@@ -507,4 +507,69 @@ describe("the root Threads runtime adapter", () => {
     await runtime.dispose();
     expect(outputReady).toBeNull();
   });
+
+  it("routes one supported-agent busy-to-waiting control event into attention", async () => {
+    const state = owner();
+    const native = terminalAdapter();
+    const runtime = createRootThreadsAdapter(state, platform(native), {
+      createId: () => "thread-agent",
+    });
+    const attention: ThreadAttentionEventV1[] = [];
+    runtime.subscribeAttention((event) => attention.push(event));
+    await runtime.createThread({
+      ...existingRequest(),
+      type: { kind: "terminal", agent: "codex" },
+    });
+    const terminal = runtime.session("thread-agent")!;
+
+    await terminal.writeText("run tests\r");
+    await vi.waitFor(() =>
+      expect(state.snapshot().threads[0]).toMatchObject({
+        lifecycle: "busy",
+        lifecycleSource: "supported-agent",
+      }),
+    );
+    native.read.mockResolvedValueOnce({
+      session: {
+        projectId: project.id,
+        worktreeId: "worktree-alpha",
+        sessionId: "native-session-secret",
+      },
+      offset: 0,
+      droppedBefore: 0,
+      bytes: [7],
+      readError: null,
+    });
+    await terminal.refresh();
+    await vi.waitFor(() => expect(attention).toHaveLength(1));
+
+    expect(state.snapshot().threads[0]).toMatchObject({
+      lifecycle: "waiting",
+      lifecycleSource: "supported-agent",
+      attentionUnread: true,
+      attentionVersion: 1,
+    });
+    expect(attention[0]).toMatchObject({
+      schemaVersion: 1,
+      kind: "waiting",
+      threadId: "thread-agent",
+      agent: "codex",
+      attentionVersion: 1,
+    });
+
+    native.read.mockResolvedValueOnce({
+      session: {
+        projectId: project.id,
+        worktreeId: "worktree-alpha",
+        sessionId: "native-session-secret",
+      },
+      offset: 1,
+      droppedBefore: 0,
+      bytes: [7],
+      readError: null,
+    });
+    await terminal.refresh();
+    expect(attention).toHaveLength(1);
+    await runtime.dispose();
+  });
 });

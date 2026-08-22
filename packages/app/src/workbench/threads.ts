@@ -8,6 +8,7 @@ import type {
 } from "@/terminal";
 import {
   applyThreadLifecycle,
+  createSupportedAgentDetector,
   TerminalThreadSession,
   type CreateThreadRequest,
   type ThreadAttentionEventV1,
@@ -440,13 +441,15 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
   }
 
   #createSession(
-    thread: Pick<ThreadState, "id" | "projectId" | "worktreeId">,
+    thread: Pick<ThreadState, "id" | "projectId" | "worktreeId" | "agent">,
     revisionBase: number,
   ): TerminalThreadSession {
+    const detector = createSupportedAgentDetector(thread.agent);
     return new TerminalThreadSession(
       this.platform.terminal,
       { projectId: thread.projectId, worktreeId: thread.worktreeId },
       {
+        ...(detector ? { detector } : {}),
         onLifecycle: async (signal) => {
           await this.observeLifecycle(thread.id, {
             ...signal,
