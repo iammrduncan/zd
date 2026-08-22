@@ -9,6 +9,7 @@ import {
   type TerminalViewport,
 } from "@/terminal";
 import { TerminalTranscriptBuffer } from "./transcript";
+import type { AgentDetectorObservationV1 } from "../agent-detector";
 import type {
   TerminalSearchMatch,
   TerminalSearchOptions,
@@ -18,7 +19,7 @@ import type {
   TerminalThreadSnapshot,
   TerminalThreadStatus,
 } from "./types";
-import type { ThreadLifecycle } from "../types";
+import type { ThreadLifecycle, ThreadLifecycleSignal } from "../types";
 
 const MAX_WRITE_BYTES = 64 * 1_024;
 const MAX_READ_BYTES = 16 * 1_024 * 1_024;
@@ -87,6 +88,7 @@ export class TerminalThreadSession {
     );
     terminal.#handle = { ...handle };
     terminal.#status = "running";
+    terminal.#observeAgent(options.detector?.processStarted() ?? null);
     return terminal;
   }
 
@@ -136,6 +138,7 @@ export class TerminalThreadSession {
       this.#handle = { ...handle };
       this.#status = "running";
       this.#lifecycle("idle");
+      this.#observeAgent(this.options.detector?.processStarted() ?? null);
       this.#record("terminal.start", "ok");
       this.#publish();
       return { ...handle };
@@ -187,6 +190,7 @@ export class TerminalThreadSession {
         const chunk = Uint8Array.from(batch.bytes.slice(offset, end));
         this.#transcript.append(chunk);
         this.#publishOutput(chunk);
+        this.#observeAgent(this.options.detector?.observeOutput(chunk) ?? null);
         if (end < batch.bytes.length) {
           this.#publish();
           await (this.options.yieldForOutput ?? defaultYieldForOutput)();
@@ -218,6 +222,7 @@ export class TerminalThreadSession {
         for (let offset = 0; offset < bytes.length; offset += MAX_WRITE_BYTES) {
           await this.adapter.write(handle, [...bytes.slice(offset, offset + MAX_WRITE_BYTES)]);
         }
+        this.#observeAgent(this.options.detector?.observeInput(bytes) ?? null);
         this.#record("terminal.write", "ok");
       } catch (cause) {
         this.#record("terminal.write", "failed");
@@ -326,14 +331,21 @@ export class TerminalThreadSession {
     return this.#handle;
   }
 
-  #lifecycle(lifecycle: ThreadLifecycle): void {
+  #observeAgent(observation: AgentDetectorObservationV1 | null): void {
+    if (observation) this.#lifecycle(observation.lifecycle, "supported-agent");
+  }
+
+  #lifecycle(
+    lifecycle: ThreadLifecycle,
+    source: ThreadLifecycleSignal["source"] = "process",
+  ): void {
     if (!this.options.onLifecycle) return;
     this.#lifecycleRevision += 1;
     void Promise.resolve(
       this.options.onLifecycle({
         lifecycle,
         revision: this.#lifecycleRevision,
-        source: "process",
+        source,
       }),
     ).catch(() => undefined);
   }
