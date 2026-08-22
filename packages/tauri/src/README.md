@@ -1,6 +1,6 @@
 # Native source map
 
-Status: **implementation context for the merged workbench foundation (Gate 2, 2026-08-22)**
+Status: **current implementation context (2026-08-22)**
 
 This directory is the trusted side of the desktop boundary. The webview sends stable project,
 worktree, file, and session identities through the typed adapter in
@@ -17,11 +17,16 @@ against approved grants; frontend callers do not supply arbitrary filesystem pat
 | [`grants.rs`](grants.rs) | Mint, resolve, recover, and revoke least-privilege grants with stable identities. |
 | [`projects.rs`](projects.rs) | Choose and recover approved project roots through the native folder picker. |
 | [`fs.rs`](fs.rs) | Perform current grant-scoped listings, reads, file stamps, links, and atomic writes. |
+| [`file_tree.rs`](file_tree.rs) | Scan one approved project/worktree into a bounded ignored-aware tree snapshot. |
+| [`git.rs`](git.rs) | Run the fixed read-only status, history, comparison, and diff operations. |
+| [`worktrees.rs`](worktrees.rs) | Create and approve one structured Git worktree without delete or prune authority. |
 | [`themes.rs`](themes.rs) | Discover bounded, direct-child theme configuration files. |
 | [`quick_access.rs`](quick_access.rs) | Own native summon registration and root-window presentation. |
 | [`instrumentation/`](instrumentation/) | Write, rotate, sample, and retain local opt-in diagnostics. |
 | [`terminal/`](terminal/) | Own structured PTY sessions, bounded output, resize, exit, and process cleanup. |
 | [`terminal_runtime.rs`](terminal_runtime.rs) | Adapt terminal-session ownership to Tauri managed state and commands. |
+| [`notifications.rs`](notifications.rs) | Validate bounded attention requests and retain ID-only action routing. |
+| [`notifications/`](notifications/) | Present native macOS notifications and completion sounds. |
 
 `lib.rs` and the frontend platform adapter are shared integration points. Keep feature complexity
 inside its owning module and propose the narrowest command/interface addition required. Do not add
@@ -34,7 +39,7 @@ Module tests live beside their Rust owner. Cross-module lifecycle evidence lives
 tests while iterating, then the repository's complete Cargo test and Clippy checks before a native
 gate closes.
 
-The active sequence and still-pending feature work are tracked in the
+The completed implementation sequence and acceptance contracts are recorded in the
 [expanded-scope execution plan](../../../docs/planning/goals/expanded-scope/goal.md). This source
-map describes only modules present at this checkpoint; the plan remains execution context, not a
-license to widen native authority ahead of an owning feature.
+map describes the current modules; the plan is not a license to widen native authority outside an
+owning feature.

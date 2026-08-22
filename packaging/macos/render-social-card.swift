@@ -86,9 +86,9 @@ context.fill(CGRect(x: 0, y: 0, width: width, height: height))
 context.setFillColor(accent)
 context.fill(CGRect(x: 0, y: 0, width: 12, height: height))
 
-drawText("zd md", font: bold, color: ink, x: 72, baseline: 538)
-drawText("Read the long thing. Keep it editable.", font: prose, color: quiet, x: 74, baseline: 488)
-drawText("v0.1.0  ·  macOS  ·  MIT", font: mono, color: accent, x: 75, baseline: 447)
+drawText("zd", font: bold, color: ink, x: 72, baseline: 538)
+drawText("Keep every thread. Keep the context.", font: prose, color: quiet, x: 74, baseline: 488)
+drawText("ZenSuite  ·  local agent workbench  ·  MIT", font: mono, color: accent, x: 75, baseline: 447)
 
 context.interpolationQuality = .high
 context.draw(icon, in: CGRect(x: 1032, y: 470, width: 104, height: 104))

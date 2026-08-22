@@ -11,7 +11,7 @@
 
 /*
  * `#zd` is the suite's host element from index.html. It is in the height chain
- * on purpose: a mini app's scroll container sizes itself against the window, and
+ * on purpose: each region's scroll container sizes itself against the window, and
  * a host of `height: auto` would let the surface grow to its content instead, so
  * nothing would ever scroll.
  */

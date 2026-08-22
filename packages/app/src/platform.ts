@@ -342,7 +342,7 @@ const tauri: Platform = {
      * the relay's far side rather than the macOS gesture that enters it.
      *
      * Prevent first, then ask the document. The document explicitly calls
-     * `closeWindow` when it is clean or the reader confirms a second time.
+     * `closeWindow` when it is clean or the user confirms a second time.
      */
     const pending = getCurrentWindow().onCloseRequested((event) => {
       event.preventDefault();

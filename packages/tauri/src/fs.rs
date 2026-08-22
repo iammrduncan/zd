@@ -13,14 +13,14 @@ use tauri_plugin_opener::OpenerExt;
 const EDITABLE_FILE_LIMIT: u64 = 8 * 1024 * 1024;
 const FILE_PREVIEW_LIMIT: usize = 64 * 1024;
 
-/// One file in the workspace tree, named both for opening and for display.
+/// One file in the retained bounded Markdown listing, named for opening and display.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct WorkspaceFile {
     pub resource: ResourceRef,
     pub relative: String,
 }
 
-/// The sidebar root and its visible Markdown files.
+/// The retained Markdown-only listing used by compatibility file-open flows.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct WorkspaceListing {
     #[serde(rename = "projectId")]
@@ -170,7 +170,7 @@ pub fn read_text_file(
     std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))
 }
 
-/// List the Markdown files below a workspace root in stable display order.
+/// List Markdown files below an approved root in stable display order.
 fn workspace_files_in(
     root: &Path,
     project_id: &str,
@@ -221,7 +221,7 @@ fn workspace_files_in(
     })
 }
 
-/// The scoped tree shown by the Markdown workspace sidebar.
+/// Retained grant-scoped Markdown listing. New navigation uses `file_tree_snapshot`.
 #[tauri::command]
 pub fn workspace_files(
     launch: tauri::State<'_, LaunchState>,
@@ -235,7 +235,7 @@ pub fn workspace_files(
 /// Save a document. Vision §6.3: "`cmd+s` saves. Writes are atomic."
 ///
 /// Atomic here means the strong thing: at no instant does the path hold a
-/// half-written document. The only two states a reader can ever observe are the
+/// half-written file. The only two states a caller can ever observe are the
 /// old contents and the new ones, even if the power goes out between them.
 ///
 /// A plain `write` cannot promise that. It truncates first, so a crash — or a
@@ -395,7 +395,7 @@ fn temporary_beside(path: &Path) -> PathBuf {
 
 /// Hand a link to the system browser.
 ///
-/// Only `http` and `https` leave the process. The reader resolves everything
+/// Only `http` and `https` leave the process. The editor resolves everything
 /// else itself (vision §4.3, finding F01), so anything other than those two
 /// schemes reaching here — `file:`, `javascript:`, a custom handler — is a bug
 /// or an attack, and is refused at this boundary rather than passed to the OS.

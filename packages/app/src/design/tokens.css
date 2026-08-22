@@ -1,5 +1,5 @@
 /*
- * Suite-owned design tokens. One definition, every mini app.
+ * Workbench-owned design tokens. One definition, every region.
  *
  * STATUS: the type roles below are ported from DESIGN.md §5.2, which is their
  * source of truth — change them there first. Colour ramps and the spacing
@@ -8,11 +8,11 @@
  * Theming works in two layers:
  *   1. `prefers-color-scheme` is the default signal.
  *   2. `[data-theme]` on <html> overrides it when the user picks explicitly.
- * A mini app selects a semantic role. It never hardcodes a family or a hex.
+ * A feature selects a semantic role. It never hardcodes a family or a hex.
  */
 
 :root {
-  /* Families — fixed by DESIGN.md §5.1, not a per-mini-app choice. */
+  /* Families — fixed by DESIGN.md, not a per-feature choice. */
   --font-prose: "iA Writer Quattro", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "iA Writer Mono", ui-monospace, "SF Mono", monospace;
 
@@ -33,7 +33,7 @@
   --type-heading-scale: 1;
 
   /*
-   * DESIGN.md §5.2 type roles. A mini app selects a role; it never picks a
+   * DESIGN.md typography roles. A feature selects a role; it never picks a
    * family, a weight, or a size. Line heights are unitless so a role keeps its
    * rhythm when its size moves.
    *
@@ -428,7 +428,7 @@
 
 /*
  * The closed semantic colour set, verbatim from the DESIGN.md §4.3 table.
- * A mini app names a role. It never writes a hex.
+ * A feature names a role. It never writes a hex.
  */
 :root {
   /* Planes */

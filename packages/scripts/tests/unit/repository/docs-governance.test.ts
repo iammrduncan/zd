@@ -22,7 +22,7 @@ const ADRS = [
 
 const page = (path: string): string => readFileSync(resolve(ROOT, path), "utf8");
 
-describe("the Zen Suite documentation governance system", () => {
+describe("the ZenSuite documentation governance system", () => {
   it("records the accepted decisions recovered from audits, feedback, and implementation", () => {
     expect(ADRS.filter((path) => !existsSync(resolve(ROOT, path)))).toEqual([]);
 

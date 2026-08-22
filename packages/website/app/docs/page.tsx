@@ -8,7 +8,7 @@ import { DocsPage } from "./_components/document";
 const doc = getPublicDoc([]);
 
 export const metadata: Metadata = pageMetadata({
-  description: doc?.description ?? "Learn how to install, use, and understand zd md.",
+  description: doc?.description ?? "Learn how to install, use, and understand the zd workbench.",
   path: "/docs/",
   title: "Documentation",
 });

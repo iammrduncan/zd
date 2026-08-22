@@ -29,5 +29,9 @@ installation.
 
 ## Remove
 
-Remove `zd` from Windows Settings → Apps → Installed apps. Your Markdown files are ordinary files
-and are not removed with the application.
+Remove `zd` from Windows Settings → Apps → Installed apps. Your projects, files, and Git worktrees
+are ordinary filesystem content and are not removed with the application.
+
+Desktop completion notifications and sounds are currently unavailable on Windows. Projects, files,
+Git inspection, editing, and terminal threads remain available; the Attention settings report the
+unsupported notification capability directly.

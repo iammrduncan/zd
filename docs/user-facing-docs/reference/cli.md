@@ -4,43 +4,38 @@
 
 ```text
 zd
-zd md
-zd md <path>
-zd <path>
+zd <folder>
+zd <file>
 ```
-
-`md` is the default and currently the only mini app.
 
 ## Launch forms
 
 | Command | Result |
 | --- | --- |
-| `zd` or `zd md` | Start `md` without a document. The v0.1 build shows its no-document surface. |
-| `zd md .` | Open the current directory as a Markdown workspace. |
-| `zd md <file>` | Open one file. A missing file is created on its first successful save. |
-| `zd <path>` | Open the path with the default `md` mini app. |
+| `zd` | Open the workbench without selecting a project or file. |
+| `zd .` | Open the current directory as an approved project. |
+| `zd <folder>` | Open that directory as an approved project. |
+| `zd <file>` | Approve the file’s parent as a project and open the file. A missing file is created on its first successful save. |
+
+The first positional argument is the launch path. There is no product or surface selector.
 
 ## Path resolution
 
-- Relative paths resolve from the process working directory—the directory where `zd` was invoked.
+- Relative paths resolve from the process working directory—the directory where you invoked `zd`.
 - Absolute paths are used unchanged.
 - `.` components are normalized before the launch reaches the frontend.
-- Opening a file scopes native file access to its parent directory. Opening a directory scopes
-  access to that directory.
-- A workspace lists Markdown files recursively in stable path order.
+- A folder launch grants access to that folder. A file launch grants access to its parent.
+- Adding projects or worktrees later requires an explicit native picker or structured worktree
+  operation. Frontend code cannot widen those grants.
 
 ## Native launches
 
-Opening `zd.app` from Finder, Spotlight, or the Dock is equivalent to launching without a document.
-Opening an associated `.md` or `.markdown` file queues that file for the current app. A document
-with unsaved work must accept the switch before the native filesystem scope moves.
+Opening `zd.app` from Finder, Spotlight, or the Dock opens the same root workbench without selecting
+a file. Opening an associated `.md` or `.markdown` file queues that file for the running app. A
+dirty current file must allow the switch before the active context changes.
 
-## Shortcuts
+Ordinary activation reuses the one root window. The global shortcut presents that same window as
+quick access; repeated summon, Escape, or focus loss hides it without closing projects, files, or
+terminal sessions.
 
-Hold `Cmd+.` on macOS or `Ctrl+.` elsewhere to display the commands available in the current
-context. That view is the authoritative shortcut reference because it is generated from the live
-command registry.
-
-The desktop app reports anonymous live presence to SSPS while it is open. Press `Cmd+Option+P` on
-macOS or `Ctrl+Alt+P` elsewhere to disable or re-enable reporting for every open window. The choice
-persists across launches.
+See the [shortcut reference](shortcuts.md) for the default keys.

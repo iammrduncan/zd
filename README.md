@@ -1,72 +1,66 @@
 [Website](https://getzensuite.com) &nbsp;·&nbsp; [docs](https://getzensuite.com/docs) &nbsp;·&nbsp; [Discord](https://discord.gg/3Qs2uejUf9)
 
-> Note: ZD is under heavy development and prone to breaking. Expect breaking changes quickly.
+> `zd` is under heavy development. Expect fast changes while the workbench settles.
 
 # zd
 
-`zd md` is a calm, keyboard-first Markdown reader and editor for the long documents that coding
-agents produce. It keeps Markdown editable while giving it the measure, hierarchy, focus, and
-motion of a dedicated reading surface.
+ZenSuite’s `zd` is a fast, local agent workbench for projects, threads, terminals, files, and Git.
+Keep several repositories and agent sessions in one quiet window, edit the current file, and inspect
+changes without handing a web service your source tree.
 
-`zd md` is the first tool in Zen Suite: one `zd` command for small tools that support
-AI-assisted development and review.
+![The zd workbench with project threads on the left, an editable file in the centre, and the compact file tree on the right](docs/user-facing-docs/assets/zd-workbench.png)
 
-![zd md Markdown reader showing a focused paragraph in a workspace](docs/user-facing-docs/assets/zd-reader.jpeg)
+## Install
 
-## Install on macOS
+Download the Apple Silicon or Intel DMG, or the Windows x64 setup executable, and its checksum from
+the [latest release](https://github.com/iammrduncan/zd/releases/latest).
 
-Download the Apple Silicon or Intel DMG and its checksum from the
-[latest release](https://github.com/iammrduncan/zd/releases/latest). The v0.1 build is ad-hoc signed,
-but not Developer ID signed or notarized.
+Current macOS builds are ad-hoc signed but not Developer ID signed or notarized. If macOS shows
+**“zd” Not Opened** after the checksum passes, choose **Done**, then use System Settings → Privacy &
+Security → **Open Anyway**. The [macOS installation guide](docs/user-facing-docs/how-to/install-macos.md#if-macos-says-zd-not-opened)
+has the complete recovery path. Current Windows installers are not code signed; see the
+[Windows installation guide](docs/user-facing-docs/how-to/install-windows.md) before accepting a
+SmartScreen warning.
 
-If macOS shows **“zd” Not Opened** after the checksum passes, choose **Done**, then use System
-Settings → Privacy & Security → **Open Anyway** and confirm **Open**. See the
-[macOS installation guide](docs/user-facing-docs/how-to/install-macos.md#if-macos-says-zd-not-opened) for the full
-recovery path and PATH setup.
-
-## Install on Windows
-
-Download the Windows x64 setup executable and its checksum from the
-[latest release](https://github.com/iammrduncan/zd/releases/latest). The v0.1 Windows installer is
-not code signed, so Windows may show a SmartScreen warning.
-
-Follow the [Windows installation guide](docs/user-facing-docs/how-to/install-windows.md) to verify
-the installer before running it.
-
-## Open a document
+## Start a workbench
 
 ```sh
-zd md .              # open the current folder
-zd md README.md      # open one file
-zd md                # open without a document
+zd                 # open the workbench
+zd .               # open the current folder as a project
+zd README.md       # open one file and approve its parent project
 ```
 
-Relative paths resolve from the directory where the command is run. A named file can be new; `zd`
-creates it on the first save.
+Relative paths resolve from the directory where you run the command. A named file may be new; `zd`
+creates it on the first successful save.
 
-Once a document is open, hold `Cmd+.` (`Ctrl+.` off macOS) to see the live shortcut reference.
+## What is available
 
-## What is in v0.1
+- Several approved projects and Git worktrees in one root window.
+- Project-scoped terminal threads for a shell, Codex, Claude Code, or OpenCode workflow.
+- A compact, keyboard-accessible file tree with file type and Git state.
+- CodeMirror editing for Markdown and common code/configuration languages, with bounded large-file
+  states and Find/Replace.
+- Read-only Git status, commit history, revision comparison, and file diffs.
+- Current Light, Dark, Dracula, and validated local theme files.
+- A global quick-access shortcut that reuses the running workbench.
+- Optional local diagnostics. Desktop completion notifications and sounds are opt-in and currently
+  available on macOS.
 
-- One rendered, always-editable Markdown surface—no preview/edit mode switch.
-- Line, paragraph, and section focus with optional typewriter motion.
-- Headings, lists, quotes, code, links, images, and tables shaped for reading.
-- Folder workspaces, safe saves, external-change detection, and Markdown file association.
-- Local fonts and local files by default; remote images are not fetched.
-- The desktop app reports anonymous live presence to [SSPS](https://usessps.com/) while open.
-  `Cmd+Option+P` globally disables or re-enables it for every open window and persists across launches; use `Ctrl+Alt+P` outside macOS.
+Hold `Cmd+.` on macOS or `Ctrl+.` elsewhere for the live shortcut reference. Focus Mode, completion
+sound, desktop notifications, and local diagnostics are off by default.
 
 ## Documentation
 
 | If you want to… | Start here |
 | --- | --- |
-| Learn the reading and editing flow | [Open your first document](docs/user-facing-docs/tutorials/first-document.md) |
-| Install or update the macOS app | [Install on macOS](docs/user-facing-docs/how-to/install-macos.md) |
-| Install or update the Windows app | [Install on Windows](docs/user-facing-docs/how-to/install-windows.md) |
-| Review Markdown with line comments | [Review with comments](docs/user-facing-docs/how-to/review-with-comments.md) |
-| Look up command-line behavior | [CLI reference](docs/user-facing-docs/reference/cli.md) |
-| Understand the system boundaries | [Architecture](docs/user-facing-docs/explanation/architecture.md) |
-| Browse guides, decisions, and project records | [Documentation map](docs/README.md) |
+| Learn the core project, thread, file, and Git loop | [Start your first workbench](docs/user-facing-docs/tutorials/first-workbench.md) |
+| Organize projects and terminal threads | [Manage projects and threads](docs/user-facing-docs/how-to/manage-projects-and-threads.md) |
+| Review working-tree or historical changes | [Inspect Git changes](docs/user-facing-docs/how-to/inspect-changes.md) |
+| Install or update on macOS | [Install on macOS](docs/user-facing-docs/how-to/install-macos.md) |
+| Install or update on Windows | [Install on Windows](docs/user-facing-docs/how-to/install-windows.md) |
+| Look up launch behavior | [CLI reference](docs/user-facing-docs/reference/cli.md) |
+| Understand the security boundaries | [Architecture](docs/user-facing-docs/explanation/architecture.md) |
+| Browse every document type | [Documentation map](docs/README.md) |
 
 ## Develop
 
@@ -77,14 +71,7 @@ npm run website:dev
 npm run check
 ```
 
-See [Develop zd](docs/user-facing-docs/how-to/develop.md) for browser and native workflows.
-The website runs at `http://localhost:3000`; `npm run website:build` writes the static export to
-`packages/website/out`, and `npm run website:preview` serves that built output locally.
-Contributions are welcome; read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change.
-
-## Project status
-
-The design system is [DESIGN.md](docs/DESIGN.md). The [documentation map](docs/README.md) separates
-accepted architecture, proposals, user guidance, internal records, and active objectives.
+See [Develop zd](docs/user-facing-docs/how-to/develop.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+The canonical design contract is [DESIGN.md](docs/DESIGN.md).
 
 Licensed under the [MIT License](LICENSE).

@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -20,12 +20,14 @@ const PUBLIC_PAGES = [
   "README.md",
   "docs/README.md",
   "docs/user-facing-docs/README.md",
-  "docs/user-facing-docs/tutorials/first-document.md",
+  "docs/user-facing-docs/tutorials/first-workbench.md",
   "docs/user-facing-docs/how-to/install-macos.md",
   "docs/user-facing-docs/how-to/install-windows.md",
-  "docs/user-facing-docs/how-to/review-with-comments.md",
+  "docs/user-facing-docs/how-to/manage-projects-and-threads.md",
+  "docs/user-facing-docs/how-to/inspect-changes.md",
   "docs/user-facing-docs/how-to/develop.md",
   "docs/user-facing-docs/reference/cli.md",
+  "docs/user-facing-docs/reference/shortcuts.md",
   "docs/user-facing-docs/explanation/architecture.md",
 ];
 const CONTRIBUTOR_PAGES = [
@@ -41,11 +43,22 @@ const MAINTAINED_CONTEXT_ROOTS = [
   "packages/scripts",
   "packages/app/src",
 ];
+const SKIP_CONTEXT_DIRECTORIES = new Set([
+  ".git",
+  "dist",
+  "node_modules",
+  "out",
+  "target",
+  "test-results",
+]);
 
 function filesUnder(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = resolve(directory, entry.name);
-    return entry.isDirectory() ? filesUnder(path) : [path];
+    if (entry.isDirectory()) {
+      return SKIP_CONTEXT_DIRECTORIES.has(entry.name) ? [] : filesUnder(path);
+    }
+    return [path];
   });
 }
 
@@ -72,11 +85,12 @@ describe("the repository documentation map", () => {
     const readme = page("README.md");
 
     expect(readme.trimEnd().split("\n").length).toBeLessThanOrEqual(90);
-    expect(readme).toContain("docs/user-facing-docs/tutorials/first-document.md");
+    expect(readme).toContain("docs/user-facing-docs/tutorials/first-workbench.md");
     expect(readme).toContain("docs/user-facing-docs/how-to/install-macos.md");
     expect(readme).toContain("install-macos.md#if-macos-says-zd-not-opened");
     expect(readme).toContain("Open Anyway");
-    expect(readme).toContain("docs/user-facing-docs/how-to/review-with-comments.md");
+    expect(readme).toContain("docs/user-facing-docs/how-to/manage-projects-and-threads.md");
+    expect(readme).toContain("docs/user-facing-docs/how-to/inspect-changes.md");
     expect(readme).toContain("docs/user-facing-docs/reference/cli.md");
     expect(readme).toContain("docs/user-facing-docs/explanation/architecture.md");
     expect(readme).toContain("CONTRIBUTING.md");
@@ -90,18 +104,6 @@ describe("the repository documentation map", () => {
     expect(guide).toContain("about an hour");
     expect(guide).toContain("https://support.apple.com/102445");
     expect(guide).not.toMatch(/\bxattr\b|\bspctl\b/);
-  });
-
-  it("documents the global desktop presence control", () => {
-    const readme = page("README.md");
-    const reference = page("docs/user-facing-docs/reference/cli.md");
-
-    for (const source of [readme, reference]) {
-      expect(source).toContain("Cmd+Option+P");
-      expect(source).toContain("Ctrl+Alt+P");
-      expect(source).toContain("every open window");
-      expect(source).toContain("persists");
-    }
   });
 
   it("gives every document type one named entry point", () => {
@@ -189,6 +191,92 @@ describe("the repository documentation map", () => {
       expect(doc.description.length).toBeGreaterThan(20);
       expect(doc.description.length).toBeLessThanOrEqual(160);
     }
+  });
+
+  it("keeps current product context on the workbench naming contract", () => {
+    const currentPages = [
+      ...PUBLIC_PAGES,
+      ...CONTRIBUTOR_PAGES,
+      "packages/website/app/layout.tsx",
+      "packages/website/app/page.tsx",
+      "packages/website/app/docs/page.tsx",
+      "packages/website/lib/site.ts",
+      "packaging/macos/render-social-card.swift",
+      "package.json",
+      "packages/tauri/Cargo.toml",
+      "packages/tauri/tauri.conf.json",
+    ];
+    const retiredLaunch = new RegExp(`\\b${["zd", "md"].join("\\s+")}\\b`, "i");
+    const retiredExtensionFraming = /\bmini[ -]?apps?\b/i;
+    const spacedFamilyName = new RegExp(["Zen", "Suite"].join("\\s+"), "i");
+    const reviewedLegacyLocations = new Set([
+      "packages/app/src/README.md",
+      "packages/app/src/miniapps/README.md",
+    ]);
+
+    const offenders = currentPages.flatMap((path) => {
+      const source = page(path);
+      return [
+        retiredLaunch.test(source) && `${path}: retired launch form`,
+        retiredExtensionFraming.test(source) &&
+          !reviewedLegacyLocations.has(path) &&
+          `${path}: retired extension framing`,
+        spacedFamilyName.test(source) && `${path}: inconsistent family name`,
+      ].filter((problem): problem is string => Boolean(problem));
+    });
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("qualifies obsolete product language wherever active authority records it", () => {
+    const authority = [
+      "docs/VISION.md",
+      "docs/DESIGN.md",
+      "docs/planning/goals/expanded-scope/goal.md",
+      "docs/planning/goals/expanded-scope/goal-docs.md",
+      "docs/planning/goals/expanded-scope/goal-reorganize.md",
+    ];
+    const retiredLaunch = new RegExp(`\\b${["zd", "md"].join("\\s+")}\\b`, "i");
+    const retiredExtensionFraming = /\bmini[ -]?apps?\b/i;
+    const qualifier =
+      /\b(?:former|histor|migration|no |not |old |pivot|reject|remove|retir|supersed|without)\w*/i;
+    const offenders = authority.flatMap((path) =>
+      page(path)
+        .split(/\n\s*\n/)
+        .filter(
+          (paragraph) =>
+            (retiredLaunch.test(paragraph) || retiredExtensionFraming.test(paragraph)) &&
+            !qualifier.test(paragraph),
+        )
+        .map((paragraph) => `${path}: ${paragraph.replace(/\s+/g, " ").slice(0, 100)}`),
+    );
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("does not expand the complete zd name in current product copy", () => {
+    const currentPages = [...PUBLIC_PAGES, ...CONTRIBUTOR_PAGES, "packages/website"];
+    const expansion =
+      /\bzd\s+(?:is\s+)?(?:an?\s+)?(?:abbreviation|short\s+for|stands\s+for|means)\b/i;
+    const offenders = currentPages.flatMap((entry) => {
+      const absolute = resolve(ROOT, entry);
+      const paths = statSync(absolute).isDirectory() ? filesUnder(absolute) : [absolute];
+      return paths
+        .filter((path) => expansion.test(readFileSync(path, "utf8")))
+        .map((path) => relative(ROOT, path));
+    });
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("contains no reserved external product name anywhere in repository sources", () => {
+    const reservedName = String.fromCharCode(122, 101, 110, 100, 101, 115, 107);
+    const offenders = filesUnder(ROOT)
+      .filter((path) => statSync(path).size <= 5 * 1024 * 1024)
+      .filter((path) => readFileSync(path).toString("utf8").toLowerCase().includes(reservedName))
+      .map((path) => relative(ROOT, path));
+
+    expect(offenders).toEqual([]);
   });
 
   it("keeps internal planning links out of standalone user documentation", () => {
