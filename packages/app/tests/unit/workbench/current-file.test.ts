@@ -273,8 +273,50 @@ describe("the root current-file owner", () => {
       commands()
         .find(({ id }) => id === "document.save")
         ?.run(),
-    ).toBe(true);
+    ).toBe(false);
     expect(fixture.writeTextFile).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it("keeps the dirty-file guard but yields editor commands while its surface is inactive", async () => {
+    const fixture = context({
+      status: "text",
+      text: "const value = 1;",
+      byteLength: 16,
+      writable: true,
+    });
+    const host = document.createElement("div");
+    let active = false;
+    const unmount = await mountCurrentFile(host, fixture.runtime, {
+      isActive: () => active,
+    });
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".md-editor")!)!;
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "\nconst mine = 2;" } });
+
+    expect(commandTargetAvailable("file.find")).toBe(false);
+    expect(commandTargetAvailable("focus.toggle")).toBe(false);
+    expect(
+      commands()
+        .find(({ id }) => id === "document.save")
+        ?.available?.(),
+    ).toBe(false);
+    expect(
+      commands()
+        .find(({ id }) => id === "document.save")
+        ?.run(),
+    ).toBe(false);
+    expect(await fixture.runtime.state.activateFile(resource("src/other.ts"))).toMatchObject({
+      status: "refused",
+      reason: expect.stringContaining("unsaved"),
+    });
+
+    active = true;
+    expect(commandTargetAvailable("file.find")).toBe(true);
+    expect(
+      commands()
+        .find(({ id }) => id === "document.save")
+        ?.available?.(),
+    ).toBe(true);
     unmount();
   });
 
