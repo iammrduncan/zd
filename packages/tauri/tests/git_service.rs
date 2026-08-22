@@ -13,10 +13,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use cli::{LaunchState, NativeOpenRequest};
-use git::types::GitChangeState;
+use git::types::{GitChangeState, GitDiffBuffer, GitDiffSource};
 use git::{
-    compare_for, history_for, status_for, GitAvailability, GitCompareRequest, GitHistoryRequest,
-    GitScope,
+    compare_for, diff_for, history_for, status_for, GitAvailability, GitCompareRequest,
+    GitDiffRequest, GitHistoryRequest, GitScope,
 };
 
 struct RepositoryFixture(PathBuf);
@@ -437,4 +437,128 @@ fn comparison_accepts_only_full_commit_ids_and_reports_renames_deletes_and_addit
         .problem
         .as_deref()
         .is_some_and(|problem| problem.contains("full commit")));
+}
+
+#[test]
+fn diff_buffers_resolve_native_change_ids_without_accepting_a_frontend_path() {
+    let repository = RepositoryFixture::new("diff-buffers");
+    repository.write(
+        "before.txt",
+        "before\nshared one\nshared two\nshared three\n",
+    );
+    let before = repository.commit_all("before");
+    repository.git(&["mv", "before.txt", "after.txt"]);
+    repository.write("after.txt", "after\nshared one\nshared two\nshared three\n");
+    let after = repository.commit_all("after");
+    repository.write("after.txt", "working\n");
+    let (launch, scope) = approved_scope(repository.path());
+
+    let status = status_for(&launch, scope.clone());
+    let working = diff_for(
+        &launch,
+        GitDiffRequest {
+            scope: scope.clone(),
+            source: GitDiffSource::WorkingTree {
+                change_id: status.entries[0].id.clone(),
+            },
+        },
+    );
+    assert_eq!(working.availability, GitAvailability::Available);
+    assert!(matches!(
+        working.base,
+        GitDiffBuffer::Text { ref text, .. }
+            if text == "after\nshared one\nshared two\nshared three\n"
+    ));
+    assert!(matches!(
+        working.head,
+        GitDiffBuffer::Text { ref text, .. } if text == "working\n"
+    ));
+
+    let comparison = compare_for(
+        &launch,
+        GitCompareRequest {
+            scope: scope.clone(),
+            base_commit_id: before.clone(),
+            head_commit_id: after.clone(),
+        },
+    );
+    let historical = diff_for(
+        &launch,
+        GitDiffRequest {
+            scope: scope.clone(),
+            source: GitDiffSource::Comparison {
+                base_commit_id: before,
+                head_commit_id: after,
+                change_id: comparison.entries[0].id.clone(),
+            },
+        },
+    );
+    assert!(matches!(
+        historical.base,
+        GitDiffBuffer::Text { ref path, ref text, .. }
+            if path == "before.txt"
+                && text == "before\nshared one\nshared two\nshared three\n"
+    ));
+    assert!(matches!(
+        historical.head,
+        GitDiffBuffer::Text { ref path, ref text, .. }
+            if path == "after.txt"
+                && text == "after\nshared one\nshared two\nshared three\n"
+    ));
+
+    assert!(serde_json::from_value::<GitDiffRequest>(serde_json::json!({
+        "scope": scope,
+        "source": {
+            "kind": "working-tree",
+            "changeId": status.entries[0].id,
+            "path": "../../outside"
+        }
+    }))
+    .is_err());
+}
+
+#[test]
+fn diff_buffers_classify_missing_binary_and_over_limit_content() {
+    let repository = RepositoryFixture::new("diff-content-bounds");
+    repository.write("deleted.txt", "deleted\n");
+    repository.commit_all("base");
+    repository.remove("deleted.txt");
+    std::fs::write(repository.path().join("binary.bin"), [0, 1, 2]).expect("write binary");
+    std::fs::write(
+        repository.path().join("large.txt"),
+        vec![b'x'; 8 * 1024 * 1024 + 1],
+    )
+    .expect("write large fixture");
+    let (launch, scope) = approved_scope(repository.path());
+    let status = status_for(&launch, scope.clone());
+
+    let read = |path: &str| {
+        let change = status
+            .entries
+            .iter()
+            .find(|entry| entry.path == path)
+            .expect("fixture change");
+        diff_for(
+            &launch,
+            GitDiffRequest {
+                scope: scope.clone(),
+                source: GitDiffSource::WorkingTree {
+                    change_id: change.id.clone(),
+                },
+            },
+        )
+    };
+
+    assert!(matches!(
+        read("deleted.txt").head,
+        GitDiffBuffer::Missing { .. }
+    ));
+    assert!(matches!(
+        read("binary.bin").head,
+        GitDiffBuffer::Binary { .. }
+    ));
+    assert!(matches!(
+        read("large.txt").head,
+        GitDiffBuffer::OverLimit { limit, .. } if limit == 8 * 1024 * 1024
+    ));
 }

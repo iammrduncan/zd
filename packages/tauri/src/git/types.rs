@@ -120,3 +120,90 @@ pub struct GitComparison {
     pub truncated: bool,
     pub problem: Option<String>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "kebab-case",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum GitDiffSource {
+    WorkingTree {
+        change_id: String,
+    },
+    Comparison {
+        base_commit_id: String,
+        head_commit_id: String,
+        change_id: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GitDiffRequest {
+    pub scope: GitScope,
+    pub source: GitDiffSource,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(
+    tag = "status",
+    rename_all = "kebab-case",
+    rename_all_fields = "camelCase"
+)]
+pub enum GitDiffBuffer {
+    Text {
+        identity: String,
+        path: String,
+        revision: String,
+        text: String,
+        byte_length: u64,
+    },
+    Binary {
+        identity: String,
+        path: String,
+        revision: String,
+        byte_length: u64,
+    },
+    Undecodable {
+        identity: String,
+        path: String,
+        revision: String,
+        byte_length: u64,
+    },
+    Missing {
+        identity: String,
+        path: String,
+        revision: String,
+    },
+    Denied {
+        identity: String,
+        path: String,
+        revision: String,
+    },
+    OverLimit {
+        identity: String,
+        path: String,
+        revision: String,
+        byte_length: u64,
+        limit: u64,
+        preview: Option<String>,
+    },
+    Unavailable {
+        identity: String,
+        path: String,
+        revision: String,
+        problem: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitDiff {
+    pub scope: GitScope,
+    pub availability: GitAvailability,
+    pub base: GitDiffBuffer,
+    pub head: GitDiffBuffer,
+    pub problem: Option<String>,
+}

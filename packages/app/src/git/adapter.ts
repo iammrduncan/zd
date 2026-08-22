@@ -2,6 +2,8 @@ import type {
   GitAdapter,
   GitCompareRequest,
   GitComparison,
+  GitDiff,
+  GitDiffRequest,
   GitHistoryPage,
   GitHistoryRequest,
   GitScope,
@@ -36,6 +38,7 @@ export function createTauriGitAdapter(invoke: NativeGitInvoke): GitAdapter {
         request: normalizedHistoryRequest(request),
       }) as Promise<GitHistoryPage>,
     compare: (request) => invoke("git_compare", { request }) as Promise<GitComparison>,
+    diff: (request) => invoke("git_diff", { request }) as Promise<GitDiff>,
   };
 }
 
@@ -74,9 +77,28 @@ function unavailableComparison(request: GitCompareRequest): GitComparison {
   };
 }
 
+function unavailableDiff(request: GitDiffRequest): GitDiff {
+  const changeId = request.source.changeId;
+  const buffer = (revision: string) => ({
+    status: "unavailable" as const,
+    identity: `unavailable:${changeId}:${revision}`,
+    path: "",
+    revision,
+    problem: unavailableProblem,
+  });
+  return {
+    scope: request.scope,
+    availability: "unavailable",
+    base: buffer("base"),
+    head: buffer("head"),
+    problem: unavailableProblem,
+  };
+}
+
 /** Honest inert adapter for browser fixtures, without a pretend repository. */
 export const unavailableGitAdapter: GitAdapter = {
   status: async (scope) => unavailableStatus(scope),
   history: async (request) => unavailableHistory(request),
   compare: async (request) => unavailableComparison(request),
+  diff: async (request) => unavailableDiff(request),
 };

@@ -3,6 +3,8 @@
 //! The webview supplies opaque grant identities, bounded cursors, and full commit
 //! identities. It cannot supply a directory, executable, argument vector, or path.
 
+#[path = "git/diff.rs"]
+mod diff;
 #[path = "git/history.rs"]
 mod history;
 #[path = "git/status.rs"]
@@ -21,9 +23,10 @@ use history::{
 };
 use status::parse_status;
 
+pub use diff::diff_for;
 pub use types::{
-    GitAvailability, GitCompareRequest, GitComparison, GitHistoryPage, GitHistoryRequest, GitScope,
-    GitStatusSnapshot,
+    GitAvailability, GitCompareRequest, GitComparison, GitDiff, GitDiffRequest, GitHistoryPage,
+    GitHistoryRequest, GitScope, GitStatusSnapshot,
 };
 
 const PROBE_OUTPUT_LIMIT: usize = 16 * 1024;
@@ -489,4 +492,9 @@ pub fn git_compare(
     request: GitCompareRequest,
 ) -> GitComparison {
     compare_for(&state, request)
+}
+
+#[tauri::command]
+pub fn git_diff(state: tauri::State<'_, LaunchState>, request: GitDiffRequest) -> GitDiff {
+    diff_for(&state, request)
 }

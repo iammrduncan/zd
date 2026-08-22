@@ -77,8 +77,53 @@ export interface GitComparison {
   readonly problem: string | null;
 }
 
+export type GitDiffSource =
+  | { readonly kind: "working-tree"; readonly changeId: string }
+  | {
+      readonly kind: "comparison";
+      readonly baseCommitId: string;
+      readonly headCommitId: string;
+      readonly changeId: string;
+    };
+
+export interface GitDiffRequest {
+  readonly scope: GitScope;
+  readonly source: GitDiffSource;
+}
+
+interface GitDiffBufferIdentity {
+  readonly identity: string;
+  readonly path: string;
+  readonly revision: string;
+}
+
+export type GitDiffBuffer = GitDiffBufferIdentity &
+  (
+    | { readonly status: "text"; readonly text: string; readonly byteLength: number }
+    | { readonly status: "binary"; readonly byteLength: number }
+    | { readonly status: "undecodable"; readonly byteLength: number }
+    | { readonly status: "missing" }
+    | { readonly status: "denied" }
+    | {
+        readonly status: "over-limit";
+        readonly byteLength: number;
+        readonly limit: number;
+        readonly preview: string | null;
+      }
+    | { readonly status: "unavailable"; readonly problem: string }
+  );
+
+export interface GitDiff {
+  readonly scope: GitScope;
+  readonly availability: GitAvailability;
+  readonly base: GitDiffBuffer;
+  readonly head: GitDiffBuffer;
+  readonly problem: string | null;
+}
+
 export interface GitAdapter {
   status(scope: GitScope): Promise<GitStatusSnapshot>;
   history(request: GitHistoryRequest): Promise<GitHistoryPage>;
   compare(request: GitCompareRequest): Promise<GitComparison>;
+  diff(request: GitDiffRequest): Promise<GitDiff>;
 }

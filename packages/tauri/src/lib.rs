@@ -83,6 +83,7 @@ pub fn run() {
             git::git_status,
             git::git_history_page,
             git::git_compare,
+            git::git_diff,
             worktrees::create_thread_worktree,
             fs::read_text_file,
             fs::read_bounded_file,
