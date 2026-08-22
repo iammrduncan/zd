@@ -136,6 +136,7 @@ describe("FileTreeController", () => {
       scroll: { top: 42, left: 11 },
     });
     expect(controller.snapshot().expandedPaths.has("src")).toBe(true);
+    expect(adapter.snapshot).toHaveBeenCalledTimes(3);
   });
 
   it("coalesces refresh bursts into one follow-up instead of polling", async () => {
@@ -219,11 +220,19 @@ describe("FileTreeController", () => {
       },
     );
     await controller.activate(scope);
-    controller.reconcileGit(new Map([["notes.md", "modified"]]));
+    controller.reconcileGit(
+      new Map([
+        ["notes.md", "modified"],
+        ["removed.md", "deleted"],
+      ]),
+    );
     controller.summonFilter();
     controller.setFilter("markdown");
 
     expect(controller.snapshot().entries[0]?.gitState).toBe("modified");
+    expect(
+      controller.snapshot().entries.find(({ relativePath }) => relativePath === "removed.md"),
+    ).toMatchObject({ gitState: "deleted", byteLength: null });
     expect(controller.snapshot().notice).toContain("bounded file-tree limit");
     expect(metrics.some((metric) => metric.operation === "refresh")).toBe(true);
     expect(JSON.stringify(metrics)).not.toContain("notes.md");
