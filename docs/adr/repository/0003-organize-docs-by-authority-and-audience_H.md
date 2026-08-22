@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Superseded by
+[0004: Use docs/planning for active work](0004-use-docs-planning-for-active-work_H.md)
 
 ## Context
 
@@ -31,3 +32,7 @@ CLAUDE files will provide automatic writing guidance where a documentation bound
 - Audit findings become durable ADRs instead of permanent review dumps.
 - ZSIPs represent actual submitted proposals rather than reconstructed project history.
 - Existing links, scripts, tests, and contributor instructions must move with their documents.
+
+## Revision history
+
+- `5699c1e33b88eb0e6d34a8303e71b33e90f99bdf` — Prior accepted version before adopting docs/planning as the active work root.

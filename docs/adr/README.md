@@ -11,14 +11,17 @@ changes through a [Zen Suite Improvement Proposal (ZSIP)](../zsip/README.md).
 
 ## Records
 
-### Suite
+### Workbench and platform
 
 - [0001: Use Tauri with a portable web frontend](suite/0001-use-tauri-with-portable-web-frontend_H.md)
 - [0002: Put native authority behind one platform boundary](suite/0002-put-native-authority-behind-platform-boundary_H.md)
-- [0003: Scope file access to the launch workspace](suite/0003-scope-file-access-to-launch-workspace_H.md)
-- [0004: Dispatch application commands from the suite registry](suite/0004-dispatch-application-commands-from-suite-registry_H.md)
+- [0003: Scope file access to the launch workspace](suite/0003-scope-file-access-to-launch-workspace_H.md) — superseded
+- [0004: Dispatch application commands from the suite registry](suite/0004-dispatch-application-commands-from-suite-registry_H.md) — superseded
+- [0005: Own one versioned workbench state](suite/0005-own-one-versioned-workbench-state_H.md)
+- [0006: Scope file access to approved project grants](suite/0006-scope-file-access-to-approved-project-grants_H.md)
+- [0007: Dispatch commands from one workbench registry](suite/0007-dispatch-commands-from-one-workbench-registry_H.md)
 
-### zd md
+### Editor and current file
 
 - [0001: Use browser layout for Markdown](md/0001-use-browser-layout-for-markdown_H.md)
 - [0002: Use one always-editable document surface](md/0002-use-one-always-editable-document-surface_H.md)
@@ -29,7 +32,8 @@ changes through a [Zen Suite Improvement Proposal (ZSIP)](../zsip/README.md).
 
 - [0001: Use a feedback-driven session loop](repository/0001-use-a-feedback-driven-session-loop_H.md)
 - [0002: Publish versioned desktop releases](repository/0002-publish-versioned-desktop-releases_H.md)
-- [0003: Organize docs by authority and audience](repository/0003-organize-docs-by-authority-and-audience_H.md)
+- [0003: Organize docs by authority and audience](repository/0003-organize-docs-by-authority-and-audience_H.md) — superseded
+- [0004: Use docs/planning for active work](repository/0004-use-docs-planning-for-active-work_H.md)
 
 ## Minimal format
 
