@@ -104,9 +104,11 @@ test("renders a dense horizontally and vertically scrollable virtual tree", asyn
   expect(await visibleRows.count()).toBeLessThan(40);
   const metrics = await page.locator('[data-file-path="src"]').evaluate((row) => ({
     height: row.getBoundingClientRect().height,
+    hitHeight: getComputedStyle(row, "::before").height,
     family: getComputedStyle(row).fontFamily,
   }));
   expect(metrics.height).toBe(19);
+  expect(metrics.hitHeight).toBe("24px");
   expect(metrics.family).toContain("iA Writer Mono");
   const scrolling = await viewport.evaluate((element) => ({
     overflowX: getComputedStyle(element).overflowX,

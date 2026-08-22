@@ -86,6 +86,7 @@
 
 .zd-file-tree-row {
   appearance: none;
+  position: relative;
   display: flex;
   align-items: center;
   inline-size: 100%;
@@ -102,6 +103,22 @@
   line-height: var(--zd-file-tree-row-height);
   text-align: start;
   white-space: nowrap;
+}
+
+.zd-file-tree-row::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset-block-start: 50%;
+  inset-inline: 0;
+  block-size: 24px;
+  transform: translateY(-50%);
+}
+
+.zd-file-tree-row > * {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .zd-file-tree-row:hover {
