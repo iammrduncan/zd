@@ -68,6 +68,10 @@ export interface Platform {
   acceptOpenRequest(): Promise<LaunchRequest | null>;
   /** All roots approved by native launch/open/picker/worktree flows. */
   projectGrants(): Promise<readonly ProjectGrant[]>;
+  /** Open the native folder picker and mint or reuse one canonical project grant. */
+  chooseProject(): Promise<ProjectGrant | null>;
+  /** Locate an unavailable project through the native picker without changing its identity. */
+  recoverProjectGrant(projectId: string): Promise<ProjectGrant | null>;
   /** Revoke an inactive project after root lifecycle guards approve it. */
   removeProjectGrant(projectId: string): Promise<ProjectGrant>;
   /** Read direct `<name>.theme.config` children of the platform `zd` config directory. */
@@ -136,6 +140,9 @@ const tauri: Platform = {
   pendingOpenRequest: () => invoke<LaunchRequest | null>("pending_open_request"),
   acceptOpenRequest: () => invoke<LaunchRequest | null>("accept_open_request"),
   projectGrants: () => invoke<readonly ProjectGrant[]>("project_grants"),
+  chooseProject: () => invoke<ProjectGrant | null>("choose_project"),
+  recoverProjectGrant: (projectId) =>
+    invoke<ProjectGrant | null>("recover_project_grant", { projectId }),
   removeProjectGrant: (projectId) => invoke<ProjectGrant>("remove_project_grant", { projectId }),
   themeConfigFiles: () => invoke<readonly ThemeConfigFile[]>("theme_config_files"),
   registerGlobalSummon: () => invoke<GlobalShortcutRegistration>("register_global_summon"),
@@ -190,6 +197,8 @@ const browser: Platform = {
   pendingOpenRequest: async () => null,
   acceptOpenRequest: async () => null,
   projectGrants: async () => [],
+  chooseProject: async () => null,
+  recoverProjectGrant: async () => null,
   removeProjectGrant: async (projectId) => {
     throw new Error(`no project grants in the browser shell: ${projectId}`);
   },

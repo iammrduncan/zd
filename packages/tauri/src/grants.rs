@@ -176,6 +176,51 @@ impl GrantStore {
         self.projects.iter().map(describe_project).collect()
     }
 
+    pub fn recover_project(
+        &mut self,
+        project_id: &str,
+        requested: &Path,
+    ) -> Result<ProjectGrant, String> {
+        let root = canonical_directory(requested)?;
+        let project_index = self
+            .projects
+            .iter()
+            .position(|project| project.id == project_id)
+            .ok_or_else(|| format!("unknown project grant {project_id}"))?;
+
+        for (owner_index, owner) in self.projects.iter().enumerate() {
+            if owner_index != project_index && owner.root == root {
+                return Err(format!(
+                    "{} is already approved by project {}",
+                    root.display(),
+                    owner.id
+                ));
+            }
+            for (worktree_index, worktree) in owner.worktrees.iter().enumerate() {
+                let is_recovered_root = owner_index == project_index && worktree_index == 0;
+                if !is_recovered_root && worktree.root == root {
+                    return Err(format!(
+                        "{} is already approved as worktree {}",
+                        root.display(),
+                        worktree.id
+                    ));
+                }
+            }
+        }
+
+        let project = &mut self.projects[project_index];
+        let name = display_name(&root);
+        project.name.clone_from(&name);
+        project.root.clone_from(&root);
+        let root_worktree = project
+            .worktrees
+            .first_mut()
+            .expect("every approved project has its root worktree");
+        root_worktree.name = name;
+        root_worktree.root = root;
+        Ok(describe_project(project))
+    }
+
     pub fn remove_project(&mut self, project_id: &str) -> Result<ProjectGrant, String> {
         let index = self
             .projects
@@ -476,5 +521,44 @@ mod tests {
         assert!(grants
             .resolve(&resource(&approved.project.id, &first.id, "branch.md"))
             .is_ok());
+    }
+
+    #[test]
+    fn recovering_a_moved_project_keeps_its_project_and_root_worktree_identities() {
+        let scratch = Scratch::new("recover-moved");
+        let original = scratch.join("original");
+        let moved = scratch.join("moved");
+        std::fs::create_dir_all(&original).unwrap();
+        let mut grants = GrantStore::default();
+        let approved = grants.approve_project(&original).unwrap();
+        std::fs::rename(&original, &moved).unwrap();
+
+        let recovered = grants
+            .recover_project(&approved.project.id, &moved)
+            .unwrap();
+
+        assert_eq!(recovered.id, approved.project.id);
+        assert_eq!(recovered.worktrees[0].id, approved.worktree_id);
+        assert_eq!(
+            recovered.root,
+            moved.canonicalize().unwrap().to_string_lossy()
+        );
+        assert_eq!(recovered.worktrees[0].root, recovered.root);
+    }
+
+    #[test]
+    fn project_recovery_cannot_take_over_another_grant() {
+        let alpha = Scratch::new("recover-alpha");
+        let beta = Scratch::new("recover-beta");
+        let mut grants = GrantStore::default();
+        let alpha_grant = grants.approve_project(&alpha.0).unwrap();
+        let beta_grant = grants.approve_project(&beta.0).unwrap();
+
+        let error = grants
+            .recover_project(&alpha_grant.project.id, &beta.0)
+            .unwrap_err();
+
+        assert!(error.contains(&beta_grant.project.id));
+        assert_eq!(grants.projects()[0].root, alpha_grant.project.root);
     }
 }

@@ -63,6 +63,8 @@ function context(
       pendingOpenRequest: async () => null,
       acceptOpenRequest: async () => null,
       projectGrants: async () => [project],
+      chooseProject: async () => null,
+      recoverProjectGrant: async () => null,
       removeProjectGrant: async () => project,
       themeConfigFiles: async () => [],
       registerGlobalSummon: async () => ({

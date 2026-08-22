@@ -62,6 +62,8 @@ function context(path: string, listing: WorkspaceListing): WorkbenchRuntimeConte
       pendingOpenRequest: async () => null,
       acceptOpenRequest: async () => null,
       projectGrants: async () => [project],
+      chooseProject: async () => null,
+      recoverProjectGrant: async () => null,
       removeProjectGrant: async () => project,
       themeConfigFiles: async () => [],
       registerGlobalSummon: async () => ({

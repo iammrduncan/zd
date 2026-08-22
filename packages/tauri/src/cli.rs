@@ -105,6 +105,24 @@ impl LaunchState {
             .projects()
     }
 
+    pub fn approve_project(&self, root: &Path) -> Result<ProjectGrant, String> {
+        let mut session = self.0.lock().expect("launch state was poisoned");
+        session
+            .grants
+            .approve_project(root)
+            .map(|approved| approved.project)
+    }
+
+    pub fn recover_project(&self, project_id: &str, root: &Path) -> Result<ProjectGrant, String> {
+        let mut session = self.0.lock().expect("launch state was poisoned");
+        let recovered = session.grants.recover_project(project_id, root)?;
+        refresh_request_project(&mut session.current, &recovered);
+        for request in &mut session.pending {
+            refresh_request_project(request, &recovered);
+        }
+        Ok(recovered)
+    }
+
     pub fn resolve(&self, resource: &ResourceRef) -> Result<PathBuf, String> {
         self.0
             .lock()
@@ -123,29 +141,52 @@ impl LaunchState {
 
     pub fn remove_project(&self, project_id: &str) -> Result<ProjectGrant, String> {
         let mut session = self.0.lock().expect("launch state was poisoned");
-        let in_use = std::iter::once(&session.current)
-            .chain(session.pending.iter())
-            .any(|request| {
-                request
-                    .project
-                    .as_ref()
-                    .is_some_and(|project| project.id == project_id)
-            });
-        if in_use {
-            return Err(format!("project grant {project_id} is still active"));
+        let pending = session.pending.iter().any(|request| {
+            request
+                .project
+                .as_ref()
+                .is_some_and(|project| project.id == project_id)
+        });
+        if pending {
+            return Err(format!(
+                "project grant {project_id} belongs to a pending native open request"
+            ));
         }
-        session.grants.remove_project(project_id)
+        let removed = session.grants.remove_project(project_id)?;
+        if session
+            .current
+            .project
+            .as_ref()
+            .is_some_and(|project| project.id == project_id)
+        {
+            session.current = home_request();
+        }
+        Ok(removed)
+    }
+}
+
+fn refresh_request_project(request: &mut LaunchRequest, recovered: &ProjectGrant) {
+    if request
+        .project
+        .as_ref()
+        .is_some_and(|project| project.id == recovered.id)
+    {
+        request.project = Some(recovered.clone());
+    }
+}
+
+fn home_request() -> LaunchRequest {
+    LaunchRequest {
+        project: None,
+        worktree_id: None,
+        relative_path: None,
+        problem: None,
     }
 }
 
 fn resolve_open_request(grants: &mut GrantStore, request: NativeOpenRequest) -> LaunchRequest {
     let Some(raw_path) = request.path else {
-        return LaunchRequest {
-            project: None,
-            worktree_id: None,
-            relative_path: None,
-            problem: None,
-        };
+        return home_request();
     };
     let path = Path::new(&raw_path);
     let root = scope_for(&raw_path);
@@ -498,6 +539,45 @@ mod tests {
         );
         assert_eq!(state.current(), accepted);
         assert_eq!(state.accept_pending(), None);
+    }
+
+    #[test]
+    fn a_guarded_frontend_removal_can_revoke_the_accepted_launch_grant() {
+        let scratch = Scratch::new("remove-current");
+        let state = LaunchState::new(NativeOpenRequest {
+            path: Some(scratch.0.to_string_lossy().into_owned()),
+        });
+        let project_id = state.current().project.unwrap().id;
+
+        let removed = state.remove_project(&project_id).unwrap();
+
+        assert_eq!(removed.id, project_id);
+        assert!(state.current().project.is_none());
+        assert!(state.project_grants().is_empty());
+    }
+
+    #[test]
+    fn an_unaccepted_native_open_keeps_its_grant_until_the_request_is_resolved() {
+        let scratch = Scratch::new("remove-pending");
+        let alpha = scratch.join("alpha");
+        let beta = scratch.join("beta");
+        std::fs::create_dir_all(&alpha).unwrap();
+        std::fs::create_dir_all(&beta).unwrap();
+        let state = LaunchState::new(NativeOpenRequest {
+            path: Some(alpha.to_string_lossy().into_owned()),
+        });
+        state.queue(NativeOpenRequest {
+            path: Some(beta.to_string_lossy().into_owned()),
+        });
+        let pending_id = state.pending().unwrap().project.unwrap().id;
+
+        let error = state.remove_project(&pending_id).unwrap_err();
+
+        assert!(error.contains("pending"));
+        assert!(state
+            .project_grants()
+            .iter()
+            .any(|grant| grant.id == pending_id));
     }
 
     #[test]
