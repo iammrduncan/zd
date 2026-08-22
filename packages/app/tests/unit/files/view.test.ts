@@ -43,6 +43,21 @@ async function mounted(entries: readonly NativeFileTreeEntry[]) {
 }
 
 describe("Files tree view", () => {
+  it("shows an explicit loading row while the bounded snapshot is pending", async () => {
+    let resolve!: (result: FileTreeResult) => void;
+    const pending = new Promise<FileTreeResult>((complete) => {
+      resolve = complete;
+    });
+    const controller = new FileTreeController({ snapshot: async () => pending });
+    const host = document.createElement("aside");
+    mountFileTree(host, controller);
+    const activation = controller.activate(scope);
+
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("Loading files…");
+    resolve({ ...scope, status: "empty", revision: "empty", elapsedMicros: 1 });
+    await activation;
+  });
+
   it("renders a compact semantic tree with type and Git state in its accessible name", async () => {
     const fixture = await mounted([entry("docs", "directory"), entry("notes.md")]);
     fixture.controller.reconcileGit(new Map([["notes.md", "modified"]]));

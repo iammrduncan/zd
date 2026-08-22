@@ -78,6 +78,7 @@ describe("file-tree model", () => {
       entry("src", "directory"),
       entry("src/notes.ts"),
       entry("src/main.rs"),
+      entry("nope.txt"),
     ]);
 
     expect(
