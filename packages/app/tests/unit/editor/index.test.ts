@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { EditorView } from "@codemirror/view";
 
-import { createEditor, type EditorOptions } from "@/miniapps/md/editor/editor";
+import { createEditor, type EditorOptions } from "@/editor";
 
 // The interface, not the library. What CodeMirror does with a keystroke is
 // CodeMirror's business and is measured in a real engine — see
@@ -44,6 +44,15 @@ describe("the editing surface", () => {
   it("reports where the caret is", () => {
     const { editor } = mount("text");
     expect(editor.hasFocus()).toBe(false);
+  });
+
+  it("makes a read-only buffer selectable but not editable", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const editor = createEditor(host, "fixed", { readOnly: true });
+
+    expect(host.querySelector(".cm-content")?.getAttribute("contenteditable")).toBe("false");
+    expect(editor.isReadOnly()).toBe(true);
   });
 });
 
@@ -93,6 +102,23 @@ describe("saving", () => {
     // An editor with nowhere to save is a real state — the dev fixture is one —
     // and saving in it must be a quiet no-op rather than an exception.
     expect(() => editor("text").document_.save()).not.toThrow();
+  });
+
+  it("never saves through a read-only buffer", async () => {
+    const saved: string[] = [];
+    const host = document.createElement("div");
+    document.body.append(host);
+    const document_ = createEditor(host, "fixed", {
+      readOnly: true,
+      onSave: (text) => {
+        saved.push(text);
+      },
+    });
+
+    await document_.save();
+
+    expect(saved).toEqual([]);
+    expect(document_.isDirty()).toBe(false);
   });
 
   /*

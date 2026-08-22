@@ -83,6 +83,8 @@ export interface Editor {
    * gets wrong.
    */
   isDirty(): boolean;
+  /** True when selection is allowed but document mutation and saving are not. */
+  isReadOnly(): boolean;
   /**
    * Write the document through `onSave` and mark it saved.
    *
@@ -155,6 +157,8 @@ export interface Editor {
 
 /** What the caller supplies that the editor cannot work out for itself. */
 export interface EditorOptions {
+  /** Keep the source selectable while preventing edits, replacement, and save. */
+  readOnly?: boolean;
   /**
    * Save this text. Vision §6.3: "`cmd+s` saves."
    *
@@ -239,6 +243,7 @@ export function createEditor(
   let written = Text.of(doc.split("\n"));
 
   const language = options.language ?? MARKDOWN_DOCUMENT;
+  const readOnly = options.readOnly ?? false;
 
   /*
    * The kind of document, on the column, for CSS to read — §6.2's "mono family"
@@ -248,6 +253,7 @@ export function createEditor(
    * reflows while you work").
    */
   parent.dataset.language = language.markdown ? "markdown" : "code";
+  parent.dataset.editable = String(!readOnly);
   let dirty = false;
 
   /**
@@ -289,6 +295,8 @@ export function createEditor(
          * than throwing if that is ever got wrong, but the order is the real fix.
          */
         rawModeState(),
+        EditorState.readOnly.of(readOnly),
+        EditorView.editable.of(!readOnly),
         history(),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) recheck();
@@ -410,7 +418,9 @@ export function createEditor(
       view.dispatch({ selection: { anchor: clamped } });
     },
     isDirty: () => dirty,
+    isReadOnly: () => readOnly,
     save: () => {
+      if (readOnly) return Promise.resolve();
       /*
        * **The document is not saved until the owner says it was.**
        *

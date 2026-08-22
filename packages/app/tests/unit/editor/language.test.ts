@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { languageFor } from "@/miniapps/md/editor/language";
+import { LANGUAGE_REGISTRY, LANGUAGE_REGISTRY_VERSION, languageFor } from "@/editor/language";
 
 /*
  * Which files are markdown — vision §6.2, and the feedback "html and ts parsed as
@@ -66,6 +66,21 @@ describe("files that are not markdown", () => {
 });
 
 describe("the shared highlighting inventory", () => {
+  it("is one versioned inventory for file and fenced-code resolution", () => {
+    expect(LANGUAGE_REGISTRY_VERSION).toBe(1);
+    expect(LANGUAGE_REGISTRY.map(({ id }) => id)).toEqual([
+      "markdown",
+      "rust",
+      "javascript",
+      "jsx",
+      "typescript",
+      "tsx",
+      "html",
+      "css",
+      "json",
+    ]);
+  });
+
   it("gives a Rust file the grammar a Rust fence already gets", () => {
     expect(languageFor("main.rs").support).not.toBeNull();
     expect(languageFor("main.rs").markdown).toBe(false);
@@ -84,8 +99,14 @@ describe("the shared highlighting inventory", () => {
     }
   });
 
+  it("supports CSS and JSON because both occur in this repository", () => {
+    for (const path of ["styles.css", "package.json"]) {
+      expect(languageFor(path).support, `${path} stayed plain`).not.toBeNull();
+    }
+  });
+
   it("leaves every language outside the inventory as honest monospace", () => {
-    for (const path of ["styles.css", "data.json", "run.py"]) {
+    for (const path of ["data.yaml", "config.toml", "run.py"]) {
       expect(languageFor(path).support, `${path} received a grammar`).toBeNull();
     }
   });
