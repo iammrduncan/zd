@@ -1,0 +1,118 @@
+.zd-diff {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-block-size: 0;
+  block-size: 100%;
+  overflow: hidden;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+}
+
+.zd-diff[hidden] {
+  display: none;
+}
+
+.zd-diff-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-block-size: 30px;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  padding-inline: var(--space-3);
+  background: var(--surface-sidebar);
+}
+
+.zd-diff-title,
+.zd-diff-side-heading {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-navigation-size);
+  font-weight: var(--type-navigation-weight);
+  letter-spacing: 0.045em;
+}
+
+.zd-diff-close {
+  appearance: none;
+  border: 0;
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+}
+
+.zd-diff-close:hover,
+.zd-diff-close:focus-visible {
+  color: var(--text-primary);
+  background: var(--surface-selection);
+}
+
+.zd-diff-status {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+}
+
+.zd-diff-status[hidden] {
+  display: none;
+}
+
+.zd-diff-panes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+.zd-diff-panes[hidden] {
+  display: none;
+}
+
+.zd-diff-side {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+.zd-diff-side + .zd-diff-side {
+  border-inline-start: var(--hairline) solid var(--line-quiet);
+}
+
+.zd-diff-side-heading {
+  overflow: hidden;
+  min-block-size: 25px;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  padding: var(--space-2) var(--space-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zd-diff-content,
+.zd-diff-content > .editor-buffer,
+.zd-diff-content .editor-buffer-content {
+  min-block-size: 0;
+  block-size: 100%;
+  overflow: hidden;
+}
+
+.zd-diff-content .editor-buffer-reason {
+  margin: 0;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  padding: var(--space-2) var(--space-3);
+}
+
+@media (max-width: 56rem) {
+  .zd-diff-panes {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+
+  .zd-diff-side + .zd-diff-side {
+    border-block-start: var(--hairline) solid var(--line-quiet);
+    border-inline-start: 0;
+  }
+}
