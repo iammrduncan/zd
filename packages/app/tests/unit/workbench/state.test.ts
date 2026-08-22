@@ -7,6 +7,7 @@ import {
   parseWorkbenchState,
   workbenchStateFromGrants,
   type WorkbenchContext,
+  type ProjectRemoval,
   type WorkbenchState,
 } from "@/workbench/state";
 import type { FileResource, LaunchRequest, ProjectGrant } from "@/workbench/resources";
@@ -280,6 +281,163 @@ describe("atomic workbench context transitions", () => {
     expect(result).toEqual({ status: "refused", reason: "README.md has unsaved work" });
     expect(owner.snapshot().active.fileId).not.toBe(fileStateId(target));
     expect(seen).not.toHaveBeenCalled();
+  });
+
+  it("restores each project's exact session context after repeated activation", async () => {
+    const owner = createWorkbenchStateOwner(populatedState());
+
+    await expect(owner.activateProject("project-b")).resolves.toEqual({ status: "committed" });
+    expect(owner.snapshot().active).toEqual(beta);
+
+    await expect(owner.activateProject("project-a")).resolves.toEqual({ status: "committed" });
+    expect(owner.snapshot().active).toEqual({
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+      threadId: "thread-a",
+      fileId: "file-a",
+    });
+
+    await expect(owner.activateProject("project-b")).resolves.toEqual({ status: "committed" });
+    expect(owner.snapshot().active).toEqual(beta);
+  });
+
+  it("accepts a new native grant atomically and activates an existing canonical root", async () => {
+    const owner = createWorkbenchStateOwner(populatedState());
+    const seen = vi.fn();
+    owner.subscribe(seen);
+
+    const duplicate = grant("competing-id", "/work/beta");
+    await expect(owner.acceptProjectGrant(duplicate)).resolves.toEqual({ status: "committed" });
+    expect(owner.snapshot().projects).toHaveLength(2);
+    expect(owner.snapshot().active.projectId).toBe("project-b");
+
+    const gamma = grant("project-c", "/work/gamma");
+    await expect(owner.acceptProjectGrant(gamma)).resolves.toEqual({ status: "committed" });
+    expect(owner.snapshot()).toMatchObject({
+      projects: [{ id: "project-a" }, { id: "project-b" }, { id: "project-c" }],
+      active: { projectId: "project-c", worktreeId: "project-c-root" },
+    });
+    expect(seen).toHaveBeenCalledTimes(2);
+  });
+
+  it("reorders projects only when given one complete identity set", async () => {
+    const owner = createWorkbenchStateOwner(populatedState());
+
+    await expect(owner.reorderProjects(["project-b", "project-a"])).resolves.toEqual({
+      status: "committed",
+    });
+    expect(owner.snapshot().projects.map(({ id }) => id)).toEqual(["project-b", "project-a"]);
+
+    await expect(owner.reorderProjects(["project-a"])).resolves.toMatchObject({
+      status: "refused",
+      reason: expect.stringContaining("complete"),
+    });
+    expect(owner.snapshot().projects.map(({ id }) => id)).toEqual(["project-b", "project-a"]);
+  });
+
+  it("lets inactive dirty or live work refuse project removal before native revocation", async () => {
+    const owner = createWorkbenchStateOwner(populatedState());
+    const revoke = vi.fn(async () => undefined);
+    const seen: ProjectRemoval[] = [];
+    owner.registerProjectRemovalGuard({
+      id: "project-work",
+      prepareRemoval: (change) => {
+        seen.push(change);
+        return change.projectId === "project-b"
+          ? { status: "refused", reason: "src/main.ts is dirty and Build is still running" }
+          : { status: "ready" };
+      },
+    });
+
+    const result = await owner.removeProject("project-b", revoke);
+
+    expect(result).toMatchObject({
+      status: "refused",
+      reason: "src/main.ts is dirty and Build is still running",
+    });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ projectId: "project-b", wasActive: false });
+    expect(revoke).not.toHaveBeenCalled();
+    expect(owner.snapshot().projects).toHaveLength(2);
+  });
+
+  it("revokes an approved active project before publishing one complete fallback context", async () => {
+    const owner = createWorkbenchStateOwner(populatedState());
+    const revoke = vi.fn(async () => undefined);
+    const snapshots: WorkbenchState[] = [];
+    owner.subscribe((state) => snapshots.push(state));
+
+    const result = await owner.removeProject("project-a", revoke);
+
+    expect(result).toEqual({ status: "committed" });
+    expect(revoke).toHaveBeenCalledOnce();
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0]).toMatchObject({
+      projects: [{ id: "project-b" }],
+      active: beta,
+    });
+    expect(snapshots[0]!.worktrees.map(({ id }) => id)).toEqual(["worktree-b"]);
+    expect(snapshots[0]!.threads.map(({ id }) => id)).toEqual(["thread-b"]);
+    expect(snapshots[0]!.openFiles.map(({ id }) => id)).toEqual(["file-b"]);
+  });
+
+  it("preserves root state when native project revocation fails", async () => {
+    const before = populatedState();
+    const owner = createWorkbenchStateOwner(before);
+
+    const result = await owner.removeProject("project-a", async () => {
+      throw new Error("native grant store unavailable");
+    });
+
+    expect(result).toEqual({ status: "refused", reason: "native grant store unavailable" });
+    expect(owner.snapshot()).toEqual(before);
+  });
+
+  it("refreshes a recovered native grant without changing its stable identity", async () => {
+    const owner = createWorkbenchStateOwner({
+      ...populatedState(),
+      projects: [
+        { id: "project-a", name: "Alpha", root: "/old/alpha", availability: "missing" },
+        { id: "project-b", name: "Beta", root: "/work/beta", availability: "available" },
+      ],
+      worktrees: [
+        {
+          id: "worktree-a",
+          projectId: "project-a",
+          name: "main",
+          root: "/old/alpha",
+          availability: "missing",
+        },
+        populatedState().worktrees[1]!,
+      ],
+    });
+    const recovered: ProjectGrant = {
+      id: "project-a",
+      name: "Alpha",
+      root: "/work/alpha",
+      availability: "available",
+      worktrees: [
+        {
+          id: "worktree-a",
+          name: "main",
+          root: "/work/alpha",
+          availability: "available",
+        },
+      ],
+    };
+
+    await expect(owner.refreshProjectGrant(recovered)).resolves.toEqual({ status: "committed" });
+    expect(owner.snapshot()).toMatchObject({
+      projects: expect.arrayContaining([
+        { id: "project-a", name: "Alpha", root: "/work/alpha", availability: "available" },
+      ]),
+      active: {
+        projectId: "project-a",
+        worktreeId: "worktree-a",
+        threadId: "thread-a",
+        fileId: "file-a",
+      },
+    });
   });
 });
 

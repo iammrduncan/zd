@@ -94,6 +94,17 @@ export interface TransitionGuard {
   prepare(change: ContextTransition): TransitionDecision | Promise<TransitionDecision>;
 }
 
+export interface ProjectRemoval {
+  readonly projectId: string;
+  readonly wasActive: boolean;
+  readonly fallback: WorkbenchContext;
+}
+
+export interface ProjectRemovalGuard {
+  readonly id: string;
+  prepareRemoval(change: ProjectRemoval): TransitionDecision | Promise<TransitionDecision>;
+}
+
 export type TransitionResult =
   | { readonly status: "committed" }
   | {
@@ -353,6 +364,58 @@ function contextProblem(state: WorkbenchState, context: WorkbenchContext): strin
   return null;
 }
 
+function emptyContext(): WorkbenchContext {
+  return { projectId: null, worktreeId: null, threadId: null, fileId: null };
+}
+
+function sameContext(left: WorkbenchContext, right: WorkbenchContext): boolean {
+  return (
+    left.projectId === right.projectId &&
+    left.worktreeId === right.worktreeId &&
+    left.threadId === right.threadId &&
+    left.fileId === right.fileId
+  );
+}
+
+function projectFromGrant(grant: ProjectGrant): ProjectState {
+  const { id, name, root, availability } = grant;
+  return { id, name, root, availability };
+}
+
+function worktreesFromGrant(grant: ProjectGrant): readonly WorktreeState[] {
+  return grant.worktrees.map(({ id, name, root, availability }) => ({
+    id,
+    projectId: grant.id,
+    name,
+    root,
+    availability,
+  }));
+}
+
+function grantProblem(
+  state: WorkbenchState,
+  grant: ProjectGrant,
+  replacingId?: string,
+): string | null {
+  if (!grant.id || !grant.name || !grant.root) return "The native project grant is incomplete";
+  if (grant.worktrees.length === 0) return `Project ${grant.id} has no approved worktree`;
+  if (new Set(grant.worktrees.map(({ id }) => id)).size !== grant.worktrees.length) {
+    return `Project ${grant.id} contains duplicate worktree identities`;
+  }
+
+  const competingProject = state.projects.find(
+    (project) =>
+      project.id !== replacingId && (project.id === grant.id || project.root === grant.root),
+  );
+  if (competingProject) return `Project grant conflicts with ${competingProject.id}`;
+
+  const proposedWorktreeIds = new Set(grant.worktrees.map(({ id }) => id));
+  const competingWorktree = state.worktrees.find(
+    (worktree) => worktree.projectId !== replacingId && proposedWorktreeIds.has(worktree.id),
+  );
+  return competingWorktree ? `Worktree grant conflicts with ${competingWorktree.id}` : null;
+}
+
 function clamp(value: number, minimum: number, maximum: number, fallback: number): number {
   return Number.isFinite(value) ? Math.min(maximum, Math.max(minimum, value)) : fallback;
 }
@@ -360,11 +423,14 @@ function clamp(value: number, minimum: number, maximum: number, fallback: number
 export class WorkbenchStateOwner {
   readonly #guards = new Map<string, TransitionGuard>();
   readonly #listeners = new Set<(state: WorkbenchState) => void>();
+  readonly #projectContexts = new Map<string, WorkbenchContext>();
+  readonly #projectRemovalGuards = new Map<string, ProjectRemovalGuard>();
   #state: WorkbenchState;
   #transitionTail: Promise<void> = Promise.resolve();
 
   constructor(initial: WorkbenchState = defaultWorkbenchState()) {
     this.#state = parseWorkbenchState(initial);
+    this.#rememberContext(this.#state, this.#state.active);
   }
 
   snapshot(): WorkbenchState {
@@ -383,6 +449,15 @@ export class WorkbenchStateOwner {
     };
   }
 
+  registerProjectRemovalGuard(guard: ProjectRemovalGuard): () => void {
+    this.#projectRemovalGuards.set(guard.id, guard);
+    return () => {
+      if (this.#projectRemovalGuards.get(guard.id) === guard) {
+        this.#projectRemovalGuards.delete(guard.id);
+      }
+    };
+  }
+
   activateContext(target: WorkbenchContext): Promise<TransitionResult> {
     const work = this.#transitionTail.then(() => this.#activateContext(target));
     this.#transitionTail = work.then(
@@ -394,6 +469,173 @@ export class WorkbenchStateOwner {
 
   async #activateContext(target: WorkbenchContext): Promise<TransitionResult> {
     return this.#commitTransition(this.#state, target);
+  }
+
+  activateProject(projectId: string): Promise<TransitionResult> {
+    const work = this.#transitionTail.then(() => this.#activateProject(projectId));
+    this.#transitionTail = work.then(
+      () => undefined,
+      () => undefined,
+    );
+    return work;
+  }
+
+  async #activateProject(projectId: string): Promise<TransitionResult> {
+    const target = this.#contextForProject(this.#state, projectId);
+    return target
+      ? this.#commitTransition(this.#state, target)
+      : { status: "refused", reason: `Unknown project or approved worktree ${projectId}` };
+  }
+
+  acceptProjectGrant(grant: ProjectGrant): Promise<TransitionResult> {
+    const work = this.#transitionTail.then(() => this.#acceptProjectGrant(grant));
+    this.#transitionTail = work.then(
+      () => undefined,
+      () => undefined,
+    );
+    return work;
+  }
+
+  async #acceptProjectGrant(grant: ProjectGrant): Promise<TransitionResult> {
+    const existing = this.#state.projects.find(({ root }) => root === grant.root);
+    if (existing) return this.#activateProject(existing.id);
+
+    const problem = grantProblem(this.#state, grant);
+    if (problem) return { status: "refused", reason: problem };
+    const candidate: WorkbenchState = {
+      ...this.#state,
+      projects: [...this.#state.projects, projectFromGrant(grant)],
+      worktrees: [...this.#state.worktrees, ...worktreesFromGrant(grant)],
+    };
+    const target = this.#contextForProject(candidate, grant.id);
+    return target
+      ? this.#commitTransition(candidate, target)
+      : { status: "refused", reason: `Project ${grant.id} has no approved worktree` };
+  }
+
+  reorderProjects(orderedIds: readonly string[]): Promise<TransitionResult> {
+    const work = this.#transitionTail.then(() => this.#reorderProjects(orderedIds));
+    this.#transitionTail = work.then(
+      () => undefined,
+      () => undefined,
+    );
+    return work;
+  }
+
+  async #reorderProjects(orderedIds: readonly string[]): Promise<TransitionResult> {
+    const currentIds = this.#state.projects.map(({ id }) => id);
+    const exact =
+      orderedIds.length === currentIds.length &&
+      new Set(orderedIds).size === orderedIds.length &&
+      currentIds.every((id) => orderedIds.includes(id));
+    if (!exact)
+      return { status: "refused", reason: "Project order must contain the complete identity set" };
+    if (currentIds.every((id, index) => id === orderedIds[index])) return { status: "committed" };
+
+    const projects = new Map(this.#state.projects.map((project) => [project.id, project]));
+    this.#publish({
+      ...this.#state,
+      projects: orderedIds.map((id) => projects.get(id)!),
+    });
+    return { status: "committed" };
+  }
+
+  removeProject(projectId: string, revoke: () => Promise<void>): Promise<TransitionResult> {
+    const work = this.#transitionTail.then(() => this.#removeProject(projectId, revoke));
+    this.#transitionTail = work.then(
+      () => undefined,
+      () => undefined,
+    );
+    return work;
+  }
+
+  async #removeProject(projectId: string, revoke: () => Promise<void>): Promise<TransitionResult> {
+    const projectIndex = this.#state.projects.findIndex(({ id }) => id === projectId);
+    if (projectIndex < 0) return { status: "refused", reason: `Unknown project ${projectId}` };
+
+    this.#rememberContext(this.#state, this.#state.active);
+    const projects = this.#state.projects.filter(({ id }) => id !== projectId);
+    const worktrees = this.#state.worktrees.filter(({ projectId: owner }) => owner !== projectId);
+    const threads = this.#state.threads.filter(({ projectId: owner }) => owner !== projectId);
+    const openFiles = this.#state.openFiles.filter(({ projectId: owner }) => owner !== projectId);
+    const candidate: WorkbenchState = {
+      ...this.#state,
+      projects,
+      worktrees,
+      threads,
+      openFiles,
+    };
+    const wasActive = this.#state.active.projectId === projectId;
+    const fallbackProject = projects[Math.min(projectIndex, projects.length - 1)];
+    const fallback = wasActive
+      ? fallbackProject
+        ? (this.#contextForProject(candidate, fallbackProject.id) ?? emptyContext())
+        : emptyContext()
+      : this.#state.active;
+    const contextIssue = contextProblem(candidate, fallback);
+    if (contextIssue) return { status: "refused", reason: contextIssue };
+
+    const removal: ProjectRemoval = { projectId, wasActive, fallback };
+    const removalDecision = await this.#prepareProjectRemoval(removal);
+    if (removalDecision.status === "refused") return removalDecision;
+    if (wasActive) {
+      const transitionDecision = await this.#prepareTransition({
+        from: this.#state.active,
+        to: fallback,
+      });
+      if (transitionDecision.status === "refused") return transitionDecision;
+    }
+
+    try {
+      await revoke();
+    } catch (cause) {
+      return { status: "refused", reason: cause instanceof Error ? cause.message : String(cause) };
+    }
+
+    this.#projectContexts.delete(projectId);
+    this.#rememberContext(candidate, fallback);
+    this.#publish({ ...candidate, active: { ...fallback } });
+    return { status: "committed" };
+  }
+
+  refreshProjectGrant(grant: ProjectGrant): Promise<TransitionResult> {
+    const work = this.#transitionTail.then(() => this.#refreshProjectGrant(grant));
+    this.#transitionTail = work.then(
+      () => undefined,
+      () => undefined,
+    );
+    return work;
+  }
+
+  async #refreshProjectGrant(grant: ProjectGrant): Promise<TransitionResult> {
+    const projectIndex = this.#state.projects.findIndex(({ id }) => id === grant.id);
+    if (projectIndex < 0) return { status: "refused", reason: `Unknown project ${grant.id}` };
+    const problem = grantProblem(this.#state, grant, grant.id);
+    if (problem) return { status: "refused", reason: problem };
+
+    const projects = [...this.#state.projects];
+    projects[projectIndex] = projectFromGrant(grant);
+    const grantedWorktrees = worktreesFromGrant(grant);
+    const grantedIds = new Set(grantedWorktrees.map(({ id }) => id));
+    const candidate: WorkbenchState = {
+      ...this.#state,
+      projects,
+      worktrees: [
+        ...this.#state.worktrees.filter(({ projectId }) => projectId !== grant.id),
+        ...grantedWorktrees,
+      ],
+      threads: this.#state.threads.filter(
+        ({ projectId, worktreeId }) => projectId !== grant.id || grantedIds.has(worktreeId),
+      ),
+      openFiles: this.#state.openFiles.filter(
+        ({ projectId, worktreeId }) => projectId !== grant.id || grantedIds.has(worktreeId),
+      ),
+    };
+    const target =
+      this.#state.active.projectId === grant.id
+        ? (this.#contextForProject(candidate, grant.id) ?? emptyContext())
+        : this.#state.active;
+    return this.#commitTransition(candidate, target);
   }
 
   applyLaunch(launch: LaunchRequest, grants: readonly ProjectGrant[]): Promise<TransitionResult> {
@@ -455,6 +697,18 @@ export class WorkbenchStateOwner {
     if (problem) return { status: "refused", reason: problem };
 
     const change = { from: this.#state.active, to: target };
+    const decision = sameContext(change.from, change.to)
+      ? ({ status: "ready" } as const)
+      : await this.#prepareTransition(change);
+    if (decision.status === "refused") return decision;
+
+    this.#rememberContext(this.#state, change.from);
+    this.#rememberContext(candidate, target);
+    this.#publish({ ...candidate, active: { ...target } });
+    return { status: "committed" };
+  }
+
+  async #prepareTransition(change: ContextTransition): Promise<TransitionDecision> {
     for (const guard of this.#guards.values()) {
       let decision: TransitionDecision;
       try {
@@ -465,9 +719,49 @@ export class WorkbenchStateOwner {
       }
       if (decision.status === "refused") return decision;
     }
+    return { status: "ready" };
+  }
 
-    this.#publish({ ...candidate, active: { ...target } });
-    return { status: "committed" };
+  async #prepareProjectRemoval(change: ProjectRemoval): Promise<TransitionDecision> {
+    for (const guard of this.#projectRemovalGuards.values()) {
+      let decision: TransitionDecision;
+      try {
+        decision = await guard.prepareRemoval(change);
+      } catch (cause) {
+        const reason = cause instanceof Error ? cause.message : String(cause);
+        return { status: "refused", reason: `${guard.id}: ${reason}` };
+      }
+      if (decision.status === "refused") return decision;
+    }
+    return { status: "ready" };
+  }
+
+  #contextForProject(state: WorkbenchState, projectId: string): WorkbenchContext | null {
+    const project = state.projects.find(({ id }) => id === projectId);
+    if (!project) return null;
+    const remembered = this.#projectContexts.get(projectId);
+    if (remembered && contextProblem(state, remembered) === null) return { ...remembered };
+
+    const worktree = state.worktrees.find(({ projectId: owner }) => owner === projectId);
+    if (!worktree) return null;
+    const thread = state.threads.find(
+      ({ projectId: owner, worktreeId }) => owner === projectId && worktreeId === worktree.id,
+    );
+    const file = state.openFiles.find(
+      ({ projectId: owner, worktreeId }) => owner === projectId && worktreeId === worktree.id,
+    );
+    return {
+      projectId,
+      worktreeId: worktree.id,
+      threadId: thread?.id ?? null,
+      fileId: file?.id ?? null,
+    };
+  }
+
+  #rememberContext(state: WorkbenchState, context: WorkbenchContext): void {
+    if (context.projectId !== null && contextProblem(state, context) === null) {
+      this.#projectContexts.set(context.projectId, { ...context });
+    }
   }
 
   updateRegions(regions: WorkbenchRegions): void {
