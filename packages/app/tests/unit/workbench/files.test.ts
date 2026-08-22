@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FileTreeAdapter, FileTreeResult } from "@/files";
-import type { GitAdapter, GitStatusSnapshot } from "@/git";
+import { unavailableGitAdapter, type GitAdapter, type GitStatusSnapshot } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { createWorkbenchFilesRuntime } from "@/workbench/files";
 import type { ProjectGrant } from "@/workbench/resources";
@@ -111,6 +111,7 @@ function gitAdapter(status: GitAdapter["status"]): GitAdapter {
       truncated: false,
       problem: "unused",
     }),
+    diff: async (request) => unavailableGitAdapter.diff(request),
   };
 }
 

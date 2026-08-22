@@ -3,6 +3,7 @@ import {
   createTauriGitAdapter,
   unavailableGitAdapter,
   type GitComparison,
+  type GitDiff,
   type GitHistoryPage,
   type GitStatusSnapshot,
 } from "@/git";
@@ -36,13 +37,36 @@ const comparison: GitComparison = {
   problem: null,
 };
 
+const diff: GitDiff = {
+  scope,
+  availability: "available",
+  base: {
+    status: "text",
+    identity: "base-buffer",
+    path: "notes.md",
+    revision: "a".repeat(40),
+    text: "before\n",
+    byteLength: 7,
+  },
+  head: {
+    status: "text",
+    identity: "head-buffer",
+    path: "notes.md",
+    revision: "working-tree",
+    text: "after\n",
+    byteLength: 6,
+  },
+  problem: null,
+};
+
 describe("the native Git adapter", () => {
-  it("uses three closed commands with only scope, cursor, page size, and commit identities", async () => {
+  it("uses four closed commands with only scope, stable change, cursor, and commit identities", async () => {
     const invoke = vi
       .fn()
       .mockResolvedValueOnce(status)
       .mockResolvedValueOnce(history)
-      .mockResolvedValueOnce(comparison);
+      .mockResolvedValueOnce(comparison)
+      .mockResolvedValueOnce(diff);
     const adapter = createTauriGitAdapter(invoke);
 
     await adapter.status(scope);
@@ -51,6 +75,10 @@ describe("the native Git adapter", () => {
       scope,
       baseCommitId: comparison.baseCommitId,
       headCommitId: comparison.headCommitId,
+    });
+    await adapter.diff({
+      scope,
+      source: { kind: "working-tree", changeId: "git-change" },
     });
 
     expect(invoke.mock.calls).toEqual([
@@ -63,6 +91,15 @@ describe("the native Git adapter", () => {
             scope,
             baseCommitId: comparison.baseCommitId,
             headCommitId: comparison.headCommitId,
+          },
+        },
+      ],
+      [
+        "git_diff",
+        {
+          request: {
+            scope,
+            source: { kind: "working-tree", changeId: "git-change" },
           },
         },
       ],
@@ -107,6 +144,16 @@ describe("the native Git adapter", () => {
       baseCommitId: comparison.baseCommitId,
       headCommitId: comparison.headCommitId,
       entries: [],
+    });
+    await expect(
+      unavailableGitAdapter.diff({
+        scope,
+        source: { kind: "working-tree", changeId: "git-change" },
+      }),
+    ).resolves.toMatchObject({
+      scope,
+      availability: "unavailable",
+      problem: expect.any(String),
     });
   });
 });
