@@ -1,10 +1,51 @@
-import type { Unmount, WorkbenchMount, WorkbenchRuntimeContext } from "./runtime";
+import type {
+  Unmount,
+  WorkbenchMount,
+  WorkbenchRegionMounts,
+  WorkbenchRuntimeContext,
+} from "./runtime";
 import type { WorkbenchRegions, WorkbenchState } from "./state";
 
 const GEOMETRY_STEP = 8;
 const SPLIT_STEP = 0.02;
 const FILES_SUPPRESSED_QUERY = "(max-width: 68.75rem)";
 const THREADS_HIDDEN_QUERY = "(max-width: 40rem)";
+const NOTHING: Unmount = () => {};
+
+function regionMounts(mounts: WorkbenchMount | WorkbenchRegionMounts): WorkbenchRegionMounts {
+  return typeof mounts === "function" ? { file: mounts } : mounts;
+}
+
+async function mountRegions(
+  context: WorkbenchRuntimeContext,
+  regions: readonly [HTMLElement, WorkbenchMount | undefined][],
+): Promise<Unmount> {
+  const settled = await Promise.allSettled(
+    regions.map(async ([host, mount]) => {
+      if (!mount) return NOTHING;
+      host.replaceChildren();
+      return await mount(host, context);
+    }),
+  );
+  const mounted = settled.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : [],
+  );
+  const failed = settled.find(
+    (result): result is PromiseRejectedResult => result.status === "rejected",
+  );
+
+  if (failed) {
+    for (const unmount of [...mounted].reverse()) unmount();
+    throw failed.reason;
+  }
+
+  let active = true;
+  return () => {
+    if (!active) return;
+    active = false;
+    for (const unmount of [...mounted].reverse()) unmount();
+  };
+}
 
 function heading(text: string): HTMLHeadingElement {
   const element = document.createElement("h2");
@@ -131,8 +172,9 @@ function regionState(shell: HTMLElement, state: WorkbenchState): void {
 export async function mountWorkbenchShell(
   host: HTMLElement,
   context: WorkbenchRuntimeContext,
-  mountContent: WorkbenchMount,
+  featureMounts: WorkbenchMount | WorkbenchRegionMounts,
 ): Promise<Unmount> {
+  const mounts = regionMounts(featureMounts);
   const shell = document.createElement("div");
   shell.className = "zd-workbench";
 
@@ -140,7 +182,10 @@ export async function mountWorkbenchShell(
   threads.className = "zd-workbench-threads";
   threads.dataset.region = "threads";
   threads.setAttribute("aria-label", "Threads");
-  threads.append(heading("THREADS"), quietState("No projects open."));
+  const threadsPanel = document.createElement("div");
+  threadsPanel.dataset.workbenchSlot = "threads";
+  threadsPanel.append(quietState("No projects open."));
+  threads.append(heading("THREADS"), threadsPanel);
 
   const threadsResizer = separator("threads");
 
@@ -152,6 +197,7 @@ export async function mountWorkbenchShell(
   const threadSurface = document.createElement("section");
   threadSurface.className = "zd-centre-surface zd-thread-surface";
   threadSurface.dataset.centreSurface = "thread";
+  threadSurface.dataset.workbenchSlot = "thread";
   threadSurface.setAttribute("aria-label", "Current thread");
   threadSurface.tabIndex = -1;
   threadSurface.append(quietState("No thread selected."));
@@ -160,6 +206,7 @@ export async function mountWorkbenchShell(
   const fileSurface = document.createElement("section");
   fileSurface.className = "zd-centre-surface zd-file-surface";
   fileSurface.dataset.centreSurface = "file";
+  fileSurface.dataset.workbenchSlot = "file";
   fileSurface.setAttribute("aria-label", "Current file");
   fileSurface.tabIndex = -1;
   centre.append(threadSurface, centreResizer, fileSurface);
@@ -195,6 +242,7 @@ export async function mountWorkbenchShell(
   const filesPanel = document.createElement("div");
   filesPanel.id = "zd-files-panel";
   filesPanel.className = "zd-files-panel";
+  filesPanel.dataset.workbenchSlot = "files";
   filesPanel.setAttribute("role", "tabpanel");
   filesPanel.setAttribute("aria-labelledby", filesTab.id);
   filesPanel.append(quietState("No project open."));
@@ -202,6 +250,7 @@ export async function mountWorkbenchShell(
   const changesPanel = document.createElement("div");
   changesPanel.id = "zd-changes-panel";
   changesPanel.className = "zd-files-panel";
+  changesPanel.dataset.workbenchSlot = "changes";
   changesPanel.setAttribute("role", "tabpanel");
   changesPanel.setAttribute("aria-labelledby", changesTab.id);
   changesPanel.append(quietState("No Git context."));
@@ -340,10 +389,17 @@ export async function mountWorkbenchShell(
     ),
   ];
 
-  let unmountContent: Unmount;
+  let unmountRegions: Unmount;
   try {
-    unmountContent = await mountContent(fileSurface, context);
+    unmountRegions = await mountRegions(context, [
+      [threadsPanel, mounts.threads],
+      [threadSurface, mounts.thread],
+      [fileSurface, mounts.file],
+      [filesPanel, mounts.files],
+      [changesPanel, mounts.changes],
+    ]);
   } catch (cause) {
+    shell.removeEventListener("focusin", rememberFocus);
     stopState();
     cleanups.forEach((cleanup) => cleanup());
     shell.remove();
@@ -357,7 +413,7 @@ export async function mountWorkbenchShell(
     shell.removeEventListener("focusin", rememberFocus);
     stopState();
     cleanups.forEach((cleanup) => cleanup());
-    unmountContent();
+    unmountRegions();
     shell.remove();
   };
 }
