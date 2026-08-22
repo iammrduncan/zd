@@ -4,6 +4,8 @@
 mod cli;
 #[path = "../src/git.rs"]
 mod git;
+#[path = "../src/git/process.rs"]
+mod git_process;
 #[path = "../src/grants.rs"]
 mod grants;
 
@@ -11,9 +13,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use cli::{LaunchState, NativeOpenRequest};
+use git::types::GitChangeState;
 use git::{
-    compare_for, history_for, status_for, GitAvailability, GitChangeState, GitCompareRequest,
-    GitHistoryRequest, GitScope,
+    compare_for, history_for, status_for, GitAvailability, GitCompareRequest, GitHistoryRequest,
+    GitScope,
 };
 
 struct RepositoryFixture(PathBuf);

@@ -131,7 +131,6 @@ impl GrantStore {
     }
 
     /// Called only by structured native Git worktree creation/discovery flows.
-    #[allow(dead_code)]
     pub fn approve_worktree(
         &mut self,
         project_id: &str,
@@ -246,6 +245,14 @@ impl GrantStore {
                 format!("worktree grant {worktree_id} does not belong to project {project_id}")
             })?;
         Ok(worktree.root.clone())
+    }
+
+    pub fn project_root(&self, project_id: &str) -> Result<PathBuf, String> {
+        self.projects
+            .iter()
+            .find(|project| project.id == project_id)
+            .map(|project| project.root.clone())
+            .ok_or_else(|| format!("unknown or removed project grant {project_id}"))
     }
 
     pub fn resolve(&self, resource: &ResourceRef) -> Result<PathBuf, String> {

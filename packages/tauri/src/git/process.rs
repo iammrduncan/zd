@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 const STDERR_LIMIT: usize = 16 * 1024;
 
-pub(super) struct GitOutput {
+pub(crate) struct GitOutput {
     pub status: ExitStatus,
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
@@ -13,7 +13,7 @@ pub(super) struct GitOutput {
 }
 
 #[derive(Debug)]
-pub(super) enum GitRunError {
+pub(crate) enum GitRunError {
     Io(std::io::ErrorKind),
     TimedOut,
 }
@@ -40,7 +40,7 @@ fn drain(mut reader: impl Read, limit: usize) -> Result<Captured, std::io::Error
     Ok(Captured { bytes, truncated })
 }
 
-pub(super) fn run_git(
+pub(crate) fn run_git(
     root: &Path,
     arguments: &[String],
     stdout_limit: usize,
