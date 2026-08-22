@@ -30,6 +30,31 @@ sysinfo = { version = "=0.39.6", default-features = false, features = ["system"]
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6.2"
+objc2 = "0.6.4"
+objc2-foundation = { version = "0.3.2", default-features = false, features = [
+  "NSArray",
+  "NSError",
+  "NSObject",
+  "NSSet",
+  "NSString",
+] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSSound"] }
+objc2-user-notifications = { version = "0.3.2", default-features = false, features = [
+  "std",
+  "block2",
+  "UNNotification",
+  "UNNotificationAction",
+  "UNNotificationCategory",
+  "UNNotificationContent",
+  "UNNotificationRequest",
+  "UNNotificationResponse",
+  "UNNotificationSettings",
+  "UNNotificationTrigger",
+  "UNUserNotificationCenter",
+] }
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = [
   "Win32_Foundation",
