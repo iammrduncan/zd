@@ -57,3 +57,15 @@ test("loads the bundled iA Writer faces", async ({ page }) => {
   expect(families).toContain("iA Writer Quattro/700/normal");
   expect(families).toContain("iA Writer Mono/400/normal");
 });
+
+test("keeps Attention settings visible and optional without a desktop shell", async ({ page }) => {
+  await page.goto("/");
+  const settings = page.locator("[data-diagnostic-settings]");
+  await settings.locator("summary").click();
+
+  await expect(settings.locator("[data-attention-settings]")).toBeVisible();
+  await expect(settings.locator("[data-attention-status]")).toContainText("unavailable");
+  await expect(settings.locator("[data-notifications-toggle]")).toBeDisabled();
+  await expect(settings.locator("[data-sound-toggle]")).not.toBeChecked();
+  await expect(settings.locator("[data-sound-volume]")).toHaveValue("50");
+});

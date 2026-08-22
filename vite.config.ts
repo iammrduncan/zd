@@ -42,6 +42,9 @@ export default defineConfig(({ mode }) => ({
               changesPerformance: fileURLToPath(
                 new URL("./packages/app/dev/changes-performance.html", import.meta.url),
               ),
+              attentionPerformance: fileURLToPath(
+                new URL("./packages/app/dev/attention-performance.html", import.meta.url),
+              ),
             },
           },
         },
