@@ -1,4 +1,5 @@
 import type { Platform, WorkspaceFile } from "@/platform";
+import { resourceKey, type FileResource } from "@/workbench/resources";
 import type { CommentTag, ReviewSelection } from "./annotations";
 
 export type { ReviewSelection } from "./annotations";
@@ -32,6 +33,7 @@ export interface ReviewOptions {
   host: HTMLElement;
   launcherHost?: HTMLElement;
   root: string;
+  rootResource: Pick<FileResource, "projectId" | "worktreeId"> | null;
   platform: Platform;
 }
 
@@ -47,13 +49,6 @@ export function formatFeedback(comments: readonly ReviewComment[]): string {
       return `[${path}][LN${comment.startLine}:LN${comment.endLine}] [${oneLine(comment.selected)}] ${oneLine(comment.comment)}`;
     })
     .join("\n");
-}
-
-function outputPath(root: string): string {
-  if (!root) return OUTPUT_NAME;
-  if (/[\\/]$/.test(root)) return `${root}${OUTPUT_NAME}`;
-  const separator = root.includes("\\") && !root.includes("/") ? "\\" : "/";
-  return `${root}${separator}${OUTPUT_NAME}`;
 }
 
 function isComment(value: unknown): value is ReviewComment {
@@ -108,7 +103,7 @@ function focusDeleteButton(host: ParentNode, commentId?: string): boolean {
  * Markdown files remain untouched. The ledger persists in the webview and every
  * accepted comment regenerates one plain-text handoff beside the reviewed files.
  */
-export function mountReview({ host, launcherHost, root, platform }: ReviewOptions): Review {
+export function mountReview({ host, launcherHost, root, rootResource, platform }: ReviewOptions): Review {
   let comments = read(root);
   let pending: { file: WorkspaceFile; selection: ReviewSelection } | null = null;
   let feedbackView: HTMLElement | null = null;
@@ -154,10 +149,14 @@ export function mountReview({ host, launcherHost, root, platform }: ReviewOption
   };
 
   const writeFile = (): Promise<boolean> => {
+    if (!rootResource) return Promise.resolve(false);
     const output = formatFeedback(comments);
     const attempt = writes.then(async () => {
       try {
-        await platform.writeTextFile(outputPath(root), output ? `${output}\n` : "");
+        await platform.writeTextFile(
+          { ...rootResource, relativePath: OUTPUT_NAME },
+          output ? `${output}\n` : "",
+        );
         return true;
       } catch {
         return false;
@@ -282,7 +281,7 @@ export function mountReview({ host, launcherHost, root, platform }: ReviewOption
       ...comments,
       {
         id: identifier(),
-        path: active.file.path,
+        path: resourceKey(active.file.resource),
         relative: active.file.relative,
         startLine: active.selection.startLine,
         endLine: active.selection.endLine,
@@ -291,7 +290,7 @@ export function mountReview({ host, launcherHost, root, platform }: ReviewOption
       },
     ];
     remember(root, comments);
-    notify(active.file.path);
+    notify(resourceKey(active.file.resource));
     updateLauncher();
     textbox.value = "";
     pending = null;
@@ -302,36 +301,39 @@ export function mountReview({ host, launcherHost, root, platform }: ReviewOption
   updateLauncher();
 
   return {
-    document: (file) => ({
-      connect: (render) => {
-        let forFile = listeners.get(file.path);
-        if (!forFile) {
-          forFile = new Set();
-          listeners.set(file.path, forFile);
-        }
-        forFile.add(render);
-        render(tagsFor(file.path));
-        return () => {
-          forFile?.delete(render);
-          if (pending?.file.path === file.path) {
-            pending = null;
-            composer.hidden = true;
+    document: (file) => {
+      const key = resourceKey(file.resource);
+      return {
+        connect: (render) => {
+          let forFile = listeners.get(key);
+          if (!forFile) {
+            forFile = new Set();
+            listeners.set(key, forFile);
           }
-        };
-      },
-      openFeedback: open,
-      selection: (selection) => {
-        if (!selection || !oneLine(selection.text)) {
-          if (pending?.file.path === file.path) pending = null;
-          composer.hidden = true;
-          return;
-        }
-        pending = { file, selection };
-        composer.style.setProperty("--md-comment-left", `${selection.rect.left}px`);
-        composer.style.setProperty("--md-comment-top", `${selection.rect.bottom}px`);
-        composer.hidden = false;
-      },
-    }),
+          forFile.add(render);
+          render(tagsFor(key));
+          return () => {
+            forFile?.delete(render);
+            if (pending && resourceKey(pending.file.resource) === key) {
+              pending = null;
+              composer.hidden = true;
+            }
+          };
+        },
+        openFeedback: open,
+        selection: (selection) => {
+          if (!selection || !oneLine(selection.text)) {
+            if (pending && resourceKey(pending.file.resource) === key) pending = null;
+            composer.hidden = true;
+            return;
+          }
+          pending = { file, selection };
+          composer.style.setProperty("--md-comment-left", `${selection.rect.left}px`);
+          composer.style.setProperty("--md-comment-top", `${selection.rect.bottom}px`);
+          composer.hidden = false;
+        },
+      };
+    },
     open,
     unmount: () => {
       window.removeEventListener("keydown", escape, true);

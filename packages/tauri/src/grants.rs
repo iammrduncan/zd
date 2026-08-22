@@ -129,6 +129,8 @@ impl GrantStore {
         })
     }
 
+    /// Called only by structured native Git worktree creation/discovery flows.
+    #[allow(dead_code)]
     pub fn approve_worktree(
         &mut self,
         project_id: &str,
@@ -172,13 +174,6 @@ impl GrantStore {
 
     pub fn projects(&self) -> Vec<ProjectGrant> {
         self.projects.iter().map(describe_project).collect()
-    }
-
-    pub fn project(&self, project_id: &str) -> Option<ProjectGrant> {
-        self.projects
-            .iter()
-            .find(|project| project.id == project_id)
-            .map(describe_project)
     }
 
     pub fn remove_project(&mut self, project_id: &str) -> Result<ProjectGrant, String> {

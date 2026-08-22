@@ -1,5 +1,7 @@
 import type { WorkspaceFile } from "@/platform";
-import type { WorkbenchContentContext, Unmount } from "@/workbench/runtime";
+import type { WorkbenchRuntimeContext, Unmount } from "@/workbench/runtime";
+import { launchResource, resourceKey } from "@/workbench/resources";
+import { fileStateId } from "@/workbench/state";
 import { mountReview, type ReviewDocument } from "../review";
 import { mountSidebarResizer } from "./resize";
 import { buildFileTree } from "./tree";
@@ -11,7 +13,7 @@ export interface MountedDocument {
 
 export type DocumentMount = (
   host: HTMLElement,
-  context: WorkbenchContentContext,
+  context: WorkbenchRuntimeContext,
   review?: ReviewDocument,
 ) => Promise<MountedDocument>;
 
@@ -24,11 +26,6 @@ function fileName(path: string): string {
   return path.split(/[\\/]/).at(-1) ?? path;
 }
 
-function parentPath(path: string): string {
-  const separator = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
-  return separator <= 0 ? path.slice(0, Math.max(0, separator + 1)) : path.slice(0, separator);
-}
-
 /**
  * Put the scoped file tree beside one document and replace that document on selection.
  *
@@ -38,21 +35,30 @@ function parentPath(path: string): string {
  */
 async function mountWorkspaceSession(
   host: HTMLElement,
-  context: WorkbenchContentContext,
+  context: WorkbenchRuntimeContext,
   mountDocument: DocumentMount,
 ): Promise<MountedWorkspace> {
-  const listing = await context.platform.workspaceFiles().catch(() => null);
+  const project = context.launch.project;
+  const worktreeId = context.launch.worktreeId;
+  const listing =
+    project && worktreeId
+      ? await context.platform.workspaceFiles(project.id, worktreeId).catch(() => null)
+      : null;
   if (!listing) {
-    const path = context.launch.path;
+    const resource = launchResource(context.launch);
     const review = mountReview({
       host,
-      root: path ? parentPath(path) : "",
+      root: project?.root ?? "",
+      rootResource:
+        project && worktreeId ? { projectId: project.id, worktreeId } : null,
       platform: context.platform,
     });
     const document_ = await mountDocument(
       host,
       context,
-      path ? review.document({ path, relative: fileName(path) }) : undefined,
+      resource
+        ? review.document({ resource, relative: fileName(resource.relativePath) })
+        : undefined,
     );
     return {
       canSwitch: document_.canSwitch,
@@ -77,13 +83,12 @@ async function mountWorkspaceSession(
   host.replaceChildren(shell);
   resizer.sync();
 
-  const launched = context.launch.path;
+  const launched = launchResource(context.launch);
   const launchIsUnlistedFile =
     launched !== null &&
-    launched !== listing.root &&
-    !listing.files.some((file) => file.path === launched);
+    !listing.files.some((file) => resourceKey(file.resource) === resourceKey(launched));
   const candidates = launchIsUnlistedFile
-    ? [...listing.files, { path: launched, relative: fileName(launched) }]
+    ? [...listing.files, { resource: launched, relative: fileName(launched.relativePath) }]
     : listing.files;
   const files = [...candidates].sort((left, right) => {
     if (left.relative < right.relative) return -1;
@@ -91,32 +96,43 @@ async function mountWorkspaceSession(
     return 0;
   });
   let current: MountedDocument | null = null;
-  let activePath: string | null = null;
   let opening = false;
 
   let buttons = new Map<string, HTMLButtonElement>();
-  const select = (path: string) => {
+  const select = (key: string) => {
     for (const [candidate, button] of buttons) {
-      if (candidate === path) button.setAttribute("aria-current", "page");
+      if (candidate === key) button.setAttribute("aria-current", "page");
       else button.removeAttribute("aria-current");
     }
   };
 
   const open = async (file: WorkspaceFile) => {
-    if (opening || file.path === activePath) return;
-    if (current && !current.canSwitch()) return;
+    const key = resourceKey(file.resource);
+    if (
+      opening ||
+      (current !== null && context.state.snapshot().active.fileId === fileStateId(file.resource))
+    ) {
+      return;
+    }
 
     opening = true;
     try {
+      const activation = await context.state.activateFile(file.resource);
+      if (activation.status === "refused") return;
       current?.unmount();
       current = null;
-      activePath = file.path;
-      select(file.path);
+      select(key);
       current = await mountDocument(
         documentHost,
         {
           ...context,
-          launch: { ...context.launch, path: file.path },
+          launch: {
+            ...context.launch,
+            project,
+            worktreeId: file.resource.worktreeId,
+            relativePath: file.resource.relativePath,
+            problem: null,
+          },
         },
         review.document(file),
       );
@@ -132,10 +148,12 @@ async function mountWorkspaceSession(
     host,
     launcherHost: sidebar,
     root: listing.root,
+    rootResource: { projectId: listing.projectId, worktreeId: listing.worktreeId },
     platform: context.platform,
   });
 
-  const initial = files.find((file) => file.path === context.launch.path) ?? files[0];
+  const launchedKey = launched ? resourceKey(launched) : null;
+  const initial = files.find((file) => resourceKey(file.resource) === launchedKey) ?? files[0];
   if (initial) {
     await open(initial);
   } else {
@@ -160,24 +178,38 @@ async function mountWorkspaceSession(
 /**
  * Keep one native window aligned with Finder file-open requests.
  *
- * The native side queues the new path without widening filesystem access. This
- * side first asks the mounted document whether replacing it can lose work, then
- * accepts the request and remounts against the newly scoped workspace.
+ * The native side queues an already-granted resource without changing active
+ * context. Root transition guards run against that pending request; only an
+ * approved transition is accepted and remounted.
  */
 export async function mountWorkspace(
   host: HTMLElement,
-  context: WorkbenchContentContext,
+  context: WorkbenchRuntimeContext,
   mountDocument: DocumentMount,
 ): Promise<Unmount> {
   let mounted = await mountWorkspaceSession(host, context, mountDocument);
   let switching = false;
   let disposed = false;
+  const stopGuard = context.state.registerTransitionGuard({
+    id: "workbench.current-document",
+    prepare: ({ from, to }) => {
+      if (from.fileId === to.fileId || mounted.canSwitch()) return { status: "ready" };
+      return { status: "refused", reason: "The current document has unsaved work" };
+    },
+  });
 
   const stopListening = context.platform.onOpenRequested(() => {
-    if (disposed || switching || !mounted.canSwitch()) return;
+    if (disposed || switching) return;
 
     switching = true;
     void (async () => {
+      const pending = await context.platform.pendingOpenRequest();
+      if (!pending || disposed) return;
+      const grants = await context.platform
+        .projectGrants()
+        .catch(() => (pending.project ? [pending.project] : []));
+      const transition = await context.state.applyLaunch(pending, grants);
+      if (transition.status === "refused") return;
       const launch = await context.platform.acceptOpenRequest();
       if (!launch || disposed) return;
 
@@ -197,6 +229,7 @@ export async function mountWorkspace(
 
   return () => {
     disposed = true;
+    stopGuard();
     stopListening();
     mounted.unmount();
   };

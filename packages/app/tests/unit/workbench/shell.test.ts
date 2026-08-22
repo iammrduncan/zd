@@ -4,14 +4,22 @@ import type { Platform } from "@/platform";
 import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
 import { mountWorkbenchShell } from "@/workbench/shell";
 import { createWorkbenchStateOwner } from "@/workbench/state";
+import { homeLaunch } from "@/workbench/resources";
 
 function context(): WorkbenchRuntimeContext {
   const platform: Platform = {
     kind: "browser",
-    launchRequest: async () => ({ path: null }),
+    launchRequest: async () => homeLaunch(),
     onOpenRequested: () => () => {},
+    pendingOpenRequest: async () => null,
     acceptOpenRequest: async () => null,
-    workspaceFiles: async () => null,
+    projectGrants: async () => [],
+    removeProjectGrant: async () => {
+      throw new Error("no grants");
+    },
+    workspaceFiles: async () => {
+      throw new Error("no listing");
+    },
     readTextFile: async () => "",
     writeTextFile: async () => {},
     fileStamp: async () => null,
@@ -19,7 +27,7 @@ function context(): WorkbenchRuntimeContext {
     closeWindow: async () => {},
     openExternal: async () => {},
   };
-  return { launch: { path: null }, platform, state: createWorkbenchStateOwner() };
+  return { launch: homeLaunch(), platform, state: createWorkbenchStateOwner() };
 }
 
 describe("the root workbench shell", () => {

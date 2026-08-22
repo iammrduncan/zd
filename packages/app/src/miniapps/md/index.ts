@@ -1,4 +1,5 @@
-import type { WorkbenchContentContext, Unmount } from "@/workbench/runtime";
+import type { WorkbenchRuntimeContext, Unmount } from "@/workbench/runtime";
+import { launchResource } from "@/workbench/resources";
 import { createEditor, type Editor } from "./editor/editor";
 import { languageFor } from "./editor/language";
 import { register } from "@/suite/shortcuts";
@@ -46,18 +47,19 @@ function teachFocusJump(host: HTMLElement): () => void {
  * never an exception.
  */
 async function documentSource(
-  ctx: WorkbenchContentContext,
+  ctx: WorkbenchRuntimeContext,
 ): Promise<{ text: string } | { problem: string }> {
-  const { path } = ctx.launch;
-  if (!path) return { problem: "No document open. The Home surface lands in session 2.4." };
+  if (ctx.launch.problem) return { problem: ctx.launch.problem };
+  const resource = launchResource(ctx.launch);
+  if (!resource) return { problem: "No document open. The Home surface lands in session 2.4." };
 
   try {
-    return { text: await ctx.platform.readTextFile(path) };
+    return { text: await ctx.platform.readTextFile(resource) };
   } catch (cause) {
     // The path came from the user's own command line, so naming it back is
     // help rather than disclosure.
     const reason = cause instanceof Error ? cause.message : String(cause);
-    return { problem: `Could not read ${path} — ${reason}` };
+    return { problem: `Could not read ${resource.relativePath} — ${reason}` };
   }
 }
 
@@ -77,7 +79,7 @@ async function documentSource(
 const documentApp = {
   async mount(
     host: HTMLElement,
-    ctx: WorkbenchContentContext,
+    ctx: WorkbenchRuntimeContext,
     review?: ReviewDocument,
   ): Promise<MountedDocument> {
     // Two elements, two jobs: the surface scrolls, the column holds the measure.
@@ -85,7 +87,7 @@ const documentApp = {
     // extent while the column stays centred — see styles/md.css.
     const surface = document.createElement("main");
     surface.className = "md-surface";
-    surface.dataset.launchPath = ctx.launch.path ?? "";
+    surface.dataset.launchPath = launchResource(ctx.launch)?.relativePath ?? "";
 
     /** One calm sentence about the file, on the strip §7.10 already owns. */
     const notify = (message: string) => showNotice(host, message);
@@ -161,12 +163,12 @@ const documentApp = {
       // files; the platform writes bytes and knows nothing about documents.
       // This is the only place that knows both, which is why the path is here
       // and not inside either of them.
-      const path = ctx.launch.path!;
+      const resource = launchResource(ctx.launch)!;
 
       // Its first value. What "the file as we last agreed with it" means is on the
       // declaration above — audit finding L3: this paragraph was written out twice,
       // an artefact of `known` moving out of this block.
-      known = await ctx.platform.fileStamp(path).catch(() => null);
+      known = await ctx.platform.fileStamp(resource).catch(() => null);
 
       editor = createEditor(column, source.text, {
         /*
@@ -187,7 +189,7 @@ const documentApp = {
            * buffer over someone else's edit is the same loss, and it is exactly
            * what a check phrased as "only warn if I have changes" lets through.
            */
-          const onDisk = await ctx.platform.fileStamp(path).catch(() => known);
+          const onDisk = await ctx.platform.fileStamp(resource).catch(() => known);
           if (saveWouldClobber(known, onDisk)) {
             warn(
               "This file changed on disk. Nothing was written — copy your work, then reopen it.",
@@ -196,7 +198,7 @@ const documentApp = {
           }
 
           try {
-            await ctx.platform.writeTextFile(path, text);
+            await ctx.platform.writeTextFile(resource, text);
           } catch (cause) {
             /*
              * A full disk, a read-only file, a directory that is gone. This used
@@ -210,7 +212,7 @@ const documentApp = {
           }
 
           // Now the file is ours again, so the next save has a fresh baseline.
-          known = await ctx.platform.fileStamp(path).catch(() => null);
+          known = await ctx.platform.fileStamp(resource).catch(() => null);
           // The work is on disk, so §7.3's standing notice has nothing left to
           // warn about. A later close can now proceed without confirmation.
           withdraw();
@@ -219,7 +221,7 @@ const documentApp = {
         // §6.2. Resolved here for the same reason `onSave` is: this is the only
         // place that knows the path, and the editor is kept knowing only how to
         // parse what it was handed.
-        language: languageFor(path),
+        language: languageFor(resource.relativePath),
         // §7.6: "a suite preference applied to every document". Read here rather
         // than inside the editor, which owns one document and knows nothing about
         // what was chosen in another or yesterday.
@@ -394,11 +396,11 @@ const documentApp = {
      */
     const onFocus = () => {
       const open = editor;
-      const path = ctx.launch.path;
-      if (!open || !path) return;
+      const resource = launchResource(ctx.launch);
+      if (!open || !resource) return;
 
       void (async () => {
-        const onDisk = await ctx.platform.fileStamp(path).catch(() => known);
+        const onDisk = await ctx.platform.fileStamp(resource).catch(() => known);
         const decision = reconcile({ known, onDisk, dirty: open.isDirty() });
         if (decision.action === "none") {
           // §7.3: the notice "withdraws when the path reappears". Nothing is wrong
@@ -411,7 +413,7 @@ const documentApp = {
           // Nothing on screen differs from what was on disk, so taking the newer
           // version destroys nothing — see reconcile.ts for why this case alone is
           // allowed to act without asking.
-          const text = await ctx.platform.readTextFile(path).catch(() => null);
+          const text = await ctx.platform.readTextFile(resource).catch(() => null);
           if (text === null) return;
           open.setText(text);
           known = onDisk;
@@ -473,7 +475,7 @@ const documentApp = {
 
 export function mountCurrentWorkspace(
   host: HTMLElement,
-  context: WorkbenchContentContext,
+  context: WorkbenchRuntimeContext,
 ): Promise<Unmount> {
   return mountWorkspace(host, context, documentApp.mount);
 }

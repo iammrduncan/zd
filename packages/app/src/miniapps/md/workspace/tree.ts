@@ -1,4 +1,5 @@
 import type { WorkspaceFile } from "@/platform";
+import { resourceKey } from "@/workbench/resources";
 
 interface Directory {
   name: string;
@@ -168,7 +169,7 @@ export function buildFileTree(
         button.title = child.file.relative;
         button.setAttribute("role", "treeitem");
         button.addEventListener("click", () => open(child.file!));
-        buttons.set(child.file.path, button);
+        buttons.set(resourceKey(child.file.resource), button);
         item.append(button);
       }
 

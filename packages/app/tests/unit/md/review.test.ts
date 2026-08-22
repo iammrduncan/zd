@@ -2,9 +2,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Platform, WorkspaceFile } from "@/platform";
 import { formatFeedback, mountReview, type ReviewSelection } from "@/miniapps/md/review";
+import type { FileResource, ProjectGrant } from "@/workbench/resources";
 
+const project: ProjectGrant = {
+  id: "project-w",
+  name: "workspace",
+  root: "/workspace",
+  availability: "available",
+  worktrees: [
+    {
+      id: "worktree-w",
+      name: "workspace",
+      root: "/workspace",
+      availability: "available",
+    },
+  ],
+};
+const rootResource = { projectId: project.id, worktreeId: project.worktrees[0]!.id };
+const feedbackResource: FileResource = { ...rootResource, relativePath: "zd-feedback.txt" };
 const file: WorkspaceFile = {
-  path: "/workspace/notes/plan.md",
+  resource: { ...rootResource, relativePath: "notes/plan.md" },
   relative: "notes/plan.md",
 };
 
@@ -20,10 +37,20 @@ const selection: ReviewSelection = {
 function platform(writeTextFile: Platform["writeTextFile"] = async () => {}): Platform {
   return {
     kind: "browser",
-    launchRequest: async () => ({ path: "/workspace" }),
+    launchRequest: async () => ({
+      project,
+      worktreeId: project.worktrees[0]!.id,
+      relativePath: null,
+      problem: null,
+    }),
     onOpenRequested: () => () => {},
+    pendingOpenRequest: async () => null,
     acceptOpenRequest: async () => null,
-    workspaceFiles: async () => null,
+    projectGrants: async () => [project],
+    removeProjectGrant: async () => project,
+    workspaceFiles: async () => {
+      throw new Error("no listing");
+    },
     readTextFile: async () => "",
     writeTextFile,
     fileStamp: async () => null,
@@ -41,7 +68,7 @@ describe("review feedback", () => {
       formatFeedback([
         {
           id: "one",
-          path: file.path,
+          path: "project-w\0worktree-w\0notes/plan.md",
           relative: file.relative,
           startLine: 2,
           endLine: 3,
@@ -58,6 +85,7 @@ describe("review feedback", () => {
     const review = mountReview({
       host,
       root: "/workspace",
+      rootResource,
       platform: platform(writeTextFile),
     });
     const document_ = review.document(file);
@@ -73,7 +101,7 @@ describe("review feedback", () => {
 
     await vi.waitFor(() =>
       expect(writeTextFile).toHaveBeenCalledWith(
-        "/workspace/zd-feedback.txt",
+        feedbackResource,
         "[notes/plan.md][LN2:LN3] [First step and the next] Explain why and name the owner\n",
       ),
     );
@@ -89,6 +117,7 @@ describe("review feedback", () => {
       host,
       launcherHost: sidebar,
       root: "/workspace",
+      rootResource,
       platform: platform(writeTextFile),
     });
     const document_ = review.document(file);
@@ -105,7 +134,7 @@ describe("review feedback", () => {
 
     await vi.waitFor(() =>
       expect(writeTextFile).toHaveBeenCalledWith(
-        "/workspace/zd-feedback.txt",
+        feedbackResource,
         "[notes/plan.md][LN2:LN3] [First step and the next] Explain why\n",
       ),
     );
@@ -129,6 +158,7 @@ describe("review feedback", () => {
       host,
       launcherHost: sidebar,
       root: "/workspace",
+      rootResource,
       platform: platform(writeTextFile),
     });
     const document_ = review.document(file);
@@ -153,11 +183,16 @@ describe("review feedback", () => {
     expect(sidebar.querySelector(".md-feedback-launcher")?.textContent).toBe("Feedback 0");
     expect(host.querySelector(".md-feedback-output")?.textContent).toBe("");
     await vi.waitFor(() =>
-      expect(writeTextFile).toHaveBeenLastCalledWith("/workspace/zd-feedback.txt", ""),
+      expect(writeTextFile).toHaveBeenLastCalledWith(feedbackResource, ""),
     );
     review.unmount();
 
-    const reopened = mountReview({ host, root: "/workspace", platform: platform() });
+    const reopened = mountReview({
+      host,
+      root: "/workspace",
+      rootResource,
+      platform: platform(),
+    });
     let reopenedTags = 1;
     reopened.document(file).connect((next) => {
       reopenedTags = next.length;
@@ -171,6 +206,7 @@ describe("review feedback", () => {
     const first = mountReview({
       host: firstHost,
       root: "/workspace",
+      rootResource,
       platform: platform(),
     });
     const firstDocument = first.document(file);
@@ -185,6 +221,7 @@ describe("review feedback", () => {
     const reopened = mountReview({
       host: reopenedHost,
       root: "/workspace",
+      rootResource,
       platform: platform(),
     });
     let tags: Array<{ line: number; text: string }> = [];
@@ -211,6 +248,7 @@ describe("review feedback", () => {
     const review = mountReview({
       host,
       root: "/workspace",
+      rootResource,
       platform: platform(writeTextFile),
     });
     const document_ = review.document(file);
