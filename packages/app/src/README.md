@@ -31,28 +31,18 @@ instead of creating another state, command, or native-authority owner.
 | [`design/`](design/) | Shared semantic roles, bundled fonts, validated themes, and appearance ownership. |
 | [`projects/`](projects/) | Project-list model, controller, view, and workbench adapter contract. |
 | [`instrumentation/`](instrumentation/) | Closed diagnostic schema and the local opt-in frontend client. |
-| [`editor/`](editor/) | Bounded buffer classification, language selection, Find/Replace, and the workbench editor facade. |
+| [`editor/`](editor/) | CodeMirror document mechanics, bounded buffers, languages, Markdown behavior and styles, Find/Replace, focus, and document-local annotations. |
 | [`terminal/`](terminal/) | Structured terminal-session adapter, viewport validation, and bounded scrollback contract. |
 | [`threads/`](threads/) | Project-scoped thread model, lifecycle, attention event, create flow, and terminal presentation. |
 | [`files/`](files/) | Persistent compact file-tree model, controller, filtering, Git reconciliation, and virtualization. |
 | [`git/`](git/) | Scoped read-only Git adapter and stable status/history/comparison reconciliation. |
 | [`changes/`](changes/) | Working-tree changes, bounded history, comparisons, and read-only diff presentation. |
 | [`notifications/`](notifications/) | Attention policy, local preferences, platform request schema, and outcome routing. |
-| [`workbench/`](workbench/) | Root shell, state, current-file ownership, settings surfaces, commands, and lifecycle composition. |
+| [`workbench/`](workbench/) | Root shell, state, settings surfaces, commands, and lifecycle composition. [`workbench/current-file/`](workbench/current-file/) owns bounded file reads, saving, reconciliation, dirty-close safety, and the active editor buffer. |
 
 The native side of grants, files, Git, themes, diagnostics, quick access, terminal sessions, and
 notifications is mapped
 in the [native source map](../../tauri/src/README.md).
-
-## Retained Markdown location
-
-Some editor implementation and styles still live under [`miniapps/md/`](miniapps/md/). The root
-workbench consumes them through the `editor/` facade where that boundary exists, while the current
-file owner still has two direct compatibility imports. Read the
-[legacy-location note](miniapps/README.md) before moving or importing that code.
-
-The directory name records source history. It is not an extension mechanism. New work belongs with
-the root owner or the feature boundary that owns the behavior.
 
 ## Verification
 

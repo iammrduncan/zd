@@ -38,7 +38,7 @@ describe("the editing surface", () => {
   });
 
   it("leaves the host empty when destroyed", () => {
-    // The mini app's unmount depends on this: an editor that outlives its
+    // The workbench's unmount depends on this: an editor that outlives its
     // surface goes on holding key handlers over a document nobody can see.
     const { host, editor } = mount("text");
     expect(host.children.length).toBeGreaterThan(0);
@@ -73,6 +73,26 @@ describe("the editing surface", () => {
 
     expect(host.querySelector(".cm-content")?.getAttribute("contenteditable")).toBe("false");
     expect(editor.isReadOnly()).toBe(true);
+  });
+
+  it("keeps line-attached review tags inside the document owner", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    let activated: string | null = null;
+    const editor = createEditor(host, "first\nsecond", {
+      onCommentActivate: (id) => {
+        activated = id;
+      },
+    });
+
+    editor.setCommentTags([{ id: "comment-1", line: 2, text: "Explain this" }]);
+    const tag = host.querySelector<HTMLButtonElement>(".md-comment-tag");
+    expect(tag?.textContent).toBe("Explain this");
+    expect(tag?.getAttribute("aria-label")).toBe("Comment: Explain this");
+
+    tag?.click();
+    expect(activated).toBe("comment-1");
+    editor.destroy();
   });
 });
 
@@ -224,7 +244,7 @@ describe("saving", () => {
    * Filed as audit H1 and it is a regression: the clobber refusal and the async
    * write landed 2026-08-01 and `save()` still marked the buffer clean first, so
    * every failure path lied. A refused save, a full disk, a read-only file — the
-   * strip said "saved", `cmd+i` agreed, and quitting lost the work.
+   * document-info surface said "saved", and quitting lost the work.
    */
   it("stays dirty when the write fails", async () => {
     const { host, document_ } = editor("# Title", () => Promise.reject(new Error("disk full")));

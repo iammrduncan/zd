@@ -214,7 +214,7 @@
    * Rounded outward from thirds on purpose: they sum to 101vh rather than 100.
    * A fraction of a vh of slack is invisible, and a fraction short means the
    * first or last block can never be focused. Keep in step with ANCHOR_RATIO in
-   * miniapps/md/focus.ts — tests/unit/design/anchor-gutters.test.ts fails if
+   * editor/focus/anchor.ts — tests/unit/design/anchor-gutters.test.ts fails if
    * they drift.
    */
   --reading-gutter-leading: 34vh;
@@ -255,7 +255,7 @@
   --gap-heading-after: 18px;
 
   /*
-   * List geometry — DESIGN.md §5.2 names these as suite tokens rather than
+   * List geometry — DESIGN.md §5.2 names these as shared tokens rather than
    * renderer literals, so they live here and every surface reads the same ones.
    *
    * The bullet is 0.90em Bold: "optically subordinate to body text, but large
@@ -334,7 +334,7 @@
   /*
    * The hairline. DESIGN.md calls for "one quiet hairline" in several places —
    * blockquotes, the current-row indicator, the transient content column — and
-   * always exactly one. A token rather than a literal so the suite can decide
+   * always exactly one. A token rather than a literal so the design system can decide
    * once what a hairline is; a hi-DPI panel may eventually want less than 1px.
    */
   --hairline: 1px;

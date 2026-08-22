@@ -49,9 +49,14 @@ describe("design token references", () => {
     expect(dangling, `undefined tokens referenced in ${name}`).toEqual([]);
   });
 
-  it("keeps mini apps off raw families, sizes, and colours", () => {
-    // DESIGN.md §4.2: a mini app selects a semantic role, never a literal.
-    for (const file of cssFiles(join(SRC, "miniapps"))) {
+  it("keeps feature styles off raw families, sizes, and colours", () => {
+    // DESIGN.md §4.2: a feature selects a semantic role, never a literal.
+    const ownedStyles = [
+      ...cssFiles(join(SRC, "editor/styles")),
+      ...cssFiles(join(SRC, "editor/review")),
+      ...cssFiles(join(SRC, "workbench/current-file")),
+    ];
+    for (const file of ownedStyles) {
       // Comments quote DESIGN.md, which is full of "44 px" and "#FAFAF7". The
       // rule is about declarations, so read the stylesheet without its prose.
       const source = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");

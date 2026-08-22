@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createEditor } from "@/miniapps/md/editor/editor";
+import { createEditor } from "@/editor";
 
 // Vision §6.1: notation is visible, and the line it sits on still reads as the
 // block it is. What is asserted here is only *which lines are what* — what those

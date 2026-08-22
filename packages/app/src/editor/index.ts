@@ -1,4 +1,4 @@
-export { createEditor, type Editor, type EditorOptions } from "@/miniapps/md/editor/editor";
+export { createEditor, type Editor, type EditorOptions } from "./document";
 export {
   LANGUAGE_REGISTRY,
   LANGUAGE_REGISTRY_VERSION,

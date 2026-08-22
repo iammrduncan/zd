@@ -62,12 +62,8 @@ test("cmd+period opens the reference and lists the registry", async ({ page }) =
 
   const text = (await sheet.textContent()) ?? "";
   expect(text, "the save command is missing").toContain("Save the document");
-  // By the half of the description that says what the command is *for*. It read
-  // "word count" until 2026-07-30, when the strip gained a line count and a read
-  // time and the description had to stop naming only one of four values — a
-  // locator anchored to the part most likely to be reworded is one that fails for
-  // reasons that are not defects.
-  expect(text, "the status command is missing").toContain("unsaved state");
+  expect(text, "the current-file Find command is missing").toContain("Find in the current file");
+  expect(text, "the Markdown source command is missing").toContain("Raw mode");
   // Its own command has to be listed — the first prototype's Reference could not
   // tell you how to close itself.
   expect(text, "the Reference does not list itself").toContain("Shortcut Reference");

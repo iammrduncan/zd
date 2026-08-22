@@ -65,7 +65,7 @@ The current application already proves several hard product decisions:
 - a quiet, typography-led, local-first default whose primary measure is sustained comprehension of
   long agent documents ([VISION.md](../../../../VISION.md), [`DESIGN.md`](../../../../DESIGN.md)); and
 - a static mini-app seam that makes a compiled-in second mini-app cheap without pretending to be a
-  runtime plugin system ([mini-app rules](../../../../../packages/app/src/miniapps/README.md)).
+  runtime plugin system ([mini-app rules at this research snapshot](https://github.com/iammrduncan/zd/blob/889acc9445170594ca6ae38baa5033d5cd518528/packages/app/src/miniapps/README.md)).
 
 The present gaps are equally concrete: there is one active root, one mounted document, one registered
 mini-app, hard-coded in-window chords, no stable project identity, no retained project collection, no

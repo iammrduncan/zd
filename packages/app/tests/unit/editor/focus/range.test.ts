@@ -2,7 +2,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
-import { blockRange, sectionRange } from "@/miniapps/md/editor/focus/range";
+import { blockRange, sectionRange } from "@/editor/focus/range";
 
 /*
  * What §4.1 calls the focus target: the whole block the caret is in.

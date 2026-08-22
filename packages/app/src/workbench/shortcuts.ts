@@ -316,7 +316,7 @@ export function releaseHeld(event: KeyboardEvent): void {
  * The cost of capture is that this sees every key in the window before anything else
  * does, so `dispatch` claiming only what it has a command for stops being a nicety.
  * It already returns false and calls no `preventDefault` for an unmatched chord, and
- * editor-status.spec.ts pins that typing still reaches the editor.
+ * editor/surface.spec.ts pins that typing still reaches the editor.
  */
 export function attachShortcuts(target: EventTarget = window): () => void {
   const onKeyDown = (event: Event) => {

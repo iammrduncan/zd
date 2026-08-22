@@ -1,0 +1,25 @@
+/* Inline review marks stay attached to editor lines while their workflow lives elsewhere. */
+.md-comment-tag {
+  display: inline-block;
+  max-width: var(--sidebar-width-max);
+  appearance: none;
+  margin-inline-start: var(--space-2);
+  padding-inline: var(--space-1);
+  overflow: hidden;
+  color: var(--text-secondary);
+  background: var(--surface-selection);
+  border: 0;
+  border-inline-start: var(--hairline) solid var(--line-focus);
+  border-radius: 0;
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-navigation-size);
+  line-height: var(--type-navigation-line);
+  text-overflow: ellipsis;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.md-comment-tag:focus-visible {
+  outline: var(--hairline) solid var(--line-focus);
+  outline-offset: var(--hairline);
+}

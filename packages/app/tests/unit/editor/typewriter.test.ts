@@ -1,7 +1,7 @@
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
-import { isTypewriter, setTypewriter, typewriterMode } from "@/miniapps/md/editor/typewriter";
+import { isTypewriter, setTypewriter, typewriterMode } from "@/editor/typewriter";
 
 /*
  * The Typewriter Mode flag — vision §6.1's "available as a toggle".

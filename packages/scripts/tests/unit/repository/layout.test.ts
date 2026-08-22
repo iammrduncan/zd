@@ -27,6 +27,13 @@ function directFiles(directory: string, suffix: string): string[] {
     .sort();
 }
 
+function filesUnder(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    return entry.isDirectory() ? filesUnder(path) : [path];
+  });
+}
+
 describe("package ownership", () => {
   it("files product, shell, and automation inputs under their package", () => {
     const ownedInputs = [
@@ -47,10 +54,10 @@ describe("package ownership", () => {
 
   it("uses directories rather than filename prefixes for component families", () => {
     const componentRoots = [
-      "packages/app/src/miniapps/md/workspace/index.ts",
-      "packages/app/src/miniapps/md/editor/focus/index.ts",
-      "packages/app/src/miniapps/md/editor/notation/index.ts",
-      "packages/app/src/miniapps/md/review/index.ts",
+      "packages/app/src/editor/focus/index.ts",
+      "packages/app/src/editor/markdown/notation/index.ts",
+      "packages/app/src/editor/review/index.ts",
+      "packages/app/src/workbench/current-file/index.ts",
       "packages/scripts/session-loop/index.mjs",
       "packages/scripts/objectives/archive.mjs",
       "packages/scripts/release/check-tag.mjs",
@@ -60,6 +67,22 @@ describe("package ownership", () => {
 
     expect(componentRoots.filter((path) => !existsSync(resolve(ROOT, path)))).toEqual([]);
     expect(directFiles("packages/scripts", ".mjs")).toEqual([]);
+  });
+
+  it("keeps the retired application-surface boundary out of current app code", () => {
+    const retiredRoot = resolve(APP, "src/miniapps");
+    const currentFiles = [resolve(APP, "src"), resolve(APP, "dev")]
+      .flatMap(filesUnder)
+      .filter((path) => /\.(?:css|html|ts)$/.test(path));
+    const staleReferences = currentFiles
+      .filter((path) => /miniapps?/i.test(readFileSync(path, "utf8")))
+      .map((path) => relative(ROOT, path));
+
+    expect(existsSync(retiredRoot)).toBe(false);
+    expect(existsSync(resolve(APP, "dev/workspace.html"))).toBe(false);
+    expect(existsSync(resolve(APP, "tests/unit/md"))).toBe(false);
+    expect(existsSync(resolve(APP, "tests/e2e/workspace"))).toBe(false);
+    expect(staleReferences).toEqual([]);
   });
 
   it("mirrors app and automation tests below their owning component", () => {
@@ -245,7 +268,7 @@ describe("app entry points", () => {
  * Feature surfaces consume it through the root runtime, so the bottom layer
  * naming a type owned by the layer above it is backwards.
  *
- * It was one import — `FileStamp` from the retained reconcile module — and one import
+ * It was one import — `FileStamp` from a feature-owned reconcile module — and one import
  * is exactly how a layering rule stops being true: nothing announces it, the
  * typechecker is satisfied, and the next one is easier than the first.
  */
@@ -253,7 +276,7 @@ describe("app entry points", () => {
 const PLATFORM = resolve(APP, "src/platform.ts");
 
 describe("layering", () => {
-  it("keeps the platform from importing the retained legacy source tree", () => {
+  it("keeps the platform from importing the retired source boundary", () => {
     const source = readFileSync(PLATFORM, "utf8");
     const imports = [...source.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]!);
 
