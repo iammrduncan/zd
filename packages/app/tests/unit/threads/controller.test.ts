@@ -160,4 +160,20 @@ describe("the Threads controller", () => {
       reason: "Build is still running",
     });
   });
+
+  it("emits only stable opaque context through the optional instrumentation seam", async () => {
+    const workbench = adapter();
+    const instrumentation = vi.fn();
+    const controller = new ThreadsController(workbench, instrumentation);
+
+    await controller.activateThread("second");
+
+    expect(instrumentation).toHaveBeenCalledExactlyOnceWith({
+      operation: "thread.activate",
+      outcome: "ok",
+      threadId: "second",
+    });
+    expect(instrumentation.mock.calls[0]![0]).not.toHaveProperty("name");
+    expect(instrumentation.mock.calls[0]![0]).not.toHaveProperty("path");
+  });
 });

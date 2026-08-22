@@ -1,0 +1,84 @@
+.zd-terminal-thread-surface {
+  --terminal-canvas: var(--surface-canvas);
+  --terminal-foreground: var(--text-primary);
+  --terminal-selection: var(--surface-selection);
+  --terminal-focus: var(--line-focus);
+
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-inline-size: 0;
+  block-size: 100%;
+  overflow: hidden;
+  background: var(--terminal-canvas);
+  color: var(--terminal-foreground);
+}
+
+.zd-terminal-thread-surface:focus-within {
+  outline: var(--hairline) solid var(--terminal-focus);
+  outline-offset: calc(var(--hairline) * -1);
+}
+
+.zd-terminal-thread-metadata,
+.zd-terminal-thread-status {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  font-style: var(--type-supporting-style);
+  font-weight: var(--type-supporting-weight);
+  line-height: var(--type-supporting-line);
+}
+
+.zd-terminal-thread-output {
+  min-inline-size: 0;
+  min-block-size: 0;
+  margin: 0;
+  padding: var(--space-3);
+  overflow: auto;
+  background: var(--terminal-canvas);
+  color: var(--terminal-foreground);
+  font-family: var(--type-code-family);
+  font-size: var(--type-code-size);
+  font-style: var(--type-code-style);
+  font-weight: var(--type-code-weight);
+  line-height: var(--type-code-line);
+  overflow-wrap: anywhere;
+  tab-size: 4;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+.zd-terminal-thread-output::selection {
+  background: var(--terminal-selection);
+}
+
+.zd-terminal-thread-output:focus-visible {
+  outline: none;
+  text-decoration: underline;
+  text-decoration-color: var(--terminal-focus);
+  text-decoration-thickness: var(--hairline);
+  text-underline-offset: var(--space-1);
+}
+
+.zd-terminal-thread-status {
+  color: var(--state-error);
+}
+
+.zd-terminal-thread-input {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  inline-size: var(--hairline);
+  block-size: var(--hairline);
+  padding: 0;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.zd-terminal-thread-measure {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+}
