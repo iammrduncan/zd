@@ -1,4 +1,5 @@
 import type { TerminalExitStatus, TerminalViewport } from "@/terminal";
+import type { TerminalEmulatorFactory } from "./emulator";
 import type { ThreadLifecycleSignal } from "../types";
 
 export type TerminalThreadStatus =
@@ -61,6 +62,8 @@ export interface TerminalThreadMetadata {
 
 export interface TerminalThreadSurfaceOptions {
   readonly applicationOwnsKey?: (event: KeyboardEvent) => boolean;
+  readonly createEmulator?: TerminalEmulatorFactory;
+  readonly writeClipboard?: (text: string) => Promise<void>;
 }
 
 export interface TerminalKeyboardInput {

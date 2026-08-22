@@ -4,6 +4,9 @@ import {
   mountProjectThreads,
   mountTerminalThreadSurface,
   ThreadsController,
+  type TerminalThreadSession,
+  type TerminalThreadSurface,
+  type TerminalThreadSurfaceOptions,
   type ThreadInstrumentationEvent,
 } from "@/threads";
 import { mountCurrentFile } from "./current-file";
@@ -12,6 +15,7 @@ import { createWorkbenchFilesRuntime } from "./files";
 import { createProjectWorkbenchAdapter } from "./projects";
 import type { Unmount, WorkbenchMount, WorkbenchRuntimeContext } from "./runtime";
 import { mountWorkbenchShell } from "./shell";
+import { registerCommandTarget } from "./shortcuts";
 import { createRootThreadsAdapter, type RootThreadsAdapter } from "./threads";
 
 function recordThreadAction(
@@ -52,58 +56,108 @@ function threadsNavigationMount(threads: ThreadsController): WorkbenchMount {
   };
 }
 
-function emptyThreadSurface(host: HTMLElement, message: string): void {
-  const empty = document.createElement("p");
-  empty.className = "zd-region-empty";
-  empty.textContent = message;
-  host.replaceChildren(empty);
-}
-
 export function mountActiveThread(
   host: HTMLElement,
   context: WorkbenchRuntimeContext,
   threads: RootThreadsAdapter,
+  surfaceOptions: TerminalThreadSurfaceOptions = {},
 ): Unmount {
-  let stopSurface: Unmount = () => {};
-  let mountedId: string | null = null;
-  let mountedSession = threads.session("");
+  const empty = document.createElement("p");
+  empty.className = "zd-region-empty";
+  host.replaceChildren(empty);
+  const mounted = new Map<
+    string,
+    { session: TerminalThreadSession; surface: TerminalThreadSurface }
+  >();
+  let activeThreadId: string | null = null;
+
+  const activeSurface = () =>
+    activeThreadId ? (mounted.get(activeThreadId)?.surface ?? null) : null;
 
   const render = () => {
     const snapshot = threads.snapshot();
     const threadId = snapshot.activeThreadId;
-    const session = threadId ? threads.session(threadId) : null;
-    if (threadId === mountedId && session === mountedSession) return;
-    stopSurface();
-    stopSurface = () => {};
-    mountedId = threadId;
-    mountedSession = session;
+    const currentThreads = new Map(snapshot.threads.map((thread) => [thread.id, thread]));
+    for (const [id, mountedThread] of mounted) {
+      if (!currentThreads.has(id) || threads.session(id) !== mountedThread.session) {
+        mountedThread.surface.dispose();
+        mounted.delete(id);
+      }
+    }
+    activeThreadId = threadId;
 
     if (!threadId) {
-      emptyThreadSurface(host, "No thread selected.");
+      empty.textContent = "No thread selected.";
+      empty.hidden = false;
+      for (const mountedThread of mounted.values()) mountedThread.surface.setVisible(false);
       return;
     }
     const thread = snapshot.threads.find(({ id }) => id === threadId);
+    const session = threads.session(threadId);
     if (!thread || !session) {
-      emptyThreadSurface(
-        host,
-        thread?.recovery?.summary ?? "The selected terminal session is unavailable.",
-      );
+      empty.textContent =
+        thread?.recovery?.summary ?? "The selected terminal session is unavailable.";
+      empty.hidden = false;
+      for (const mountedThread of mounted.values()) mountedThread.surface.setVisible(false);
       return;
     }
     const project = snapshot.projects.find(({ id }) => id === thread.projectId);
-    host.replaceChildren();
-    stopSurface = mountTerminalThreadSurface(host, session, {
+    const metadata = {
       threadName: thread.name,
       projectName: project?.name ?? thread.projectId,
       worktreeLabel: thread.worktree.label,
-    });
+    };
+    let mountedThread = mounted.get(threadId);
+    if (!mountedThread) {
+      mountedThread = {
+        session,
+        surface: mountTerminalThreadSurface(host, session, metadata, surfaceOptions),
+      };
+      mounted.set(threadId, mountedThread);
+    } else {
+      mountedThread.surface.updateMetadata(metadata);
+    }
+    empty.hidden = true;
+    for (const [id, candidate] of mounted) candidate.surface.setVisible(id === threadId);
   };
 
   render();
   const stopState = context.state.subscribe(render);
+  const focusTerminal = () => activeSurface()?.focus();
+  host.addEventListener("focus", focusTerminal);
+  const stopFind = registerCommandTarget({
+    id: "active-terminal.find",
+    commandId: "file.find",
+    priority: 200,
+    available: () => {
+      const surface = activeSurface();
+      return Boolean(
+        surface &&
+        (document.activeElement === host || surface.element.contains(document.activeElement)),
+      );
+    },
+    run: () => {
+      const surface = activeSurface();
+      if (!surface) return false;
+      surface.openSearch();
+      return true;
+    },
+  });
+  const stopDismissSearch = registerCommandTarget({
+    id: "active-terminal.dismiss-search",
+    commandId: "workbench.escape",
+    priority: 310,
+    available: () => activeSurface()?.isSearchOpen() ?? false,
+    run: () => activeSurface()?.closeSearch() ?? false,
+  });
   return () => {
+    stopDismissSearch();
+    stopFind();
+    host.removeEventListener("focus", focusTerminal);
     stopState();
-    stopSurface();
+    for (const mountedThread of mounted.values()) mountedThread.surface.dispose();
+    mounted.clear();
+    empty.remove();
   };
 }
 

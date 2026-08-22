@@ -1,5 +1,6 @@
 import {
   createTerminalStartRequest,
+  DEFAULT_TERMINAL_SCROLLBACK_ROWS,
   terminalSessionKey,
   type TerminalAdapter,
   type TerminalExitStatus,
@@ -22,6 +23,7 @@ import type { ThreadLifecycle } from "../types";
 const MAX_WRITE_BYTES = 64 * 1_024;
 const MAX_READ_BYTES = 16 * 1_024 * 1_024;
 const OUTPUT_RENDER_CHUNK_BYTES = 256 * 1_024;
+const MAX_PENDING_EMULATOR_BYTES = 4 * 1_024 * 1_024;
 
 function validByte(value: number): boolean {
   return Number.isInteger(value) && value >= 0 && value <= 255;
@@ -47,12 +49,15 @@ export class TerminalThreadSession {
   readonly #listeners = new Set<(snapshot: TerminalThreadSnapshot) => void>();
   readonly #outputListeners = new Set<(bytes: Uint8Array) => void>();
   readonly #transcript: TerminalTranscriptBuffer;
+  readonly scrollbackRows: number;
   #disposed = false;
   #droppedBytes = 0;
   #exit: TerminalExitStatus | null = null;
   #handle: TerminalSessionHandle | null = null;
   #lifecycleRevision = 0;
   #nextOffset: number | null = null;
+  #pendingOutput: Uint8Array[] = [];
+  #pendingOutputBytes = 0;
   #readError: string | null = null;
   #refreshPromise: Promise<void> | null = null;
   #refreshQueued = false;
@@ -67,6 +72,7 @@ export class TerminalThreadSession {
     readonly options: TerminalThreadSessionOptions = {},
   ) {
     this.#transcript = new TerminalTranscriptBuffer(options.maximumRows);
+    this.scrollbackRows = options.maximumRows ?? DEFAULT_TERMINAL_SCROLLBACK_ROWS;
   }
 
   static attach(
@@ -104,6 +110,12 @@ export class TerminalThreadSession {
   /** Raw PTY bytes for a terminal emulator; content is never persisted in root state. */
   subscribeOutput(listener: (bytes: Uint8Array) => void): () => void {
     this.#outputListeners.add(listener);
+    if (this.#outputListeners.size === 1 && this.#pendingOutput.length > 0) {
+      const pending = this.#pendingOutput;
+      this.#pendingOutput = [];
+      this.#pendingOutputBytes = 0;
+      for (const chunk of pending) listener(chunk.slice());
+    }
     return () => this.#outputListeners.delete(listener);
   }
 
@@ -174,7 +186,7 @@ export class TerminalThreadSession {
         const end = Math.min(batch.bytes.length, offset + OUTPUT_RENDER_CHUNK_BYTES);
         const chunk = Uint8Array.from(batch.bytes.slice(offset, end));
         this.#transcript.append(chunk);
-        for (const listener of this.#outputListeners) listener(chunk.slice());
+        this.#publishOutput(chunk);
         if (end < batch.bytes.length) {
           this.#publish();
           await (this.options.yieldForOutput ?? defaultYieldForOutput)();
@@ -194,7 +206,11 @@ export class TerminalThreadSession {
   }
 
   writeText(text: string): Promise<void> {
-    const bytes = new TextEncoder().encode(text);
+    return this.writeBytes(new TextEncoder().encode(text));
+  }
+
+  writeBytes(input: Uint8Array): Promise<void> {
+    const bytes = input.slice();
     if (bytes.length === 0) return Promise.resolve();
     const work = this.#writeTail.then(async () => {
       const handle = this.#attachedHandle();
@@ -264,6 +280,9 @@ export class TerminalThreadSession {
     try {
       await this.adapter.dispose(handle);
       this.#disposed = true;
+      this.#outputListeners.clear();
+      this.#pendingOutput = [];
+      this.#pendingOutputBytes = 0;
       this.#transcript.finish();
       this.#status = "disposed";
       this.#record("terminal.dispose", "ok");
@@ -281,6 +300,25 @@ export class TerminalThreadSession {
     this.#status = failed ? "failed" : "exited";
     this.#lifecycle(failed ? "failed" : "exited");
     this.#publish();
+  }
+
+  #publishOutput(chunk: Uint8Array): void {
+    if (this.#outputListeners.size > 0) {
+      for (const listener of this.#outputListeners) listener(chunk.slice());
+      return;
+    }
+    if (chunk.length >= MAX_PENDING_EMULATOR_BYTES) {
+      this.#pendingOutput = [chunk.slice(-MAX_PENDING_EMULATOR_BYTES)];
+      this.#pendingOutputBytes = MAX_PENDING_EMULATOR_BYTES;
+      return;
+    }
+    this.#pendingOutput.push(chunk.slice());
+    this.#pendingOutputBytes += chunk.length;
+    while (this.#pendingOutputBytes > MAX_PENDING_EMULATOR_BYTES) {
+      const released = this.#pendingOutput.shift();
+      if (!released) break;
+      this.#pendingOutputBytes -= released.length;
+    }
   }
 
   #attachedHandle(): TerminalSessionHandle {

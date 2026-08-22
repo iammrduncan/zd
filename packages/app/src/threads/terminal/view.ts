@@ -1,6 +1,6 @@
 import "./terminal.css";
 
-import { terminalInputBytes } from "./input";
+import { createTerminalEmulator, type TerminalEmulator } from "./emulator";
 import type { TerminalThreadSession } from "./session";
 import type {
   TerminalThreadMetadata,
@@ -8,57 +8,119 @@ import type {
   TerminalThreadSurfaceOptions,
 } from "./types";
 
-export type TerminalThreadSurfaceUnmount = () => void;
+export interface TerminalThreadSurface {
+  readonly element: HTMLElement;
+  readonly viewportElement: HTMLElement;
+  closeSearch(): boolean;
+  copySelection(): Promise<boolean>;
+  dispose(): void;
+  fit(): void;
+  focus(): void;
+  isSearchOpen(): boolean;
+  openSearch(): void;
+  paste(text: string): void;
+  refreshTheme(): void;
+  setVisible(visible: boolean): void;
+  selectAll(): void;
+  updateMetadata(metadata: TerminalThreadMetadata): void;
+}
 
 function terminalLabel(metadata: TerminalThreadMetadata, surface: "input" | "output"): string {
   return `${metadata.threadName} terminal ${surface}, ${metadata.projectName}, ${metadata.worktreeLabel}`;
 }
 
-function positiveMetric(value: string): number | null {
-  const metric = Number.parseFloat(value);
-  return Number.isFinite(metric) && metric > 0 ? metric : null;
+function binaryBytes(data: string): Uint8Array {
+  return Uint8Array.from(data, (character) => character.charCodeAt(0) & 0xff);
 }
 
-/** Dependency-free transcript surface; the session contract can later host a full emulator. */
+function isCopyShortcut(event: KeyboardEvent): boolean {
+  if (event.key.toLowerCase() !== "c") return false;
+  return event.metaKey || (event.ctrlKey && event.shiftKey);
+}
+
+function defaultClipboardWrite(text: string): Promise<void> {
+  if (!navigator.clipboard?.writeText) return Promise.reject(new Error("clipboard unavailable"));
+  return navigator.clipboard.writeText(text);
+}
+
+/** Full VT/ANSI terminal surface backed by xterm and a project-scoped native session. */
 export function mountTerminalThreadSurface(
   host: HTMLElement,
   terminal: TerminalThreadSession,
   metadata: TerminalThreadMetadata,
   options: TerminalThreadSurfaceOptions = {},
-): TerminalThreadSurfaceUnmount {
+): TerminalThreadSurface {
   const root = document.createElement("section");
   root.className = "zd-terminal-thread-surface";
   root.setAttribute("aria-label", `${metadata.threadName} terminal thread`);
 
+  const header = document.createElement("header");
+  header.className = "zd-terminal-thread-header";
   const heading = document.createElement("p");
   heading.className = "zd-terminal-thread-metadata";
   heading.textContent = `${metadata.threadName} · ${metadata.projectName} · ${metadata.worktreeLabel}`;
-  const output = document.createElement("pre");
-  output.className = "zd-terminal-thread-output";
-  output.tabIndex = 0;
-  output.setAttribute("role", "log");
-  output.setAttribute("aria-live", "off");
-  output.setAttribute("aria-label", terminalLabel(metadata, "output"));
-  const status = document.createElement("p");
-  status.className = "zd-terminal-thread-status";
-  status.setAttribute("role", "status");
-  status.setAttribute("aria-live", "polite");
-  status.hidden = true;
-  const input = document.createElement("textarea");
-  input.className = "zd-terminal-thread-input";
-  input.rows = 1;
-  input.spellcheck = false;
-  input.autocomplete = "off";
-  input.autocapitalize = "off";
-  input.setAttribute("aria-label", terminalLabel(metadata, "input"));
-  root.append(heading, output, status, input);
+  const summonSearch = document.createElement("button");
+  summonSearch.type = "button";
+  summonSearch.className = "zd-terminal-thread-search-toggle";
+  summonSearch.setAttribute("aria-label", "Find in terminal output");
+  summonSearch.textContent = "Find";
+  header.append(heading, summonSearch);
+
+  const search = document.createElement("div");
+  search.className = "zd-terminal-thread-search";
+  search.hidden = true;
+  const query = document.createElement("input");
+  query.type = "search";
+  query.spellcheck = false;
+  query.autocomplete = "off";
+  query.setAttribute("aria-label", "Find in terminal");
+  const caseLabel = document.createElement("label");
+  caseLabel.className = "zd-terminal-thread-search-option";
+  const caseSensitive = document.createElement("input");
+  caseSensitive.type = "checkbox";
+  caseSensitive.setAttribute("aria-label", "Match terminal case");
+  caseLabel.append(caseSensitive, document.createTextNode("Aa"));
+  const previous = document.createElement("button");
+  previous.type = "button";
+  previous.setAttribute("aria-label", "Previous terminal match");
+  previous.textContent = "↑";
+  const next = document.createElement("button");
+  next.type = "button";
+  next.setAttribute("aria-label", "Next terminal match");
+  next.textContent = "↓";
+  const searchStatus = document.createElement("span");
+  searchStatus.className = "zd-terminal-thread-search-status";
+  searchStatus.setAttribute("role", "status");
+  searchStatus.setAttribute("aria-live", "polite");
+  const closeSearch = document.createElement("button");
+  closeSearch.type = "button";
+  closeSearch.setAttribute("aria-label", "Close terminal search");
+  closeSearch.textContent = "×";
+  search.append(query, caseLabel, previous, next, searchStatus, closeSearch);
+
+  const viewport = document.createElement("div");
+  viewport.className = "zd-terminal-thread-viewport";
+  viewport.setAttribute("role", "application");
+  viewport.setAttribute("aria-label", terminalLabel(metadata, "output"));
+  const problem = document.createElement("p");
+  problem.className = "zd-terminal-thread-status";
+  problem.setAttribute("role", "status");
+  problem.setAttribute("aria-live", "polite");
+  problem.hidden = true;
+  root.append(header, search, viewport, problem);
   host.append(root);
 
+  const emulator: TerminalEmulator = (options.createEmulator ?? createTerminalEmulator)(
+    terminal.scrollbackRows,
+  );
+  emulator.open(viewport, terminalLabel(metadata, "input"));
+
   let active = true;
+  let lastViewport = "";
   let resizeFrame: number | null = null;
+  let visible = true;
 
   const render = (snapshot: TerminalThreadSnapshot) => {
-    output.textContent = snapshot.rows.join("\n");
     root.dataset.terminalStatus = snapshot.status;
     const problems: string[] = [];
     if (snapshot.droppedBytes > 0) {
@@ -68,80 +130,174 @@ export function mountTerminalThreadSurface(
       problems.push(`${snapshot.discardedRows} earlier scrollback rows were released.`);
     }
     if (snapshot.readError) problems.push("Terminal output stopped unexpectedly.");
-    status.textContent = problems.join(" ");
-    status.hidden = problems.length === 0;
+    problem.textContent = problems.join(" ");
+    problem.hidden = problems.length === 0;
   };
 
   const reportFailure = () => {
     if (!active) return;
-    status.textContent = "Terminal input is unavailable.";
-    status.hidden = false;
+    problem.textContent = "Terminal input is unavailable.";
+    problem.hidden = false;
   };
 
-  const send = (bytes: readonly number[]) => {
-    const text = new TextDecoder().decode(Uint8Array.from(bytes));
-    void terminal.writeText(text).catch(reportFailure);
+  const writeText = (data: string) => {
+    void terminal.writeText(data).catch(reportFailure);
+  };
+  const writeBinary = (data: string) => {
+    void terminal.writeBytes(binaryBytes(data)).catch(reportFailure);
+  };
+  const writeClipboard = options.writeClipboard ?? defaultClipboardWrite;
+  const copySelection = async (): Promise<boolean> => {
+    if (!emulator.hasSelection()) return false;
+    await writeClipboard(emulator.getSelection());
+    return true;
+  };
+  const handleKey = (event: KeyboardEvent): boolean => {
+    if (options.applicationOwnsKey?.(event)) return false;
+    if (!isCopyShortcut(event) || !emulator.hasSelection()) return true;
+    if (event.type === "keydown") void copySelection().catch(reportFailure);
+    return false;
+  };
+  emulator.attachCustomKeyEventHandler(handleKey);
+
+  const searchOptions = (incremental: boolean) => ({
+    caseSensitive: caseSensitive.checked,
+    incremental,
+  });
+  const findNext = (incremental: boolean) => {
+    if (!query.value) {
+      emulator.clearSearch();
+      searchStatus.textContent = "";
+      return false;
+    }
+    return emulator.findNext(query.value, searchOptions(incremental));
+  };
+  const findPrevious = () => {
+    if (!query.value) return false;
+    return emulator.findPrevious(query.value, searchOptions(false));
   };
 
-  input.addEventListener("keydown", (event) => {
-    if (options.applicationOwnsKey?.(event)) return;
-    const usesInputEvent =
-      event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey;
-    if (usesInputEvent || event.isComposing) return;
-    const bytes = terminalInputBytes(event);
-    if (!bytes) return;
-    event.preventDefault();
-    send(bytes);
-  });
-  input.addEventListener("input", (event) => {
-    if (event instanceof InputEvent && event.isComposing) return;
-    const value = input.value;
-    input.value = "";
-    if (value) void terminal.writeText(value).catch(reportFailure);
-  });
-  root.addEventListener("click", (event) => {
-    if (event.target === root) input.focus();
-  });
-
-  const measureAndResize = () => {
-    resizeFrame = null;
-    if (!active) return;
-    const style = getComputedStyle(output);
-    const lineHeight = positiveMetric(style.lineHeight);
-    const fontSize = positiveMetric(style.fontSize);
-    if (!lineHeight || !fontSize || output.clientWidth <= 0 || output.clientHeight <= 0) return;
-    const measure = document.createElement("span");
-    measure.className = "zd-terminal-thread-measure";
-    measure.textContent = "MMMMMMMMMM";
-    output.append(measure);
-    const characterWidth = measure.getBoundingClientRect().width / 10;
-    measure.remove();
-    if (characterWidth <= 0) return;
-    const viewport = {
-      rows: Math.max(1, Math.floor(output.clientHeight / lineHeight)),
-      columns: Math.max(1, Math.floor(output.clientWidth / characterWidth)),
-      pixelWidth: Math.max(0, Math.round(output.clientWidth)),
-      pixelHeight: Math.max(0, Math.round(output.clientHeight)),
+  const refreshTheme = () => emulator.refreshTheme(root);
+  const fit = () => {
+    if (!active || !visible) return;
+    const dimensions = emulator.fit();
+    if (!dimensions) return;
+    const nextViewport = {
+      rows: dimensions.rows,
+      columns: dimensions.columns,
+      pixelWidth: Math.max(0, Math.round(viewport.clientWidth)),
+      pixelHeight: Math.max(0, Math.round(viewport.clientHeight)),
     };
-    void terminal.resize(viewport).catch(reportFailure);
+    const viewportKey = `${nextViewport.columns}x${nextViewport.rows}@${nextViewport.pixelWidth}x${nextViewport.pixelHeight}`;
+    if (viewportKey === lastViewport) return;
+    lastViewport = viewportKey;
+    void terminal.resize(nextViewport).catch(() => {
+      if (lastViewport === viewportKey) lastViewport = "";
+      reportFailure();
+    });
   };
-  const resizeObserver =
-    typeof ResizeObserver === "undefined"
-      ? null
-      : new ResizeObserver(() => {
-          if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
-          resizeFrame = requestAnimationFrame(measureAndResize);
-        });
-  resizeObserver?.observe(output);
+  const scheduleFit = () => {
+    if (!active || !visible) return;
+    if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = null;
+      fit();
+    });
+  };
 
+  const resizeObserver =
+    typeof ResizeObserver === "undefined" ? null : new ResizeObserver(scheduleFit);
+  resizeObserver?.observe(viewport);
+  const themeRoot = document.documentElement;
+  const themeObserver =
+    typeof MutationObserver === "undefined"
+      ? null
+      : new MutationObserver(() => {
+          if (active) refreshTheme();
+        });
+  themeObserver?.observe(themeRoot, {
+    attributes: true,
+    attributeFilter: ["style", "data-theme", "data-theme-name"],
+  });
+
+  const openSearchPanel = () => {
+    search.hidden = false;
+    summonSearch.setAttribute("aria-expanded", "true");
+    query.focus();
+    query.select();
+    findNext(true);
+  };
+  const closeSearchPanel = (): boolean => {
+    if (search.hidden) return false;
+    search.hidden = true;
+    summonSearch.setAttribute("aria-expanded", "false");
+    emulator.clearSearch();
+    searchStatus.textContent = "";
+    emulator.focus();
+    return true;
+  };
+  summonSearch.setAttribute("aria-expanded", "false");
+  summonSearch.addEventListener("click", openSearchPanel);
+  closeSearch.addEventListener("click", closeSearchPanel);
+  query.addEventListener("input", () => findNext(true));
+  caseSensitive.addEventListener("change", () => findNext(true));
+  previous.addEventListener("click", findPrevious);
+  next.addEventListener("click", () => findNext(false));
+
+  refreshTheme();
   render(terminal.snapshot());
-  const unsubscribe = terminal.subscribe(render);
-  return () => {
+  const unsubscribeState = terminal.subscribe(render);
+  const unsubscribeOutput = terminal.subscribeOutput((bytes) => emulator.write(bytes));
+  const unsubscribeData = emulator.onData(writeText);
+  const unsubscribeBinary = emulator.onBinary(writeBinary);
+  const unsubscribeSearch = emulator.onSearchResults(({ resultIndex, resultCount }) => {
+    searchStatus.textContent =
+      resultCount > 0 && resultIndex >= 0 ? `${resultIndex + 1} of ${resultCount}` : "No results";
+  });
+  scheduleFit();
+
+  const dispose = () => {
     if (!active) return;
     active = false;
-    unsubscribe();
+    unsubscribeSearch();
+    unsubscribeBinary();
+    unsubscribeData();
+    unsubscribeOutput();
+    unsubscribeState();
+    themeObserver?.disconnect();
     resizeObserver?.disconnect();
     if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+    emulator.dispose();
     root.remove();
+  };
+
+  return {
+    element: root,
+    viewportElement: viewport,
+    closeSearch: closeSearchPanel,
+    copySelection,
+    dispose,
+    fit,
+    focus: () => emulator.focus(),
+    isSearchOpen: () => !search.hidden,
+    openSearch: openSearchPanel,
+    paste: (text) => emulator.paste(text),
+    refreshTheme,
+    setVisible: (nextVisible) => {
+      visible = nextVisible;
+      root.hidden = !visible;
+      root.setAttribute("aria-hidden", String(!visible));
+      if (visible) {
+        refreshTheme();
+        scheduleFit();
+      }
+    },
+    selectAll: () => emulator.selectAll(),
+    updateMetadata: (nextMetadata) => {
+      root.setAttribute("aria-label", `${nextMetadata.threadName} terminal thread`);
+      heading.textContent = `${nextMetadata.threadName} · ${nextMetadata.projectName} · ${nextMetadata.worktreeLabel}`;
+      viewport.setAttribute("aria-label", terminalLabel(nextMetadata, "output"));
+      emulator.setLabel(terminalLabel(nextMetadata, "input"));
+    },
   };
 }
