@@ -1,4 +1,3 @@
-import type { CreateThreadWorktreeRequest, CreateThreadWorktreeResult } from "@/platform";
 import type { InstrumentationClient } from "@/instrumentation";
 import type {
   TerminalAdapter,
@@ -17,6 +16,7 @@ import {
   type ThreadWorkbenchAdapter,
   type ThreadWorkbenchSnapshot,
 } from "@/threads";
+import { ThreadScopeResolver, type ThreadScopePlatform } from "./thread-scope";
 import {
   defaultThreadId,
   inferredThreadRecovery,
@@ -25,7 +25,6 @@ import {
   threadRecordFromState,
   threadSnapshotFromState,
 } from "./thread-projection";
-import type { ProjectGrant } from "./resources";
 import type {
   ThreadRuntimeUpdate,
   ThreadState,
@@ -35,10 +34,8 @@ import type {
   WorkbenchStateOwner,
 } from "./state";
 
-export interface ThreadRuntimePlatform {
+export interface ThreadRuntimePlatform extends ThreadScopePlatform {
   readonly terminal: TerminalAdapter;
-  projectGrants(): Promise<readonly ProjectGrant[]>;
-  createThreadWorktree(request: CreateThreadWorktreeRequest): Promise<CreateThreadWorktreeResult>;
 }
 
 export interface RootThreadsOptions {
@@ -69,6 +66,7 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
   readonly #instrumentation?: InstrumentationClient;
   readonly #lifecycleTails = new Map<string, Promise<TransitionResult>>();
   readonly #sessions = new Map<string, TerminalThreadSession>();
+  readonly #scopes: ThreadScopeResolver;
   readonly #stopOutputReady: () => void;
   readonly #stopProjectRemovalGuard: () => void;
   #disposed = false;
@@ -81,6 +79,7 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     this.#createId = options.createId ?? defaultThreadId;
     this.#initialViewport = { ...(options.initialViewport ?? DEFAULT_VIEWPORT) };
     this.#instrumentation = options.instrumentation;
+    this.#scopes = new ThreadScopeResolver(owner, platform);
     this.#stopOutputReady =
       platform.terminal.onOutputReady?.((session) => this.#handleOutputReady(session)) ??
       (() => {});
@@ -110,7 +109,7 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
   }
 
   async createThread(request: CreateThreadRequest): Promise<TransitionResult> {
-    const scope = await this.#resolveScope(request);
+    const scope = await this.#scopes.resolve(request);
     if (!isScope(scope)) return scope;
     const id = this.#createId();
     if (!id || this.owner.snapshot().threads.some((thread) => thread.id === id)) {
@@ -243,7 +242,7 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     this.#sessions.delete(threadId);
     thread = this.owner.snapshot().threads.find(({ id }) => id === threadId)!;
 
-    const refreshed = await this.#refreshScope(thread);
+    const refreshed = await this.#scopes.refresh(thread);
     if (refreshed.status === "refused") return refreshed;
     thread = this.owner.snapshot().threads.find(({ id }) => id === threadId)!;
     const nextRevision = thread.lifecycleRevision + 1;
@@ -339,89 +338,6 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
         },
       },
     };
-  }
-
-  async #resolveScope(request: CreateThreadRequest): Promise<TerminalScope | TransitionResult> {
-    if (request.workspace.kind === "new-worktree") {
-      let created: CreateThreadWorktreeResult;
-      try {
-        created = await this.platform.createThreadWorktree({
-          projectId: request.workspace.projectId,
-          name: request.workspace.name,
-          branch: request.workspace.branch,
-          baseRevision: request.workspace.baseRevision,
-        });
-      } catch (cause) {
-        return refused(cause);
-      }
-      if (created.status === "refused") return created;
-      const refresh = await this.#refreshProject(request.workspace.projectId);
-      if (refresh.status === "refused") return refresh;
-      const worktree = this.owner
-        .snapshot()
-        .worktrees.find(
-          ({ id, projectId }) =>
-            id === created.worktree.id && projectId === request.workspace.projectId,
-        );
-      return worktree?.availability === "available"
-        ? { projectId: request.workspace.projectId, worktreeId: worktree.id }
-        : { status: "refused", reason: "Native worktree grant was not published" };
-    }
-
-    const workspace = request.workspace;
-    const state = this.owner.snapshot();
-    const project = state.projects.find(({ id }) => id === workspace.projectId);
-    const worktree = state.worktrees.find(
-      ({ id, projectId }) => id === workspace.worktreeId && projectId === workspace.projectId,
-    );
-    if (!project || project.availability !== "available") {
-      return { status: "refused", reason: `Project ${workspace.projectId} is unavailable` };
-    }
-    if (!worktree || worktree.availability !== "available") {
-      return {
-        status: "refused",
-        reason: `Worktree ${workspace.worktreeId} is unavailable`,
-      };
-    }
-    if (workspace.kind === "project-root" && worktree.root !== project.root) {
-      return { status: "refused", reason: "The selected worktree is not the project root" };
-    }
-    return { projectId: project.id, worktreeId: worktree.id };
-  }
-
-  async #refreshProject(projectId: string): Promise<TransitionResult> {
-    try {
-      const grant = (await this.platform.projectGrants()).find(({ id }) => id === projectId);
-      return grant
-        ? this.owner.refreshProjectGrant(grant)
-        : { status: "refused", reason: `Native project grant ${projectId} is unavailable` };
-    } catch (cause) {
-      return refused(cause);
-    }
-  }
-
-  async #refreshScope(thread: ThreadState): Promise<TransitionResult> {
-    const state = this.owner.snapshot();
-    const project = state.projects.find(({ id }) => id === thread.projectId);
-    const worktree = state.worktrees.find(
-      ({ id, projectId }) => id === thread.worktreeId && projectId === thread.projectId,
-    );
-    if (project?.availability === "available" && worktree?.availability === "available") {
-      return { status: "committed" };
-    }
-    const refreshed = await this.#refreshProject(thread.projectId);
-    if (refreshed.status === "refused") return refreshed;
-    const available = this.owner
-      .snapshot()
-      .worktrees.some(
-        ({ id, projectId, availability }) =>
-          id === thread.worktreeId &&
-          projectId === thread.projectId &&
-          availability === "available",
-      );
-    return available
-      ? { status: "committed" }
-      : { status: "refused", reason: `Worktree ${thread.worktreeId} is unavailable` };
   }
 
   #rememberedFile(scope: TerminalScope): string | null {
