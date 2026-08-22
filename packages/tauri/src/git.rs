@@ -353,7 +353,11 @@ fn current_head(root: &Path) -> Result<Option<String>, Failure> {
     let output =
         run_git(root, &arguments, PROBE_OUTPUT_LIMIT, PROBE_TIMEOUT).map_err(failure_from_run)?;
     if !output.status.success() {
-        return Ok(None);
+        return if output.stderr.is_empty() {
+            Ok(None)
+        } else {
+            Err(failure_from_stderr(&output.stderr))
+        };
     }
     let head = String::from_utf8(output.stdout)
         .map_err(|_| Failure {

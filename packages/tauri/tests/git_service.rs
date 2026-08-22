@@ -206,7 +206,9 @@ fn ignored_directories_are_reported_as_one_bounded_entry() {
     }
     let (launch, scope) = approved_scope(repository.path());
 
+    let started = std::time::Instant::now();
     let snapshot = status_for(&launch, scope);
+    let elapsed = started.elapsed();
     let ignored: Vec<_> = snapshot
         .entries
         .iter()
@@ -216,6 +218,11 @@ fn ignored_directories_are_reported_as_one_bounded_entry() {
     assert_eq!(snapshot.availability, GitAvailability::Available);
     assert_eq!(ignored.len(), 1);
     assert_eq!(ignored[0].path, "vendor/");
+    eprintln!(
+        "ignored-bound status: {} files, {} entries, {elapsed:?}",
+        2_000,
+        snapshot.entries.len()
+    );
 }
 
 #[test]
@@ -240,6 +247,34 @@ fn repository_state_is_honest_for_non_repository_revoked_and_missing_scopes() {
     assert_eq!(
         status_for(&launch, scope).availability,
         GitAvailability::Unavailable
+    );
+}
+
+#[test]
+fn request_schemas_refuse_paths_commands_and_unknown_fields() {
+    assert!(serde_json::from_value::<GitScope>(serde_json::json!({
+        "projectId": "project-a",
+        "worktreeId": "worktree-a",
+        "path": "/not/approved"
+    }))
+    .is_err());
+    assert!(
+        serde_json::from_value::<GitCompareRequest>(serde_json::json!({
+            "scope": { "projectId": "project-a", "worktreeId": "worktree-a" },
+            "baseCommitId": "a".repeat(40),
+            "headCommitId": "b".repeat(40),
+            "command": "status"
+        }))
+        .is_err()
+    );
+    assert!(
+        serde_json::from_value::<GitHistoryRequest>(serde_json::json!({
+            "scope": { "projectId": "project-a", "worktreeId": "worktree-a" },
+            "cursor": null,
+            "pageSize": 20,
+            "arguments": ["--all"]
+        }))
+        .is_err()
     );
 }
 
@@ -294,6 +329,7 @@ fn history_pages_are_bounded_and_keep_a_frozen_head_across_refreshes() {
         expected.push(repository.commit_all(&format!("commit {index}")));
     }
     let (launch, scope) = approved_scope(repository.path());
+    let started = std::time::Instant::now();
     let first = history_for(
         &launch,
         GitHistoryRequest {
@@ -302,6 +338,7 @@ fn history_pages_are_bounded_and_keep_a_frozen_head_across_refreshes() {
             page_size: Some(2),
         },
     );
+    let first_page_elapsed = started.elapsed();
     repository.write("history.txt", "new head\n");
     repository.commit_all("arrived after page one");
     let second = history_for(
@@ -329,6 +366,10 @@ fn history_pages_are_bounded_and_keep_a_frozen_head_across_refreshes() {
         .commits
         .iter()
         .all(|commit| commit.subject.starts_with("commit ")));
+    eprintln!(
+        "history page: {} returned, {first_page_elapsed:?}",
+        first.commits.len()
+    );
 }
 
 #[test]
@@ -343,6 +384,7 @@ fn comparison_accepts_only_full_commit_ids_and_reports_renames_deletes_and_addit
     let after = repository.commit_all("after");
     let (launch, scope) = approved_scope(repository.path());
 
+    let started = std::time::Instant::now();
     let comparison = compare_for(
         &launch,
         GitCompareRequest {
@@ -351,6 +393,7 @@ fn comparison_accepts_only_full_commit_ids_and_reports_renames_deletes_and_addit
             head_commit_id: after,
         },
     );
+    let elapsed = started.elapsed();
 
     assert_eq!(comparison.availability, GitAvailability::Available);
     assert_eq!(comparison.entries.len(), 3);
@@ -372,6 +415,10 @@ fn comparison_accepts_only_full_commit_ids_and_reports_renames_deletes_and_addit
         .entries
         .iter()
         .any(|entry| entry.path == "added.txt" && entry.state == GitChangeState::Added));
+    eprintln!(
+        "comparison: {} entries, {elapsed:?}",
+        comparison.entries.len()
+    );
 
     let rejected = compare_for(
         &launch,

@@ -70,7 +70,13 @@ pub(super) fn run_git(
         .env_remove("GIT_OBJECT_DIRECTORY")
         .env_remove("GIT_ALTERNATE_OBJECT_DIRECTORIES")
         .env_remove("GIT_COMMON_DIR")
-        .env_remove("GIT_NAMESPACE");
+        .env_remove("GIT_NAMESPACE")
+        .env_remove("GIT_CONFIG")
+        .env_remove("GIT_CONFIG_PARAMETERS")
+        .env_remove("GIT_CONFIG_SYSTEM")
+        .env_remove("GIT_CONFIG_GLOBAL")
+        .env_remove("GIT_CONFIG_COUNT")
+        .env_remove("GIT_EXEC_PATH");
 
     let mut child = command
         .spawn()
@@ -94,7 +100,13 @@ pub(super) fn run_git(
                 let _ = stderr_reader.join();
                 return Err(GitRunError::TimedOut);
             }
-            Err(error) => return Err(GitRunError::Io(error.kind())),
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = stdout_reader.join();
+                let _ = stderr_reader.join();
+                return Err(GitRunError::Io(error.kind()));
+            }
         }
     };
 
