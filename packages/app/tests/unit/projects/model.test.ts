@@ -155,6 +155,7 @@ describe("the Projects model", () => {
   it.each([
     ["missing", "missing", "Folder is missing."],
     ["denied", "denied", "Folder access was denied."],
+    ["not-directory", "not-directory", "The approved root is no longer a folder."],
     ["unavailable", "unavailable", "Folder is unavailable."],
   ] as const)("maps %s native availability to named recovery", (availability, kind, summary) => {
     const current = state();
@@ -169,12 +170,12 @@ describe("the Projects model", () => {
     expect(snapshot.projects[0]!.recovery).toMatchObject({ kind, summary });
   });
 
-  it("allows native recovery detail to distinguish a non-directory root", () => {
+  it("allows recovery detail to override native copy without changing native classification", () => {
     const current = state();
     const snapshot = projectSnapshotFromWorkbench(
       {
         ...current,
-        projects: [{ ...current.projects[0]!, availability: "unavailable" }],
+        projects: [{ ...current.projects[0]!, availability: "not-directory" }],
         worktrees: current.worktrees.filter(({ projectId }) => projectId === "alpha"),
       },
       {

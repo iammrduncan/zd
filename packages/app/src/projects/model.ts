@@ -20,6 +20,12 @@ function defaultRecovery(availability: ProjectAvailability): ProjectRecoveryStat
         summary: "Folder access was denied.",
         actionLabel: "Restore access",
       };
+    case "not-directory":
+      return {
+        kind: "not-directory",
+        summary: "The approved root is no longer a folder.",
+        actionLabel: "Choose folder",
+      };
     case "unavailable":
       return {
         kind: "unavailable",

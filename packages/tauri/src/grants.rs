@@ -10,11 +10,12 @@ use std::path::{Component, Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "kebab-case")]
 pub enum GrantAvailability {
     Available,
     Missing,
     Denied,
+    NotDirectory,
     Unavailable,
 }
 
@@ -275,7 +276,7 @@ fn display_name(root: &Path) -> String {
 fn availability(root: &Path) -> GrantAvailability {
     match std::fs::metadata(root) {
         Ok(metadata) if metadata.is_dir() => GrantAvailability::Available,
-        Ok(_) => GrantAvailability::Unavailable,
+        Ok(_) => GrantAvailability::NotDirectory,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => GrantAvailability::Missing,
         Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
             GrantAvailability::Denied
@@ -348,7 +349,7 @@ fn resolve_relative(root: &Path, requested: &str) -> Result<PathBuf, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{GrantStore, ResourceRef};
+    use super::{GrantAvailability, GrantStore, ResourceRef};
     use std::path::PathBuf;
 
     struct Scratch(PathBuf);
@@ -428,6 +429,29 @@ mod tests {
 
         assert_eq!(first, second);
         assert_eq!(grants.projects().len(), 1);
+    }
+
+    #[test]
+    fn an_approved_root_that_becomes_a_file_has_a_specific_state() {
+        let project = Scratch::new("not-directory");
+        let root = project.0.clone();
+        let mut grants = GrantStore::default();
+        grants.approve_project(&root).unwrap();
+        std::fs::remove_dir_all(&root).unwrap();
+        std::fs::write(&root, "not a folder").unwrap();
+
+        let described = grants.projects().remove(0);
+
+        assert_eq!(described.availability, GrantAvailability::NotDirectory);
+        assert_eq!(
+            described.worktrees[0].availability,
+            GrantAvailability::NotDirectory
+        );
+        assert_eq!(
+            serde_json::to_value(&described).unwrap()["availability"],
+            "not-directory"
+        );
+        std::fs::remove_file(root).unwrap();
     }
 
     #[test]

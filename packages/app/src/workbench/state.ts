@@ -2,7 +2,8 @@ import type { FileResource, LaunchRequest, ProjectGrant } from "./resources";
 
 export const WORKBENCH_STATE_VERSION = 1 as const;
 
-export type ProjectAvailability = "available" | "missing" | "denied" | "unavailable";
+export type ProjectAvailability =
+  "available" | "missing" | "denied" | "not-directory" | "unavailable";
 export type ThreadsVisibility = "full" | "collapsed" | "hidden";
 export type FilesVisibility = "visible" | "hidden";
 export type FilesTab = "files" | "changes";
@@ -237,7 +238,9 @@ function validProject(value: unknown): value is ProjectState {
   return (
     isRecord(value) &&
     hasStrings(value, ["id", "name", "root", "availability"]) &&
-    ["available", "missing", "denied", "unavailable"].includes(value.availability as string)
+    ["available", "missing", "denied", "not-directory", "unavailable"].includes(
+      value.availability as string,
+    )
   );
 }
 
@@ -245,7 +248,9 @@ function validWorktree(value: unknown): value is WorktreeState {
   return (
     isRecord(value) &&
     hasStrings(value, ["id", "projectId", "name", "root", "availability"]) &&
-    ["available", "missing", "denied", "unavailable"].includes(value.availability as string)
+    ["available", "missing", "denied", "not-directory", "unavailable"].includes(
+      value.availability as string,
+    )
   );
 }
 
