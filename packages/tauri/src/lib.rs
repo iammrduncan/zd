@@ -64,6 +64,7 @@ pub fn run() {
         .manage(quick_access::QuickAccessState::default())
         .manage(terminal_runtime::TerminalState::default())
         .setup(|app| {
+            app.manage(notifications::NotificationState::new(app.handle().clone()));
             let directory = app.path().app_config_dir()?.join("diagnostics");
             let diagnostics =
                 instrumentation::DiagnosticState::new(directory, env!("CARGO_PKG_VERSION"))
@@ -96,6 +97,12 @@ pub fn run() {
             quick_access::register_global_summon,
             quick_access::toggle_quick_access,
             quick_access::hide_quick_access,
+            quick_access::show_workbench,
+            notifications::notification_permission,
+            notifications::notification_request_permission,
+            notifications::show_thread_notification,
+            notifications::pending_notification_actions,
+            notifications::play_completion_sound,
             instrumentation::runtime::diagnostics_status,
             instrumentation::runtime::enable_diagnostics,
             instrumentation::runtime::disable_diagnostics,

@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use tauri::Emitter;
+
+#[cfg(target_os = "macos")]
+mod macos;
 
 const SCHEMA_VERSION: u8 = 1;
 const MAX_ID_BYTES: usize = 160;
@@ -36,6 +40,37 @@ pub enum CompletionSound {
     Subtle,
     Bright,
     Gentle,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum NotificationPresentationStatus {
+    Presented,
+    Denied,
+    Unsupported,
+    Failed,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationPresentationResult {
+    pub status: NotificationPresentationStatus,
+    pub problem: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CompletionSoundStatus {
+    Played,
+    Unsupported,
+    Failed,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompletionSoundResult {
+    pub status: CompletionSoundStatus,
+    pub problem: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -87,6 +122,50 @@ struct ActionStoreInner {
 #[derive(Default)]
 pub struct ActionStore {
     inner: Mutex<ActionStoreInner>,
+}
+
+struct ActionRouter {
+    app: tauri::AppHandle,
+    store: Arc<ActionStore>,
+}
+
+impl ActionRouter {
+    fn deliver(&self, notification_id: &str, native: NativeNotificationAction) {
+        let Some(action) = self.store.record_action(notification_id, native) else {
+            return;
+        };
+        let _ = self.app.emit("notification-action", action);
+    }
+}
+
+pub struct NotificationState {
+    store: Arc<ActionStore>,
+    platform_problem: Option<String>,
+}
+
+impl NotificationState {
+    pub fn new(app: tauri::AppHandle) -> Self {
+        let store = Arc::new(ActionStore::default());
+        #[cfg(target_os = "macos")]
+        let platform_problem = macos::install(Arc::new(ActionRouter {
+            app,
+            store: Arc::clone(&store),
+        }))
+        .err();
+        #[cfg(not(target_os = "macos"))]
+        let platform_problem = {
+            let _ = app;
+            Some("actionable desktop notifications are unavailable on this platform".into())
+        };
+        Self {
+            store,
+            platform_problem,
+        }
+    }
+
+    fn unavailable(&self) -> Option<&str> {
+        self.platform_problem.as_deref()
+    }
 }
 
 impl ActionStore {
@@ -203,4 +282,127 @@ pub fn validate_sound_request(request: &CompletionSoundRequest) -> Result<(), St
         return Err("completion sound volume must be between zero and one".into());
     }
     Ok(())
+}
+
+#[cfg(target_os = "macos")]
+async fn platform_permission() -> NotificationPermission {
+    tauri::async_runtime::spawn_blocking(macos::permission)
+        .await
+        .unwrap_or(NotificationPermission::Unsupported)
+}
+
+#[cfg(not(target_os = "macos"))]
+async fn platform_permission() -> NotificationPermission {
+    NotificationPermission::Unsupported
+}
+
+#[cfg(target_os = "macos")]
+async fn platform_request_permission() -> NotificationPermission {
+    tauri::async_runtime::spawn_blocking(macos::request_permission)
+        .await
+        .unwrap_or(NotificationPermission::Unsupported)
+}
+
+#[cfg(not(target_os = "macos"))]
+async fn platform_request_permission() -> NotificationPermission {
+    NotificationPermission::Unsupported
+}
+
+#[tauri::command]
+pub async fn notification_permission(
+    state: tauri::State<'_, NotificationState>,
+) -> Result<NotificationPermission, String> {
+    if state.unavailable().is_some() {
+        return Ok(NotificationPermission::Unsupported);
+    }
+    Ok(platform_permission().await)
+}
+
+#[tauri::command]
+pub async fn notification_request_permission(
+    state: tauri::State<'_, NotificationState>,
+) -> Result<NotificationPermission, String> {
+    if state.unavailable().is_some() {
+        return Ok(NotificationPermission::Unsupported);
+    }
+    Ok(platform_request_permission().await)
+}
+
+#[tauri::command]
+pub fn show_thread_notification(
+    state: tauri::State<'_, NotificationState>,
+    request: ThreadNotificationRequestV1,
+) -> NotificationPresentationResult {
+    if let Some(problem) = state.unavailable() {
+        return NotificationPresentationResult {
+            status: NotificationPresentationStatus::Unsupported,
+            problem: Some(problem.into()),
+        };
+    }
+    if let Err(problem) = state.store.remember(&request) {
+        return NotificationPresentationResult {
+            status: NotificationPresentationStatus::Failed,
+            problem: Some(problem),
+        };
+    }
+
+    #[cfg(target_os = "macos")]
+    let presented = macos::show(&request);
+    #[cfg(not(target_os = "macos"))]
+    let presented: Result<(), String> = Err("desktop notifications are unavailable".into());
+    match presented {
+        Ok(()) => NotificationPresentationResult {
+            status: NotificationPresentationStatus::Presented,
+            problem: None,
+        },
+        Err(problem) => {
+            state.store.forget(&request.notification_id);
+            NotificationPresentationResult {
+                status: NotificationPresentationStatus::Failed,
+                problem: Some(problem),
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub fn pending_notification_actions(
+    state: tauri::State<'_, NotificationState>,
+) -> Vec<NotificationActionV1> {
+    state.store.drain()
+}
+
+#[tauri::command]
+pub async fn play_completion_sound(
+    state: tauri::State<'_, NotificationState>,
+    app: tauri::AppHandle,
+    request: CompletionSoundRequest,
+) -> Result<CompletionSoundResult, String> {
+    if let Err(problem) = validate_sound_request(&request) {
+        return Ok(CompletionSoundResult {
+            status: CompletionSoundStatus::Failed,
+            problem: Some(problem),
+        });
+    }
+    if let Some(problem) = state.unavailable() {
+        return Ok(CompletionSoundResult {
+            status: CompletionSoundStatus::Unsupported,
+            problem: Some(problem.into()),
+        });
+    }
+
+    #[cfg(target_os = "macos")]
+    let played = macos::play_sound_on_main(&app, request).await;
+    #[cfg(not(target_os = "macos"))]
+    let played: Result<(), String> = Err("completion sounds are unavailable".into());
+    Ok(match played {
+        Ok(()) => CompletionSoundResult {
+            status: CompletionSoundStatus::Played,
+            problem: None,
+        },
+        Err(problem) => CompletionSoundResult {
+            status: CompletionSoundStatus::Failed,
+            problem: Some(problem),
+        },
+    })
 }

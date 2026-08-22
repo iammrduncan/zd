@@ -13,6 +13,7 @@ import { supportedAttentionAgents } from "./settings";
 
 const SOUND_INTERVAL_MS = 1_500;
 const LABEL_LIMIT = 80;
+const HANDLED_ACTION_LIMIT = 256;
 const supportedAgents = new Set<SupportedAttentionAgent>(supportedAttentionAgents);
 
 interface NotificationTarget {
@@ -71,6 +72,8 @@ export class AttentionNotificationCoordinator {
   readonly #deduplicator = new ThreadAttentionDeduplicator();
   readonly #options: AttentionNotificationCoordinatorOptions;
   readonly #targets = new Map<string, NotificationTarget>();
+  readonly #handledActions = new Set<string>();
+  readonly #handledActionOrder: string[] = [];
   readonly #now: () => number;
   #lastSoundStartedAt = Number.NEGATIVE_INFINITY;
   #soundInFlight = false;
@@ -229,7 +232,15 @@ export class AttentionNotificationCoordinator {
 
   async #route(action: NotificationActionV1): Promise<void> {
     const target = this.#targetForAction(action);
-    if (!target || action.action === "close") return;
+    if (!target) return;
+    if (this.#handledActions.has(action.notificationId)) return;
+    this.#handledActions.add(action.notificationId);
+    this.#handledActionOrder.push(action.notificationId);
+    if (this.#handledActionOrder.length > HANDLED_ACTION_LIMIT) {
+      const expired = this.#handledActionOrder.shift();
+      if (expired) this.#handledActions.delete(expired);
+    }
+    if (action.action === "close") return;
     try {
       await this.#options.window.showWorkbench();
     } catch (cause) {

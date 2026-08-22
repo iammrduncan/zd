@@ -231,6 +231,19 @@ describe("attention notification coordination", () => {
     expect(runtime.activateThread).toHaveBeenCalledExactlyOnceWith("thread-alpha");
   });
 
+  it("routes one native action once when live delivery races the pending-action drain", async () => {
+    const runtime = coordinator({});
+    runtime.value.start();
+    await runtime.value.handleAttention(event);
+
+    runtime.native.emitAction(action());
+    runtime.native.emitAction(action());
+    await vi.waitFor(() => expect(runtime.activateThread).toHaveBeenCalledOnce());
+
+    expect(runtime.showWorkbench).toHaveBeenCalledOnce();
+    expect(runtime.activateThread).toHaveBeenCalledExactlyOnceWith("thread-alpha");
+  });
+
   it("makes Close a notification-only action", async () => {
     const runtime = coordinator({});
     const stop = runtime.value.start();

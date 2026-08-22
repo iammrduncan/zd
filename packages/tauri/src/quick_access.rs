@@ -255,6 +255,12 @@ pub fn hide_quick_access(app: tauri::AppHandle) -> Result<WindowPresentation, St
     hide_quick_access_for(&app)
 }
 
+#[tauri::command]
+pub fn show_workbench(app: tauri::AppHandle) -> WindowPresentation {
+    show_ordinary(&app);
+    WindowPresentation::Ordinary
+}
+
 pub fn window_focus_changed(window: &tauri::Window, focused: bool) {
     if focused {
         return;
