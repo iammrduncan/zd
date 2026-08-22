@@ -73,8 +73,8 @@ test("the three categories are the reader's own colours", async ({ page }) => {
     };
   });
 
-  // §5.2: colour comes "through the active DesignSystem… never with miniapp-local
-  // colours". The editor highlights with CodeMirror and the reader with Shiki, so
+  // Colour comes through the active DesignSystem, never through feature-local
+  // colours. The editor highlights with CodeMirror and the reader with Shiki, so
   // the only thing keeping them the same passage is that both resolve to these
   // three tokens — which is worth asserting rather than assuming.
   for (const category of ["keyword", "string", "comment"] as const) {
