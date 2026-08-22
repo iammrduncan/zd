@@ -1,6 +1,5 @@
 /*
- * The Shortcut Reference. Suite-owned, so this file may only consume tokens —
- * same rule as every mini app stylesheet.
+ * The workbench-owned Shortcut Reference consumes only shared semantic tokens.
  *
  * DESIGN.md §6.2 specifies the whole geometry, and this is that paragraph in CSS:
  * "Transient surfaces use `surface.transient` as one calm replacement plane. They

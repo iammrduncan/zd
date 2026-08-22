@@ -79,11 +79,11 @@ logic from its Tauri adapters.
   makes adding another in-process miniapp cheap, and
   [`boot.ts` at that commit](https://github.com/iammrduncan/zd/blob/21bc7dd/packages/app/src/suite/boot.ts)
   owns cross-miniapp boot, shortcut dispatch, reference overlay, and presence behavior.
-- [`shortcuts.ts`](../../../../../packages/app/src/suite/shortcuts.ts) is a window-local command
+- [`shortcuts.ts` at this research snapshot](https://github.com/iammrduncan/zd/blob/9c72b8a29eed1a0a35dac7eddab0eef953513a0b/packages/app/src/suite/shortcuts.ts) is a window-local command
   registry driven by DOM `KeyboardEvent`s. It deliberately cannot receive a chord while another app is
   active; a global hotkey requires native registration below this layer.
 - Suite preferences use web `localStorage` with a memory fallback in
-  [`preferences.ts`](../../../../../packages/app/src/suite/preferences.ts). This is convenient and
+  [`preferences.ts` at this research snapshot](https://github.com/iammrduncan/zd/blob/9c72b8a29eed1a0a35dac7eddab0eef953513a0b/packages/app/src/suite/preferences.ts). This is convenient and
   portable, but it is not yet a versioned project/session store.
 - The miniapp rules already classify the future terminal as a suite overlay rather than a miniapp in
   [`miniapps/README.md`](../../../../../packages/app/src/miniapps/README.md). That is design intent,

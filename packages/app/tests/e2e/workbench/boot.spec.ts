@@ -26,12 +26,12 @@ test("boots the styled workbench editor at the root route", async ({ page }) => 
       noticeFamily: getComputedStyle(notice).fontFamily,
     };
   });
-  expect(styled.background, "the suite canvas token was not applied").toBe(styled.canvas);
+  expect(styled.background, "the workbench canvas token was not applied").toBe(styled.canvas);
   expect(styled.height, "the md surface did not fill the app window").toBeGreaterThan(0);
   expect(styled.noticeFamily).toContain("iA Writer Quattro");
 });
 
-test("applies the suite design tokens rather than browser defaults", async ({ page }) => {
+test("applies the workbench design tokens rather than browser defaults", async ({ page }) => {
   await page.goto("/");
 
   const proseFamily = await page.evaluate(() =>

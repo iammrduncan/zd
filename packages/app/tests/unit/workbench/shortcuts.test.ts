@@ -8,7 +8,7 @@ import {
   register,
   releaseHeld,
   type Command,
-} from "@/suite/shortcuts";
+} from "@/workbench/shortcuts";
 
 // DESIGN.md §7.1 and vision §7.1: "There is one shortcut registry. The Reference
 // renders it; it is not a hand-maintained list that drifts from reality." And
@@ -203,7 +203,7 @@ describe("re-registering", () => {
 
     // A window remounting registers its own commands again, with fresh closures
     // over a new editor. Treating that as a collision makes the second mount of
-    // any mini app a crash.
+    // any remounted feature a crash.
     expect(commands()).toHaveLength(1);
     dispatch(key({ key: "s", metaKey: true }));
     expect(first).not.toHaveBeenCalled();

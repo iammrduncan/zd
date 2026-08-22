@@ -7,9 +7,9 @@ import { setGranularity } from "./focus";
 import { languageFor } from "./language";
 import { typewriterY } from "./typewriter";
 import { lineCount, showStatus, wordCount } from "../status";
-import { registerReference } from "@/suite/reference";
-import { attachShortcuts, commands, register } from "@/suite/shortcuts";
-import { setWordWrap, wordWrap } from "@/suite/preferences";
+import { setWordWrap, wordWrap } from "@/workbench/preferences";
+import { registerReference } from "@/workbench/reference";
+import { attachShortcuts, commands, register } from "@/workbench/shortcuts";
 import { anchorY, type FocusGranularity } from "../focus";
 
 /*
@@ -277,7 +277,7 @@ register({
 register({
   id: "document.dropCaret",
   // Escape belongs to the document now — the Shortcut Reference gave it up when it
-  // became a held surface on 2026-07-30. See suite/reference.ts.
+  // became a held surface on 2026-07-30. See workbench/reference.ts.
   chord: { key: "Escape" },
   description: "Drop the caret and follow the reading anchor again",
   available: () => editor.hasCaret(),

@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+// Root shell behavior belongs to the workbench test family.
+
 test("lays out the persistent workbench regions at their default geometry", async ({ page }) => {
   await page.setViewportSize({ width: 1300, height: 800 });
   await page.goto("/");
@@ -22,10 +24,7 @@ test("lays out the persistent workbench regions at their default geometry", asyn
   expect(centreBox!.x).toBeLessThan(filesBox!.x);
   expect(centreBox!.width).toBeGreaterThanOrEqual(528);
 
-  await expect(files.getByRole("tab", { name: "FILES" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  await expect(files.getByRole("tab", { name: "FILES" })).toHaveAttribute("aria-selected", "true");
   await expect(files.getByRole("tab", { name: "CHANGES" })).toHaveAttribute(
     "aria-selected",
     "false",

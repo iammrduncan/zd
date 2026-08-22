@@ -4,7 +4,7 @@ import type { Platform } from "@/platform";
 import { setTheme } from "@/design/appearance";
 import { bootWorkbench, type WorkbenchMount } from "@/workbench/boot";
 import { homeLaunch, type ProjectGrant } from "@/workbench/resources";
-import { clearCommands, commands } from "@/suite/shortcuts";
+import { clearCommands, commands } from "@/workbench/shortcuts";
 
 const project: ProjectGrant = {
   id: "project-test",

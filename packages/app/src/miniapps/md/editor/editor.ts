@@ -196,7 +196,7 @@ export interface EditorOptions {
    * makes it "a suite preference applied to every document". Neither of those is
    * the editor's business — it owns one document and knows nothing about the
    * others or about what was true yesterday. So the caller reads
-   * `wordWrap()` from suite/preferences.ts and passes the answer, exactly as it
+   * `wordWrap()` from workbench/preferences.ts and passes the answer, exactly as it
    * does for `language`.
    *
    * Omitted means wrapping, which is §7.6's default and what every existing caller

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Platform, WindowPresentation } from "@/platform";
-import { clearCommands, commands, registerCommandTarget } from "@/suite/shortcuts";
+import { clearCommands, commands, registerCommandTarget } from "@/workbench/shortcuts";
 import { attachWorkbenchCommands } from "@/workbench/commands";
 import { homeLaunch, type ProjectGrant } from "@/workbench/resources";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";

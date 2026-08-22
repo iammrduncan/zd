@@ -1,5 +1,5 @@
 /**
- * Workbench preferences that outlive a window.
+ * Durable workbench preferences.
  *
  * `localStorage` keeps the browser fixtures and packaged webview on the same
  * behavior. Reads and writes fall back to the in-session map when storage is

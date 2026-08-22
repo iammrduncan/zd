@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 // shows no shortcuts. `cmd+.` must show the complete Shortcut Reference over the
 // current context, and pressing it again must restore that context unchanged."
 //
-// The audit note on F02 is the reason this file is geometric and stateful rather
+// The retained audit note on F02 is why this file is geometric and stateful rather
 // than a screenshot: "A static screenshot cannot prove the open/close round trip
 // preserves context." So the document beneath is compared before and after.
 //

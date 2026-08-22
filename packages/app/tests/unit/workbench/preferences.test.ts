@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { forgetPreferences, setWordWrap, wordWrap } from "@/suite/preferences";
+import { forgetPreferences, setWordWrap, wordWrap } from "@/workbench/preferences";
 
 /* Workbench preference storage; browser behavior lives in the e2e editor tests. */
 
