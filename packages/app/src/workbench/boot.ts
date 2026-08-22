@@ -12,6 +12,7 @@ import { attachWorkbenchDiagnostics, mountDiagnosticSettings } from "./diagnosti
 import { diagnosticsEnabled, setDiagnosticsEnabled } from "./preferences";
 import { mountWorkbenchShell } from "./shell";
 import { mountCurrentFile } from "./current-file";
+import { attachOpenRequests } from "./open-requests";
 import type { Unmount, WorkbenchMount } from "./runtime";
 
 export type { WorkbenchMount } from "./runtime";
@@ -149,6 +150,7 @@ export async function bootWorkbench(
     return NOTHING;
   }
 
+  const detachOpenRequests = attachOpenRequests(runtime);
   await launchSpan?.end("ok");
 
   localNotices.push(...(await rootCommands.ready));
@@ -161,6 +163,7 @@ export async function bootWorkbench(
     detachReference();
     rootCommands.detach();
     detachShortcuts();
+    detachOpenRequests();
     unmount();
     detachDiagnostics();
     void instrumentation.disable();

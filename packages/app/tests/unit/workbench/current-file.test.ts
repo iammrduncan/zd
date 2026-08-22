@@ -5,6 +5,8 @@ import type { BoundedFileRead } from "@/editor";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import type { Platform } from "@/platform";
 import { mountCurrentFile } from "@/workbench/current-file";
+import { attachOpenRequests } from "@/workbench/open-requests";
+import type { LaunchRequest } from "@/workbench/resources";
 import type { FileResource, ProjectGrant } from "@/workbench/resources";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";
 import {
@@ -45,7 +47,14 @@ function context(read: BoundedFileRead) {
   const readBoundedFile = vi.fn(async () => read);
   const writeTextFile = vi.fn(async () => {});
   let requestClose: (() => void) | null = null;
+  let requestOpen: (() => void) | null = null;
+  let pending: LaunchRequest | null = null;
   const closeWindow = vi.fn(async () => {});
+  const acceptOpenRequest = vi.fn(async () => {
+    const accepted = pending;
+    pending = null;
+    return accepted;
+  });
   const platform = {
     readBoundedFile,
     writeTextFile,
@@ -56,6 +65,15 @@ function context(read: BoundedFileRead) {
       };
     },
     closeWindow,
+    onOpenRequested: (handler: () => void) => {
+      requestOpen = handler;
+      return () => {
+        requestOpen = null;
+      };
+    },
+    pendingOpenRequest: async () => pending,
+    acceptOpenRequest,
+    projectGrants: async () => [project],
   } as unknown as Platform;
   return {
     runtime: {
@@ -68,6 +86,11 @@ function context(read: BoundedFileRead) {
     writeTextFile,
     closeWindow,
     requestClose: () => requestClose?.(),
+    requestOpen: (request: LaunchRequest) => {
+      pending = request;
+      requestOpen?.();
+    },
+    acceptOpenRequest,
   };
 }
 
@@ -159,5 +182,31 @@ describe("the root current-file owner", () => {
     ).toBe(true);
     expect(fixture.writeTextFile).not.toHaveBeenCalled();
     unmount();
+  });
+
+  it("applies an approved native open request through the root transition", async () => {
+    const fixture = context({
+      status: "text",
+      text: "const value = 1;",
+      byteLength: 16,
+      writable: true,
+    });
+    const host = document.createElement("div");
+    const unmountFile = await mountCurrentFile(host, fixture.runtime);
+    const stopOpenRequests = attachOpenRequests(fixture.runtime);
+
+    fixture.requestOpen({
+      project,
+      worktreeId: "worktree-a",
+      relativePath: "src/other.ts",
+      problem: null,
+    });
+
+    await vi.waitFor(() => expect(fixture.acceptOpenRequest).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(fixture.readBoundedFile).toHaveBeenCalledTimes(2));
+    expect(fixture.runtime.state.snapshot().active.fileId).toContain("src/other.ts");
+
+    stopOpenRequests();
+    unmountFile();
   });
 });
