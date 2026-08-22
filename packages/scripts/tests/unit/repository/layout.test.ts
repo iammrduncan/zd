@@ -18,6 +18,8 @@ const ROOT = resolve(process.cwd());
 const APP = resolve(ROOT, "packages/app");
 const WEBSITE = resolve(ROOT, "packages/website");
 const SKIP = new Set(["node_modules", "dist", "test-results", "target", ".git"]);
+const PRODUCT_DESCRIPTION =
+  "ZenSuite — a fast, local agent workbench for projects, threads, terminals, files, and Git.";
 
 function directFiles(directory: string, suffix: string): string[] {
   return readdirSync(resolve(ROOT, directory), { withFileTypes: true })
@@ -90,16 +92,40 @@ describe("package ownership", () => {
     expect(await eslint.isPathIgnored("packages/app/dist/assets/generated.js")).toBe(true);
   });
 
-  it("limits desktop presence access to the SSPS websocket", () => {
+  it("publishes the current workbench identity in package metadata", () => {
+    const rootPackage = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
+      description: string;
+    };
+    const cargo = readFileSync(resolve(ROOT, "packages/tauri/Cargo.toml"), "utf8");
+    const config = JSON.parse(
+      readFileSync(resolve(ROOT, "packages/tauri/tauri.conf.json"), "utf8"),
+    ) as {
+      bundle: { shortDescription: string; longDescription: string };
+    };
+
+    expect(rootPackage.description).toBe(PRODUCT_DESCRIPTION);
+    expect(cargo).toContain(`description = "${PRODUCT_DESCRIPTION}"`);
+    expect(config.bundle).toMatchObject({
+      shortDescription: "A fast, local agent workbench",
+      longDescription: PRODUCT_DESCRIPTION,
+    });
+  });
+
+  it("keeps the desktop runtime network-closed by default", () => {
     const config = JSON.parse(
       readFileSync(resolve(ROOT, "packages/tauri/tauri.conf.json"), "utf8"),
     ) as { app: { security: { csp: string } } };
+    const preferences = readFileSync(
+      resolve(ROOT, "packages/app/src/suite/preferences.ts"),
+      "utf8",
+    );
 
     expect(config.app.security.csp).toContain("script-src 'self';");
-    expect(config.app.security.csp).not.toContain("script-src 'self' https://usessps.com");
-    expect(config.app.security.csp).toContain(
-      "connect-src 'self' ipc: http://ipc.localhost wss://usessps.com",
-    );
+    expect(config.app.security.csp).toContain("connect-src 'self' ipc: http://ipc.localhost");
+    expect(config.app.security.csp).not.toContain("ws:");
+    expect(config.app.security.csp).not.toContain("wss:");
+    expect(existsSync(resolve(ROOT, "packages/app/src/suite/presence.ts"))).toBe(false);
+    expect(preferences).not.toMatch(/presence|ssps/i);
   });
 });
 
