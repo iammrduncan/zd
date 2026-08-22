@@ -5,11 +5,14 @@ import {
   type MountedEditorBuffer,
 } from "@/editor";
 import { closeConfirmation } from "@/miniapps/md/close-confirmation";
+import { reconcile, saveWouldClobber } from "@/miniapps/md/reconcile";
+import type { FileStamp } from "@/platform";
 import type { FileResource } from "./resources";
 import { setWordWrap, wordWrap } from "./preferences";
 import type { Unmount, WorkbenchRuntimeContext } from "./runtime";
 import { register, registerCommandTarget } from "./shortcuts";
 import type { WorkbenchState } from "./state";
+import "./current-file.css";
 
 function activeResource(state: WorkbenchState): FileResource | null {
   const file = state.openFiles.find(({ id }) => id === state.active.fileId);
@@ -37,13 +40,92 @@ export async function mountCurrentFile(
   let mounted: MountedEditorBuffer | null = null;
   let active = true;
   let generation = 0;
+  let reconciliation = 0;
+  let currentResource: FileResource | null = null;
+  let known: FileStamp | null = null;
+  let notice: HTMLParagraphElement | null = null;
+  const surface = document.createElement("div");
+  surface.className = "current-file";
+  host.replaceChildren(surface);
+
+  const showNotice = (message: string, tone: "info" | "warning" = "info") => {
+    if (!notice) return;
+    notice.hidden = false;
+    notice.dataset.tone = tone;
+    notice.textContent = message;
+  };
+  const clearNotice = () => {
+    if (!notice) return;
+    notice.hidden = true;
+    notice.textContent = "";
+    delete notice.dataset.tone;
+  };
+
+  const render = (
+    resource: FileResource,
+    read: BoundedFileRead,
+    openedGeneration: number,
+    focus: boolean,
+  ) => {
+    mounted?.destroy();
+    mounted = null;
+    surface.replaceChildren();
+    const buffer = editorBufferFromRead(resource.relativePath, read);
+    const diagnosticContext = {
+      projectId: resource.projectId,
+      worktreeId: resource.worktreeId,
+      logicalPath: resource.relativePath,
+    };
+    mounted = mountEditorBuffer(surface, buffer, {
+      wrap: wordWrap(),
+      onSave: async (text) => {
+        const save = context.instrumentation.startSpan("file.save", diagnosticContext);
+        if (!active || openedGeneration !== generation) {
+          await save?.end("unavailable");
+          return false;
+        }
+        const onDisk = await context.platform.fileStamp(resource).catch(() => known);
+        if (saveWouldClobber(known, onDisk)) {
+          showNotice(
+            "This file changed on disk. Nothing was written — copy your work, then reopen it.",
+            "warning",
+          );
+          await save?.end("refused");
+          return false;
+        }
+        try {
+          await context.platform.writeTextFile(resource, text);
+          known = await context.platform.fileStamp(resource).catch(() => null);
+          clearNotice();
+          await save?.end("ok");
+          return true;
+        } catch {
+          showNotice("Could not save. Your work is still here and still unsaved.", "warning");
+          await save?.end("failed");
+          return false;
+        }
+      },
+    });
+    notice = document.createElement("p");
+    notice.className = "current-file-notice";
+    notice.hidden = true;
+    notice.setAttribute("role", "status");
+    notice.setAttribute("aria-live", "polite");
+    surface.append(notice);
+    if (focus) mounted.focus();
+  };
 
   const open = async (resource: FileResource | null): Promise<void> => {
     const requested = ++generation;
+    reconciliation += 1;
     if (!resource) {
       mounted?.destroy();
       mounted = null;
-      emptyFile(host);
+      currentResource = null;
+      known = null;
+      notice = null;
+      surface.replaceChildren();
+      emptyFile(surface);
       return;
     }
 
@@ -54,31 +136,23 @@ export async function mountCurrentFile(
     };
     const span = context.instrumentation.startSpan("file.open", diagnosticContext);
     let read: BoundedFileRead;
+    const stamp = context.platform.fileStamp(resource).catch(() => null);
     try {
       read = await context.platform.readBoundedFile(resource);
     } catch {
       read = { status: "unavailable", problem: "The file boundary is unavailable" };
     }
-    if (!active || requested !== generation) return;
-
-    mounted?.destroy();
-    mounted = null;
-    host.replaceChildren();
-    const buffer = editorBufferFromRead(resource.relativePath, read);
-    mounted = mountEditorBuffer(host, buffer, {
-      wrap: wordWrap(),
-      onSave: async (text) => {
-        const save = context.instrumentation.startSpan("file.save", diagnosticContext);
-        try {
-          await context.platform.writeTextFile(resource, text);
-          await save?.end("ok");
-        } catch (cause) {
-          await save?.end("failed");
-          throw cause;
-        }
-      },
-    });
-    mounted.focus();
+    if (!active || requested !== generation) {
+      await span?.end("cancelled");
+      return;
+    }
+    currentResource = resource;
+    known = await stamp;
+    if (!active || requested !== generation) {
+      await span?.end("cancelled");
+      return;
+    }
+    render(resource, read, requested, true);
     await span?.end(read.status === "text" ? "ok" : "unavailable");
   };
 
@@ -196,6 +270,51 @@ export async function mountCurrentFile(
     if (currentEditor()?.isDirty()) confirmation.show();
     else void context.platform.closeWindow();
   });
+  const onFocus = () => {
+    const editor = currentEditor();
+    const resource = currentResource;
+    const expectedGeneration = generation;
+    const expectedReconciliation = ++reconciliation;
+    if (!editor || !resource) return;
+
+    void (async () => {
+      const onDisk = await context.platform.fileStamp(resource).catch(() => known);
+      if (!active || expectedGeneration !== generation || expectedReconciliation !== reconciliation)
+        return;
+      const decision = reconcile({ known, onDisk, dirty: editor.isDirty() });
+      if (decision.action === "none") {
+        clearNotice();
+        return;
+      }
+      if (decision.action !== "reload") {
+        showNotice(decision.notice, "warning");
+        return;
+      }
+
+      let read: BoundedFileRead;
+      try {
+        read = await context.platform.readBoundedFile(resource);
+      } catch {
+        showNotice("This file changed on disk but could not be reloaded.", "warning");
+        return;
+      }
+      if (!active || expectedGeneration !== generation || expectedReconciliation !== reconciliation)
+        return;
+      if (
+        read.status === "text" &&
+        mounted !== null &&
+        mounted.buffer.content !== null &&
+        mounted.buffer.editable === read.writable
+      ) {
+        editor.setText(read.text);
+      } else {
+        render(resource, read, expectedGeneration, false);
+      }
+      known = onDisk;
+      showNotice(decision.notice);
+    })();
+  };
+  window.addEventListener("focus", onFocus);
 
   await open(activeResource(context.state.snapshot()));
 
@@ -203,6 +322,8 @@ export async function mountCurrentFile(
     if (!active) return;
     active = false;
     generation += 1;
+    reconciliation += 1;
+    window.removeEventListener("focus", onFocus);
     stopClose();
     confirmation.dismiss();
     stopState();
