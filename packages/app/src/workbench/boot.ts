@@ -2,44 +2,19 @@ import type { Platform } from "@/platform";
 import { registerThemeSelectionOwner } from "@/design/appearance";
 import { ThemeController, loadThemeCatalog } from "@/design/themes";
 import { createInstrumentationClient } from "@/instrumentation";
-import { mountProjectList, ProjectsController } from "@/projects";
 import { registerReference } from "./reference";
 import { attachShortcuts } from "./shortcuts";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "./state";
 import { attachWorkbenchCommands } from "./commands";
-import { createProjectWorkbenchAdapter } from "./projects";
-import { attachWorkbenchDiagnostics, mountDiagnosticSettings } from "./diagnostics";
+import { attachWorkbenchDiagnostics } from "./diagnostics";
 import { diagnosticsEnabled, setDiagnosticsEnabled } from "./preferences";
-import { mountWorkbenchShell } from "./shell";
-import { mountCurrentFile } from "./current-file";
+import { mountWorkbenchFeatures } from "./features";
 import { attachOpenRequests } from "./open-requests";
 import type { Unmount, WorkbenchMount } from "./runtime";
 
 export type { WorkbenchMount } from "./runtime";
 
 const NOTHING: Unmount = () => {};
-const mountThreads: WorkbenchMount = (host, context) => {
-  const stopProjects = mountProjectList(
-    host,
-    new ProjectsController(
-      createProjectWorkbenchAdapter(context.state, context.platform, context.instrumentation),
-    ),
-  );
-  const stopDiagnostics = mountDiagnosticSettings(
-    host,
-    context.instrumentation,
-    context.platform.revealDiagnostics,
-  );
-  return () => {
-    stopDiagnostics();
-    stopProjects();
-  };
-};
-const mountCurrentEditor: WorkbenchMount = (host, context) =>
-  mountWorkbenchShell(host, context, {
-    threads: mountThreads,
-    file: mountCurrentFile,
-  });
 
 function saySoOnScreen(host: HTMLElement, message: string): void {
   const line = document.createElement("p");
@@ -72,7 +47,7 @@ function reasonFor(cause: unknown): string {
 export async function bootWorkbench(
   host: HTMLElement,
   platform: Platform,
-  mount: WorkbenchMount = mountCurrentEditor,
+  mount: WorkbenchMount = mountWorkbenchFeatures,
 ): Promise<Unmount> {
   document.title = "zd";
 

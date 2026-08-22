@@ -7,6 +7,16 @@ import type {
 } from "@/threads";
 import type { ThreadRuntimeUpdate, ThreadState, WorkbenchState } from "./state";
 
+let fallbackIdentity = 0;
+
+export function defaultThreadId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `thread-${crypto.randomUUID()}`;
+  }
+  fallbackIdentity += 1;
+  return `thread-${Date.now().toString(36)}-${fallbackIdentity.toString(36)}`;
+}
+
 export function inferredThreadRecovery(
   thread: ThreadState,
   state: WorkbenchState,

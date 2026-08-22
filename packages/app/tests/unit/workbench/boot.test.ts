@@ -167,6 +167,70 @@ describe("one workbench boot", () => {
     unmount();
   });
 
+  it("mounts nested project threads and the reconciled file tree in their root regions", async () => {
+    const fileTree = {
+      snapshot: vi.fn(async (request) => ({
+        status: "ready" as const,
+        projectId: request.projectId,
+        worktreeId: request.worktreeId,
+        revision: "revision-1",
+        entries: [
+          {
+            relativePath: "README.md",
+            parentPath: null,
+            name: "README.md",
+            kind: "file" as const,
+            ignored: false,
+            byteLength: 10,
+            modified: 1,
+          },
+        ],
+        truncated: false,
+        ignoredTruncated: false,
+        unreadableDirectories: 0,
+        elapsedMicros: 1,
+      })),
+    };
+    const git = {
+      ...unavailableGitAdapter,
+      status: vi.fn(async (scope) => ({
+        scope,
+        availability: "available" as const,
+        entries: [
+          {
+            id: "change-readme",
+            path: "README.md",
+            previousPath: null,
+            state: "modified" as const,
+            indexState: null,
+            worktreeState: "modified" as const,
+            submodule: false,
+          },
+        ],
+        truncated: false,
+        problem: null,
+      })),
+    };
+    const platform: Platform = { ...stubPlatform("/work/README.md"), fileTree, git };
+    const host = document.createElement("div");
+
+    const unmount = await bootWorkbench(host, platform);
+
+    expect(
+      host.querySelector('[data-project-id="project-test"] .zd-project-threads'),
+    ).not.toBeNull();
+    const row = await vi.waitFor(() => {
+      const current = host.querySelector<HTMLElement>('[data-file-path="README.md"]');
+      expect(current).not.toBeNull();
+      return current!;
+    });
+    expect(row.closest('[data-region="files"]')).not.toBeNull();
+    await vi.waitFor(() => expect(row.dataset.gitState).toBe("changed"));
+    expect(commands().map(({ id }) => id)).toContain("files.filter");
+
+    unmount();
+  });
+
   it("passes one grant-relative launch resource without resolving a surface id", async () => {
     const mount = vi.fn<WorkbenchMount>((host, context) => {
       host.textContent = context.launch.relativePath ?? "home";
