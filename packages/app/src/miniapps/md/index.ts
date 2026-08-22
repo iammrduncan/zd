@@ -1,7 +1,6 @@
 import type { WorkbenchRuntimeContext, Unmount } from "@/workbench/runtime";
 import { launchResource } from "@/workbench/resources";
-import { createEditor, type Editor } from "./editor/editor";
-import { languageFor } from "./editor/language";
+import { createEditor, languageFor, type Editor } from "@/editor";
 import { setWordWrap, wordWrap } from "@/workbench/preferences";
 import { register, registerCommandTarget } from "@/workbench/shortcuts";
 import { clearStatus, lineCount, showNotice, showStatus, wordCount } from "./status";
