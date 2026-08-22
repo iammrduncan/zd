@@ -231,6 +231,120 @@ describe("one workbench boot", () => {
     unmount();
   });
 
+  it("mounts Changes through the root scope and overlays a read-only diff", async () => {
+    const fileTree = {
+      snapshot: vi.fn(async (request) => ({
+        status: "ready" as const,
+        projectId: request.projectId,
+        worktreeId: request.worktreeId,
+        revision: "revision-1",
+        entries: [
+          {
+            relativePath: "README.md",
+            parentPath: null,
+            name: "README.md",
+            kind: "file" as const,
+            ignored: false,
+            byteLength: 10,
+            modified: 1,
+          },
+        ],
+        truncated: false,
+        ignoredTruncated: false,
+        unreadableDirectories: 0,
+        elapsedMicros: 1,
+      })),
+    };
+    const git = {
+      ...unavailableGitAdapter,
+      status: vi.fn(async (scope) => ({
+        scope,
+        availability: "available" as const,
+        entries: [
+          {
+            id: "change-readme",
+            path: "README.md",
+            previousPath: null,
+            state: "modified" as const,
+            indexState: null,
+            worktreeState: "modified" as const,
+            submodule: false,
+          },
+        ],
+        truncated: false,
+        problem: null,
+      })),
+      history: vi.fn(async (request) => ({
+        scope: request.scope,
+        availability: "available" as const,
+        commits: [],
+        nextCursor: null,
+        truncated: false,
+        problem: null,
+      })),
+      diff: vi.fn(async (request) => ({
+        scope: request.scope,
+        availability: "available" as const,
+        base: {
+          status: "text" as const,
+          identity: "base-readme",
+          path: "README.md",
+          revision: "a".repeat(40),
+          text: "before\n",
+          byteLength: 7,
+        },
+        head: {
+          status: "text" as const,
+          identity: "head-readme",
+          path: "README.md",
+          revision: "working-tree",
+          text: "after\n",
+          byteLength: 6,
+        },
+        problem: null,
+      })),
+    };
+    const platform: Platform = {
+      ...stubPlatform("/work/README.md"),
+      fileTree,
+      git,
+      readBoundedFile: vi.fn(async () => ({
+        status: "text" as const,
+        text: "live\n",
+        byteLength: 5,
+        writable: true,
+      })),
+    };
+    const host = document.createElement("div");
+    document.body.append(host);
+    const unmount = await bootWorkbench(host, platform);
+
+    host.querySelector<HTMLButtonElement>("#zd-changes-tab")!.click();
+    const row = await vi.waitFor(() => {
+      const current = host.querySelector<HTMLButtonElement>("[data-change-id='change-readme']");
+      expect(current).not.toBeNull();
+      return current!;
+    });
+    expect(row.closest("[data-workbench-slot='changes']")).not.toBeNull();
+    expect(git.history).toHaveBeenCalledWith({
+      scope: { projectId: "project-test", worktreeId: "worktree-test" },
+      cursor: null,
+      pageSize: 50,
+    });
+    row.click();
+    await vi.waitFor(() => expect(host.querySelectorAll("[data-buffer-identity]")).toHaveLength(3));
+    expect(host.querySelector<HTMLElement>("[data-changes-surface='live']")?.hidden).toBe(true);
+    expect(git.diff).toHaveBeenCalledWith({
+      scope: { projectId: "project-test", worktreeId: "worktree-test" },
+      source: { kind: "working-tree", changeId: "change-readme" },
+    });
+
+    host.querySelector<HTMLButtonElement>("[aria-label='Close file comparison']")!.click();
+    expect(host.querySelector<HTMLElement>("[data-changes-surface='live']")?.hidden).toBe(false);
+    unmount();
+    host.remove();
+  });
+
   it("passes one grant-relative launch resource without resolving a surface id", async () => {
     const mount = vi.fn<WorkbenchMount>((host, context) => {
       host.textContent = context.launch.relativePath ?? "home";

@@ -1,3 +1,4 @@
+import { mountChanges } from "@/changes";
 import { mountFileTree } from "@/files";
 import { mountProjectList, ProjectsController } from "@/projects";
 import {
@@ -9,7 +10,7 @@ import {
   type TerminalThreadSurfaceOptions,
   type ThreadInstrumentationEvent,
 } from "@/threads";
-import { mountCurrentFile } from "./current-file";
+import { createWorkbenchChangesRuntime, mountCurrentFileWithChanges } from "./changes";
 import { mountDiagnosticSettings } from "./diagnostics";
 import { createWorkbenchFilesRuntime } from "./files";
 import { createProjectWorkbenchAdapter } from "./projects";
@@ -188,6 +189,13 @@ export async function mountWorkbenchFeatures(
     context.instrumentation,
   );
   const stopFilesRuntime = files.attach();
+  const changes = createWorkbenchChangesRuntime(
+    context.state,
+    context.platform.git,
+    files,
+    context.instrumentation,
+  );
+  const stopChangesRuntime = changes.attach();
 
   let stopShell: Unmount;
   try {
@@ -195,10 +203,13 @@ export async function mountWorkbenchFeatures(
       threads: threadsNavigationMount(threads),
       thread: (threadHost, threadContext) =>
         mountActiveThread(threadHost, threadContext, threadsAdapter),
-      file: mountCurrentFile,
+      file: (fileHost, fileContext) =>
+        mountCurrentFileWithChanges(fileHost, fileContext, changes.controller),
       files: (filesHost) => mountFileTree(filesHost, files.controller),
+      changes: (changesHost) => mountChanges(changesHost, changes.controller),
     });
   } catch (cause) {
+    stopChangesRuntime();
     stopFilesRuntime();
     void threadsAdapter.dispose();
     throw cause;
@@ -206,6 +217,7 @@ export async function mountWorkbenchFeatures(
 
   return () => {
     stopShell();
+    stopChangesRuntime();
     stopFilesRuntime();
     void threadsAdapter.dispose();
   };

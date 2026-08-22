@@ -1,0 +1,12 @@
+.zd-file-context,
+.zd-file-context-surface {
+  min-inline-size: 0;
+  min-block-size: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: hidden;
+}
+
+.zd-file-context-surface[hidden] {
+  display: none;
+}
