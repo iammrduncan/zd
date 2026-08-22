@@ -2,6 +2,7 @@ import "@/design/index.css";
 
 import type { Platform } from "@/platform";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
+import { unavailableTerminalAdapter } from "@/terminal";
 import { mountCurrentWorkspace } from "..";
 import type { FileResource, ProjectGrant } from "@/workbench/resources";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";
@@ -80,6 +81,7 @@ const platform: Platform = {
   }),
   recordDiagnostic: async () => ({ recorded: false, problem: null }),
   revealDiagnostics: async () => {},
+  terminal: unavailableTerminalAdapter,
   workspaceFiles: async () => ({
     projectId: project.id,
     worktreeId: project.worktrees[0]!.id,

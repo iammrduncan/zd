@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Platform } from "@/platform";
 import { setTheme } from "@/design/appearance";
+import { unavailableTerminalAdapter } from "@/terminal";
 import { bootWorkbench, type WorkbenchMount } from "@/workbench/boot";
 import { homeLaunch, type ProjectGrant } from "@/workbench/resources";
 import { clearCommands, commands } from "@/workbench/shortcuts";
@@ -73,6 +74,7 @@ function stubPlatform(path: string | null = null): Platform {
     }),
     recordDiagnostic: async () => ({ recorded: false, problem: null }),
     revealDiagnostics: async () => {},
+    terminal: unavailableTerminalAdapter,
     workspaceFiles: async () => {
       throw new Error("no listing");
     },
