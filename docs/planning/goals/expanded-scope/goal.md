@@ -12,8 +12,6 @@ sequential gates.
 - `ZenSuite` is the product-family and repository identity.
 - `zd` is the complete user-facing name of the application, workbench, and command. It is not an
   abbreviation and receives no spelled-out expansion in product copy.
-- `Zendesk`, `ZenDesk`, and similar expansions of `zd` are prohibited because they conflict with an
-  existing trademark and are not this product's name.
 - Retaining the ZenSuite identity does not retain the old suite launcher, growing-miniapp model, or
   separately launched `zd md` product.
 

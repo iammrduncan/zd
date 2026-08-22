@@ -22,8 +22,7 @@ Apply the authority and interpretation rules in the execution plan's Visual Refe
 
 - ZenSuite is the product-family and repository identity; the application, workbench, and command
   are named `zd`.
-- `zd` has no spelled-out product expansion. In particular, it must never be called Zendesk or
-  ZenDesk.
+- `zd` has no spelled-out product expansion.
 - There is no separately launched `zd md` miniapp.
 - Markdown keeps the current rendered and directly editable CodeMirror surface.
 - Code files use the same CodeMirror engine in a code presentation.

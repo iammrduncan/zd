@@ -27,7 +27,7 @@ in `goal.md`.
 - `ZenSuite` is the product-family and repository identity.
 - The application, workbench, and command are named `zd`; product copy does not expand those
   letters into a longer name.
-- The prohibited expansions named in `goal.md` must not appear as current product identity.
+- Documentation must not invent or publish a spelled-out expansion for `zd`.
 - ZenSuite names the product family, not a suite launcher or permission to add miniapps.
 
 ## Remaining Required Decisions
@@ -84,10 +84,10 @@ implemented workbench is stable.
 12. Reconcile active goals and objective indexes with the pivot. Archive or supersede obsolete
     miniapp acceptance criteria without rewriting completed summaries, dated research, fixtures,
     or historical evidence.
-13. Add a scoped stale-context check that rejects the prohibited expansions of `zd`, product-level
-    `zd md`, and miniapp implementation framing in canonical, public, contributor, and
-    active-planning files. Explicit naming-contract statements, labeled historical records, and
-    literal compatibility tests use a reviewed allowlist. `ZenSuite` itself remains valid.
+13. Add a scoped stale-context check that rejects attempts to treat `zd` as an abbreviation,
+    product-level `zd md`, and miniapp implementation framing in canonical, public, contributor,
+    and active-planning files. Explicit naming-contract statements, labeled historical records,
+    and literal compatibility tests use a reviewed allowlist. `ZenSuite` itself remains valid.
 14. Audit source comments, UI copy, test names, package descriptions, Tauri CLI help, release
     workflows, and generated-site inputs for misleading current-product terminology.
 15. Documentation links, information-architecture tests, objective/archive/session-loop tests,
@@ -97,9 +97,9 @@ implemented workbench is stable.
 
 No authoritative, public, contributor, source-adjacent, or active-planning document gives a person
 or agent a plausible instruction to add another miniapp, present `zd md` as the current product, or
-expand `zd` into a prohibited name. Historical records remain discoverable and clearly historical,
-and all generated and tested documentation uses ZenSuite for the product family and `zd` for the
-application, workbench, and command.
+present a spelled-out expansion for `zd`. Historical records remain discoverable and clearly
+historical, and all generated and tested documentation uses ZenSuite for the product family and
+`zd` for the application, workbench, and command.
 
 ## Dependencies
 
