@@ -1,3 +1,6 @@
+> Historical idea, superseded on 2026-08-22. It does not direct current implementation; see the
+> [one-workbench execution plan](../../../goals/expanded-scope/goal.md).
+
 zd studio is a single view.
 
 using `zd` alone in cli will open it in default home screen dashboard.

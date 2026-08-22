@@ -1,10 +1,10 @@
-# Candidate: Let the document own dirty-close confirmation
+# Candidate: Let the current file own dirty-close confirmation
 
 ## Status
 
 Candidate. This draft is not accepted architecture.
 
-Proposed ADR area: zd md.
+Proposed ADR area: Workbench.
 
 ## Context
 
@@ -33,13 +33,13 @@ platform close operation.
 - Cancel remains safe under repeated shortcuts and preserves the exact buffer.
 - The confirmation is visible and testable across desktop webviews.
 - The document UI owns dialog accessibility and wording.
-- New document-owning miniapps need an equivalent explicit policy before they can discard state.
+- Any future file-owning feature needs an equivalent explicit policy before it can discard state.
 
 ## Evidence and ADR overlap
 
 - Session evidence: the close regression and redesign handoffs from 2026-08-01 03:53 through
   05:33, culminating in the visible in-app dialog.
-- Current evidence: `packages/app/src/miniapps/md/close-confirmation.ts` owns the alert dialog and
-  delegates only the accepted close to the platform callback.
+- Current evidence: the workbench current-file owner adapts the retained close-confirmation module
+  and delegates only the accepted close to the platform callback.
 - Related accepted ADRs: md 0003 governs successful saves; suite 0002 governs native operations
   behind the platform boundary. This candidate connects those boundaries for destructive close.

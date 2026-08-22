@@ -1,7 +1,11 @@
 # Wrap-up goals
 
-Status: planning snapshot derived from the open tasks in
-[`docs/planning/objectives/todo.txt`](../todo.txt) on 2026-08-12.
+Status: **superseded on 2026-08-22** by the
+[expanded-scope execution plan](../../goals/expanded-scope/goal.md).
+
+This index is retained as a historical planning snapshot derived from
+[`docs/planning/objectives/todo.txt`](../todo.txt) on 2026-08-12. Its goals and coverage ledger do
+not direct current implementation.
 
 These goals reorganize the remaining prototype work into bounded outcomes. They do not replace or
 complete the source todo lines. The internal todo remains the execution record until each line is

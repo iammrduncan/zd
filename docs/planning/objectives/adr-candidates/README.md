@@ -12,10 +12,10 @@ candidate, assign the next unused number in its area, move it into `docs/adr/`, 
 | Candidate | Proposed area | Why it remains uncovered |
 | --- | --- | --- |
 | [Organize packages by runtime ownership](organize-packages-by-runtime-ownership.md) | Repository | The portable-frontend and platform-boundary ADRs define runtime boundaries, but no ADR preserves their repository ownership. |
-| [Put visual decisions in the suite design system](put-visual-decisions-in-the-suite-design-system.md) | Suite | Existing ADRs choose CSS and a portable frontend, but do not assign visual constants and shared presentation rules to one suite owner. |
-| [Resolve document language before constructing the editor](resolve-document-language-before-constructing-the-editor.md) | zd md | The one-surface ADR covers Markdown editing, but not how non-Markdown files avoid Markdown parsing or how highlighting support grows. |
-| [Let the document own dirty-close confirmation](let-the-document-own-dirty-close-confirmation.md) | zd md | The write-confirmation ADR protects save state, but does not govern destructive window-close requests. |
-| [Preserve scroll intent through layout correction](preserve-scroll-intent-through-layout-correction.md) | zd md | The browser-layout ADR accepts incremental layout, but does not define who wins when layout correction, programmatic motion, and direct input compete. |
+| [Put visual decisions in the workbench design system](put-visual-decisions-in-the-workbench-design-system.md) | Workbench | Existing ADRs choose CSS and a portable frontend, but do not assign visual constants and shared presentation rules to one workbench owner. |
+| [Resolve document language before constructing the editor](resolve-document-language-before-constructing-the-editor.md) | Editor | The one-surface ADR covers Markdown editing, but not how non-Markdown files avoid Markdown parsing or how highlighting support grows. |
+| [Let the current file own dirty-close confirmation](let-the-document-own-dirty-close-confirmation.md) | Workbench | The write-confirmation ADR protects save state, but does not govern destructive window-close requests. |
+| [Preserve scroll intent through layout correction](preserve-scroll-intent-through-layout-correction.md) | Editor | The browser-layout ADR accepts incremental layout, but does not define who wins when layout correction, programmatic motion, and direct input compete. |
 | [Use ephemeral comparisons for visual decisions](use-ephemeral-comparisons-for-visual-decisions.md) | Repository | The session-loop ADR selects and commits tasks, but does not preserve the human visual-decision gate added later. |
 
 ## Review disposition

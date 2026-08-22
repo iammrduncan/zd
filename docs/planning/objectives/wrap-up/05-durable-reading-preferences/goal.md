@@ -1,5 +1,8 @@
 # Goal 05: Make reading preferences durable
 
+Status: **superseded on 2026-08-22** by the [expanded-scope execution plan](../../../goals/expanded-scope/goal.md).
+This file is retained as a historical planning snapshot and does not direct current implementation.
+
 ## Outcome
 
 Reading layout and appearance can be configured through one settings surface, explained by the

@@ -4,7 +4,7 @@
 
 Candidate. This draft is not accepted architecture.
 
-Proposed ADR area: zd md.
+Proposed ADR area: Editor.
 
 ## Context
 
@@ -30,7 +30,7 @@ Syntax highlighting will use a small, explicit, bundled inventory shared by fenc
 code documents. The initial inventory is Rust, the JavaScript and TypeScript family, and HTML. It
 will map grammars onto the suite's keyword, string, and comment roles. Unknown languages will
 remain uncolored monospace text. Adding a grammar or a semantic color role will require a
-deliberate edit to this inventory and the design system.
+deliberate edit to this inventory and the workbench design system.
 
 ## Consequences
 
@@ -45,8 +45,8 @@ deliberate edit to this inventory and the design system.
 
 - Session evidence: the highlighting comparison and unresolved decision handoffs at 2026-08-03
   16:50 and 16:52.
-- Current evidence: `editor/language.ts` resolves Markdown separately from code, while
-  `editor/highlight.ts` owns the explicit Rust, JavaScript/TypeScript, and HTML inventory.
+- Current evidence: `packages/app/src/editor/language/` resolves Markdown separately from code and
+  owns the explicit bundled language inventory.
 - Provenance note: the reviewed session log ends at the human decision prompt, but the current
   design authority and committed implementation record the expanded outcome. A maintainer should
   confirm that provenance when promoting this candidate.

@@ -1,5 +1,8 @@
 # Goal 03: Complete the workspace daily driver
 
+Status: **superseded on 2026-08-22** by the [expanded-scope execution plan](../../../goals/expanded-scope/goal.md).
+This file is retained as a historical planning snapshot and does not direct current implementation.
+
 ## Outcome
 
 A user can start from Home, select or create a document, browse a calm file tree, filter and search

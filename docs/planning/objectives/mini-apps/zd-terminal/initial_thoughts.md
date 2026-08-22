@@ -1,3 +1,6 @@
+> Historical idea, superseded on 2026-08-22. It does not direct current implementation; see the
+> [one-workbench execution plan](../../../goals/expanded-scope/goal.md).
+
 simple in app terminal that can be opened on any open zd mini app or studio.
 
 has two hotkeys: In app hotkey that shows/hides the terminal. Global hotkey that brings the application to the foreground, on the current desktop viewed, and opens the terminal. Pressing global hotkey again minimizes the application.

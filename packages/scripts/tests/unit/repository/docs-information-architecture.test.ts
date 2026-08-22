@@ -117,6 +117,15 @@ describe("the repository documentation map", () => {
     expect(hub).toContain("planning/objectives/");
   });
 
+  it("routes superseded planning snapshots back to the current workbench plan", () => {
+    const planning = page("docs/planning/README.md");
+
+    expect(planning).toContain("goals/expanded-scope/goal.md");
+    expect(planning).toContain("objectives/wrap-up/README.md");
+    expect(planning).toContain("objectives/mini-apps/README.md");
+    expect(planning).toContain("must not be used as execution queues");
+  });
+
   it("keeps maintained workflow consumers on the sole planning objective root", () => {
     const offenders = MAINTAINED_CONTEXT_ROOTS.flatMap((root) => filesUnder(resolve(ROOT, root)))
       .filter((path) => /docs\/(?:_internal\/)?objectives(?:\/|$)/.test(readFileSync(path, "utf8")))
