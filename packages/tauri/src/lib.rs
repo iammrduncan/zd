@@ -6,6 +6,7 @@
 mod cli;
 mod fs;
 mod grants;
+pub mod instrumentation;
 mod projects;
 mod quick_access;
 pub mod terminal;
