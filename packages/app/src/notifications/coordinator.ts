@@ -9,29 +9,16 @@ import {
   type SupportedAttentionAgent,
   type ThreadNotificationRequestV1,
 } from "./types";
+import { supportedAttentionAgents } from "./settings";
 
 const SOUND_INTERVAL_MS = 1_500;
 const LABEL_LIMIT = 80;
-const supportedAgents = new Set<SupportedAttentionAgent>(["codex", "claude-code", "opencode"]);
+const supportedAgents = new Set<SupportedAttentionAgent>(supportedAttentionAgents);
 
 interface NotificationTarget {
   readonly projectId: string;
   readonly worktreeId: string;
   readonly threadId: string;
-}
-
-export function defaultAttentionSettings(): AttentionNotificationSettings {
-  return {
-    desktopEnabled: false,
-    soundEnabled: false,
-    muted: false,
-    volume: 0.5,
-    agentSounds: {
-      codex: "subtle",
-      "claude-code": "gentle",
-      opencode: "bright",
-    },
-  };
 }
 
 function safeLabel(value: string, fallback: string): string {
