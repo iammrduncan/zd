@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "format": "zd-diagnostics",
+  "sessionId": "session-fixture-0001",
+  "appVersion": "0.1.0-fixture",
+  "startedAtUnixMs": 1787374800000,
+  "endedAtUnixMs": 1787374832000,
+  "closedCleanly": true,
+  "monotonicUnit": "microseconds",
+  "eventFiles": "events-*.ndjson",
+  "privacy": {
+    "rawContent": false,
+    "environmentValues": false,
+    "fullPaths": false
+  },
+  "limits": {
+    "segmentBytes": 1048576,
+    "sessionBytes": 10485760,
+    "totalBytes": 52428800,
+    "retainedSessions": 5
+  }
+}
