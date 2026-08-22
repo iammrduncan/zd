@@ -67,6 +67,28 @@ function stubPlatform(path: string | null = null): Platform {
 beforeEach(() => clearCommands());
 
 describe("one workbench boot", () => {
+  it("mounts the root-owned project list inside the Threads region", async () => {
+    const host = document.createElement("div");
+
+    const unmount = await bootWorkbench(host, stubPlatform());
+    const projectRow = host.querySelector<HTMLButtonElement>(
+      '[data-project-id="project-test"] .zd-project-row',
+    );
+
+    expect(projectRow).not.toBeNull();
+    expect(projectRow?.closest('[data-region="threads"]')).not.toBeNull();
+    projectRow?.click();
+    await vi.waitFor(() =>
+      expect(
+        host
+          .querySelector('[data-project-id="project-test"] .zd-project-row')
+          ?.getAttribute("aria-current"),
+      ).toBe("true"),
+    );
+
+    unmount();
+  });
+
   it("passes one grant-relative launch resource without resolving a surface id", async () => {
     const mount = vi.fn<WorkbenchMount>((host, context) => {
       host.textContent = context.launch.relativePath ?? "home";

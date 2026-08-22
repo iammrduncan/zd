@@ -90,8 +90,27 @@ async function mountFixture(page: Page): Promise<void> {
         listeners.add(listener);
         return () => listeners.delete(listener);
       },
-      chooseProject: async () => null,
-      acceptChosenProject: async () => ({ status: "committed" }),
+      chooseProject: async () => {
+        calls.push("choose");
+        return {
+          id: "delta",
+          name: "Delta",
+          root: "/work/delta",
+          availability: "available",
+          worktrees: [
+            {
+              id: "delta-root",
+              name: "main",
+              root: "/work/delta",
+              availability: "available",
+            },
+          ],
+        };
+      },
+      acceptChosenProject: async (grant) => {
+        calls.push(`accept:${grant.id}`);
+        return { status: "committed" };
+      },
       activateProject: async (projectId) => {
         calls.push(`activate:${projectId}`);
         const project = snapshot.projects.find(({ id }) => id === projectId)!;
@@ -122,7 +141,10 @@ async function mountFixture(page: Page): Promise<void> {
         publish();
         return { status: "committed" };
       },
-      removeProject: async () => ({ status: "committed" }),
+      removeProject: async (projectId) => {
+        calls.push(`remove:${projectId}`);
+        return { status: "committed" };
+      },
       recoverProject: async (projectId) => {
         calls.push(`recover:${projectId}`);
         snapshot = {
@@ -194,6 +216,21 @@ test("ordinary, modified-pointer, and keyboard activation share one transition",
   await expect
     .poll(() => page.evaluate(() => window.projectFixture.calls))
     .toEqual(["activate:beta", "activate:beta", "activate:alpha"]);
+});
+
+test("native add and guarded remove actions stay available in the compact list", async ({
+  page,
+}) => {
+  await mountFixture(page);
+
+  await page.locator("[data-project-add]").click();
+  await page.locator('[data-project-remove="beta"]').click();
+
+  await expect
+    .poll(() => page.evaluate(() => window.projectFixture.calls))
+    .toEqual(["choose", "accept:delta", "remove:beta"]);
+  await expect(page.locator('[data-project-id="beta"]')).toHaveCount(1);
+  await expect(page.locator('[data-project-id="delta"]')).toHaveCount(0);
 });
 
 test("drag reorder and unavailable recovery wait for adapter publication", async ({ page }) => {

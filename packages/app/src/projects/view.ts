@@ -28,6 +28,16 @@ export function mountProjectList(
   const root = document.createElement("div");
   root.className = "zd-projects";
 
+  const toolbar = document.createElement("div");
+  toolbar.className = "zd-project-toolbar";
+  const addProject = document.createElement("button");
+  addProject.type = "button";
+  addProject.className = "zd-project-add";
+  addProject.dataset.projectAdd = "true";
+  addProject.setAttribute("aria-label", "Open project folder");
+  addProject.textContent = "+ Project";
+  toolbar.append(addProject);
+
   const list = document.createElement("div");
   list.className = "zd-project-list";
   list.setAttribute("role", "list");
@@ -38,7 +48,7 @@ export function mountProjectList(
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
   status.hidden = true;
-  root.append(list, status);
+  root.append(toolbar, list, status);
   host.append(root);
 
   let active = true;
@@ -77,6 +87,9 @@ export function mountProjectList(
       if (active) showProblem(cause instanceof Error ? cause.message : String(cause));
     }
   };
+  addProject.addEventListener("click", () => {
+    void perform(() => controller.addProject());
+  });
 
   const render = (snapshot: ProjectWorkbenchSnapshot) => {
     for (const cleanup of childCleanups) cleanup();
@@ -97,6 +110,9 @@ export function mountProjectList(
       group.className = "zd-project-group";
       group.dataset.projectId = project.id;
       group.setAttribute("role", "listitem");
+
+      const projectHeading = document.createElement("div");
+      projectHeading.className = "zd-project-heading";
 
       const row = document.createElement("button");
       row.type = "button";
@@ -146,7 +162,18 @@ export function mountProjectList(
         const insertionIndex = projectIndex + (insertAfter ? 1 : 0);
         void perform(() => controller.moveProject(movedId, insertionIndex));
       });
-      group.append(row);
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "zd-project-remove";
+      remove.dataset.projectRemove = project.id;
+      remove.setAttribute("aria-label", `Remove ${project.name} from zd`);
+      remove.title = `Remove ${project.name}`;
+      remove.textContent = "−";
+      remove.addEventListener("click", () => {
+        void perform(() => controller.removeProject(project.id));
+      });
+      projectHeading.append(row, remove);
+      group.append(projectHeading);
 
       if (project.recovery) {
         const recovery = document.createElement("p");
