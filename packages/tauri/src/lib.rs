@@ -5,6 +5,7 @@
 
 mod cli;
 mod fs;
+mod grants;
 
 #[cfg(target_os = "macos")]
 use tauri::Emitter;
