@@ -11,6 +11,7 @@ mod git;
 mod git_process;
 mod grants;
 pub mod instrumentation;
+pub mod notifications;
 mod projects;
 mod quick_access;
 pub mod terminal;
