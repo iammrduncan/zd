@@ -100,6 +100,13 @@ export function attachWorkbenchCommands(
       available: () => commandTargetAvailable("focus.toggle"),
       run: () => runCommandTarget("focus.toggle"),
     }),
+    register({
+      id: "files.filter",
+      chord: { key: "p", mod: true },
+      description: "Filter the active file tree",
+      available: () => commandTargetAvailable("files.filter"),
+      run: () => runCommandTarget("files.filter"),
+    }),
   );
 
   for (let projectIndex = 0; projectIndex < 9; projectIndex += 1) {
