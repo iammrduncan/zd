@@ -1,0 +1,209 @@
+.zd-changes {
+  --zd-change-row-height: 20px;
+
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  min-block-size: 0;
+  block-size: 100%;
+  overflow: hidden;
+  color: var(--text-secondary);
+  background: var(--surface-sidebar);
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-navigation-size);
+  line-height: 1;
+}
+
+.zd-changes-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-block-size: 26px;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  padding-inline: var(--space-2);
+}
+
+.zd-changes-filter {
+  min-inline-size: 0;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  color: var(--text-primary);
+  background: transparent;
+  font: inherit;
+}
+
+.zd-changes-filter::placeholder,
+.zd-changes-count,
+.zd-changes-commit-detail {
+  color: var(--text-muted);
+}
+
+.zd-changes-filter:focus-visible,
+.zd-changes-action:focus-visible,
+.zd-changes-row:focus-visible,
+.zd-changes-commit:focus-visible {
+  outline: 0;
+  text-decoration: underline;
+  text-decoration-color: var(--line-focus);
+  text-underline-offset: 3px;
+}
+
+.zd-changes-action {
+  appearance: none;
+  border: 0;
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+}
+
+.zd-changes-action:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--surface-selection);
+}
+
+.zd-changes-action:disabled {
+  color: var(--text-muted);
+}
+
+.zd-changes-notice,
+.zd-changes-empty {
+  margin: 0;
+  padding: var(--space-2);
+  color: var(--text-muted);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+}
+
+.zd-changes-notice[hidden],
+.zd-changes-empty[hidden] {
+  display: none;
+}
+
+.zd-changes-section {
+  display: grid;
+  min-block-size: 0;
+  border-block-start: var(--hairline) solid var(--line-quiet);
+}
+
+.zd-changes-working {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.zd-changes-history,
+.zd-changes-comparison {
+  grid-template-rows: auto auto minmax(0, auto) auto;
+  max-block-size: 34vh;
+}
+
+.zd-changes-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-block-size: 22px;
+  margin: 0;
+  padding-inline: var(--space-2);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.82em;
+  letter-spacing: 0.045em;
+}
+
+.zd-changes-viewport,
+.zd-changes-history-list {
+  position: relative;
+  min-block-size: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.zd-changes-spacer {
+  position: relative;
+}
+
+.zd-changes-layer {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+}
+
+.zd-changes-row,
+.zd-changes-commit {
+  appearance: none;
+  display: grid;
+  inline-size: 100%;
+  overflow: hidden;
+  border: 0;
+  border-inline-start: calc(var(--hairline) * 2) solid transparent;
+  border-radius: 0;
+  padding: 0 var(--space-2);
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  text-align: start;
+}
+
+.zd-changes-row {
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  block-size: var(--zd-change-row-height);
+  line-height: var(--zd-change-row-height);
+}
+
+.zd-changes-row:hover,
+.zd-changes-commit:hover,
+.zd-changes-row[aria-current="true"],
+.zd-changes-commit[aria-pressed="true"] {
+  background: var(--surface-selection);
+}
+
+.zd-changes-row[aria-current="true"],
+.zd-changes-commit[aria-pressed="true"] {
+  border-inline-start-color: var(--line-focus);
+}
+
+.zd-changes-row[data-change-state="added"] {
+  color: var(--state-added);
+}
+
+.zd-changes-row[data-change-state="changed"] {
+  color: var(--state-changed);
+}
+
+.zd-changes-row[data-change-state="deleted"] {
+  color: var(--state-deleted);
+}
+
+.zd-changes-row[data-change-state="ignored"] {
+  color: var(--state-ignored);
+}
+
+.zd-changes-icon {
+  text-align: center;
+}
+
+.zd-changes-path,
+.zd-changes-commit-subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zd-changes-state {
+  padding-inline-start: var(--space-2);
+  color: currentcolor;
+  font-size: 0.82em;
+}
+
+.zd-changes-history-list {
+  max-block-size: 142px;
+}
+
+.zd-changes-commit {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-block-size: 28px;
+  line-height: 1.25;
+}
