@@ -241,6 +241,23 @@ const documentApp = {
        */
       const document_ = editor;
       unregister.push(
+        registerCommandTarget({
+          id: "document.find",
+          commandId: "file.find",
+          priority: 10,
+          available: () => true,
+          run: () => {
+            document_.find.open();
+            return true;
+          },
+        }),
+        registerCommandTarget({
+          id: "document.closeFind",
+          commandId: "workbench.escape",
+          priority: 20,
+          available: () => document_.find.isOpen(),
+          run: () => document_.find.close(),
+        }),
         register({
           id: "document.save",
           chord: { key: "s", mod: true },
