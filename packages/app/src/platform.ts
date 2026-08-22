@@ -1,6 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import type {
+  DiagnosticStatus,
+  DiagnosticWriteOutcome,
+  PreparedDiagnosticRecord,
+} from "@/instrumentation";
 import {
   homeLaunch,
   type FileResource,
@@ -84,6 +89,16 @@ export interface Platform {
   toggleQuickAccess(): Promise<WindowPresentation>;
   /** Hide quick access without closing or tearing down the root window. */
   hideQuickAccess(): Promise<WindowPresentation>;
+  /** Inspect the local, opt-in diagnostic session without enabling it. */
+  diagnosticsStatus(): Promise<DiagnosticStatus>;
+  /** Start one bounded local diagnostic session. */
+  enableDiagnostics(): Promise<DiagnosticStatus>;
+  /** Flush and stop the current local diagnostic session. */
+  disableDiagnostics(): Promise<DiagnosticStatus>;
+  /** Write one already-validated closed-schema diagnostic record. */
+  recordDiagnostic(record: PreparedDiagnosticRecord): Promise<DiagnosticWriteOutcome>;
+  /** Reveal the native diagnostic directory without exposing its path to the webview. */
+  revealDiagnostics(): Promise<void>;
   /** Read a UTF-8 text file. */
   readTextFile(resource: FileResource): Promise<string>;
   /** Markdown files inside one already-approved project/worktree root. */
@@ -158,6 +173,11 @@ const tauri: Platform = {
   },
   toggleQuickAccess: () => invoke<WindowPresentation>("toggle_quick_access"),
   hideQuickAccess: () => invoke<WindowPresentation>("hide_quick_access"),
+  diagnosticsStatus: () => invoke<DiagnosticStatus>("diagnostics_status"),
+  enableDiagnostics: () => invoke<DiagnosticStatus>("enable_diagnostics"),
+  disableDiagnostics: () => invoke<DiagnosticStatus>("disable_diagnostics"),
+  recordDiagnostic: (record) => invoke<DiagnosticWriteOutcome>("record_diagnostic", { record }),
+  revealDiagnostics: () => invoke<void>("reveal_diagnostics"),
   workspaceFiles: (projectId, worktreeId) =>
     invoke<WorkspaceListing>("workspace_files", { projectId, worktreeId }),
   readTextFile: (resource) => invoke<string>("read_text_file", { resource }),
@@ -212,6 +232,28 @@ const browser: Platform = {
   onWindowPresentationChanged: () => () => {},
   toggleQuickAccess: async () => "ordinary",
   hideQuickAccess: async () => "ordinary",
+  diagnosticsStatus: async () => ({
+    enabled: false,
+    sessionId: null,
+    backgroundSampling: false,
+    problem: null,
+  }),
+  enableDiagnostics: async () => ({
+    enabled: false,
+    sessionId: null,
+    backgroundSampling: false,
+    problem: "local diagnostics require the desktop shell",
+  }),
+  disableDiagnostics: async () => ({
+    enabled: false,
+    sessionId: null,
+    backgroundSampling: false,
+    problem: null,
+  }),
+  recordDiagnostic: async () => ({ recorded: false, problem: null }),
+  revealDiagnostics: async () => {
+    throw new Error("local diagnostics require the desktop shell");
+  },
   workspaceFiles: async (projectId, worktreeId) => {
     throw new Error(`no filesystem in the browser shell: ${projectId}/${worktreeId}`);
   },

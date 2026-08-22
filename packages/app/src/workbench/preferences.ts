@@ -15,6 +15,7 @@
 const session = new Map<string, string>();
 
 const WORD_WRAP = "zd.wordWrap";
+const DIAGNOSTICS_ENABLED = "zd.diagnosticsEnabled";
 
 function read(key: string): string | null {
   const remembered = session.get(key);
@@ -54,6 +55,16 @@ export function wordWrap(): boolean {
 /** Remember whether lines wrap, for every document and for next time. */
 export function setWordWrap(on: boolean): void {
   write(WORD_WRAP, String(on));
+}
+
+/** Local diagnostic evidence is an explicit opt-in and therefore defaults off. */
+export function diagnosticsEnabled(): boolean {
+  return read(DIAGNOSTICS_ENABLED) === "true";
+}
+
+/** Remember whether the next workbench session should collect local diagnostics. */
+export function setDiagnosticsEnabled(enabled: boolean): void {
+  write(DIAGNOSTICS_ENABLED, String(enabled));
 }
 
 /**

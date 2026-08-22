@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { forgetPreferences, setWordWrap, wordWrap } from "@/workbench/preferences";
+import {
+  diagnosticsEnabled,
+  forgetPreferences,
+  setDiagnosticsEnabled,
+  setWordWrap,
+  wordWrap,
+} from "@/workbench/preferences";
 
 /* Workbench preference storage; browser behavior lives in the e2e editor tests. */
 
@@ -44,6 +50,20 @@ describe("word wrap", () => {
     // build's format, a hand-edited value — means the default, because §7.6 gives
     // a default and not an error state.
     expect(wordWrap()).toBe(true);
+  });
+});
+
+describe("local diagnostics", () => {
+  it("is off by default", () => {
+    expect(diagnosticsEnabled()).toBe(false);
+  });
+
+  it("remembers an explicit enable and disable", () => {
+    setDiagnosticsEnabled(true);
+    expect(diagnosticsEnabled()).toBe(true);
+
+    setDiagnosticsEnabled(false);
+    expect(diagnosticsEnabled()).toBe(false);
   });
 });
 
