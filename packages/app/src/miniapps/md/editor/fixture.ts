@@ -180,6 +180,19 @@ npm run dev\`;
 }
 `;
 
+/** A deterministic multi-megabyte text fixture without a multi-megabyte repository blob. */
+function largeSample(): string {
+  const lines = Array.from({ length: 48_000 }, (_, index) => {
+    const id = String(index).padStart(5, "0");
+    return `record_${id} alpha beta gamma delta epsilon zeta eta theta value=${id};`;
+  });
+  lines[100] = "LARGE_FIND_TARGET first bounded search result";
+  lines[24_000] = "LARGE_FIND_TARGET second bounded search result";
+  lines[47_900] = "LARGE_FIND_TARGET third bounded search result";
+  lines[36_000] = `LONG_LINE_START ${"x".repeat(256 * 1024)} LONG_LINE_END`;
+  return lines.join("\n");
+}
+
 const host = document.getElementById("zd");
 if (!host) throw new Error("dev/editor.html is missing the #zd host element");
 
@@ -192,7 +205,11 @@ if (!host) throw new Error("dev/editor.html is missing the #zd host element");
  * that a non-markdown file opens *on the same surface* — a separate page would
  * quietly let the two diverge, which is the failure mode this repo keeps finding.
  */
-const asCode = new URLSearchParams(window.location.search).get("doc") === "code";
+const documentKind = new URLSearchParams(window.location.search).get("doc");
+const source =
+  documentKind === "code" ? CODE_SAMPLE : documentKind === "large" ? largeSample() : SAMPLE;
+const path =
+  documentKind === "code" ? "sample.ts" : documentKind === "large" ? "sample.log" : "sample.md";
 
 // Two elements, two jobs: the surface scrolls and carries the insets; the column
 // holds the measure. See styles/md.css.
@@ -211,13 +228,13 @@ host.append(surface);
  * atomic write on the other side is tested in packages/tauri/src/fs.rs.
  */
 const saves: string[] = [];
-const editor = createEditor(column, asCode ? CODE_SAMPLE : SAMPLE, {
+const editor = createEditor(column, source, {
   onSave: (text) => {
     saves.push(text);
   },
   // The same call the mini app makes, from the same function — a fixture that
   // hand-built a language object would be testing its own copy of the rule.
-  language: languageFor(asCode ? "sample.ts" : "sample.md"),
+  language: languageFor(path),
   // The same read the mini app makes, so the dev page persists what the app does.
   wrap: wordWrap(),
 });
@@ -386,6 +403,10 @@ declare global {
       anchorY: () => number;
       /** Viewport y of the line Typewriter Mode pins to, from the module that owns it. */
       typewriterY: () => number;
+      /** Browser-relative time when the large CodeMirror state was usable. */
+      readyAt: number;
+      /** UTF-8 fixture size, recorded without teaching the editor about bytes. */
+      sourceBytes: number;
       saves: string[];
     };
     /**
@@ -430,5 +451,7 @@ window.zdEditor = {
     const surface = document.querySelector(".md-surface");
     return surface ? typewriterY(surface) : 0;
   },
+  readyAt: performance.now(),
+  sourceBytes: new TextEncoder().encode(source).byteLength,
   saves,
 };
