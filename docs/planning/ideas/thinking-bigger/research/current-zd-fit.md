@@ -98,8 +98,10 @@ CodeMirror state + Lezer + DOM/CSS
 - [tauri.conf.json](../../../../../packages/tauri/tauri.conf.json) declares one main window. There
   is no GPUI, WebGPU product code, Wasm application target, celld integration, process supervisor,
   global-shortcut plugin, dynamic library loader, or plugin marketplace in the current manifests.
-- [types.ts](../../../../../packages/app/src/suite/types.ts) gives a mini app one launch request,
-  one Platform, a host element, and teardown. [registry.ts](../../../../../packages/app/src/suite/registry.ts)
+- [types.ts at the audited commit](https://github.com/iammrduncan/zd/blob/4a5fe03/packages/app/src/suite/types.ts)
+  gives a mini app one launch request,
+  one Platform, a host element, and teardown.
+  [registry.ts at the audited commit](https://github.com/iammrduncan/zd/blob/4a5fe03/packages/app/src/suite/registry.ts)
   is an in-memory map; [main.ts](../../../../../packages/app/src/main.ts) statically registers only
   md. This is a useful composition seam, not a runtime plugin system.
 - [shortcuts.ts](../../../../../packages/app/src/suite/shortcuts.ts) is a well-defined,

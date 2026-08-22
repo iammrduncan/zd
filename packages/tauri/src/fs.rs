@@ -34,7 +34,7 @@ pub struct WorkspaceListing {
 /// radius, and the blast radius of three unscoped commands is the home directory.
 ///
 /// **The launch path is the scope**, which is why this needs nothing from phase 3:
-/// `zd md notes.md` scopes to the folder holding it, `zd md .` scopes to that folder,
+/// `zd notes.md` scopes to the folder holding it, `zd .` scopes to that folder,
 /// and the sidebar's workspace root will be this same value when it lands. ADR 0002's
 /// workspace model needs exactly this, so the two compose rather than compete.
 ///
@@ -44,7 +44,7 @@ pub struct WorkspaceListing {
 /// Resolve `requested` and refuse it if it lands outside `root`.
 ///
 /// **Canonicalized, and the parent rather than the path itself.** `fs::canonicalize`
-/// requires the thing to exist, and `zd md new-file.md` is allowed to name something
+/// requires the thing to exist, and `zd new-file.md` is allowed to name something
 /// that is not there yet — so the check resolves the *directory*, which does exist,
 /// and rejoins the file name. That is also what makes it proof against the two ways
 /// out of a folder: `..` collapses during canonicalization, and a symlink resolves to
@@ -64,7 +64,7 @@ fn within_scope(root: &Path, requested: &str) -> Result<PathBuf, String> {
         .map_err(|error| format!("{requested}: {error}"))?;
     let rejoined = match name {
         Some(name) => resolved_parent.join(name),
-        // The path *is* a directory — `zd md .` resolves to the folder itself.
+        // The path *is* a directory — `zd .` resolves to the folder itself.
         None => resolved_parent,
     };
 
@@ -76,7 +76,7 @@ fn within_scope(root: &Path, requested: &str) -> Result<PathBuf, String> {
      * scope and a target outside it, so rejoining the name and stopping there let
      * it straight through. Canonicalizing the whole path follows the link.
      *
-     * Falling back to the rejoined path when that fails is the `zd md new-file.md`
+     * Falling back to the rejoined path when that fails is the `zd new-file.md`
      * case and only that case: nothing exists at the name yet, so there is no link
      * to follow and the resolved parent already settles where it would be created.
      */
@@ -96,7 +96,7 @@ fn within_scope(root: &Path, requested: &str) -> Result<PathBuf, String> {
 /// The folder a launch path scopes to: itself when it is one, its parent when it is a
 /// file.
 ///
-/// A path that does not exist yet is treated as a file, because that is what `zd md
+/// A path that does not exist yet is treated as a file, because that is what `zd
 /// new-file.md` means — the folder it will be created in is the scope.
 #[cfg(test)]
 fn scope_for(path: &Path) -> PathBuf {
@@ -602,7 +602,7 @@ mod tests {
 
     #[test]
     fn a_file_that_does_not_exist_yet_is_allowed_inside_the_scope() {
-        // `zd md new-file.md` names something that is not there. Canonicalizing the
+        // `zd new-file.md` names something that is not there. Canonicalizing the
         // path itself would fail here, which is why the check resolves the parent.
         let scratch = Scratch::new("scope-new");
         let path = scratch.join("not-yet.md");
@@ -672,7 +672,7 @@ mod tests {
         assert_eq!(scope_for(&scratch.0), scratch.0);
 
         // Not there yet: treated as a file, so the scope is the folder it will be
-        // created in. `zd md new-file.md` has to keep working.
+        // created in. `zd new-file.md` has to keep working.
         assert_eq!(scope_for(&scratch.join("not-yet.md")), scratch.0);
     }
 

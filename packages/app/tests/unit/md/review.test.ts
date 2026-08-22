@@ -20,7 +20,7 @@ const selection: ReviewSelection = {
 function platform(writeTextFile: Platform["writeTextFile"] = async () => {}): Platform {
   return {
     kind: "browser",
-    launchRequest: async () => ({ miniapp: "md", path: "/workspace" }),
+    launchRequest: async () => ({ path: "/workspace" }),
     onOpenRequested: () => () => {},
     acceptOpenRequest: async () => null,
     workspaceFiles: async () => null,

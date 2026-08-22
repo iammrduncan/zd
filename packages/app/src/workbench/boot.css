@@ -1,0 +1,8 @@
+/* A calm local failure sentence on the shared canvas. */
+.zd-boot-notice {
+  margin: var(--reading-inset-top) var(--reading-inset-x);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+  color: var(--text-secondary);
+}

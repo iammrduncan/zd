@@ -4,9 +4,9 @@ import { expect, test } from "@playwright/test";
 // and the bundled faces load. Reading, focus, and typography specs join these
 // from session 1.2 onward.
 
-test("boots the styled md mini app at the root route", async ({ page }) => {
+test("boots the styled workbench editor at the root route", async ({ page }) => {
   await page.goto("/");
-  await expect(page).toHaveTitle("zd md");
+  await expect(page).toHaveTitle("zd");
 
   const surface = page.locator("#zd > .md-surface");
   await expect(surface, "the root route did not mount the md surface").toBeVisible();
