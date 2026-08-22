@@ -2,7 +2,6 @@ import type { Platform } from "@/platform";
 import { registerThemeSelectionOwner } from "@/design/appearance";
 import { ThemeController, loadThemeCatalog } from "@/design/themes";
 import { createInstrumentationClient } from "@/instrumentation";
-import { mountCurrentWorkspace } from "@/miniapps/md";
 import { mountProjectList, ProjectsController } from "@/projects";
 import { registerReference } from "./reference";
 import { attachShortcuts } from "./shortcuts";
@@ -12,6 +11,7 @@ import { createProjectWorkbenchAdapter } from "./projects";
 import { attachWorkbenchDiagnostics, mountDiagnosticSettings } from "./diagnostics";
 import { diagnosticsEnabled, setDiagnosticsEnabled } from "./preferences";
 import { mountWorkbenchShell } from "./shell";
+import { mountCurrentFile } from "./current-file";
 import type { Unmount, WorkbenchMount } from "./runtime";
 
 export type { WorkbenchMount } from "./runtime";
@@ -37,7 +37,7 @@ const mountThreads: WorkbenchMount = (host, context) => {
 const mountCurrentEditor: WorkbenchMount = (host, context) =>
   mountWorkbenchShell(host, context, {
     threads: mountThreads,
-    file: mountCurrentWorkspace,
+    file: mountCurrentFile,
   });
 
 function saySoOnScreen(host: HTMLElement, message: string): void {

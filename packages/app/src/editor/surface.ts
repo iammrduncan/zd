@@ -2,6 +2,8 @@ import { createEditor, type Editor, type EditorOptions } from "@/miniapps/md/edi
 
 import type { EditorBuffer } from "./buffer";
 import "./surface.css";
+import "@/miniapps/md/styles/md.css";
+import "@/miniapps/md/styles/content.css";
 
 export interface MountedEditorBuffer {
   readonly buffer: EditorBuffer;
@@ -19,7 +21,7 @@ export function mountEditorBuffer(
   options: MountEditorBufferOptions = {},
 ): MountedEditorBuffer {
   const surface = document.createElement("section");
-  surface.className = "editor-buffer";
+  surface.className = "editor-buffer md-surface";
   surface.dataset.bufferKind = buffer.kind;
   surface.dataset.hasContent = String(buffer.content !== null);
   surface.setAttribute("role", "region");
