@@ -56,6 +56,7 @@ function gitStates(snapshot: GitStatusSnapshot): ReadonlyMap<string, FileGitStat
 export class WorkbenchFilesRuntime {
   readonly controller: FileTreeController;
   readonly #gitSnapshots = new Map<string, GitStatusSnapshot>();
+  readonly #listeners = new Set<(snapshot: GitStatusSnapshot | null) => void>();
   #activeKey: string | null = null;
   #attached = false;
   #generation = 0;
@@ -121,6 +122,15 @@ export class WorkbenchFilesRuntime {
     };
   }
 
+  snapshot(): GitStatusSnapshot | null {
+    return this.#activeKey ? (this.#gitSnapshots.get(this.#activeKey) ?? null) : null;
+  }
+
+  subscribe(listener: (snapshot: GitStatusSnapshot | null) => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  }
+
   async refresh(reason: FileTreeRefreshReason = "manual"): Promise<void> {
     const scope = activeScope(this.owner.snapshot());
     if (!scope || scopeKey(scope) !== this.#activeKey) return;
@@ -135,6 +145,7 @@ export class WorkbenchFilesRuntime {
         this.#generation += 1;
         this.#activeKey = null;
         this.controller.deactivate();
+        this.#publishGit(null);
       }
       return;
     }
@@ -148,6 +159,7 @@ export class WorkbenchFilesRuntime {
     this.#generation += 1;
     const generation = this.#generation;
     this.#activeKey = key;
+    this.#publishGit(this.#gitSnapshots.get(key) ?? null);
     void this.controller.activate(scope, activePath(state));
     void this.#refreshGit(scope, generation);
   }
@@ -176,6 +188,7 @@ export class WorkbenchFilesRuntime {
     const reconciled = previous ? reconcileGitStatus(previous, next) : next;
     this.#gitSnapshots.set(key, reconciled);
     this.controller.reconcileGit(gitStates(reconciled));
+    this.#publishGit(reconciled);
     await span?.end(gitOutcome(reconciled));
   }
 
@@ -187,6 +200,10 @@ export class WorkbenchFilesRuntime {
       outcome: outcomes.has(metric.outcome) ? "ok" : "unavailable",
       context: { projectId: metric.projectId, worktreeId: metric.worktreeId },
     });
+  }
+
+  #publishGit(snapshot: GitStatusSnapshot | null): void {
+    for (const listener of this.#listeners) listener(snapshot);
   }
 }
 

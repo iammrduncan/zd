@@ -136,6 +136,8 @@ describe("the root Files and Git coordinator", () => {
       git,
       createUnavailableInstrumentationClient(),
     );
+    const seen = vi.fn();
+    const stopGit = runtime.subscribe(seen);
 
     const detach = runtime.attach();
     await vi.waitFor(() => expect(runtime.controller.snapshot().state).toBe("ready"));
@@ -152,6 +154,9 @@ describe("the root Files and Git coordinator", () => {
       projectId: alpha.id,
       worktreeId: "worktree-alpha",
     });
+    expect(runtime.snapshot()).toEqual(gitResult(alpha, "modified"));
+    expect(seen).toHaveBeenLastCalledWith(gitResult(alpha, "modified"));
+    stopGit();
     detach();
   });
 
