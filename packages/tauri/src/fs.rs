@@ -3,12 +3,15 @@
 //! Directory walking, watching, and recovery arrive with the sessions that need
 //! them (2.1, 3.1).
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use crate::cli::LaunchState;
 use crate::grants::ResourceRef;
 use tauri_plugin_opener::OpenerExt;
+
+const EDITABLE_FILE_LIMIT: u64 = 8 * 1024 * 1024;
+const FILE_PREVIEW_LIMIT: usize = 64 * 1024;
 
 /// One file in the workspace tree, named both for opening and for display.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -26,6 +29,136 @@ pub struct WorkspaceListing {
     pub worktree_id: String,
     pub root: String,
     pub files: Vec<WorkspaceFile>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(
+    tag = "status",
+    rename_all = "kebab-case",
+    rename_all_fields = "camelCase"
+)]
+pub enum BoundedFileRead {
+    Text {
+        text: String,
+        byte_length: u64,
+        writable: bool,
+        reason: Option<String>,
+    },
+    Binary {
+        byte_length: u64,
+    },
+    Undecodable {
+        byte_length: u64,
+    },
+    Missing,
+    Denied,
+    OverLimit {
+        byte_length: u64,
+        limit: u64,
+        preview: Option<String>,
+    },
+    Unavailable {
+        problem: String,
+    },
+}
+
+fn read_failure(error: &std::io::Error) -> BoundedFileRead {
+    match error.kind() {
+        std::io::ErrorKind::NotFound => BoundedFileRead::Missing,
+        std::io::ErrorKind::PermissionDenied => BoundedFileRead::Denied,
+        _ => BoundedFileRead::Unavailable {
+            problem: "The file could not be read".to_string(),
+        },
+    }
+}
+
+fn safe_preview(bytes: Vec<u8>) -> Option<String> {
+    if bytes.contains(&0) {
+        return None;
+    }
+    String::from_utf8(bytes).ok()
+}
+
+fn bounded_file_read(path: &Path, limit: u64, preview_limit: usize) -> BoundedFileRead {
+    let metadata = match std::fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) => return read_failure(&error),
+    };
+    if !metadata.is_file() {
+        return BoundedFileRead::Unavailable {
+            problem: "The selected resource is not a regular file".to_string(),
+        };
+    }
+
+    let mut file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(error) => return read_failure(&error),
+    };
+    let byte_length = metadata.len();
+    if byte_length > limit {
+        let mut preview = Vec::with_capacity(preview_limit.min(byte_length as usize));
+        if let Err(error) = (&mut file)
+            .take(preview_limit as u64)
+            .read_to_end(&mut preview)
+        {
+            return read_failure(&error);
+        }
+        return BoundedFileRead::OverLimit {
+            byte_length,
+            limit,
+            preview: safe_preview(preview),
+        };
+    }
+
+    let mut bytes = Vec::with_capacity(byte_length as usize);
+    if let Err(error) = (&mut file)
+        .take(limit.saturating_add(1))
+        .read_to_end(&mut bytes)
+    {
+        return read_failure(&error);
+    }
+    if bytes.len() as u64 > limit {
+        let current_length = file
+            .metadata()
+            .map_or(bytes.len() as u64, |current| current.len());
+        bytes.truncate(preview_limit.min(bytes.len()));
+        return BoundedFileRead::OverLimit {
+            byte_length: current_length,
+            limit,
+            preview: safe_preview(bytes),
+        };
+    }
+    if bytes.contains(&0) {
+        return BoundedFileRead::Binary { byte_length };
+    }
+    let text = match String::from_utf8(bytes) {
+        Ok(text) => text,
+        Err(_) => return BoundedFileRead::Undecodable { byte_length },
+    };
+    let writable = !metadata.permissions().readonly()
+        && std::fs::OpenOptions::new().write(true).open(path).is_ok();
+    BoundedFileRead::Text {
+        text,
+        byte_length,
+        writable,
+        reason: (!writable).then(|| "The filesystem does not grant write access".to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn read_bounded_file(
+    launch: tauri::State<'_, LaunchState>,
+    resource: ResourceRef,
+) -> BoundedFileRead {
+    let path = match launch.resolve(&resource) {
+        Ok(path) => path,
+        Err(_) => {
+            return BoundedFileRead::Unavailable {
+                problem: "File authority is unavailable".to_string(),
+            }
+        }
+    };
+    bounded_file_read(&path, EDITABLE_FILE_LIMIT, FILE_PREVIEW_LIMIT)
 }
 
 #[tauri::command]
@@ -284,7 +417,10 @@ fn is_web_url(url: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{atomic_write, is_web_url, stamp_of, temporary_beside, workspace_files_in};
+    use super::{
+        atomic_write, bounded_file_read, is_web_url, stamp_of, temporary_beside,
+        workspace_files_in, BoundedFileRead,
+    };
     use std::path::{Path, PathBuf};
 
     /// A directory of our own under the system temp dir, removed on drop.
@@ -362,6 +498,77 @@ mod tests {
 
         let stamp = stamp_of(&path).unwrap().unwrap();
         assert_eq!(stamp.length, 5);
+    }
+
+    #[test]
+    fn bounded_read_classifies_editable_utf8_without_guessing() {
+        let scratch = Scratch::new("bounded-text");
+        let path = scratch.join("main.rs");
+        std::fs::write(&path, "fn main() {}\n").unwrap();
+
+        assert_eq!(
+            bounded_file_read(&path, 1024, 64),
+            BoundedFileRead::Text {
+                text: "fn main() {}\n".to_string(),
+                byte_length: 13,
+                writable: true,
+                reason: None,
+            }
+        );
+    }
+
+    #[test]
+    fn bounded_read_distinguishes_binary_undecodable_missing_and_over_limit() {
+        let scratch = Scratch::new("bounded-states");
+        let binary = scratch.join("binary.dat");
+        let undecodable = scratch.join("undecodable.txt");
+        let large = scratch.join("large.txt");
+        std::fs::write(&binary, [b'a', 0, b'b']).unwrap();
+        std::fs::write(&undecodable, [0xff, 0xfe]).unwrap();
+        std::fs::write(&large, "preview-more").unwrap();
+
+        assert_eq!(
+            bounded_file_read(&binary, 1024, 64),
+            BoundedFileRead::Binary { byte_length: 3 }
+        );
+        assert_eq!(
+            bounded_file_read(&undecodable, 1024, 64),
+            BoundedFileRead::Undecodable { byte_length: 2 }
+        );
+        assert_eq!(
+            bounded_file_read(&scratch.join("missing.txt"), 1024, 64),
+            BoundedFileRead::Missing
+        );
+        assert_eq!(
+            bounded_file_read(&large, 5, 7),
+            BoundedFileRead::OverLimit {
+                byte_length: 12,
+                limit: 5,
+                preview: Some("preview".to_string()),
+            }
+        );
+    }
+
+    #[test]
+    fn bounded_read_marks_filesystem_read_only_text_without_hiding_it() {
+        let scratch = Scratch::new("bounded-read-only");
+        let path = scratch.join("notes.md");
+        std::fs::write(&path, "still visible").unwrap();
+        let original_permissions = std::fs::metadata(&path).unwrap().permissions();
+        let mut permissions = original_permissions.clone();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(&path, permissions).unwrap();
+
+        assert!(matches!(
+            bounded_file_read(&path, 1024, 64),
+            BoundedFileRead::Text {
+                writable: false,
+                reason: Some(_),
+                ..
+            }
+        ));
+
+        std::fs::set_permissions(&path, original_permissions).unwrap();
     }
 
     #[test]

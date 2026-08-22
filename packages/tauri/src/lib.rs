@@ -73,6 +73,7 @@ pub fn run() {
             has_pending_open_request,
             accept_open_request,
             fs::read_text_file,
+            fs::read_bounded_file,
             fs::workspace_files,
             fs::write_text_file,
             fs::file_stamp,
