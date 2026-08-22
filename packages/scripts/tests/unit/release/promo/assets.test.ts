@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd());
@@ -15,6 +16,19 @@ function pngDimensions(path: string) {
 }
 
 describe("the workbench promotional kit", () => {
+  it("keeps the deterministic capture owner lint-clean", async () => {
+    const results = await new ESLint({ cwd: ROOT }).lintFiles([
+      "packages/scripts/release/capture-workbench.mjs",
+    ]);
+    const problems = results.flatMap((result) =>
+      result.messages.map(
+        ({ line, message, ruleId }) => `${line}:${ruleId ?? "parser"}:${message}`,
+      ),
+    );
+
+    expect(problems).toEqual([]);
+  });
+
   it("uses a legible implemented-workbench capture on the repository front page", () => {
     const readme = readFileSync(resolve(ROOT, "README.md"), "utf8");
 
