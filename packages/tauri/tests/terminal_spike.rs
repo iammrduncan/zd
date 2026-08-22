@@ -2,14 +2,14 @@
 mod terminal;
 
 use std::path::{Path, PathBuf};
-#[cfg(unix)]
+#[cfg(any(unix, windows))]
 use std::process::Command;
 use std::thread;
 use std::time::{Duration, Instant};
 
 use terminal::{
     TerminalErrorKind, TerminalExitReason, TerminalScope, TerminalSessionHandle, TerminalSessions,
-    TerminalViewport,
+    TerminalStartRequest, TerminalViewport,
 };
 
 struct Scratch(PathBuf);
@@ -78,6 +78,40 @@ fn wait_for_exit(
         thread::sleep(Duration::from_millis(10));
     }
     panic!("terminal did not exit before the test deadline");
+}
+
+#[test]
+fn structured_start_wire_shape_cannot_supply_native_process_authority() {
+    let request = TerminalStartRequest {
+        project_id: "project-a".to_string(),
+        worktree_id: "worktree-a".to_string(),
+        viewport: viewport(24, 80),
+    };
+
+    assert_eq!(
+        serde_json::to_value(request).unwrap(),
+        serde_json::json!({
+            "projectId": "project-a",
+            "worktreeId": "worktree-a",
+            "viewport": {
+                "rows": 24,
+                "columns": 80,
+                "pixelWidth": 0,
+                "pixelHeight": 0
+            }
+        })
+    );
+    assert!(
+        serde_json::from_value::<TerminalStartRequest>(serde_json::json!({
+            "projectId": "project-a",
+            "worktreeId": "worktree-a",
+            "viewport": { "rows": 24, "columns": 80, "pixelWidth": 0, "pixelHeight": 0 },
+            "cwd": "/outside",
+            "command": "arbitrary",
+            "environment": { "TOKEN": "secret" }
+        }))
+        .is_err()
+    );
 }
 
 #[test]
@@ -191,6 +225,51 @@ fn disposal_terminates_the_session_process_group_and_releases_the_handle() {
             .expect("kill is available on the native test host")
             .status
             .success(),
+        "descendant process {child_pid} survived terminal disposal"
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn disposal_terminates_the_session_job_and_its_descendant() {
+    let scratch = Scratch::new("windows-cleanup");
+    let mut sessions = TerminalSessions::with_output_limit(4 * 1024).unwrap();
+    let script = concat!(
+        "$null = Read-Host; ",
+        "$child = Start-Process -PassThru -WindowStyle Hidden powershell.exe ",
+        "-ArgumentList '-NoLogo','-NoProfile','-Command','Start-Sleep -Seconds 30'; ",
+        "Write-Output \"__ZD_CHILD__$($child.Id)\"; ",
+        "Wait-Process -Id $child.Id"
+    );
+    let handle = sessions
+        .start_probe(
+            scope(&scratch),
+            viewport(24, 80),
+            "powershell.exe",
+            &["-NoLogo", "-NoProfile", "-Command", script],
+        )
+        .unwrap();
+    sessions.write(&handle, b"ready\r\n").unwrap();
+    let output = wait_for_output(&mut sessions, &handle, b"__ZD_CHILD__");
+    let child_pid = String::from_utf8_lossy(&output)
+        .split("__ZD_CHILD__")
+        .nth(1)
+        .and_then(|suffix| suffix.lines().next())
+        .map(str::trim)
+        .and_then(|pid| pid.parse::<u32>().ok())
+        .expect("the probe reports its descendant pid");
+
+    let status = sessions.terminate(&handle).unwrap();
+    sessions.dispose(&handle).unwrap();
+
+    assert_eq!(status.reason, TerminalExitReason::Terminated);
+    assert!(!sessions.contains(&handle));
+    let tasklist = Command::new("tasklist.exe")
+        .args(["/FI", &format!("PID eq {child_pid}"), "/FO", "CSV", "/NH"])
+        .output()
+        .expect("tasklist is available on the native Windows test host");
+    assert!(
+        !String::from_utf8_lossy(&tasklist.stdout).contains(&child_pid.to_string()),
         "descendant process {child_pid} survived terminal disposal"
     );
 }
