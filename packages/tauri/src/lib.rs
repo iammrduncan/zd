@@ -4,6 +4,7 @@
 //! product lives in `packages/app/src/`. See suite ADR 0001.
 
 mod cli;
+mod file_tree;
 mod fs;
 mod grants;
 pub mod instrumentation;
@@ -74,6 +75,7 @@ pub fn run() {
             cli::remove_project_grant,
             has_pending_open_request,
             accept_open_request,
+            file_tree::file_tree_snapshot,
             fs::read_text_file,
             fs::read_bounded_file,
             fs::workspace_files,
