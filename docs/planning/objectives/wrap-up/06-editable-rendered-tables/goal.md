@@ -1,5 +1,8 @@
 # Goal 06: Make rendered tables directly editable
 
+Status: **superseded on 2026-08-22** by the [expanded-scope execution plan](../../../goals/expanded-scope/goal.md).
+This file is retained as a historical planning snapshot and does not direct current implementation.
+
 ## Outcome
 
 Markdown tables remain visually rendered on the single document surface while supporting direct

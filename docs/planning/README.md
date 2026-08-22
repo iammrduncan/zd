@@ -16,6 +16,13 @@ Planning records sequence or inform work. They never override current human dire
 The current product expansion is coordinated by the
 [expanded-scope execution plan](goals/expanded-scope/goal.md).
 
+## Historical snapshots
+
+- The [prototype wrap-up goals](objectives/wrap-up/README.md) are superseded planning records.
+- The [early application-surface ideas](objectives/mini-apps/README.md) are superseded exploration.
+
+Both indexes point back to the current workbench plan and must not be used as execution queues.
+
 ## Rules
 
 - A goal states an outcome, dependencies, verification, and a real terminal condition.

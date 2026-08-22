@@ -4,7 +4,7 @@
 
 Candidate. This draft is not accepted architecture.
 
-Proposed ADR area: zd md.
+Proposed ADR area: Editor.
 
 ## Context
 
@@ -14,7 +14,7 @@ competed with application-owned easing. Repeated Enter and vertical-arrow input 
 small animations until they fell behind and jumped a full row.
 
 The browser-layout ADR accepts incremental parsing and viewport behavior. It does not define how
-the application distinguishes a layout correction from direct reader input or coordinates
+the application distinguishes a layout correction from direct user input or coordinates
 Typewriter Mode, focus jumps, and edge returns.
 
 ## Decision
@@ -36,7 +36,7 @@ event. Reduced-motion preference will replace optional eased travel with immedia
 ## Consequences
 
 - Programmatic focus motion survives CodeMirror's off-screen height correction.
-- Direct reader input always takes control without snap-back.
+- Direct user input always takes control without snap-back.
 - Typewriter following and focus journeys share one scroll owner instead of issuing competing
   writes.
 - New motion behavior must express intent through the shared module.
@@ -46,7 +46,7 @@ event. Reduced-motion preference will replace optional eased travel with immedia
 
 - Session evidence: typewriter and focus-motion handoffs from 2026-08-01 03:14 through 06:52,
   especially `Keep focus jumps easing through reflow`.
-- Current evidence: `packages/app/src/miniapps/md/scroll.ts` owns motion intents, direct-input
+- Current evidence: the editor facade adapts the retained scroll-intent owner for direct-input
   cancellation, layout-correction translation, and repeat following.
 - Related accepted ADR: md 0001 chooses CodeMirror and browser layout. This candidate records the
   coordination rule required by that choice.

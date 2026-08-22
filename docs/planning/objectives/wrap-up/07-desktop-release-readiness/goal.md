@@ -1,5 +1,8 @@
 # Goal 07: Prove desktop release readiness
 
+Status: **superseded on 2026-08-22** by the [expanded-scope execution plan](../../../goals/expanded-scope/goal.md).
+This file is retained as a historical planning snapshot and does not direct current implementation.
+
 ## Outcome
 
 The completed daily-driver app has measured performance limits, supports independent document

@@ -1,3 +1,6 @@
+> Historical idea, superseded on 2026-08-22. It does not direct current implementation; see the
+> [one-workbench execution plan](../../../goals/expanded-scope/goal.md).
+
 agent setup is extension of `zd init`.
 
 it creates `CLAUDE.md` with one line `@AGENTS.md` and then creates `AGENTS.md` with our standard `AGENTS.md` prose. It then creates the `/docs/goals/` folder with a `README.md` that describes how to use goals and the flow.

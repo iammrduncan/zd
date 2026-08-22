@@ -1,3 +1,6 @@
+> Historical idea, superseded on 2026-08-22. It does not direct current implementation; see the
+> [one-workbench execution plan](../../../goals/expanded-scope/goal.md).
+
 the zd md treatment for for BDD development.
 
 should move bdd/features to bdd/md/features

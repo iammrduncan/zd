@@ -1,5 +1,8 @@
 # Goal 04: Complete reading navigation
 
+Status: **superseded on 2026-08-22** by the [expanded-scope execution plan](../../../goals/expanded-scope/goal.md).
+This file is retained as a historical planning snapshot and does not direct current implementation.
+
 ## Outcome
 
 A reader always knows where they are, can find content and workspace documents, follows supported
