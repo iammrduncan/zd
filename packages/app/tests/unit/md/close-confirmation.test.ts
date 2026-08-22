@@ -89,6 +89,7 @@ describe("quitting with unsaved work", () => {
         throw new Error("no listing");
       },
       readTextFile: async () => "# Plan",
+      readBoundedFile: async () => ({ status: "unavailable", problem: "unused test boundary" }),
       writeTextFile: async () => {},
       fileStamp: async () => null,
       onCloseRequested: (handler) => {

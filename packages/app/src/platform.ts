@@ -6,6 +6,7 @@ import type {
   DiagnosticWriteOutcome,
   PreparedDiagnosticRecord,
 } from "@/instrumentation";
+import type { BoundedFileRead } from "@/editor";
 import {
   homeLaunch,
   type FileResource,
@@ -101,6 +102,8 @@ export interface Platform {
   revealDiagnostics(): Promise<void>;
   /** Read a UTF-8 text file. */
   readTextFile(resource: FileResource): Promise<string>;
+  /** Classify and read at most one bounded text file without guessing an encoding. */
+  readBoundedFile(resource: FileResource): Promise<BoundedFileRead>;
   /** Markdown files inside one already-approved project/worktree root. */
   workspaceFiles(projectId: string, worktreeId: string): Promise<WorkspaceListing>;
   /**
@@ -181,6 +184,7 @@ const tauri: Platform = {
   workspaceFiles: (projectId, worktreeId) =>
     invoke<WorkspaceListing>("workspace_files", { projectId, worktreeId }),
   readTextFile: (resource) => invoke<string>("read_text_file", { resource }),
+  readBoundedFile: (resource) => invoke<BoundedFileRead>("read_bounded_file", { resource }),
   writeTextFile: (resource, contents) => invoke<void>("write_text_file", { resource, contents }),
   fileStamp: (resource) => invoke<FileStamp | null>("file_stamp", { resource }),
   onCloseRequested: (handler) => {
@@ -260,6 +264,10 @@ const browser: Platform = {
   readTextFile: async (resource) => {
     throw new Error(`no filesystem in the browser shell: ${resource.relativePath}`);
   },
+  readBoundedFile: async () => ({
+    status: "unavailable",
+    problem: "bounded file reads require the desktop shell",
+  }),
   writeTextFile: async (resource) => {
     throw new Error(`no filesystem in the browser shell: ${resource.relativePath}`);
   },

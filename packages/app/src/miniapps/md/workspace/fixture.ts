@@ -100,6 +100,7 @@ const platform: Platform = {
     if (source === undefined) throw new Error(`missing fixture document: ${file.relativePath}`);
     return source;
   },
+  readBoundedFile: async () => ({ status: "unavailable", problem: "unused fixture boundary" }),
   writeTextFile: async (file, contents) => {
     documents.set(file.relativePath, contents);
   },
