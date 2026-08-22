@@ -52,6 +52,26 @@ function stubPlatform(path: string | null = null): Platform {
     onWindowPresentationChanged: () => () => {},
     toggleQuickAccess: async () => "ordinary",
     hideQuickAccess: async () => "ordinary",
+    diagnosticsStatus: async () => ({
+      enabled: false,
+      sessionId: null,
+      backgroundSampling: false,
+      problem: null,
+    }),
+    enableDiagnostics: async () => ({
+      enabled: false,
+      sessionId: null,
+      backgroundSampling: false,
+      problem: "unavailable",
+    }),
+    disableDiagnostics: async () => ({
+      enabled: false,
+      sessionId: null,
+      backgroundSampling: false,
+      problem: null,
+    }),
+    recordDiagnostic: async () => ({ recorded: false, problem: null }),
+    revealDiagnostics: async () => {},
     workspaceFiles: async () => {
       throw new Error("no listing");
     },

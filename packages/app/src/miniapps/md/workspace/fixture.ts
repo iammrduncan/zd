@@ -59,6 +59,26 @@ const platform: Platform = {
   onWindowPresentationChanged: () => () => {},
   toggleQuickAccess: async () => "ordinary",
   hideQuickAccess: async () => "ordinary",
+  diagnosticsStatus: async () => ({
+    enabled: false,
+    sessionId: null,
+    backgroundSampling: false,
+    problem: null,
+  }),
+  enableDiagnostics: async () => ({
+    enabled: false,
+    sessionId: null,
+    backgroundSampling: false,
+    problem: "unavailable",
+  }),
+  disableDiagnostics: async () => ({
+    enabled: false,
+    sessionId: null,
+    backgroundSampling: false,
+    problem: null,
+  }),
+  recordDiagnostic: async () => ({ recorded: false, problem: null }),
+  revealDiagnostics: async () => {},
   workspaceFiles: async () => ({
     projectId: project.id,
     worktreeId: project.worktrees[0]!.id,

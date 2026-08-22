@@ -117,6 +117,74 @@ describe("the Tauri window boundary", () => {
     ]);
   });
 
+  it("keeps local diagnostics behind closed native commands", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    invoke
+      .mockResolvedValueOnce({
+        enabled: false,
+        sessionId: null,
+        backgroundSampling: false,
+        problem: null,
+      })
+      .mockResolvedValueOnce({
+        enabled: true,
+        sessionId: "session-1",
+        backgroundSampling: true,
+        problem: null,
+      })
+      .mockResolvedValueOnce({ recorded: true, problem: null })
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({
+        enabled: false,
+        sessionId: null,
+        backgroundSampling: false,
+        problem: null,
+      });
+    const platform = detectPlatform();
+    const record = {
+      recordType: "event" as const,
+      operation: "workbench.launch",
+      outcome: "ok" as const,
+    };
+
+    await platform.diagnosticsStatus();
+    await platform.enableDiagnostics();
+    await platform.recordDiagnostic(record);
+    await platform.revealDiagnostics();
+    await platform.disableDiagnostics();
+
+    expect(invoke.mock.calls).toEqual([
+      ["diagnostics_status"],
+      ["enable_diagnostics"],
+      ["record_diagnostic", { record }],
+      ["reveal_diagnostics"],
+      ["disable_diagnostics"],
+    ]);
+  });
+
+  it("keeps diagnostics inert in the browser shell", async () => {
+    const platform = detectPlatform();
+
+    await expect(platform.diagnosticsStatus()).resolves.toMatchObject({ enabled: false });
+    await expect(platform.enableDiagnostics()).resolves.toMatchObject({
+      enabled: false,
+      problem: expect.any(String),
+    });
+    await expect(
+      platform.recordDiagnostic({
+        recordType: "event",
+        operation: "workbench.launch",
+        outcome: "ok",
+      }),
+    ).resolves.toEqual({ recorded: false, problem: null });
+    await expect(platform.revealDiagnostics()).rejects.toThrow("desktop shell");
+    await expect(platform.disableDiagnostics()).resolves.toMatchObject({ enabled: false });
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
   it("never sends an absolute path through ordinary file commands", async () => {
     Object.defineProperty(window, "__TAURI_INTERNALS__", {
       configurable: true,
