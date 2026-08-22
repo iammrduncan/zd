@@ -1,6 +1,6 @@
 import "@/design/index.css";
 
-import type { Platform } from "@/platform";
+import { unavailableThreadWorktree, type Platform } from "@/platform";
 import { unavailableFileTreeAdapter } from "@/files";
 import { unavailableGitAdapter } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
@@ -84,6 +84,7 @@ const platform: Platform = {
   recordDiagnostic: async () => ({ recorded: false, problem: null }),
   revealDiagnostics: async () => {},
   terminal: unavailableTerminalAdapter,
+  createThreadWorktree: unavailableThreadWorktree,
   fileTree: unavailableFileTreeAdapter,
   git: unavailableGitAdapter,
   workspaceFiles: async () => ({

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { Platform, WorkspaceListing } from "@/platform";
+import { unavailableThreadWorktree, type Platform, type WorkspaceListing } from "@/platform";
 import { unavailableFileTreeAdapter } from "@/files";
 import { unavailableGitAdapter } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
@@ -100,6 +100,7 @@ function context(path: string, listing: WorkspaceListing): WorkbenchRuntimeConte
       recordDiagnostic: async () => ({ recorded: false, problem: null }),
       revealDiagnostics: async () => {},
       terminal: unavailableTerminalAdapter,
+      createThreadWorktree: unavailableThreadWorktree,
       fileTree: unavailableFileTreeAdapter,
       git: unavailableGitAdapter,
       workspaceFiles: async () => listing,
