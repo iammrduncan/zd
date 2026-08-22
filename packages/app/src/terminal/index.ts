@@ -57,6 +57,8 @@ export interface TerminalExitStatus {
  */
 export interface TerminalAdapter {
   start(request: TerminalStartRequest): Promise<TerminalSessionHandle>;
+  /** Native output/exit edge; consumers drain bytes only after this bounded signal. */
+  onOutputReady?(listener: (session: TerminalSessionHandle) => void): () => void;
   write(session: TerminalSessionHandle, bytes: readonly number[]): Promise<void>;
   resize(session: TerminalSessionHandle, viewport: TerminalViewport): Promise<void>;
   read(session: TerminalSessionHandle): Promise<TerminalOutputBatch>;
@@ -72,6 +74,7 @@ function unavailableTerminal(): never {
 /** Honest inert adapter for browser fixtures and surfaces without native process ownership. */
 export const unavailableTerminalAdapter: TerminalAdapter = {
   start: async () => unavailableTerminal(),
+  onOutputReady: () => () => {},
   write: async () => unavailableTerminal(),
   resize: async () => unavailableTerminal(),
   read: async () => unavailableTerminal(),

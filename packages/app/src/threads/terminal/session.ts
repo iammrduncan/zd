@@ -45,6 +45,7 @@ function defaultYieldForOutput(): Promise<void> {
 
 export class TerminalThreadSession {
   readonly #listeners = new Set<(snapshot: TerminalThreadSnapshot) => void>();
+  readonly #outputListeners = new Set<(bytes: Uint8Array) => void>();
   readonly #transcript: TerminalTranscriptBuffer;
   #disposed = false;
   #droppedBytes = 0;
@@ -53,7 +54,8 @@ export class TerminalThreadSession {
   #lifecycleRevision = 0;
   #nextOffset: number | null = null;
   #readError: string | null = null;
-  #readTail: Promise<void> = Promise.resolve();
+  #refreshPromise: Promise<void> | null = null;
+  #refreshQueued = false;
   #status: TerminalThreadStatus = "detached";
   #terminated = false;
   #viewport: TerminalViewport | null = null;
@@ -99,6 +101,12 @@ export class TerminalThreadSession {
     return () => this.#listeners.delete(listener);
   }
 
+  /** Raw PTY bytes for a terminal emulator; content is never persisted in root state. */
+  subscribeOutput(listener: (bytes: Uint8Array) => void): () => void {
+    this.#outputListeners.add(listener);
+    return () => this.#outputListeners.delete(listener);
+  }
+
   async start(viewport: TerminalViewport): Promise<TerminalSessionHandle> {
     if (this.#status !== "detached") throw new Error("terminal thread session is already attached");
     this.#status = "starting";
@@ -129,9 +137,20 @@ export class TerminalThreadSession {
   }
 
   refresh(): Promise<void> {
-    const work = this.#readTail.then(() => this.#refresh());
-    this.#readTail = work.catch(() => undefined);
-    return work;
+    if (this.#refreshPromise) {
+      this.#refreshQueued = true;
+      return this.#refreshPromise;
+    }
+    const run = async () => {
+      do {
+        this.#refreshQueued = false;
+        await this.#refresh();
+      } while (this.#refreshQueued && !this.#disposed);
+    };
+    this.#refreshPromise = run().finally(() => {
+      this.#refreshPromise = null;
+    });
+    return this.#refreshPromise;
   }
 
   async #refresh(): Promise<void> {
@@ -153,7 +172,9 @@ export class TerminalThreadSession {
       this.#nextOffset = batch.offset + batch.bytes.length;
       for (let offset = 0; offset < batch.bytes.length; offset += OUTPUT_RENDER_CHUNK_BYTES) {
         const end = Math.min(batch.bytes.length, offset + OUTPUT_RENDER_CHUNK_BYTES);
-        this.#transcript.append(batch.bytes.slice(offset, end));
+        const chunk = Uint8Array.from(batch.bytes.slice(offset, end));
+        this.#transcript.append(chunk);
+        for (const listener of this.#outputListeners) listener(chunk.slice());
         if (end < batch.bytes.length) {
           this.#publish();
           await (this.options.yieldForOutput ?? defaultYieldForOutput)();

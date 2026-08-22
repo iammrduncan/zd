@@ -4,15 +4,19 @@
 //! module resolves the cwd from `LaunchState`; it never accepts a path,
 //! executable, argument list, or environment map.
 
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use serde::Serialize;
+use tauri::Emitter;
 
 use crate::cli::LaunchState;
 use crate::terminal::{
-    TerminalError, TerminalErrorKind, TerminalExitStatus, TerminalOutputBatch, TerminalScope,
-    TerminalSessionHandle, TerminalSessions, TerminalStartRequest, TerminalViewport,
+    TerminalError, TerminalErrorKind, TerminalExitStatus, TerminalOutputBatch,
+    TerminalOutputSignal, TerminalScope, TerminalSessionHandle, TerminalSessions,
+    TerminalStartRequest, TerminalViewport,
 };
+
+const TERMINAL_OUTPUT_READY_EVENT: &str = "terminal-output-ready";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,17 +53,33 @@ impl TerminalState {
         })
     }
 
+    #[cfg(test)]
     fn start(
         &self,
         launch: &LaunchState,
         request: TerminalStartRequest,
+    ) -> Result<TerminalSessionHandle, TerminalError> {
+        self.start_with_output_signal(launch, request, None)
+    }
+
+    fn start_with_output_signal(
+        &self,
+        launch: &LaunchState,
+        request: TerminalStartRequest,
+        output_signal: Option<TerminalOutputSignal>,
     ) -> Result<TerminalSessionHandle, TerminalError> {
         let root = launch
             .root(&request.project_id, &request.worktree_id)
             .map_err(|problem| TerminalError::new(TerminalErrorKind::InvalidScope, problem))?;
         let scope =
             TerminalScope::from_approved_worktree(request.project_id, request.worktree_id, root)?;
-        self.sessions()?.start_shell(scope, request.viewport)
+        match output_signal {
+            Some(signal) => {
+                self.sessions()?
+                    .start_shell_with_output_signal(scope, request.viewport, signal)
+            }
+            None => self.sessions()?.start_shell(scope, request.viewport),
+        }
     }
 
     fn write(&self, session: TerminalSessionHandle, bytes: Vec<u8>) -> Result<(), TerminalError> {
@@ -109,11 +129,15 @@ impl TerminalState {
 
 #[tauri::command]
 pub fn terminal_start(
+    app: tauri::AppHandle,
     state: tauri::State<'_, TerminalState>,
     launch: tauri::State<'_, LaunchState>,
     request: TerminalStartRequest,
 ) -> Result<TerminalSessionHandle, TerminalError> {
-    state.start(&launch, request)
+    let output_signal: TerminalOutputSignal = Arc::new(move |session| {
+        let _ = app.emit(TERMINAL_OUTPUT_READY_EVENT, session);
+    });
+    state.start_with_output_signal(&launch, request, Some(output_signal))
 }
 
 #[tauri::command]

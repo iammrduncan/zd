@@ -1,6 +1,11 @@
 import type { CreateThreadWorktreeRequest, CreateThreadWorktreeResult } from "@/platform";
 import type { InstrumentationClient } from "@/instrumentation";
-import type { TerminalAdapter, TerminalScope, TerminalViewport } from "@/terminal";
+import type {
+  TerminalAdapter,
+  TerminalScope,
+  TerminalSessionHandle,
+  TerminalViewport,
+} from "@/terminal";
 import {
   applyThreadLifecycle,
   TerminalThreadSession,
@@ -63,6 +68,7 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
   readonly #instrumentation?: InstrumentationClient;
   readonly #lifecycleTails = new Map<string, Promise<TransitionResult>>();
   readonly #sessions = new Map<string, TerminalThreadSession>();
+  readonly #stopOutputReady: () => void;
   readonly #stopProjectRemovalGuard: () => void;
   #disposed = false;
 
@@ -74,6 +80,9 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     this.#createId = options.createId ?? defaultThreadId;
     this.#initialViewport = { ...(options.initialViewport ?? DEFAULT_VIEWPORT) };
     this.#instrumentation = options.instrumentation;
+    this.#stopOutputReady =
+      platform.terminal.onOutputReady?.((session) => this.#handleOutputReady(session)) ??
+      (() => {});
     this.#stopProjectRemovalGuard = owner.registerProjectRemovalGuard({
       id: "workbench.threads",
       prepareRemoval: ({ projectId }) => this.#prepareProjectRemoval(projectId),
@@ -142,6 +151,8 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     }
     try {
       await terminal.start(this.#initialViewport);
+      await terminal.refresh();
+      await terminal.pollExit();
       await this.#waitForLifecycle(id);
       return { status: "committed" };
     } catch (cause) {
@@ -248,6 +259,8 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     this.#sessions.set(threadId, terminal);
     try {
       await terminal.start(this.#initialViewport);
+      await terminal.refresh();
+      await terminal.pollExit();
       await this.#waitForLifecycle(threadId);
       return { status: "committed" };
     } catch (cause) {
@@ -277,6 +290,7 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
   async dispose(): Promise<void> {
     if (this.#disposed) return;
     this.#disposed = true;
+    this.#stopOutputReady();
     this.#stopProjectRemovalGuard();
     const sessions = [...this.#sessions.values()];
     this.#sessions.clear();
@@ -289,6 +303,22 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
         }
       }),
     );
+  }
+
+  #handleOutputReady(handle: TerminalSessionHandle): void {
+    const terminal = [...this.#sessions.values()].find((candidate) => {
+      const snapshot = candidate.snapshot();
+      return (
+        snapshot.sessionId === handle.sessionId &&
+        candidate.scope.projectId === handle.projectId &&
+        candidate.scope.worktreeId === handle.worktreeId
+      );
+    });
+    if (!terminal) return;
+    void terminal
+      .refresh()
+      .then(() => terminal.pollExit())
+      .catch(() => undefined);
   }
 
   #prepareProjectRemoval(projectId: string): TransitionDecision {

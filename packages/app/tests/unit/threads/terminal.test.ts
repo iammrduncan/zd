@@ -61,6 +61,14 @@ function fakeAdapter(batches: TerminalOutputBatch[] = []) {
   return adapter;
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
+
 describe("the bounded terminal transcript", () => {
   it("decodes Unicode split across native reads without replacement characters", () => {
     const transcript = new TerminalTranscriptBuffer(4);
@@ -149,6 +157,27 @@ describe("the terminal-backed thread session", () => {
       output([], 9, { session: { ...session, worktreeId: "other-worktree" } }),
     );
     await expect(terminal.refresh()).rejects.toThrow("different terminal session");
+  });
+
+  it("publishes raw PTY bytes and coalesces repeated output-ready refreshes", async () => {
+    const waiting = deferred<TerminalOutputBatch>();
+    const bytes = [...new TextEncoder().encode("\u001b[31mred\u001b[0m")];
+    const adapter = fakeAdapter();
+    adapter.read
+      .mockImplementationOnce(() => waiting.promise)
+      .mockResolvedValueOnce(output([], bytes.length));
+    const terminal = TerminalThreadSession.attach(adapter, session);
+    const outputBytes: number[][] = [];
+    terminal.subscribeOutput((chunk) => outputBytes.push([...chunk]));
+
+    const first = terminal.refresh();
+    const second = terminal.refresh();
+    const third = terminal.refresh();
+    waiting.resolve(output(bytes));
+    await Promise.all([first, second, third]);
+
+    expect(adapter.read).toHaveBeenCalledTimes(2);
+    expect(outputBytes).toEqual([bytes]);
   });
 
   it("never infers busy or waiting merely because output arrived", async () => {

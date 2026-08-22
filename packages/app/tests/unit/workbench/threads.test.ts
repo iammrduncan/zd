@@ -78,6 +78,7 @@ function terminalAdapter() {
   const exit: TerminalExitStatus = { reason: "terminated", code: null, signal: "TERM" };
   const adapter: TerminalAdapter & {
     start: ReturnType<typeof vi.fn>;
+    read: ReturnType<typeof vi.fn>;
     pollExit: ReturnType<typeof vi.fn>;
     terminate: ReturnType<typeof vi.fn>;
     dispose: ReturnType<typeof vi.fn>;
@@ -394,5 +395,48 @@ describe("the root Threads runtime adapter", () => {
     unmount();
     expect(host.querySelector(".zd-terminal-thread-surface")).toBeNull();
     await runtime.dispose();
+  });
+
+  it("drains output only when native signals that the attached session is ready", async () => {
+    const state = owner();
+    const native = terminalAdapter() as ReturnType<typeof terminalAdapter> & {
+      onOutputReady(listener: (session: TerminalSessionHandle) => void): () => void;
+    };
+    let outputReady: ((session: TerminalSessionHandle) => void) | null = null;
+    native.onOutputReady = (listener) => {
+      outputReady = listener;
+      return () => {
+        outputReady = null;
+      };
+    };
+    const runtime = createRootThreadsAdapter(state, platform(native), {
+      createId: () => "thread-output",
+    });
+    await runtime.createThread(existingRequest());
+    native.read.mockClear();
+    native.read.mockResolvedValueOnce({
+      session: {
+        projectId: project.id,
+        worktreeId: "worktree-alpha",
+        sessionId: "native-session-secret",
+      },
+      offset: 0,
+      droppedBefore: 0,
+      bytes: [...new TextEncoder().encode("prompt")],
+      readError: null,
+    });
+
+    const emitOutput = outputReady as ((session: TerminalSessionHandle) => void) | null;
+    expect(emitOutput).not.toBeNull();
+    emitOutput!({
+      projectId: project.id,
+      worktreeId: "worktree-alpha",
+      sessionId: "native-session-secret",
+    });
+
+    await vi.waitFor(() => expect(native.read).toHaveBeenCalledOnce());
+    expect(runtime.session("thread-output")?.snapshot().rows).toEqual(["prompt"]);
+    await runtime.dispose();
+    expect(outputReady).toBeNull();
   });
 });
