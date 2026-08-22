@@ -1,6 +1,7 @@
 import type { Platform } from "@/platform";
 import { registerThemeSelectionOwner } from "@/design/appearance";
 import { ThemeController, loadThemeCatalog } from "@/design/themes";
+import { createInstrumentationClient } from "@/instrumentation";
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import { mountProjectList, ProjectsController } from "@/projects";
 import { registerReference } from "./reference";
@@ -8,20 +9,34 @@ import { attachShortcuts } from "./shortcuts";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "./state";
 import { attachWorkbenchCommands } from "./commands";
 import { createProjectWorkbenchAdapter } from "./projects";
+import { attachWorkbenchDiagnostics, mountDiagnosticSettings } from "./diagnostics";
+import { diagnosticsEnabled, setDiagnosticsEnabled } from "./preferences";
 import { mountWorkbenchShell } from "./shell";
 import type { Unmount, WorkbenchMount } from "./runtime";
 
 export type { WorkbenchMount } from "./runtime";
 
 const NOTHING: Unmount = () => {};
-const mountProjects: WorkbenchMount = (host, context) =>
-  mountProjectList(
+const mountThreads: WorkbenchMount = (host, context) => {
+  const stopProjects = mountProjectList(
     host,
-    new ProjectsController(createProjectWorkbenchAdapter(context.state, context.platform)),
+    new ProjectsController(
+      createProjectWorkbenchAdapter(context.state, context.platform, context.instrumentation),
+    ),
   );
+  const stopDiagnostics = mountDiagnosticSettings(
+    host,
+    context.instrumentation,
+    context.platform.revealDiagnostics,
+  );
+  return () => {
+    stopDiagnostics();
+    stopProjects();
+  };
+};
 const mountCurrentEditor: WorkbenchMount = (host, context) =>
   mountWorkbenchShell(host, context, {
-    threads: mountProjects,
+    threads: mountThreads,
     file: mountCurrentWorkspace,
   });
 
@@ -60,10 +75,25 @@ export async function bootWorkbench(
 ): Promise<Unmount> {
   document.title = "zd";
 
+  const instrumentation = createInstrumentationClient(() => ({
+    enable: platform.enableDiagnostics,
+    disable: platform.disableDiagnostics,
+    record: platform.recordDiagnostic,
+  }));
+  let diagnosticProblem: string | null = null;
+  if (diagnosticsEnabled()) {
+    const status = await instrumentation.enable();
+    diagnosticProblem = status.problem;
+    if (!status.enabled) setDiagnosticsEnabled(false);
+  }
+  const launchSpan = instrumentation.startSpan("workbench.launch");
+
   let launch;
   try {
     launch = await platform.launchRequest();
   } catch (cause) {
+    await launchSpan?.end("failed");
+    await instrumentation.disable();
     saySoOnScreen(host, `zd could not start: ${reasonFor(cause)}`);
     return NOTHING;
   }
@@ -77,8 +107,10 @@ export async function bootWorkbench(
       .catch((cause: unknown) => ({ files: [], problem: reasonFor(cause) })),
   ]);
   const state = createWorkbenchStateOwner(workbenchStateFromGrants(grants, launch));
+  const detachDiagnostics = attachWorkbenchDiagnostics(state, instrumentation);
   const catalog = loadThemeCatalog(themeFiles.files);
   const localNotices = catalog.notices.map(({ source, problem }) => `Theme ${source}: ${problem}`);
+  if (diagnosticProblem) localNotices.push(`Local diagnostics: ${diagnosticProblem}`);
   if (themeFiles.problem) {
     localNotices.push(`Theme configuration directory: ${themeFiles.problem}`);
   }
@@ -96,17 +128,17 @@ export async function bootWorkbench(
   const detachThemeSelectionOwner = registerThemeSelectionOwner((selected) => {
     state.setThemeSelection(selected, theme.snapshot().lastValid);
   });
-  const rootCommands = attachWorkbenchCommands(host, { launch, platform, state });
+  const runtime = { launch, platform, state, instrumentation };
+  const rootCommands = attachWorkbenchCommands(host, runtime);
   const detachReference = registerReference(host);
 
   let unmount: Unmount;
   try {
-    unmount = await mount(host, {
-      launch,
-      platform,
-      state,
-    });
+    unmount = await mount(host, runtime);
   } catch (cause) {
+    await launchSpan?.end("failed");
+    await instrumentation.disable();
+    detachDiagnostics();
     rootCommands.detach();
     detachThemeSelectionOwner();
     detachThemeState();
@@ -116,6 +148,8 @@ export async function bootWorkbench(
     saySoOnScreen(host, `zd could not start: ${reasonFor(cause)}`);
     return NOTHING;
   }
+
+  await launchSpan?.end("ok");
 
   localNotices.push(...(await rootCommands.ready));
   showLocalNotices(host, localNotices);
@@ -128,5 +162,7 @@ export async function bootWorkbench(
     rootCommands.detach();
     detachShortcuts();
     unmount();
+    detachDiagnostics();
+    void instrumentation.disable();
   };
 }

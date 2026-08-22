@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Platform } from "@/platform";
+import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import { PERSISTENT_NOTICE } from "@/miniapps/md/notice";
 import { attachShortcuts, clearCommands } from "@/workbench/shortcuts";
@@ -107,6 +108,7 @@ function context(
       openExternal: async () => {},
     },
     state: createWorkbenchStateOwner(workbenchStateFromGrants([project], request)),
+    instrumentation: createUnavailableInstrumentationClient(),
   };
 }
 

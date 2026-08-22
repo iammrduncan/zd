@@ -1,6 +1,7 @@
 import {
   commandTargetAvailable,
   register,
+  registerCommandObserver,
   registerCommandTarget,
   runCommandTarget,
 } from "./shortcuts";
@@ -36,6 +37,16 @@ export function attachWorkbenchCommands(
     shortcut: "CmdOrCtrl+Shift+Space",
     problem: null as string | null,
   };
+
+  cleanups.push(
+    registerCommandObserver((commandId) => {
+      void context.instrumentation.record({
+        recordType: "event",
+        operation: `command.${commandId}`,
+        outcome: "ok",
+      });
+    }),
+  );
 
   cleanups.push(
     context.platform.onWindowPresentationChanged((presentation) => {

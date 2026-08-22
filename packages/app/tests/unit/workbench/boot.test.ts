@@ -5,6 +5,7 @@ import { setTheme } from "@/design/appearance";
 import { bootWorkbench, type WorkbenchMount } from "@/workbench/boot";
 import { homeLaunch, type ProjectGrant } from "@/workbench/resources";
 import { clearCommands, commands } from "@/workbench/shortcuts";
+import { forgetPreferences, setDiagnosticsEnabled } from "@/workbench/preferences";
 
 const project: ProjectGrant = {
   id: "project-test",
@@ -84,9 +85,58 @@ function stubPlatform(path: string | null = null): Platform {
   };
 }
 
-beforeEach(() => clearCommands());
+beforeEach(() => {
+  clearCommands();
+  forgetPreferences();
+  window.localStorage.clear();
+});
 
 describe("one workbench boot", () => {
+  it("does not construct diagnostic transport during an ordinary default-off boot", async () => {
+    const platform = stubPlatform();
+    platform.enableDiagnostics = vi.fn(platform.enableDiagnostics);
+    platform.disableDiagnostics = vi.fn(platform.disableDiagnostics);
+    platform.recordDiagnostic = vi.fn(platform.recordDiagnostic);
+    const host = document.createElement("div");
+
+    const teardown = await bootWorkbench(host, platform, () => () => {});
+    teardown();
+
+    expect(platform.enableDiagnostics).not.toHaveBeenCalled();
+    expect(platform.disableDiagnostics).not.toHaveBeenCalled();
+    expect(platform.recordDiagnostic).not.toHaveBeenCalled();
+  });
+
+  it("starts a persisted opt-in before recording launch and closes on teardown", async () => {
+    setDiagnosticsEnabled(true);
+    const platform = stubPlatform();
+    platform.enableDiagnostics = vi.fn(async () => ({
+      enabled: true,
+      sessionId: "session-1",
+      backgroundSampling: true,
+      problem: null,
+    }));
+    platform.disableDiagnostics = vi.fn(async () => ({
+      enabled: false,
+      sessionId: null,
+      backgroundSampling: false,
+      problem: null,
+    }));
+    platform.recordDiagnostic = vi.fn(async () => ({ recorded: true, problem: null }));
+    const host = document.createElement("div");
+
+    const teardown = await bootWorkbench(host, platform, (_host, context) => {
+      expect(context.instrumentation.snapshot().enabled).toBe(true);
+      return () => {};
+    });
+
+    expect(platform.enableDiagnostics).toHaveBeenCalledOnce();
+    expect(platform.recordDiagnostic).toHaveBeenCalledWith(
+      expect.objectContaining({ recordType: "span", operation: "workbench.launch" }),
+    );
+    teardown();
+    await vi.waitFor(() => expect(platform.disableDiagnostics).toHaveBeenCalledOnce());
+  });
   it("mounts the root-owned project list inside the Threads region", async () => {
     const host = document.createElement("div");
 

@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Platform, WindowPresentation } from "@/platform";
-import { clearCommands, commands, registerCommandTarget } from "@/workbench/shortcuts";
+import {
+  createInstrumentationClient,
+  createUnavailableInstrumentationClient,
+  type InstrumentationClient,
+} from "@/instrumentation";
+import { clearCommands, commands, dispatch, registerCommandTarget } from "@/workbench/shortcuts";
 import { attachWorkbenchCommands } from "@/workbench/commands";
 import { homeLaunch, type ProjectGrant } from "@/workbench/resources";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";
@@ -70,12 +75,16 @@ function setupPlatform(
   };
 }
 
-function context(platform: Platform) {
+function context(
+  platform: Platform,
+  instrumentation: InstrumentationClient = createUnavailableInstrumentationClient(),
+) {
   const launch = homeLaunch();
   return {
     launch,
     platform,
     state: createWorkbenchStateOwner(workbenchStateFromGrants(projects, launch)),
+    instrumentation,
   };
 }
 
@@ -83,6 +92,57 @@ beforeEach(clearCommands);
 afterEach(clearCommands);
 
 describe("root workbench commands", () => {
+  it("records successful dispatch through the one command registry", async () => {
+    const record = vi.fn(async () => ({ recorded: true, problem: null }));
+    const instrumentation = createInstrumentationClient(() => ({
+      enable: async () => ({
+        enabled: true,
+        sessionId: "session-1",
+        backgroundSampling: true,
+        problem: null,
+      }),
+      disable: async () => ({
+        enabled: false,
+        sessionId: null,
+        backgroundSampling: false,
+        problem: null,
+      }),
+      record,
+    }));
+    await instrumentation.enable();
+    const native = setupPlatform();
+    const target = registerCommandTarget({
+      id: "test-find",
+      commandId: "file.find",
+      available: () => true,
+      run: () => true,
+    });
+    const attached = attachWorkbenchCommands(
+      document.createElement("div"),
+      context(native.platform, instrumentation),
+    );
+    const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+    dispatch(
+      new KeyboardEvent("keydown", {
+        key: "f",
+        metaKey: mac,
+        ctrlKey: !mac,
+        cancelable: true,
+      }),
+    );
+
+    await vi.waitFor(() =>
+      expect(record).toHaveBeenCalledWith({
+        recordType: "event",
+        operation: "command.file.find",
+        outcome: "ok",
+      }),
+    );
+    attached.detach();
+    target();
+  });
+
   it("owns every canonical application binding in one registry", async () => {
     const native = setupPlatform();
     const attached = attachWorkbenchCommands(

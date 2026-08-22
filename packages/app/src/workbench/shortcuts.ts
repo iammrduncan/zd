@@ -77,6 +77,13 @@ export interface CommandTarget {
 /** Registration order, which is the order the Reference lists them in. */
 const registered = new Map<string, Command>();
 const targets = new Map<string, Map<string, CommandTarget>>();
+const observers = new Set<(commandId: string) => void>();
+
+/** Observe successful command executions without creating a second dispatch path. */
+export function registerCommandObserver(observer: (commandId: string) => void): () => void {
+  observers.add(observer);
+  return () => observers.delete(observer);
+}
 
 /** Attach one feature behavior without creating another binding or displayed row. */
 export function registerCommandTarget(target: CommandTarget): () => void {
@@ -157,6 +164,7 @@ export function clearCommands(): void {
   registered.clear();
   holding.clear();
   targets.clear();
+  observers.clear();
 }
 
 function matches(chord: Chord, event: KeyboardEvent, platform: Platform): boolean {
@@ -243,6 +251,13 @@ export function dispatch(event: KeyboardEvent): boolean {
     if (!matches(command.chord, event, platform)) continue;
     if (command.available && !command.available()) return false;
     if (!command.run()) return false;
+    for (const observer of observers) {
+      try {
+        observer(command.id);
+      } catch {
+        // Observability cannot change whether a command runs.
+      }
+    }
     // Only a command that actually ran is holding. One that declined has nothing
     // to release, and calling `release` on it would close something it never
     // opened.

@@ -1,4 +1,5 @@
 import type { Platform } from "@/platform";
+import type { InstrumentationClient } from "@/instrumentation";
 import type { WorkbenchStateOwner } from "./state";
 import type { LaunchRequest } from "./resources";
 
@@ -13,6 +14,7 @@ export interface WorkbenchContentContext {
 
 export interface WorkbenchRuntimeContext extends WorkbenchContentContext {
   readonly state: WorkbenchStateOwner;
+  readonly instrumentation: InstrumentationClient;
 }
 
 export type WorkbenchMount = (

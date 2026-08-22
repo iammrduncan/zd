@@ -1,6 +1,7 @@
 import "@/design/index.css";
 
 import type { Platform } from "@/platform";
+import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { mountCurrentWorkspace } from "..";
 import type { FileResource, ProjectGrant } from "@/workbench/resources";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";
@@ -116,4 +117,5 @@ await mountCurrentWorkspace(host, {
   launch,
   platform,
   state: createWorkbenchStateOwner(workbenchStateFromGrants([project], launch)),
+  instrumentation: createUnavailableInstrumentationClient(),
 });

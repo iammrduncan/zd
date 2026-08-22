@@ -1,0 +1,57 @@
+.zd-diagnostic-settings {
+  margin-block-start: var(--space-3);
+  border-block-start: var(--hairline) solid var(--line-quiet);
+  color: var(--text-secondary);
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-navigation-size);
+  line-height: var(--type-navigation-line);
+}
+
+.zd-diagnostic-settings > summary {
+  padding-block: var(--space-2) var(--space-1);
+  color: var(--text-muted);
+  cursor: default;
+  letter-spacing: 0.04em;
+  list-style-position: inside;
+}
+
+.zd-diagnostic-settings-body {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2) var(--space-2);
+}
+
+.zd-diagnostic-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.zd-diagnostic-toggle input {
+  margin: 0;
+  accent-color: var(--line-focus);
+}
+
+.zd-diagnostic-status {
+  margin: 0;
+  color: var(--text-muted);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+}
+
+.zd-diagnostic-reveal {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-link);
+  font: inherit;
+}
+
+.zd-diagnostic-reveal:focus-visible {
+  outline: none;
+  text-decoration: underline;
+  text-decoration-color: var(--line-focus);
+  text-underline-offset: var(--space-1);
+}

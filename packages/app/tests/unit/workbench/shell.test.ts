@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Platform } from "@/platform";
+import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import type { WorkbenchMount, WorkbenchRuntimeContext } from "@/workbench/runtime";
 import { mountWorkbenchShell } from "@/workbench/shell";
 import { createWorkbenchStateOwner } from "@/workbench/state";
@@ -59,7 +60,12 @@ function context(): WorkbenchRuntimeContext {
     closeWindow: async () => {},
     openExternal: async () => {},
   };
-  return { launch: homeLaunch(), platform, state: createWorkbenchStateOwner() };
+  return {
+    launch: homeLaunch(),
+    platform,
+    state: createWorkbenchStateOwner(),
+    instrumentation: createUnavailableInstrumentationClient(),
+  };
 }
 
 describe("the root workbench shell", () => {

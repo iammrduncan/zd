@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createProjectWorkbenchAdapter, type ProjectGrantPlatform } from "@/workbench/projects";
+import { createInstrumentationClient, type DiagnosticTransport } from "@/instrumentation";
 import { createWorkbenchStateOwner, defaultWorkbenchState } from "@/workbench/state";
 import type { ProjectGrant } from "@/workbench/resources";
 
@@ -49,6 +50,50 @@ function platform(choice: ProjectGrant | null = null): ProjectGrantPlatform & {
 }
 
 describe("the root Projects adapter", () => {
+  it("records bounded project operation outcomes when diagnostics are enabled", async () => {
+    const record = vi.fn<DiagnosticTransport["record"]>(async () => ({
+      recorded: true,
+      problem: null,
+    }));
+    const instrumentation = createInstrumentationClient(() => ({
+      enable: async () => ({
+        enabled: true,
+        sessionId: "session-1",
+        backgroundSampling: true,
+        problem: null,
+      }),
+      disable: async () => ({
+        enabled: false,
+        sessionId: null,
+        backgroundSampling: false,
+        problem: null,
+      }),
+      record,
+    }));
+    await instrumentation.enable();
+    const adapter = createProjectWorkbenchAdapter(owner(), platform(), instrumentation);
+
+    await adapter.activateProject("beta");
+    await adapter.recoverProject("beta");
+
+    await vi.waitFor(() => expect(record).toHaveBeenCalledTimes(2));
+    expect(record.mock.calls.map(([entry]) => entry)).toEqual([
+      {
+        recordType: "event",
+        operation: "project.activate",
+        outcome: "ok",
+        context: { projectId: "beta" },
+      },
+      {
+        recordType: "event",
+        operation: "project.recover",
+        outcome: "refused",
+        context: { projectId: "beta" },
+      },
+    ]);
+    expect(JSON.stringify(record.mock.calls)).not.toContain("/work/");
+  });
+
   it("exposes one presentation snapshot and maps root publications", async () => {
     const state = owner();
     const adapter = createProjectWorkbenchAdapter(state, platform());
