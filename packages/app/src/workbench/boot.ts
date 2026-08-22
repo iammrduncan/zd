@@ -65,9 +65,9 @@ function reasonFor(cause: unknown): string {
 /**
  * Boot the one workbench and return its complete teardown.
  *
- * Launch selects an approved project resource, never an application surface. The current Markdown
- * workspace remains the content mount until the new shell wraps it, but it is no
- * longer discovered through a selector or registry.
+ * Launch selects an approved project resource, never an application surface. The
+ * root shell mounts the shared editor facade against that active file and keeps
+ * all project/worktree/file transitions in the one state owner.
  */
 export async function bootWorkbench(
   host: HTMLElement,
