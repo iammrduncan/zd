@@ -173,7 +173,7 @@
    *
    * §5.3 calls the character range authoritative, so it wins: 620px measures
    * 64.8 characters, near the 66 target and well inside both the range and the
-   * 480–640px envelope. Logged in docs/_internal/objectives/agent-findings.md for a human call — this
+   * 480–640px envelope. Logged in docs/planning/objectives/agent-findings.md for a human call — this
    * is an engineering reading of a spec that contradicts itself, not licence to
    * drift from the numbers.
    *
@@ -272,7 +272,7 @@
    * right-align into it. A three-digit list overhangs to the left rather than
    * pushing its prose out of alignment, which keeps the content origin stable
    * at the cost of the column no longer being exactly widest-marker wide.
-   * Derived, not transcribed — see docs/_internal/objectives/agent-findings.md.
+   * Derived, not transcribed — see docs/planning/objectives/agent-findings.md.
    */
   --list-marker-column: 1.9em;
 

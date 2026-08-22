@@ -11,10 +11,10 @@ const fixtures: string[] = [];
 function makeFixture(todo: string, archive?: string): string {
   const root = mkdtempSync(join(tmpdir(), "zd-archive-tasks-"));
   fixtures.push(root);
-  mkdirSync(join(root, "docs", "_internal/objectives"), { recursive: true });
-  writeFileSync(join(root, "docs", "_internal/objectives", "todo.txt"), todo);
+  mkdirSync(join(root, "docs", "planning", "objectives"), { recursive: true });
+  writeFileSync(join(root, "docs", "planning", "objectives", "todo.txt"), todo);
   if (archive !== undefined) {
-    writeFileSync(join(root, "docs", "_internal/objectives", "todo-archive.txt"), archive);
+    writeFileSync(join(root, "docs", "planning", "objectives", "todo-archive.txt"), archive);
   }
   return root;
 }
@@ -56,7 +56,7 @@ ${checkpoint}
 
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain("Moved 2 completed tasks; 1 open task remains.");
-    expect(readFileSync(join(root, "docs", "_internal/objectives", "todo.txt"), "utf8")).toBe(
+    expect(readFileSync(join(root, "docs", "planning", "objectives", "todo.txt"), "utf8")).toBe(
       `# plan
 ${open}
 ${checkpoint}
@@ -64,7 +64,7 @@ ${checkpoint}
     );
 
     const archive = readFileSync(
-      join(root, "docs", "_internal/objectives", "todo-archive.txt"),
+      join(root, "docs", "planning", "objectives", "todo-archive.txt"),
       "utf8",
     );
     expect(archive.startsWith(previousArchive)).toBe(true);
@@ -81,11 +81,11 @@ ${checkpoint}
 
     expect(result.status, result.stderr).toBe(0);
     const archive = readFileSync(
-      join(root, "docs", "_internal/objectives", "todo-archive.txt"),
+      join(root, "docs", "planning", "objectives", "todo-archive.txt"),
       "utf8",
     );
     expect(archive).toMatch(
-      /^# zd md — completed tasks, moved out of docs\/_internal\/objectives\/todo\.txt by \/archive\n# Same format as the task list\. Newest block last\. Nothing here is edited or deleted\.\n\n## \d{4}-\d{2}-\d{2}\n\n/,
+      /^# zd — completed tasks, moved out of docs\/planning\/objectives\/todo\.txt by \/archive\n# Same format as the task list\. Newest block last\. Nothing here is edited or deleted\.\n\n## \d{4}-\d{2}-\d{2}\n\n/,
     );
     expect(archive).toContain(`${completed}\n`);
   });
@@ -101,8 +101,12 @@ CHECKPOINT - stop
 
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain("Moved 0 completed tasks; 1 open task remains.");
-    expect(readFileSync(join(root, "docs", "_internal/objectives", "todo.txt"), "utf8")).toBe(todo);
-    expect(existsSync(join(root, "docs", "_internal/objectives", "todo-archive.txt"))).toBe(false);
+    expect(readFileSync(join(root, "docs", "planning", "objectives", "todo.txt"), "utf8")).toBe(
+      todo,
+    );
+    expect(existsSync(join(root, "docs", "planning", "objectives", "todo-archive.txt"))).toBe(
+      false,
+    );
   });
 
   it("keeps open checkpoints and collapses three or more blank lines left by removals", () => {
@@ -122,7 +126,7 @@ CHECKPOINT - preserve me
     const result = run(root);
 
     expect(result.status, result.stderr).toBe(0);
-    const todo = readFileSync(join(root, "docs", "_internal/objectives", "todo.txt"), "utf8");
+    const todo = readFileSync(join(root, "docs", "planning", "objectives", "todo.txt"), "utf8");
     expect(todo).toBe(`# phase
 
 CHECKPOINT - preserve me

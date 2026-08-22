@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd());
-const WRAP_UP = resolve(ROOT, "docs/objectives/wrap-up");
+const WRAP_UP = resolve(ROOT, "docs/planning/objectives/wrap-up");
 
 function goalFiles(): string[] {
   return readdirSync(WRAP_UP, { withFileTypes: true })
@@ -14,7 +14,7 @@ function goalFiles(): string[] {
 
 describe("bounded objective work groups", () => {
   it("keeps the top-level todo as a short queue of work groups", () => {
-    const todos = readFileSync(resolve(ROOT, "docs/objectives/todo.txt"), "utf8")
+    const todos = readFileSync(resolve(ROOT, "docs/planning/objectives/todo.txt"), "utf8")
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);

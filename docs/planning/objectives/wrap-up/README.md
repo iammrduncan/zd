@@ -1,7 +1,7 @@
 # Wrap-up goals
 
 Status: planning snapshot derived from the open tasks in
-[`docs/objectives/todo.txt`](../todo.txt) on 2026-08-12.
+[`docs/planning/objectives/todo.txt`](../todo.txt) on 2026-08-12.
 
 These goals reorganize the remaining prototype work into bounded outcomes. They do not replace or
 complete the source todo lines. The internal todo remains the execution record until each line is

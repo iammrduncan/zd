@@ -1,6 +1,6 @@
 ---
 name: zd-archive
-description: Safely move completed zd task lines from docs/_internal/objectives/todo.txt to docs/_internal/objectives/todo-archive.txt while preserving open work, checkpoints, ordering, and counts. Use when the user asks to archive completed tasks, shrink todo.txt, or archive finished work with an optional tag filter such as +p1.
+description: Safely move completed zd task lines from docs/planning/objectives/todo.txt to docs/planning/objectives/todo-archive.txt while preserving open work, checkpoints, ordering, and counts. Use when the user asks to archive completed tasks, shrink todo.txt, or archive finished work with an optional tag filter such as +p1.
 ---
 
 # Archive completed zd tasks

@@ -1,5 +1,5 @@
 ---
-description: Turn raw docs/_internal/objectives/FEEDBACK.md notes into todo.txt tasks, without doing any of the work
+description: Turn raw workbench feedback into todo.txt tasks, without doing any of the work
 argument-hint: "[optional extra notes to triage alongside the inbox]"
 ---
 
@@ -8,14 +8,14 @@ argument-hint: "[optional extra notes to triage alongside the inbox]"
 Capture only. **Write no product code in this command** — if something looks like a two-minute
 fix, it still becomes a task. The point is to empty your head onto the list and stop.
 
-Inbox: @docs/_internal/objectives/FEEDBACK.md
-Task list: @docs/_internal/objectives/todo.txt
+Inbox: @docs/planning/objectives/FEEDBACK.md
+Task list: @docs/planning/objectives/todo.txt
 
 Also triage this, if present: $ARGUMENTS
 
 ## What to do
 
-**Only the lines below the `---` in `docs/_internal/objectives/FEEDBACK.md` are feedback.** Everything above it is the
+**Only the lines below the `---` in `docs/planning/objectives/FEEDBACK.md` are feedback.** Everything above it is the
 file's own instructions. If there is nothing below the rule, say so and stop — do not invent work,
 and do not treat the header as a finding.
 
@@ -32,8 +32,8 @@ For each line below the rule:
    - `!` in the raw note → `(A)`. Otherwise `(B)`, or `(C)` if it is polish.
    - `+fb` and `fb:<today>` on everything from the inbox, so real-usage findings stay visible as a
      class.
-   - Add `+p<N>` for the phase, `@ctx` for the area, `vis:N.N` for the spec section, and `ref:F##`
-     if it matches a first-prototype finding in `docs/_internal/objectives/goals/completed/initial-prototype/feedback.md`.
+   - Add `+p<N>` for the phase, `@ctx` for the area, and the most specific current goal or vision
+     reference available. Preserve an existing `ref:F##`; do not invent one from memory.
    - Add the exact `@COMPARE` or `@DECIDE` tag when the task is a comparison artifact or a human
      decision gate. Those words in prose do not activate the workflow.
 3. **Put the line in the band where it will actually be done.** `CHECKPOINT` lines cut the file
@@ -44,17 +44,17 @@ For each line below the rule:
    the first checkpoint gates that checkpoint, so an app-icon task landing there holds up the
    editor. That happened, and it is why this step exists.
 4. If it duplicates an open task, do not add a second one — say which task already covers it.
-5. If it contradicts `docs/_internal/objectives/vision.md`, say so rather than silently
+5. If it contradicts `docs/VISION.md`, say so rather than silently
    rewriting the vision. That is a decision for the user.
 
 Then:
 
-- Append the **raw, unedited lines** to `docs/_internal/objectives/feedback-archive.md` under a `## <today>` heading
+- Append the **raw, unedited lines** to `docs/planning/objectives/feedback-archive.md` under a `## <today>` heading
   (`date +%F`). Their words, not your summary — the raw complaint is the evidence.
-- Reset `docs/_internal/objectives/FEEDBACK.md` to its header and the `---`.
-- Then triage `docs/_internal/objectives/agent-findings.md` the same way, tagging those `+found found:<today>`. It is
+- Reset `docs/planning/objectives/FEEDBACK.md` to its header and the `---`.
+- Then triage `docs/planning/objectives/agent-findings.md` the same way, tagging those `+found found:<today>`. It is
   the agent's own queue; human feedback is triaged first and outranks it. Never write findings
-  into `docs/_internal/objectives/FEEDBACK.md` — keeping the archive purely human is what makes it evidence.
+  into `docs/planning/objectives/FEEDBACK.md` — keeping the archive purely human is what makes it evidence.
 - Commit: `Triage feedback into tasks`.
 
 ## Report back
