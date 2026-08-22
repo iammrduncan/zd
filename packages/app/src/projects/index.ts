@@ -7,6 +7,7 @@ export {
   shortcutProject,
   type ProjectRecoveryOverrides,
 } from "./model";
+export { mountProjectList, type ProjectChildUnmount, type ProjectListOptions } from "./view";
 export type {
   ActiveProjectWorkspace,
   ProjectActionResult,

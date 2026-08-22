@@ -151,4 +151,45 @@ describe("the Projects model", () => {
       },
     });
   });
+
+  it.each([
+    ["missing", "missing", "Folder is missing."],
+    ["denied", "denied", "Folder access was denied."],
+    ["unavailable", "unavailable", "Folder is unavailable."],
+  ] as const)("maps %s native availability to named recovery", (availability, kind, summary) => {
+    const current = state();
+    const snapshot = projectSnapshotFromWorkbench({
+      ...current,
+      projects: [{ ...current.projects[0]!, availability }],
+      worktrees: current.worktrees.filter(({ projectId }) => projectId === "alpha"),
+      threads: current.threads,
+      openFiles: current.openFiles,
+    });
+
+    expect(snapshot.projects[0]!.recovery).toMatchObject({ kind, summary });
+  });
+
+  it("allows native recovery detail to distinguish a non-directory root", () => {
+    const current = state();
+    const snapshot = projectSnapshotFromWorkbench(
+      {
+        ...current,
+        projects: [{ ...current.projects[0]!, availability: "unavailable" }],
+        worktrees: current.worktrees.filter(({ projectId }) => projectId === "alpha"),
+      },
+      {
+        alpha: {
+          kind: "not-directory",
+          summary: "The approved root is no longer a folder.",
+          actionLabel: "Choose folder",
+        },
+      },
+    );
+
+    expect(snapshot.projects[0]!.recovery).toEqual({
+      kind: "not-directory",
+      summary: "The approved root is no longer a folder.",
+      actionLabel: "Choose folder",
+    });
+  });
 });
