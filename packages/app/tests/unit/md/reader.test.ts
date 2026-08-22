@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Platform } from "@/platform";
 import { unavailableFileTreeAdapter } from "@/files";
+import { unavailableGitAdapter } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { unavailableTerminalAdapter } from "@/terminal";
 import { mountCurrentWorkspace } from "@/miniapps/md";
@@ -101,6 +102,7 @@ function context(
       revealDiagnostics: async () => {},
       terminal: unavailableTerminalAdapter,
       fileTree: unavailableFileTreeAdapter,
+      git: unavailableGitAdapter,
       workspaceFiles: async () => {
         throw new Error("no listing");
       },

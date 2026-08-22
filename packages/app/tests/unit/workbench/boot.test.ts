@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Platform } from "@/platform";
 import { setTheme } from "@/design/appearance";
 import { unavailableFileTreeAdapter } from "@/files";
+import { unavailableGitAdapter } from "@/git";
 import { unavailableTerminalAdapter } from "@/terminal";
 import { bootWorkbench, type WorkbenchMount } from "@/workbench/boot";
 import { homeLaunch, type ProjectGrant } from "@/workbench/resources";
@@ -77,6 +78,7 @@ function stubPlatform(path: string | null = null): Platform {
     revealDiagnostics: async () => {},
     terminal: unavailableTerminalAdapter,
     fileTree: unavailableFileTreeAdapter,
+    git: unavailableGitAdapter,
     workspaceFiles: async () => {
       throw new Error("no listing");
     },

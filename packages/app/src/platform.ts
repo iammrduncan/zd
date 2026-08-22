@@ -8,6 +8,7 @@ import type {
 } from "@/instrumentation";
 import type { BoundedFileRead } from "@/editor";
 import { unavailableFileTreeAdapter, type FileTreeAdapter } from "@/files";
+import { createTauriGitAdapter, unavailableGitAdapter, type GitAdapter } from "@/git";
 import { unavailableTerminalAdapter, type TerminalAdapter } from "@/terminal";
 import {
   homeLaunch,
@@ -107,6 +108,8 @@ export interface Platform {
   readonly terminal: TerminalAdapter;
   /** Complete bounded snapshots for one native-approved project/worktree. */
   readonly fileTree: FileTreeAdapter;
+  /** Read-only status, bounded history, and comparisons for an approved scope. */
+  readonly git: GitAdapter;
   /** Read a UTF-8 text file. */
   readTextFile(resource: FileResource): Promise<string>;
   /** Classify and read at most one bounded text file without guessing an encoding. */
@@ -200,6 +203,7 @@ const tauri: Platform = {
   fileTree: {
     snapshot: (request) => invoke("file_tree_snapshot", { request }),
   },
+  git: createTauriGitAdapter((command, payload) => invoke(command, payload)),
   workspaceFiles: (projectId, worktreeId) =>
     invoke<WorkspaceListing>("workspace_files", { projectId, worktreeId }),
   readTextFile: (resource) => invoke<string>("read_text_file", { resource }),
@@ -279,6 +283,7 @@ const browser: Platform = {
   },
   terminal: unavailableTerminalAdapter,
   fileTree: unavailableFileTreeAdapter,
+  git: unavailableGitAdapter,
   workspaceFiles: async (projectId, worktreeId) => {
     throw new Error(`no filesystem in the browser shell: ${projectId}/${worktreeId}`);
   },
