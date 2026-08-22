@@ -145,10 +145,9 @@ test("escape is not the Reference's key any more", async ({ page }) => {
    * released, so there is never a moment when Escape could dismiss it, and a
    * command that can never run is exactly what §7.1 forbids listing.
    *
-   * The user's decision (2026-07-30): "esc should be set to unfocus the editor
-   * (caret goes away)." So Escape is claimed — by the document, exactly once. This
-   * asserts the handover rather than just the absence, because "nobody owns it" was
-   * only ever the intermediate state between the two tasks.
+   * This standalone editor specimen has no root workbench router, so its one
+   * Escape binding remains the document command. The product workbench owns the
+   * chord and routes this same behavior as a contextual target.
    */
   const owners = await page.evaluate(() =>
     window

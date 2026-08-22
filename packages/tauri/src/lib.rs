@@ -6,6 +6,7 @@
 mod cli;
 mod fs;
 mod grants;
+mod quick_access;
 mod themes;
 
 #[cfg(target_os = "macos")]
@@ -47,7 +48,9 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(launch)
+        .manage(quick_access::QuickAccessState::default())
         .invoke_handler(tauri::generate_handler![
             cli::launch_request,
             cli::project_grants,
@@ -61,6 +64,9 @@ pub fn run() {
             fs::file_stamp,
             fs::open_external,
             themes::theme_config_files,
+            quick_access::register_global_summon,
+            quick_access::toggle_quick_access,
+            quick_access::hide_quick_access,
             close_window,
         ])
         /*
@@ -76,26 +82,32 @@ pub fn run() {
          * *believed* the document was clean would be keeping a second copy of a
          * fact it does not own, and that copy is wrong exactly when it matters.
          */
-        .on_window_event(|_window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => api.prevent_close(),
+            tauri::WindowEvent::Focused(focused) => {
+                quick_access::window_focus_changed(window, *focused);
             }
+            _ => {}
         })
         .build(tauri::generate_context!())
         .expect("error while building zd");
 
     app.run(|app_handle, event| {
         #[cfg(target_os = "macos")]
-        {
-            let tauri::RunEvent::Opened { urls } = event else {
-                return;
-            };
-            let Some(request) = cli::opened_request(&urls) else {
-                return;
-            };
-
-            app_handle.state::<cli::LaunchState>().queue(request);
-            let _ = app_handle.emit("open-requested", ());
+        match event {
+            tauri::RunEvent::Opened { urls } => {
+                let Some(request) = cli::opened_request(&urls) else {
+                    return;
+                };
+                app_handle.state::<cli::LaunchState>().queue(request);
+                quick_access::show_ordinary(app_handle);
+                let _ = app_handle.emit("open-requested", ());
+            }
+            tauri::RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } => quick_access::show_ordinary(app_handle),
+            _ => {}
         }
 
         #[cfg(not(target_os = "macos"))]

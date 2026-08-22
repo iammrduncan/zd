@@ -38,10 +38,7 @@ function updateRegions(
   context.state.updateRegions(change(context.state.snapshot().regions));
 }
 
-function onArrowResize(
-  element: HTMLElement,
-  resize: (direction: -1 | 1) => void,
-): () => void {
+function onArrowResize(element: HTMLElement, resize: (direction: -1 | 1) => void): () => void {
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
@@ -217,6 +214,14 @@ export async function mountWorkbenchShell(
     regions.focus === "thread" || regions.focus === "threads";
   const centreFocusTarget = (regions = context.state.snapshot().regions) =>
     threadOwnsCentre(regions) ? threadSurface : fileSurface;
+  let lastMeaningfulFocus: HTMLElement = centreFocusTarget();
+  let previousPresentation = context.state.snapshot().window.presentation;
+  const rememberFocus = (event: FocusEvent) => {
+    if (event.target instanceof HTMLElement && shell.contains(event.target)) {
+      lastMeaningfulFocus = event.target;
+    }
+  };
+  shell.addEventListener("focusin", rememberFocus);
 
   const render = (state: WorkbenchState) => {
     regionState(shell, state);
@@ -251,6 +256,17 @@ export async function mountWorkbenchShell(
     threadsResizer.setAttribute("aria-valuenow", String(regions.threads.width));
     filesResizer.setAttribute("aria-valuenow", String(regions.files.width));
     centreResizer.setAttribute("aria-valuenow", String(Math.round(regions.centre.split * 100)));
+
+    if (state.window.presentation === "quick-access" && previousPresentation !== "quick-access") {
+      queueMicrotask(() => {
+        const target =
+          lastMeaningfulFocus.isConnected && !lastMeaningfulFocus.closest("[inert]")
+            ? lastMeaningfulFocus
+            : centreFocusTarget(regions);
+        target.focus({ preventScroll: true });
+      });
+    }
+    previousPresentation = state.window.presentation;
   };
 
   threadsResizer.setAttribute("aria-valuemin", "184");
@@ -338,6 +354,7 @@ export async function mountWorkbenchShell(
   return () => {
     if (!mounted) return;
     mounted = false;
+    shell.removeEventListener("focusin", rememberFocus);
     stopState();
     cleanups.forEach((cleanup) => cleanup());
     unmountContent();

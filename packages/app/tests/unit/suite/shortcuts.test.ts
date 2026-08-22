@@ -105,6 +105,20 @@ describe("dispatch", () => {
     expect(dispatch(key({ key: "q", metaKey: true }))).toBe(false);
   });
 
+  it("leaves global bindings to the native registrar", () => {
+    const run = vi.fn(() => true);
+    register({
+      id: "window.summon",
+      chord: { key: " ", mod: true, shift: true },
+      scope: "global",
+      description: "Summon the workbench",
+      run,
+    });
+
+    expect(dispatch(key({ key: " ", metaKey: true, shiftKey: true }))).toBe(false);
+    expect(run).not.toHaveBeenCalled();
+  });
+
   it("does not treat a bare key as its modified chord", () => {
     const run = vi.fn(() => true);
     register(save(run));
