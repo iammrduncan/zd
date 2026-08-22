@@ -7,6 +7,7 @@ mod cli;
 mod fs;
 mod grants;
 mod quick_access;
+pub mod terminal;
 mod themes;
 
 #[cfg(target_os = "macos")]
