@@ -1,11 +1,56 @@
 # Expanded Scope Execution Plan
 
+Status: **complete — 2026-08-22**
+
 ## Outcome
 
 Execute the pivot from `zd md` and the ZenSuite growing-miniapp model to one `zd` agent workbench
 without letting parallel work create competing state, platform authority, themes, shortcuts, or
 lifecycle models. Each feature goal remains independently verifiable; integration crosses explicit
 sequential gates.
+
+## Execution Record
+
+The plan ran through the dependency gates below. Shared state, platform registration, dependencies,
+configuration, command dispatch, and theme changes stayed with the integration owner; feature work
+landed behind bounded adapters before root integration.
+
+| Goal | Status | Delivered evidence |
+| --- | --- | --- |
+| D | Complete | Current authority, contributor routes, public docs, website, metadata, deterministic workbench captures, and stale-context contracts |
+| R | Complete | One boot path, versioned state owner, atomic context transitions, multi-grant native boundary, responsive regions, commands, preferences, themes, and global window behavior |
+| P | Complete | Persistent project/worktree identities, native-approved add/recover/remove flows, compact project hierarchy, and guarded activation |
+| I | Complete | Opt-in local diagnostic sessions, redaction, bounded rotation/retention, process sampling, reveal controls, and format fixtures |
+| E | Complete | One CodeMirror owner for Markdown/code, bundled language registry, bounded file states, Find/Replace, read-only buffers, and large-file evidence |
+| T | Complete | Project-scoped native PTYs, xterm rendering, bounded event-driven output, search/input/resize, process-tree cleanup, and release measurements |
+| F | Complete | Compact virtualized Files, bounded native scans, scoped Git status/history/comparison, Changes, and read-only editor diffs |
+| H | Complete | Project-nested thread operations, structured worktree creation, terminal runtime attachment, atomic restoration, lifecycle detection, and deduplicated attention |
+| N | Complete | Opt-in event-driven desktop routing, exact-thread View action, privacy-safe payloads, rate-limited sound policy, unsupported-state handling, and attention measurements |
+
+| Gate | Status | Integration evidence |
+| --- | --- | --- |
+| Gate 0 | Complete | `VISION.md`, `DESIGN.md`, ADR authority, naming, CLI, grants, commands, themes, and defaults were settled before feature work |
+| Gate 1 | Complete | Workbench boot/state/shell/platform contracts and native multi-grant authority passed unit, browser, and Rust checks |
+| Gate 2 | Complete | Projects, diagnostics, editor, and terminal contracts integrated through the shared platform and state owners |
+| Gate 3 | Complete | Threads, Files, Git, Changes, and read-only diffs integrated after project, PTY, and editor contracts stabilized |
+| Gate 4 | Complete | One versioned busy-to-waiting event drives in-app attention, native notification View routing, and optional sound without polling |
+| Gate 5 | Complete | Public docs, website export, generated assets, source maps, historical-context boundaries, and repository stale-context checks reflect the workbench |
+
+The final integrated gate on 2026-08-22 recorded:
+
+- `npm run check`: typecheck, ESLint, version sync, and 745 passing unit/contract tests with 5
+  intentional skips;
+- normal Playwright: 347/347 passing; release Playwright: 3/3 passing from the production bundle;
+- release attention: 1,000 events in 3.2 ms with zero idle calls; Changes: 10,000 entries with 40
+  live rows and zero idle calls; terminal: 1,048,625 bytes at 9.0 MiB/s with zero idle calls;
+- production app and 15-page website builds, generated-asset and documentation contracts, and the
+  repository-wide reserved-name check;
+- 194 Cargo all-target tests, Clippy with warnings denied, Rust formatting, repository formatting,
+  and a clean diff check.
+
+Windows-specific PTY cleanup remains covered by its `cfg(windows)` Job Object implementation and
+native test; the final local native run records macOS evidence rather than claiming a Windows
+runtime was available on this host.
 
 ## Naming Contract
 

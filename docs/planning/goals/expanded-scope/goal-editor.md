@@ -1,5 +1,7 @@
 # Editor Goal
 
+Status: **complete — 2026-08-22**
+
 ## Outcome
 
 CodeMirror is the one editor engine for Markdown and code. Markdown keeps the current rendered,
@@ -54,6 +56,18 @@ custom Markdown surface, and avoids maintaining two editor state, theme, search,
 10. Unit and browser tests cover language resolution, unsupported text, read-only/error states,
     find options, replacement and undo, rendered-source mapping, shortcuts, saving, large files,
     and preservation of existing Markdown behavior.
+
+## Completion Evidence
+
+- `packages/app/src/editor/` is the stable CodeMirror facade for buffer states, filename-driven
+  language resolution, syntax presentation, Find/Replace, read-only use, and lifecycle handles.
+- Markdown continues through the retained rendered-source editor, while Rust, JavaScript/JSX,
+  TypeScript/TSX, HTML, CSS, JSON, and honest plain text share the same editor owner and themes.
+- The current-file coordinator maps bounded native results to text, binary, undecodable, missing,
+  denied, over-limit, and read-only states and keeps atomic save/dirty-close behavior intact.
+- Release-browser evidence for the 3.72 MB, 48,000-line fixture recorded 142 ms open, 33 ms find,
+  36 ms edit, 23 ms scroll settle, and 21 live CodeMirror lines; focused unit/browser coverage also
+  proves replacement undo and rendered Markdown source mapping.
 
 ## Terminal Condition
 

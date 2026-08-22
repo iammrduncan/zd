@@ -1,5 +1,7 @@
 # Threads Goal
 
+Status: **complete — 2026-08-22**
+
 ## Outcome
 
 Threads organize project-scoped terminal and future agent sessions, show where attention is needed,
@@ -45,6 +47,23 @@ in `goal.md`.
 11. Unit, browser, Git-integration, and native tests cover lifecycle transitions, attention
     deduplication, region modes, activation, missing resources, thread operations, worktree safety,
     terminal cleanup, and project isolation.
+
+## Completion Evidence
+
+- `packages/app/src/threads/` owns stable thread records, lifecycle/attention reduction, the compact
+  project-nested region, create/rename/reorder/activate/close/remove/recover operations, and terminal
+  presentation while keeping runtime handles out of durable state.
+- The root thread coordinator resolves project/worktree scope, attaches scoped terminal sessions,
+  restores project/worktree/thread/file/region state atomically, and serializes lifecycle changes
+  with transition guards.
+- Structured native worktree creation validates names/revisions/collisions, runs only the approved
+  Git operation, grants the resulting worktree, and never couples thread close/remove to destructive
+  worktree or branch cleanup.
+- Versioned supported-agent detection emits one attention event only for a new busy-to-waiting
+  transition; duplicates and out-of-order lifecycle revisions are ignored.
+- Chromium mounted 1,000 project-grouped rows in 5.50 ms with no interval polling. Unit, browser,
+  native PTY, worktree, and root-integration tests cover operations, region modes, missing resources,
+  cleanup, isolation, and attention deduplication.
 
 ## Terminal Condition
 

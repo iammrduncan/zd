@@ -37,6 +37,17 @@ const CONTRIBUTOR_PAGES = [
   "packages/app/src/miniapps/README.md",
   "packages/tauri/src/README.md",
 ];
+const EXPANDED_GOALS = [
+  "goal-docs.md",
+  "goal-reorganize.md",
+  "goal-projects.md",
+  "goal-instrumentation.md",
+  "goal-editor.md",
+  "goal-terminal.md",
+  "goal-filetree.md",
+  "goal-threads.md",
+  "goal-notifications.md",
+];
 const MAINTAINED_CONTEXT_ROOTS = [
   ".agents/skills",
   ".claude/commands",
@@ -124,6 +135,25 @@ describe("the repository documentation map", () => {
     expect(planning).toContain("objectives/wrap-up/README.md");
     expect(planning).toContain("objectives/mini-apps/README.md");
     expect(planning).toContain("must not be used as execution queues");
+  });
+
+  it("records every expanded-scope goal and execution gate as complete", () => {
+    const root = page("docs/planning/goals/expanded-scope/goal.md");
+
+    expect(root).toMatch(/^Status: \*\*complete — 2026-08-22\*\*$/m);
+    expect(root).toMatch(/^## Execution Record$/m);
+    for (const id of ["D", "R", "P", "I", "E", "T", "F", "H", "N"]) {
+      expect(root).toMatch(new RegExp(`^\\| ${id} \\| Complete \\|`, "m"));
+    }
+    for (const gate of ["0", "1", "2", "3", "4", "5"]) {
+      expect(root).toMatch(new RegExp(`^\\| Gate ${gate} \\| Complete \\|`, "m"));
+    }
+
+    for (const file of EXPANDED_GOALS) {
+      const goal = page(`docs/planning/goals/expanded-scope/${file}`);
+      expect(goal, file).toMatch(/^Status: \*\*complete — 2026-08-22\*\*$/m);
+      expect(goal, file).toMatch(/^## Completion Evidence$/m);
+    }
   });
 
   it("keeps maintained workflow consumers on the sole planning objective root", () => {
