@@ -7,7 +7,7 @@ use objc2::rc::Retained;
 use objc2::runtime::{Bool, ProtocolObject};
 use objc2::{define_class, msg_send, AnyThread, DefinedClass};
 use objc2_app_kit::NSSound;
-use objc2_foundation::{NSArray, NSError, NSObject, NSObjectProtocol, NSSet, NSString};
+use objc2_foundation::{NSArray, NSBundle, NSError, NSObject, NSObjectProtocol, NSSet, NSString};
 use objc2_user_notifications::{
     UNAuthorizationOptions, UNAuthorizationStatus, UNMutableNotificationContent, UNNotification,
     UNNotificationAction, UNNotificationActionOptionNone, UNNotificationActionOptions,
@@ -15,6 +15,7 @@ use objc2_user_notifications::{
     UNNotificationRequest, UNNotificationResponse, UNNotificationSettings,
     UNUserNotificationCenter, UNUserNotificationCenterDelegate,
 };
+use std::path::PathBuf;
 use std::ptr::NonNull;
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
@@ -24,6 +25,40 @@ const VIEW_ACTION_ID: &str = "ZD_VIEW";
 const CLOSE_ACTION_ID: &str = "ZD_CLOSE";
 const DEFAULT_ACTION_ID: &str = "com.apple.UNNotificationDefaultActionIdentifier";
 const DISMISS_ACTION_ID: &str = "com.apple.UNNotificationDismissActionIdentifier";
+const UNPACKAGED_APP_PROBLEM: &str =
+    "desktop notifications are unavailable when zd runs outside its macOS app bundle";
+
+#[derive(Debug)]
+struct NotificationRuntimeContext {
+    bundle_identifier: Option<String>,
+    bundle_path: PathBuf,
+}
+
+fn notification_runtime_context() -> NotificationRuntimeContext {
+    let bundle = NSBundle::mainBundle();
+    NotificationRuntimeContext {
+        bundle_identifier: bundle.bundleIdentifier().map(|value| value.to_string()),
+        bundle_path: PathBuf::from(bundle.bundlePath().to_string()),
+    }
+}
+
+fn notification_runtime_problem(context: &NotificationRuntimeContext) -> Option<&'static str> {
+    let has_bundle_identifier = context
+        .bundle_identifier
+        .as_deref()
+        .is_some_and(|identifier| !identifier.trim().is_empty());
+    let is_app_bundle = context
+        .bundle_path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("app"));
+
+    if has_bundle_identifier && is_app_bundle {
+        None
+    } else {
+        Some(UNPACKAGED_APP_PROBLEM)
+    }
+}
 
 define_class!(
     // SAFETY: NSObject has no subclassing requirements, the ivar is initialized before `init`,
@@ -86,6 +121,9 @@ impl NotificationDelegate {
 }
 
 pub(super) fn install(router: Arc<ActionRouter>) -> Result<(), String> {
+    if let Some(problem) = notification_runtime_problem(&notification_runtime_context()) {
+        return Err(problem.to_owned());
+    }
     let center = UNUserNotificationCenter::currentNotificationCenter();
     let view = UNNotificationAction::actionWithIdentifier_title_options(
         &NSString::from_str(VIEW_ACTION_ID),
@@ -214,4 +252,53 @@ pub(super) async fn play_sound_on_main(
     })
     .await
     .map_err(|error| error.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        notification_runtime_context, notification_runtime_problem, NotificationRuntimeContext,
+        UNPACKAGED_APP_PROBLEM,
+    };
+    use std::path::PathBuf;
+
+    #[test]
+    fn unbundled_process_never_installs_the_notification_center() {
+        let context = notification_runtime_context();
+
+        assert_eq!(
+            notification_runtime_problem(&context),
+            Some(UNPACKAGED_APP_PROBLEM),
+            "unexpected test runtime context: {context:?}"
+        );
+    }
+
+    #[test]
+    fn packaged_app_identity_can_install_the_notification_center() {
+        let context = NotificationRuntimeContext {
+            bundle_identifier: Some("com.zensuite.zd".into()),
+            bundle_path: PathBuf::from("/Applications/zd.app"),
+        };
+
+        assert_eq!(notification_runtime_problem(&context), None);
+    }
+
+    #[test]
+    fn partial_app_identity_remains_unavailable() {
+        for context in [
+            NotificationRuntimeContext {
+                bundle_identifier: None,
+                bundle_path: PathBuf::from("/Applications/zd.app"),
+            },
+            NotificationRuntimeContext {
+                bundle_identifier: Some("com.zensuite.zd".into()),
+                bundle_path: PathBuf::from("/workspace/target/debug"),
+            },
+        ] {
+            assert_eq!(
+                notification_runtime_problem(&context),
+                Some(UNPACKAGED_APP_PROBLEM)
+            );
+        }
+    }
 }
