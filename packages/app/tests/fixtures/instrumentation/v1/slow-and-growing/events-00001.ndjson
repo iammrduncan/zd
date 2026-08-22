@@ -1,0 +1,5 @@
+{"schemaVersion":1,"sessionId":"session-fixture-0001","sequence":1,"monotonicUs":0,"recordType":"event","operation":"workbench.launch","outcome":"ok","context":{"projectId":"project-fixture"}}
+{"schemaVersion":1,"sessionId":"session-fixture-0001","sequence":2,"monotonicUs":500000,"recordType":"span","operation":"file.open","traceId":"trace-fixture-1","spanId":"span-fixture-1","durationUs":240000,"outcome":"ok","context":{"projectId":"project-fixture","logicalPath":{"scope":"project","depth":3,"extension":"md"}}}
+{"schemaVersion":1,"sessionId":"session-fixture-0001","sequence":3,"monotonicUs":1000000,"recordType":"sample","cpuPercent":4.2,"residentBytes":67108864}
+{"schemaVersion":1,"sessionId":"session-fixture-0001","sequence":4,"monotonicUs":31000000,"recordType":"sample","cpuPercent":5.1,"residentBytes":100663296}
+{"schemaVersion":1,"sessionId":"session-fixture-0001","sequence":5,"monotonicUs":31500000,"recordType":"state","operation":"diagnostics.transition","from":"enabled","to":"disabled"}
