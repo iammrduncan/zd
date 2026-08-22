@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Superseded by
+[0007: Dispatch commands from one workbench registry](0007-dispatch-commands-from-one-workbench-registry_H.md)
 
 ## Context
 
@@ -35,3 +36,7 @@ match the command.
 - macOS Control editing chords remain available to CodeMirror.
 - Mini apps need explicit registration and cleanup when their active surface changes.
 - Text-entry keymaps can still own commands that are local to the editor.
+
+## Revision history
+
+- `5699c1e33b88eb0e6d34a8303e71b33e90f99bdf` — Prior accepted version before the workbench command-registry decision.

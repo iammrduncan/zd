@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Superseded by
+[0006: Scope file access to approved project grants](0006-scope-file-access-to-approved-project-grants_H.md)
 
 ## Context
 
@@ -35,3 +36,7 @@ will change the launch request and file scope together under one lock.
 - New files can be created inside the scope after the backend validates their parent folder.
 - The app must queue native open requests while unsaved work blocks a switch.
 - Features that need files outside the workspace require an explicit new authority design.
+
+## Revision history
+
+- `5699c1e33b88eb0e6d34a8303e71b33e90f99bdf` — Prior accepted version before the multi-project grant decision.
