@@ -15,6 +15,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:e2e": "tsc --noEmit && vite build --mode e2e",
     "preview": "vite preview",
     "website:dev": "npm run dev --workspace @zd/website",
     "website:build": "npm run build --workspace @zd/website",
@@ -37,6 +38,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:release": "playwright test --config playwright.release.config.ts",
     "version": "node packages/scripts/release/sync-version.mjs",
     "version:bump": "npm version --no-git-tag-version",
     "version:check": "node packages/scripts/release/sync-version.mjs --check",

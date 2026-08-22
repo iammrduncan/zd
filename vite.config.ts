@@ -5,7 +5,7 @@ import { defineConfig } from "vite";
 const host = process.env.TAURI_DEV_HOST;
 const appRoot = fileURLToPath(new URL("./packages/app", import.meta.url));
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   root: appRoot,
 
   // `assets/` holds the bundled iA Writer faces. Vite copies it to the dist root,
@@ -30,4 +30,18 @@ export default defineConfig({
       ignored: ["**/packages/tauri/**"],
     },
   },
-});
+  ...(mode === "e2e"
+    ? {
+        build: {
+          rollupOptions: {
+            input: {
+              app: fileURLToPath(new URL("./packages/app/index.html", import.meta.url)),
+              terminalPerformance: fileURLToPath(
+                new URL("./packages/app/dev/terminal-performance.html", import.meta.url),
+              ),
+            },
+          },
+        },
+      }
+    : {}),
+}));
