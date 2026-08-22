@@ -7,6 +7,7 @@ import type {
   PreparedDiagnosticRecord,
 } from "@/instrumentation";
 import type { BoundedFileRead } from "@/editor";
+import { unavailableTerminalAdapter, type TerminalAdapter } from "@/terminal";
 import {
   homeLaunch,
   type FileResource,
@@ -100,6 +101,8 @@ export interface Platform {
   recordDiagnostic(record: PreparedDiagnosticRecord): Promise<DiagnosticWriteOutcome>;
   /** Reveal the native diagnostic directory without exposing its path to the webview. */
   revealDiagnostics(): Promise<void>;
+  /** Structured, project-scoped native terminal lifecycle; never arbitrary process execution. */
+  readonly terminal: TerminalAdapter;
   /** Read a UTF-8 text file. */
   readTextFile(resource: FileResource): Promise<string>;
   /** Classify and read at most one bounded text file without guessing an encoding. */
@@ -181,6 +184,15 @@ const tauri: Platform = {
   disableDiagnostics: () => invoke<DiagnosticStatus>("disable_diagnostics"),
   recordDiagnostic: (record) => invoke<DiagnosticWriteOutcome>("record_diagnostic", { record }),
   revealDiagnostics: () => invoke<void>("reveal_diagnostics"),
+  terminal: {
+    start: (request) => invoke("terminal_start", { request }),
+    write: (session, bytes) => invoke<void>("terminal_write", { session, bytes }),
+    resize: (session, viewport) => invoke<void>("terminal_resize", { session, viewport }),
+    read: (session) => invoke("terminal_read", { session }),
+    pollExit: (session) => invoke("terminal_poll_exit", { session }),
+    terminate: (session) => invoke("terminal_terminate", { session }),
+    dispose: (session) => invoke<void>("terminal_dispose", { session }),
+  },
   workspaceFiles: (projectId, worktreeId) =>
     invoke<WorkspaceListing>("workspace_files", { projectId, worktreeId }),
   readTextFile: (resource) => invoke<string>("read_text_file", { resource }),
@@ -258,6 +270,7 @@ const browser: Platform = {
   revealDiagnostics: async () => {
     throw new Error("local diagnostics require the desktop shell");
   },
+  terminal: unavailableTerminalAdapter,
   workspaceFiles: async (projectId, worktreeId) => {
     throw new Error(`no filesystem in the browser shell: ${projectId}/${worktreeId}`);
   },

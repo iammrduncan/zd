@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Platform } from "@/platform";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
+import { unavailableTerminalAdapter } from "@/terminal";
 import type { WorkbenchMount, WorkbenchRuntimeContext } from "@/workbench/runtime";
 import { mountWorkbenchShell } from "@/workbench/shell";
 import { createWorkbenchStateOwner } from "@/workbench/state";
@@ -50,6 +51,7 @@ function context(): WorkbenchRuntimeContext {
     }),
     recordDiagnostic: async () => ({ recorded: false, problem: null }),
     revealDiagnostics: async () => {},
+    terminal: unavailableTerminalAdapter,
     workspaceFiles: async () => {
       throw new Error("no listing");
     },

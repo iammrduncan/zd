@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { EditorView } from "@codemirror/view";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
+import { unavailableTerminalAdapter } from "@/terminal";
 
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import type { Platform } from "@/platform";
@@ -85,6 +86,7 @@ describe("quitting with unsaved work", () => {
       }),
       recordDiagnostic: async () => ({ recorded: false, problem: null }),
       revealDiagnostics: async () => {},
+      terminal: unavailableTerminalAdapter,
       workspaceFiles: async () => {
         throw new Error("no listing");
       },

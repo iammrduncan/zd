@@ -39,6 +39,7 @@ export interface TerminalOutputBatch {
   /** Bytes released before delivery because the native queue reached its limit. */
   readonly droppedBefore: number;
   readonly bytes: readonly number[];
+  readonly readError: string | null;
 }
 
 export type TerminalExitReason = "exited" | "terminated" | "disposed";
@@ -63,6 +64,21 @@ export interface TerminalAdapter {
   terminate(session: TerminalSessionHandle): Promise<TerminalExitStatus>;
   dispose(session: TerminalSessionHandle): Promise<void>;
 }
+
+function unavailableTerminal(): never {
+  throw new Error("native terminal sessions require the desktop shell");
+}
+
+/** Honest inert adapter for browser fixtures and surfaces without native process ownership. */
+export const unavailableTerminalAdapter: TerminalAdapter = {
+  start: async () => unavailableTerminal(),
+  write: async () => unavailableTerminal(),
+  resize: async () => unavailableTerminal(),
+  read: async () => unavailableTerminal(),
+  pollExit: async () => unavailableTerminal(),
+  terminate: async () => unavailableTerminal(),
+  dispose: async () => unavailableTerminal(),
+};
 
 interface ViewportInput {
   readonly rows: number;

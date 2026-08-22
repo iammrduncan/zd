@@ -11,6 +11,7 @@ vi.mock("@tauri-apps/api/event", () => ({ listen: genericListen }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => nativeWindow }));
 
 import { detectPlatform } from "@/platform";
+import { createTerminalStartRequest, terminalViewport } from "@/terminal";
 import { forgetPreferences } from "@/workbench/preferences";
 
 describe("the Tauri window boundary", () => {
@@ -182,6 +183,67 @@ describe("the Tauri window boundary", () => {
     ).resolves.toEqual({ recorded: false, problem: null });
     await expect(platform.revealDiagnostics()).rejects.toThrow("desktop shell");
     await expect(platform.disableDiagnostics()).resolves.toMatchObject({ enabled: false });
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("keeps terminal lifecycle behind the structured native boundary", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    const session = {
+      sessionId: "session-0000000000000001",
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+    };
+    const viewport = terminalViewport({ rows: 24, columns: 80 });
+    const request = createTerminalStartRequest(session, viewport);
+    invoke
+      .mockResolvedValueOnce(session)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({
+        session,
+        offset: 0,
+        droppedBefore: 0,
+        bytes: [122, 100],
+        readError: null,
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ reason: "terminated", code: null, signal: null })
+      .mockResolvedValueOnce(undefined);
+    const terminal = detectPlatform().terminal;
+
+    await terminal.start(request);
+    await terminal.write(session, [13]);
+    await terminal.resize(session, viewport);
+    await terminal.read(session);
+    await terminal.pollExit(session);
+    await terminal.terminate(session);
+    await terminal.dispose(session);
+
+    expect(invoke.mock.calls).toEqual([
+      ["terminal_start", { request }],
+      ["terminal_write", { session, bytes: [13] }],
+      ["terminal_resize", { session, viewport }],
+      ["terminal_read", { session }],
+      ["terminal_poll_exit", { session }],
+      ["terminal_terminate", { session }],
+      ["terminal_dispose", { session }],
+    ]);
+    expect(request).not.toHaveProperty("cwd");
+    expect(request).not.toHaveProperty("command");
+    expect(request).not.toHaveProperty("environment");
+  });
+
+  it("does not pretend a browser can own terminal processes", async () => {
+    const terminal = detectPlatform().terminal;
+    const request = createTerminalStartRequest(
+      { projectId: "project-a", worktreeId: "worktree-a" },
+      { rows: 24, columns: 80 },
+    );
+
+    await expect(terminal.start(request)).rejects.toThrow("desktop shell");
     expect(invoke).not.toHaveBeenCalled();
   });
 

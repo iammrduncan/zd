@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Platform, WorkspaceListing } from "@/platform";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
+import { unavailableTerminalAdapter } from "@/terminal";
 import { mountWorkspace, type DocumentMount, type MountedDocument } from "@/miniapps/md/workspace";
 import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
 import type { LaunchRequest, ProjectGrant } from "@/workbench/resources";
@@ -96,6 +97,7 @@ function context(path: string, listing: WorkspaceListing): WorkbenchRuntimeConte
       }),
       recordDiagnostic: async () => ({ recorded: false, problem: null }),
       revealDiagnostics: async () => {},
+      terminal: unavailableTerminalAdapter,
       workspaceFiles: async () => listing,
       readTextFile: async () => "",
       readBoundedFile: async () => ({ status: "unavailable", problem: "unused test boundary" }),

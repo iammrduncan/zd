@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Platform } from "@/platform";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
+import { unavailableTerminalAdapter } from "@/terminal";
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import { PERSISTENT_NOTICE } from "@/miniapps/md/notice";
 import { attachShortcuts, clearCommands } from "@/workbench/shortcuts";
@@ -97,6 +98,7 @@ function context(
       }),
       recordDiagnostic: async () => ({ recorded: false, problem: null }),
       revealDiagnostics: async () => {},
+      terminal: unavailableTerminalAdapter,
       workspaceFiles: async () => {
         throw new Error("no listing");
       },
