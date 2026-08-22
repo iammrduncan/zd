@@ -24,9 +24,11 @@ use process::{run_git, GitRunError};
 use status::parse_status;
 
 pub use types::{
-    GitAvailability, GitChangeState, GitCompareRequest, GitComparison, GitHistoryPage,
-    GitHistoryRequest, GitScope, GitStatusSnapshot,
+    GitAvailability, GitCompareRequest, GitComparison, GitHistoryPage, GitHistoryRequest,
+    GitScope, GitStatusSnapshot,
 };
+#[cfg(test)]
+pub use types::GitChangeState;
 
 const PROBE_OUTPUT_LIMIT: usize = 16 * 1024;
 const STATUS_OUTPUT_LIMIT: usize = 8 * 1024 * 1024;

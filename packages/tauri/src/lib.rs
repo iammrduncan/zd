@@ -6,6 +6,7 @@
 mod cli;
 mod file_tree;
 mod fs;
+mod git;
 mod grants;
 pub mod instrumentation;
 mod projects;
@@ -76,6 +77,9 @@ pub fn run() {
             has_pending_open_request,
             accept_open_request,
             file_tree::file_tree_snapshot,
+            git::git_status,
+            git::git_history_page,
+            git::git_compare,
             fs::read_text_file,
             fs::read_bounded_file,
             fs::workspace_files,
