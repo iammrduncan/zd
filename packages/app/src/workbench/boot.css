@@ -6,3 +6,26 @@
   line-height: var(--type-supporting-line);
   color: var(--text-secondary);
 }
+
+.zd-local-notices {
+  position: fixed;
+  z-index: 30;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  max-width: min(420px, calc(100vw - 32px));
+  gap: 6px;
+  pointer-events: none;
+}
+
+.zd-local-notice {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line-quiet);
+  border-radius: 4px;
+  background: var(--surface-transient);
+  color: var(--text-secondary);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+}

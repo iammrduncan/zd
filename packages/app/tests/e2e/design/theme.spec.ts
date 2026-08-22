@@ -1,18 +1,20 @@
 import { expect, test } from "@playwright/test";
 
-// DESIGN.md §4.3: three modes, two palettes. System resolves to Light or Dark
-// rather than being a third appearance. The palette values themselves are locked
-// in tests/unit/design/theme.test.ts; what needs a real engine is that light-dark()
-// resolves at all and that [data-theme] beats the OS preference.
+// System resolves to Current Light or Dark rather than being a third appearance.
+// Explicit themes are applied through the same loader used during workbench boot.
 
 const CANVAS = { light: "rgb(250, 250, 247)", dark: "rgb(25, 26, 25)" };
 const PROSE = { light: "rgb(36, 37, 34)", dark: "rgb(229, 226, 217)" };
 
-async function paint(page: import("@playwright/test").Page, theme?: "light" | "dark") {
-  await page.evaluate((value) => {
-    if (value) document.documentElement.setAttribute("data-theme", value);
-    else document.documentElement.removeAttribute("data-theme");
-  }, theme ?? null);
+async function paint(
+  page: import("@playwright/test").Page,
+  theme: "system" | "light" | "dark" | "dracula" = "system",
+) {
+  await page.evaluate(async (value) => {
+    const appearanceModule = "/src/suite/appearance.ts";
+    const { setTheme } = await import(appearanceModule);
+    setTheme(value);
+  }, theme);
 
   return page.evaluate(() => {
     const style = getComputedStyle(document.body);
@@ -25,7 +27,7 @@ for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme });
     await page.goto("/");
 
-    const painted = await paint(page);
+    const painted = await paint(page, "system");
     expect(painted.background).toBe(CANVAS[scheme]);
     expect(painted.text).toBe(PROSE[scheme]);
   });
@@ -48,7 +50,19 @@ test("clearing the explicit theme returns to following the system", async ({ pag
   await page.goto("/");
 
   expect((await paint(page, "light")).background).toBe(CANVAS.light);
-  expect((await paint(page)).background).toBe(CANVAS.dark);
+  expect((await paint(page, "system")).background).toBe(CANVAS.dark);
+});
+
+test("Dracula replaces the complete workbench palette without remounting", async ({ page }) => {
+  await page.goto("/");
+  const workbench = page.locator(".zd-workbench");
+  await workbench.evaluate((node) => {
+    (node as HTMLElement).dataset.themeProbe = "same-node";
+  });
+
+  expect((await paint(page, "dracula")).background).toBe("rgb(40, 42, 54)");
+  await expect(workbench).toBeAttached();
+  await expect(workbench).toHaveAttribute("data-theme-probe", "same-node");
 });
 
 test("warmth rests at an exact identity", async ({ page }) => {

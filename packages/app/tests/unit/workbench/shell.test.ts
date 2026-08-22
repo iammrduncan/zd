@@ -17,6 +17,7 @@ function context(): WorkbenchRuntimeContext {
     removeProjectGrant: async () => {
       throw new Error("no grants");
     },
+    themeConfigFiles: async () => [],
     workspaceFiles: async () => {
       throw new Error("no listing");
     },

@@ -25,9 +25,7 @@ const project: ProjectGrant = {
   name: "w",
   root: "/w",
   availability: "available",
-  worktrees: [
-    { id: "worktree-w", name: "w", root: "/w", availability: "available" },
-  ],
+  worktrees: [{ id: "worktree-w", name: "w", root: "/w", availability: "available" }],
 };
 
 function resource(path: string): FileResource {
@@ -66,6 +64,7 @@ function context(
       acceptOpenRequest: async () => null,
       projectGrants: async () => [project],
       removeProjectGrant: async () => project,
+      themeConfigFiles: async () => [],
       workspaceFiles: async () => {
         throw new Error("no listing");
       },

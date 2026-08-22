@@ -40,6 +40,13 @@ export interface WorkspaceListing {
   files: WorkspaceFile[];
 }
 
+/** One bounded, non-executable theme file discovered by the native shell. */
+export interface ThemeConfigFile {
+  readonly fileName: string;
+  readonly contents: string | null;
+  readonly problem: string | null;
+}
+
 export interface Platform {
   readonly kind: "tauri" | "browser";
   /** What the process was launched to open. */
@@ -54,6 +61,8 @@ export interface Platform {
   projectGrants(): Promise<readonly ProjectGrant[]>;
   /** Revoke an inactive project after root lifecycle guards approve it. */
   removeProjectGrant(projectId: string): Promise<ProjectGrant>;
+  /** Read direct `<name>.theme.config` children of the platform `zd` config directory. */
+  themeConfigFiles(): Promise<readonly ThemeConfigFile[]>;
   /** Read a UTF-8 text file. */
   readTextFile(resource: FileResource): Promise<string>;
   /** Markdown files inside one already-approved project/worktree root. */
@@ -110,13 +119,12 @@ const tauri: Platform = {
   pendingOpenRequest: () => invoke<LaunchRequest | null>("pending_open_request"),
   acceptOpenRequest: () => invoke<LaunchRequest | null>("accept_open_request"),
   projectGrants: () => invoke<readonly ProjectGrant[]>("project_grants"),
-  removeProjectGrant: (projectId) =>
-    invoke<ProjectGrant>("remove_project_grant", { projectId }),
+  removeProjectGrant: (projectId) => invoke<ProjectGrant>("remove_project_grant", { projectId }),
+  themeConfigFiles: () => invoke<readonly ThemeConfigFile[]>("theme_config_files"),
   workspaceFiles: (projectId, worktreeId) =>
     invoke<WorkspaceListing>("workspace_files", { projectId, worktreeId }),
   readTextFile: (resource) => invoke<string>("read_text_file", { resource }),
-  writeTextFile: (resource, contents) =>
-    invoke<void>("write_text_file", { resource, contents }),
+  writeTextFile: (resource, contents) => invoke<void>("write_text_file", { resource, contents }),
   fileStamp: (resource) => invoke<FileStamp | null>("file_stamp", { resource }),
   onCloseRequested: (handler) => {
     /*
@@ -155,6 +163,7 @@ const browser: Platform = {
   removeProjectGrant: async (projectId) => {
     throw new Error(`no project grants in the browser shell: ${projectId}`);
   },
+  themeConfigFiles: async () => [],
   workspaceFiles: async (projectId, worktreeId) => {
     throw new Error(`no filesystem in the browser shell: ${projectId}/${worktreeId}`);
   },

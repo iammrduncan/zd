@@ -48,6 +48,7 @@ function platform(writeTextFile: Platform["writeTextFile"] = async () => {}): Pl
     acceptOpenRequest: async () => null,
     projectGrants: async () => [project],
     removeProjectGrant: async () => project,
+    themeConfigFiles: async () => [],
     workspaceFiles: async () => {
       throw new Error("no listing");
     },
@@ -182,9 +183,7 @@ describe("review feedback", () => {
     await vi.waitFor(() => expect(tags).toEqual([]));
     expect(sidebar.querySelector(".md-feedback-launcher")?.textContent).toBe("Feedback 0");
     expect(host.querySelector(".md-feedback-output")?.textContent).toBe("");
-    await vi.waitFor(() =>
-      expect(writeTextFile).toHaveBeenLastCalledWith(feedbackResource, ""),
-    );
+    await vi.waitFor(() => expect(writeTextFile).toHaveBeenLastCalledWith(feedbackResource, ""));
     review.unmount();
 
     const reopened = mountReview({

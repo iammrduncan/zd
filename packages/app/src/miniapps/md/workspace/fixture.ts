@@ -47,6 +47,7 @@ const platform: Platform = {
   acceptOpenRequest: async () => null,
   projectGrants: async () => [project],
   removeProjectGrant: async () => project,
+  themeConfigFiles: async () => [],
   workspaceFiles: async () => ({
     projectId: project.id,
     worktreeId: project.worktrees[0]!.id,

@@ -141,10 +141,7 @@ describe("the versioned workbench state", () => {
     const alpha = grant("project-alpha", "/work/alpha");
     const beta = grant("project-beta", "/work/beta");
 
-    const state = workbenchStateFromGrants(
-      [alpha, beta],
-      launchFor(beta, "src/main.ts"),
-    );
+    const state = workbenchStateFromGrants([alpha, beta], launchFor(beta, "src/main.ts"));
 
     expect(state.projects.map(({ id }) => id)).toEqual(["project-alpha", "project-beta"]);
     expect(state.worktrees.map(({ id }) => id)).toEqual([
@@ -316,5 +313,18 @@ describe("root-owned region state", () => {
 
     expect(owner.snapshot().window.presentation).toBe("quick-access");
     expect(owner.snapshot().active).toEqual(before);
+  });
+
+  it("publishes resolved theme identity without changing work context", () => {
+    const owner = createWorkbenchStateOwner(populatedState());
+    const before = owner.snapshot().active;
+    const seen = vi.fn();
+    owner.subscribe(seen);
+
+    owner.setThemeSelection("dracula", "dracula");
+
+    expect(owner.snapshot().theme).toEqual({ selected: "dracula", lastValid: "dracula" });
+    expect(owner.snapshot().active).toEqual(before);
+    expect(seen).toHaveBeenCalledOnce();
   });
 });

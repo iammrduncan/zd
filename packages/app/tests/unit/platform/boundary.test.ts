@@ -70,6 +70,18 @@ describe("the Tauri window boundary", () => {
     });
   });
 
+  it("reads theme configuration only through the native config boundary", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    invoke.mockResolvedValue([{ fileName: "quiet.theme.config", contents: "{}", problem: null }]);
+
+    await detectPlatform().themeConfigFiles();
+
+    expect(invoke).toHaveBeenCalledExactlyOnceWith("theme_config_files");
+  });
+
   it("never sends an absolute path through ordinary file commands", async () => {
     Object.defineProperty(window, "__TAURI_INTERNALS__", {
       configurable: true,

@@ -1,8 +1,12 @@
-/** Appearance settings shared by every mini app in the suite. */
+import { ThemeController, loadThemeCatalog } from "@/design/themes";
 
-export type Theme = "system" | "light" | "dark";
+/** Transitional appearance controls used by the design specimen. */
+
+export type Theme = "system" | "light" | "dark" | "dracula";
 
 const APPLYING_COLOUR_SETTING = "data-applying-colour-setting";
+const BUILT_INS = loadThemeCatalog([]);
+let controller: ThemeController | null = null;
 
 /**
  * Apply a colour setting without borrowing Focus Mode's outgoing transition.
@@ -25,8 +29,12 @@ function applyColourSetting(change: (root: HTMLElement) => void): void {
 /** Use an explicit palette, or return to following the operating system. */
 export function setTheme(theme: Theme): void {
   applyColourSetting((root) => {
-    if (theme === "system") root.removeAttribute("data-theme");
-    else root.setAttribute("data-theme", theme);
+    controller?.dispose();
+    const selected = theme === "light" ? "current-light" : theme;
+    controller = new ThemeController(root, BUILT_INS, {
+      selected,
+      lastValid: theme === "dark" ? "dark" : "current-light",
+    });
   });
 }
 

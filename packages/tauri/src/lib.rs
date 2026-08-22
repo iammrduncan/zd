@@ -6,6 +6,7 @@
 mod cli;
 mod fs;
 mod grants;
+mod themes;
 
 #[cfg(target_os = "macos")]
 use tauri::Emitter;
@@ -59,6 +60,7 @@ pub fn run() {
             fs::write_text_file,
             fs::file_stamp,
             fs::open_external,
+            themes::theme_config_files,
             close_window,
         ])
         /*

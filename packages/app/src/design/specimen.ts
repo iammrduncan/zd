@@ -147,7 +147,7 @@ function themeControls(): HTMLElement {
   const bar = el("div", "specimen-controls");
   bar.append(el("span", "specimen-label", "theme"));
 
-  for (const mode of ["system", "light", "dark"] as const) {
+  for (const mode of ["system", "light", "dark", "dracula"] as const) {
     const button = el("button", "specimen-button", mode);
     button.dataset.mode = mode;
     button.addEventListener("click", () => {
