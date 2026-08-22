@@ -2,9 +2,9 @@ export {
   WORKBENCH_STATE_VERSION,
   defaultWorkbenchState,
   fileStateId,
-  parseWorkbenchState,
   workbenchStateFromGrants,
 } from "./state-core";
+export { parseWorkbenchState } from "./state-codec";
 export type {
   CentreMode,
   ContextTransition,

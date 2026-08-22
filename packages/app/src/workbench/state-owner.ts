@@ -1,8 +1,8 @@
 import type { FileResource, LaunchRequest, ProjectGrant } from "./resources";
+import { cloneState, parseWorkbenchState } from "./state-codec";
 import {
   bufferStateId,
   clamp,
-  cloneState,
   contextForLaunch,
   contextProblem,
   defaultWorkbenchState,
@@ -10,7 +10,6 @@ import {
   fileStateId,
   grantProblem,
   launchFile,
-  parseWorkbenchState,
   projectFromGrant,
   sameContext,
   stateWithGrants,
