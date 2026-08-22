@@ -34,7 +34,6 @@ const CONTRIBUTOR_PAGES = [
   "CONTRIBUTING.md",
   "docs/README.md",
   "packages/app/src/README.md",
-  "packages/app/src/miniapps/README.md",
   "packages/tauri/src/README.md",
 ];
 const EXPANDED_GOALS = [
@@ -166,13 +165,11 @@ describe("the repository documentation map", () => {
     expect(existsSync(resolve(ROOT, "docs/planning/objectives/agent-findings.md"))).toBe(true);
   });
 
-  it("retires the old surface-extension contributor instructions", () => {
-    const guide = page("packages/app/src/miniapps/README.md");
+  it("removes the retired source-extension boundary from contributor context", () => {
+    const app = page("packages/app/src/README.md");
 
-    expect(guide).toContain("migration input, not an extension point");
-    expect(guide).toContain("../README.md");
-    expect(guide).not.toContain("while Gate 1");
-    expect(guide).not.toContain("## Adding one");
+    expect(existsSync(resolve(ROOT, "packages/app/src/miniapps"))).toBe(false);
+    expect(app).not.toMatch(/miniapps?/i);
   });
 
   it("routes implementation contributors through the current source owners", () => {
@@ -188,8 +185,9 @@ describe("the repository documentation map", () => {
 
     expect(app).toContain("workbench/boot.ts");
     expect(app).toContain("workbench/state.ts");
+    expect(app).toContain("workbench/current-file/");
+    expect(app).toContain("editor/");
     expect(app).toContain("platform.ts");
-    expect(app).toContain("miniapps/README.md");
     expect(native).toContain("lib.rs");
     expect(native).toContain("grants.rs");
     expect(native).toContain("terminal/");
@@ -248,10 +246,7 @@ describe("the repository documentation map", () => {
     const retiredLaunch = new RegExp(`\\b${["zd", "md"].join("\\s+")}\\b`, "i");
     const retiredExtensionFraming = /\bmini[ -]?apps?\b/i;
     const spacedFamilyName = new RegExp(["Zen", "Suite"].join("\\s+"), "i");
-    const reviewedLegacyLocations = new Set([
-      "packages/app/src/README.md",
-      "packages/app/src/miniapps/README.md",
-    ]);
+    const reviewedLegacyLocations = new Set<string>();
 
     const offenders = currentPages.flatMap((path) => {
       const source = page(path);

@@ -1,0 +1,578 @@
+/*
+ * The editing surface.
+ *
+ * Vision §6: everything that makes reading good stays true while you type. So
+ * this file has one job — take CodeMirror's base theme, which is a general
+ * purpose editor's idea of an editor, and return the surface to the workbench's.
+ *
+ * Every rule below is either a workbench token replacing one of its decisions, or
+ * the removal of a piece of chrome it draws by default. Same rule as every other
+ * stylesheet here: no family, size, or colour of our own.
+ */
+
+/*
+ * The measure column. §6 says reading and typing are the same surface, so the
+ * caret cannot change the line length.
+ */
+.md-editor {
+  max-width: var(--reading-measure);
+  margin-inline: auto;
+}
+
+/*
+ * Wrapping off is a reading choice, not a reason to keep spending viewport
+ * width on centring slack. The §5.3 inset still supplies the required breathing
+ * room; only the extra auto margin between that inset and the fixed reading
+ * measure disappears, so a long line travels farther before it overflows.
+ *
+ * Follow CodeMirror's own wrapping class rather than mirroring the setting into
+ * another attribute. When wrapping returns, this selector stops matching and
+ * the centred reading measure above returns unchanged.
+ */
+.md-editor:has(.cm-content:not(.cm-lineWrapping)) {
+  margin-inline-start: 0;
+}
+
+/*
+ * CodeMirror scrolls itself by default, inside a fixed-height box. We already
+ * have a scroll container — .md-surface — carrying the §5.3 insets and the focus
+ * gutters, and two nested scrollers would mean two scroll positions and a
+ * scrollbar we are not allowed to draw. So the editor grows to its content and
+ * the surface goes on doing the scrolling.
+ */
+.md-editor .cm-editor {
+  height: auto;
+}
+
+/*
+ * Only the overflow. The base theme also sets a mono family and its own line
+ * height on this element, and answering them here looks necessary — but
+ * .cm-content sets both further down and that is what .cm-line inherits from,
+ * so the copies here were dead. Deleting them changes nothing on screen, which
+ * is exactly why they had to go.
+ */
+.md-editor .cm-scroller {
+  overflow: visible;
+}
+
+/*
+ * Prose role, §5.2 — the place the "not a second mode" claim is either true or false.
+ */
+.md-editor .cm-content {
+  padding: 0;
+  font-family: var(--type-prose-family);
+  font-size: var(--type-prose-size);
+  font-weight: var(--type-prose-weight);
+  font-style: var(--type-prose-style);
+  line-height: var(--type-prose-line);
+  color: var(--text-primary);
+  /* line.focus is the design system's "attention is here" colour, and the caret is the
+     smallest possible instance of that. text.primary would hide it in the text. */
+  caret-color: var(--line-focus);
+}
+
+/*
+ * The §5.3 horizontal inset, on the trailing edge, for the one state that can
+ * reach it.
+ *
+ * Reported 2026-07-30: "if you turn off line wrap, there should still be some
+ * margin on the right most screen so when you scroll right the last character
+ * isn't at edge of screen making it hard to read."
+ *
+ * `.md-surface` already carries `padding-inline: var(--reading-inset-x)` and the
+ * inset is genuinely there in the box model — it is simply not *scrollable* to.
+ * A scroll container's scrollable overflow region is its padding box plus the
+ * boxes of its overflowing descendants, and the trailing padding is not added
+ * past content that already runs beyond it. Measured at a 600px window:
+ * `scrollWidth` 761 against a 729px content box, which is the 32px leading
+ * padding and nothing else, and the last character landing on the frame exactly.
+ *
+ * Two other shapes were measured and neither works, which is why this one is on
+ * `.cm-content` rather than somewhere more obvious:
+ *
+ *   - A trailing margin on `.cm-content` changes nothing. Chrome computes the
+ *     surface's overflow from a descendant's *border* box; the margin is not in
+ *     it. Same for `.md-editor`, which the content overflows anyway.
+ *   - A trailing padding on `.md-editor` cannot help either: with wrapping off
+ *     the lines are wider than that column, so the space would sit inside the
+ *     region the text has already passed.
+ *
+ * `.cm-content` is the element whose width *is* the document's horizontal extent
+ * — CodeMirror gives it a `min-width` of the longest line — so growing its box is
+ * the only thing that grows what can be scrolled to.
+ *
+ * Wrapping-off only, and that is not a shortcut. With wrapping on there is
+ * nothing to scroll to and the surface's own padding already supplies the inset,
+ * so this padding would either narrow the §5.3 measure or push the content past
+ * the window — and "the document cannot drift sideways" is the resting-state
+ * claim md.css makes a few lines from here. `cm-lineWrapping` is CodeMirror's own
+ * class, added by the `EditorView.lineWrapping` extension that the toggle
+ * reconfigures, so the selector tracks the real state rather than a copy of it.
+ */
+.md-editor .cm-content:not(.cm-lineWrapping) {
+  padding-inline-end: var(--reading-inset-x);
+}
+
+/*
+ * A file that is not markdown — vision §6.2: "rendered as code: mono family, no
+ * markdown parsing… The calm, the measure, the focus, and the theme are
+ * unchanged — what differs is only that the file is not markdown."
+ *
+ * So this rule is exactly four declarations long. Everything above it still
+ * applies: the same colour, the same caret, the same insets, the same focus
+ * dimming, the same anchor. The §5.2 code role is the only thing that changes,
+ * and it is the same role a fenced block already takes — a `.rs` file and a
+ * ```rust fence must not be set in two different faces.
+ *
+ * `data-language` is written by createEditor before the view is built, so a code
+ * file never paints once in the prose face and then reflows (§2).
+ */
+.md-editor[data-language="code"] .cm-content {
+  font-family: var(--type-code-family);
+  font-size: var(--type-code-size);
+  font-weight: var(--type-code-weight);
+  line-height: var(--type-code-line);
+}
+
+/* The base theme insets every line by 2px, which dents the measure. */
+.md-editor .cm-line {
+  padding: 0;
+}
+
+/*
+ * Heading lines.
+ *
+ * The §5.2 roles and §5.3 rhythm for `h1`–`h6`, applied to the source line. The
+ * `#` stays on screen and
+ * hangs in the notation gutter beside it — see `.md-notation-mark` below.
+ *
+ * Space is padding rather than margin for one reason:
+ * CodeMirror measures line heights to place the viewport and the caret, and
+ * margins fall outside the box it measures. Padding is inside it, so the numbers
+ * it works from stay true. The visible cost is that adjacent headings add their
+ * space instead of collapsing to the larger — which normal flow would do, and
+ * which §5.3 asks for. Two headings in a row with nothing between them is the
+ * only case that differs, and in source that is rare enough to accept for now.
+ *
+ * No `text-wrap: balance`: re-balancing a heading on every keystroke is visible
+ * jitter while typing.
+ */
+.md-editor .md-line-h1 {
+  font-family: var(--type-h1-family);
+  font-size: var(--type-h1-size);
+  line-height: var(--type-h1-line);
+  font-weight: var(--type-h1-weight);
+  padding-block: var(--gap-h2-before) var(--gap-h1-after);
+}
+
+.md-editor .md-line-h1.md-line-document-title {
+  padding-block-start: 0;
+}
+
+.md-editor .md-line-h2 {
+  font-family: var(--type-h2-family);
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: var(--type-h2-weight);
+  padding-block: var(--gap-h2-before) var(--gap-h2-after);
+}
+
+.md-editor .md-line-h3 {
+  font-family: var(--type-h3-family);
+  font-size: var(--type-h3-size);
+  line-height: var(--type-h3-line);
+  font-weight: var(--type-h3-weight);
+  padding-block: var(--gap-h3-before) var(--gap-heading-after);
+}
+
+.md-editor .md-line-h4 {
+  font-family: var(--type-h4-family);
+  font-size: var(--type-h4-size);
+  line-height: var(--type-h4-line);
+  font-weight: var(--type-h4-weight);
+  padding-block: var(--gap-h4-before) var(--gap-heading-after);
+}
+
+.md-editor .md-line-h5 {
+  font-family: var(--type-h5-family);
+  font-size: var(--type-h5-size);
+  line-height: var(--type-h5-line);
+  font-weight: var(--type-h5-weight);
+  padding-block: var(--gap-h5-before) var(--gap-heading-after);
+}
+
+.md-editor .md-line-h6 {
+  font-family: var(--type-h6-family);
+  font-size: var(--type-h6-size);
+  line-height: var(--type-h6-line);
+  font-weight: var(--type-h6-weight);
+  padding-block: var(--gap-h6-before) var(--gap-heading-after);
+}
+
+/*
+ * Lists. Finding F12: the first prototype's lists "read like a blob of
+ * left-aligned text that merely happens to begin with numbers", because a
+ * soft-wrapped line returned to the left margin instead of to the item's text
+ * origin. There is no list element here, so that shape is built from marker boxes.
+ *
+ * Hanging the *line* by `--list-marker-column` is the obvious version and it is
+ * wrong: it only lands if `- ` happens to be exactly that wide, and it is not.
+ * That put an item's text at three different origins — after the marker on the
+ * first line, on the column after a soft wrap, and past the author's own indent
+ * on a source continuation — which is F12 again with jitter added.
+ *
+ * So the hang belongs to the marker. Every list line starts its content on the
+ * column, and the marker box is pulled back out of it by exactly the column's
+ * width — which the box *has*, because it is given it below rather than assumed
+ * to have it. Whatever the marker measures, the text after it lands on the
+ * column, and so does every wrapped line.
+ *
+ * A continuation the author left flush gets no box and needs none: the padding
+ * alone already puts it on the column.
+ */
+/*
+ * `--hang` is the one distance this whole block is built from: the marker
+ * column, plus §5.2's fourteen pixels for every level of nesting. Every box
+ * below is either that wide or pulled back by exactly that much, so there is
+ * one number to get right rather than four that have to agree.
+ *
+ * `--nest` is declared here at 0 and overridden by the inline style notation.ts
+ * puts on a nested line. The default belongs in the stylesheet rather than in a
+ * `var()` fallback: a top-level item is the common case, and it should be able
+ * to read its own depth here rather than in a decoration's attributes.
+ */
+.md-editor .md-line-item,
+.md-editor .md-line-item-cont {
+  --nest: 0;
+  --hang: calc(var(--list-marker-column) + var(--nest) * var(--list-level-indent));
+  padding-inline-start: var(--hang);
+}
+
+/* §5.3 gives 6px between items, and the source spends no blank line on them. */
+.md-editor .md-line-item {
+  padding-block-start: var(--gap-list-item);
+}
+
+/*
+ * The marker column. §5.2: "unordered and ordered markers occupy one fixed
+ * right-aligned column".
+ *
+ * `width` with `text-align: right`, not `min-width` left-aligned. The old rule
+ * let `10. ` grow the box and carry its own text right with it, so a list
+ * stepped out of line at the ninth item — F12 arriving by a different route.
+ * Fixed and right-aligned, an over-wide marker overhangs to the left instead,
+ * and every item's prose stays on one origin. Same trade `--list-marker-column`
+ * documents in tokens.css, and the same one the notation gutter makes.
+ *
+ * Only the first box on the line pays for the hang. On a nested item the indent
+ * below comes first and has already pulled the whole distance back, so the
+ * marker simply flows on from where that left off.
+ */
+.md-editor .md-line-marker {
+  display: inline-block;
+  width: var(--list-marker-column);
+  text-align: right;
+}
+
+.md-editor .md-line-marker:first-child {
+  margin-inline-start: calc(-1 * var(--hang));
+}
+
+/*
+ * The nesting steps on an item line, and the whole leading run on a
+ * continuation. Both replace literal source whitespace — whose width is
+ * whatever the prose face makes it — with the distance §5.2 specifies.
+ *
+ * The indent stops at the marker column because the marker takes over there;
+ * the continuation has no marker, so its box spans the whole hang. That is the
+ * entire difference between the two, and it is why a wrapped nested item comes
+ * back to its own origin rather than its parent's.
+ */
+.md-editor .md-line-indent {
+  display: inline-block;
+  width: calc(var(--nest) * var(--list-level-indent));
+  margin-inline-start: calc(-1 * var(--hang));
+}
+
+.md-editor .md-line-cont-fill {
+  display: inline-block;
+  width: var(--hang);
+  margin-inline-start: calc(-1 * var(--hang));
+}
+
+/*
+ * The notation gutter — DESIGN.md §7.4, user feedback F05.
+ *
+ * "Block notation sits in the gutter, outside the prose column. A heading's `#`
+ * ... hangs to the left of the text edge so the reading column is one straight
+ * line at every width. Prose and soft-wrapped rows return to that edge, so
+ * visible notation never creates an accidental second margin and never dents
+ * the measure."
+ *
+ * So the heading line itself gets no indent at all: its text starts exactly
+ * where a paragraph's does, and the box below is pulled out of the column by
+ * its own width. That is the whole trick, and it is why this is a `margin` on
+ * the marker rather than `padding` on the line — padding the line would move
+ * the text and dent the measure, which is the thing being fixed.
+ *
+ * `text-align: right` with a fixed width, not `min-width`: a marker wider than
+ * the gutter must overhang further left rather than push its heading's text
+ * off the edge. Right-aligned overflow goes left for free, and the content
+ * origin — the only thing the eye tracks down the page — never moves.
+ *
+ * No face of its own. §5.2, rewritten 2026-07-29: "A Markdown source marker takes
+ * the type role of the construct it marks … a `#` set two thirds the size of its
+ * own heading reads as debris beside it rather than as its notation." So the mark
+ * sets no family, size, or line height at all and inherits the heading's, which
+ * is also exactly what §5.2's inline ownership contract wants — "no inline role
+ * may create a shorter competing line box."
+ *
+ * Colour is the one thing that does not follow: every marker stays `text.muted`,
+ * because subordinate is what keeps visible notation from competing with the
+ * prose beside it. See the shared rule below.
+ */
+.md-editor .md-notation-mark {
+  display: inline-block;
+  width: var(--notation-gutter);
+  margin-inline-start: calc(-1 * var(--notation-gutter));
+  padding-inline-end: var(--notation-gutter-gap);
+  text-align: right;
+  /*
+   * Load-bearing, and it earned its own comment the hard way. The box is narrower
+   * than the gutter it hangs in on purpose — an over-wide marker is meant to
+   * overhang to the left rather than push its heading's text out of line. Without
+   * `nowrap` it wraps *inside* the box instead, and an inline-block two lines tall
+   * makes the whole heading row two lines tall: `#` at h1 measured 76px against a
+   * 38px line, every heading grew, and the document got 400px longer.
+   *
+   * The trailing space collapses here, which is why the gap above is padding and
+   * not that space — a gap that depends on whitespace surviving is a gap that
+   * disappears the moment anything touches white-space.
+   */
+  white-space: nowrap;
+}
+
+/*
+ * Every source marker, one rule — §5.2: "Markers stay `text.muted` at every
+ * role." A heading's `#`, a list's `-` or `1.`, and a quote's `>` are the same
+ * kind of thing and read the same weight of quiet, whatever face they inherit
+ * from the construct they mark.
+ *
+ * The continuation and indent boxes are deliberately absent: they hold only
+ * whitespace, so a colour would be invisible and claiming otherwise in CSS is
+ * a lie a later reader has to disprove.
+ */
+.md-editor .md-notation-mark,
+.md-editor .md-line-marker,
+.md-editor .md-quote-mark {
+  color: var(--text-muted);
+}
+
+/*
+ * Focus moves markers with their line. Without this a marker would keep its own
+ * colour while the line beside it dimmed, leaving the notation as the brightest
+ * thing on a dimmed row — §4.1 dims everything that is not the target, notation
+ * included.
+ */
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-notation-mark,
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-line-marker,
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-quote-mark {
+  color: var(--focus-context-text);
+  transition: color var(--focus-ease-out) ease-out;
+}
+
+/*
+ * Blockquote. §7.3: "Use indentation and one quiet hairline for blockquotes."
+ * The whole resting state — prose colour kept, because a quote is still prose;
+ * no background plane, no italic, no oversized quotation glyph.
+ */
+.md-editor .md-line-quote {
+  padding-inline-start: var(--list-marker-column);
+  border-inline-start: var(--hairline) solid var(--line-quiet);
+}
+
+/*
+ * The `>`, right-aligned into the quote's own indent — decided 2026-07-29 over
+ * the alternative of the shared notation gutter.
+ *
+ * A heading's hash has no boundary of its own, so it goes out to the gutter. A
+ * quote does: the hairline is where the block starts, and a marker on the far
+ * side of it would read as belonging to the page rather than to the quote. So
+ * the indent this line already spends becomes the marker's column, exactly as
+ * a list item's does, so the quote's text does not move one `> ` further right.
+ */
+.md-editor .md-quote-mark {
+  display: inline-block;
+  width: var(--list-marker-column);
+  margin-inline-start: calc(-1 * var(--list-marker-column));
+  text-align: right;
+}
+
+/*
+ * Fenced code, including its fence lines — they are part of the source and §6.1
+ * keeps the source on screen.
+ *
+ * §5.2 wants "one continuous rectangular plane spanning the full code measure
+ * and every row". Here every row is its own element, so each carries the plane
+ * and they stack into one. That only stays
+ * continuous while the rows have no gap between them, which is why there is no
+ * margin anywhere in this rule.
+ */
+.md-editor .md-line-code {
+  font-family: var(--type-code-family);
+  font-size: var(--type-code-size);
+  line-height: var(--type-code-line);
+  background: var(--surface-code);
+}
+
+/* §7.3 allows no chrome around the document, and a focus ring is chrome. */
+.md-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+/* Selection is a workbench surface, not the browser's blue. */
+.md-editor .cm-content ::selection,
+.md-editor .cm-line::selection {
+  background: var(--surface-selection);
+}
+
+/*
+ * Focus. §4.1 calls it the heart of the product: the part you are reading stays
+ * at full contrast while everything else is visibly dimmed — dimmed, not hidden,
+ * so you keep your place in the shape of the document.
+ *
+ * The only base colour on the surface is the prose colour every line inherits
+ * from `.cm-content`, so moving that moves all of it. Syntax categories inside a
+ * fence carry their own context roles in md.css.
+ *
+ * §7.6: focus "never adds an on-canvas label, switch, guide line, glow, or
+ * animation", so the target is deliberately unstyled — emphasis here is the
+ * *absence* of dimming. The code plane keeps its background: dimming is a colour
+ * change, not a removal, and a dimmed code block is still a code block.
+ *
+ * The asymmetry falls out of declaring each transition on the state being
+ * *entered*. A line becoming the target adopts a
+ * rule with no transition and snaps to full contrast in the first rendered
+ * frame; a line becoming context eases over the design system's single duration (§6.3).
+ * Reduce Motion is handled globally in reset.css.
+ */
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="target"] {
+  transition: none;
+}
+
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] {
+  color: var(--focus-context-text);
+  transition: color var(--focus-ease-out) ease-out;
+}
+
+/*
+ * A block widget dims with everything else.
+ *
+ * `Decoration.replace({block: true})` renders *outside* the lines — a table is a
+ * sibling of `.cm-line`, not a child — so the two rules above cannot reach it and
+ * a table sat at full target contrast wherever you were reading. Reported
+ * 2026-08-01; measured at `rgb(36, 37, 34)`, which is the target colour exactly.
+ *
+ * A child of the content that is not a line is a widget by construction, so this
+ * names that rather than a list of widget classes and the next one is covered.
+ * `focus.ts` puts the attribute there — see `paintWidgets`, and why it has to be
+ * a DOM write rather than a decoration.
+ *
+ * `:where()` keeps the specificity at zero for the negation, so these two rules
+ * weigh exactly what the two above do and the cascade stays readable.
+ */
+.md-editor[data-focus-mode="true"] .cm-content > :where(:not(.cm-line))[data-focus="target"] {
+  transition: none;
+}
+
+.md-editor[data-focus-mode="true"] .cm-content > :where(:not(.cm-line))[data-focus="context"],
+.md-editor[data-focus-mode="true"] .cm-content > :where(:not(.cm-line))[data-focus="context"] * {
+  color: var(--focus-context-text);
+  transition: color var(--focus-ease-out) ease-out;
+}
+
+/*
+ * Line granularity, §7.6: "line means one laid-out visual line", and the target
+ * "restores full role contrast only across that row".
+ *
+ * So the caret's own line is context like every other, and this paints one row
+ * back to full contrast inside it. The rule has to name `--text-primary`
+ * explicitly rather than inherit: what it inherits from is the dimmed line,
+ * which is the thing it exists to undo.
+ */
+.md-editor[data-focus-mode="true"] .cm-line [data-focus="target"] {
+  color: var(--text-primary);
+  transition: none;
+}
+
+/*
+ * Inline code. Finding F07: "Text inside single backticks is visibly unaligned
+ * with the surrounding prose."
+ *
+ * The three ways that goes wrong are the three things deliberately absent here,
+ * under §5.2's "the inline ownership contract is absolute":
+ *
+ *   1. No `vertical-align`. Baseline is the initial value and it is what shares
+ *      the prose baseline; anything else here *is* F07.
+ *   2. No `line-height`. The code role's standalone 22px metric belongs to a code
+ *      passage, not to a run inside prose — the enclosing line box governs.
+ *   3. Horizontal padding only. Vertical padding would push the plane into the
+ *      28px line gap and read as a taller line even though the box is not.
+ *
+ * The backticks are inside this run, so the plane covers them too and it reads as
+ * one thing rather than as a plane with two loose characters beside it.
+ */
+.md-editor .md-inline-code {
+  font-family: var(--type-inline-code-family);
+  font-weight: var(--type-inline-code-weight);
+  font-size: var(--type-inline-code-size);
+  background: var(--surface-code);
+  padding-inline: 0.2em;
+}
+
+/*
+ * Inline code in a heading — finding F10, and §5.2: "Inline code in a heading uses
+ * the heading's size and line height." Its face stays Mono Regular rather than
+ * inheriting the heading's Bold weight; that is why the shared rule above consumes
+ * the inline-code weight token. The body 15px correction is for prose, and applying
+ * it mid-heading is the defect.
+ *
+ * Same specificity as the rule above, so this must stay below it.
+ */
+.md-editor
+  :is(.md-line-h1, .md-line-h2, .md-line-h3, .md-line-h4, .md-line-h5, .md-line-h6)
+  .md-inline-code {
+  font-size: inherit;
+}
+
+/*
+ * The backticks. Notation, so `text.muted` like every other marker (§5.2), and
+ * nothing else — they already carry the run's face and plane by sitting inside it.
+ */
+.md-editor .md-code-mark {
+  color: var(--text-muted);
+}
+
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-code-mark {
+  color: var(--focus-context-text);
+  transition: color var(--focus-ease-out) ease-out;
+}
+
+/*
+ * A horizontal rule. DESIGN.md §7.3: "The one place a line is the content rather
+ * than decoration, so it is the same quiet hairline and nothing more — no shadow,
+ * no double border, no centred ornament."
+ *
+ * Drawn on the line rather than as a widget, so the row survives and the caret can
+ * still reach it. That makes a rule the only rendered construct whose source is
+ * reachable without raw mode, which is worth keeping rather than making it uniform
+ * with the constructs that genuinely cannot do it.
+ *
+ * The hairline sits on the *top* edge and the row's own space carries the rhythm —
+ * §5.3's block gap spent as padding, the way every other editor block spends it,
+ * because CodeMirror measures a line from its border box.
+ */
+.md-editor .md-line-rule {
+  border-block-start: var(--hairline) solid var(--line-quiet);
+  padding-block: var(--gap-block) 0;
+}

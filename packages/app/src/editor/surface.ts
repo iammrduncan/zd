@@ -1,9 +1,9 @@
-import { createEditor, type Editor, type EditorOptions } from "@/miniapps/md/editor/editor";
+import { createEditor, type Editor, type EditorOptions } from "./document";
 
 import type { EditorBuffer } from "./buffer";
 import "./surface.css";
-import "@/miniapps/md/styles/md.css";
-import "@/miniapps/md/styles/content.css";
+import "./styles/markdown.css";
+import "./styles/content.css";
 
 export interface MountedEditorBuffer {
   readonly buffer: EditorBuffer;

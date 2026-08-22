@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 /*
  * The reading anchor's position is one decision held in two languages.
  *
- * `ANCHOR_RATIO` in focus.ts decides which block is focused. The leading
+ * `ANCHOR_RATIO` in editor/focus/anchor.ts decides which block is focused. The leading
  * and trailing gutters in tokens.css decide whether the first and last blocks can
  * be scrolled to it at all. Get them out of step and nothing throws: the document
  * looks right, and the last block simply cannot be focused, ever.
@@ -34,11 +34,11 @@ function vhToken(css: string, name: string): number {
 
 describe("the reading anchor and its gutters", () => {
   const tokens = readFileSync(join(SRC, "design/tokens.css"), "utf8");
-  const focus = readFileSync(join(SRC, "miniapps/md/focus.ts"), "utf8");
+  const focus = readFileSync(join(SRC, "editor/focus/anchor.ts"), "utf8");
 
   const ratio = (() => {
     const found = /const ANCHOR_RATIO = ([\d.]+) \/ ([\d.]+);/.exec(focus);
-    if (!found) throw new Error("ANCHOR_RATIO is not a plain fraction in focus.ts");
+    if (!found) throw new Error("ANCHOR_RATIO is not a plain fraction in editor/focus/anchor.ts");
     return Number(found[1]) / Number(found[2]);
   })();
 

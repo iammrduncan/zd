@@ -1,0 +1,25 @@
+/* The editor owns the Markdown canvas; shell and file lifecycle styles stay with their owners. */
+
+/*
+ * The surface fills its region and owns both axes. Horizontal scrolling remains available when
+ * wrapping is off, while the operating system scrollbar stays visually quiet.
+ */
+.md-surface {
+  height: 100%;
+  overflow: auto;
+  padding-inline: var(--reading-inset-x);
+  scrollbar-width: none;
+}
+
+.md-surface::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * Insets live on the content column so they extend the scroll range without inflating the fixed
+ * surface. The asymmetric gutters let the first and last blocks reach the reading anchor.
+ */
+.md-editor {
+  margin-block: calc(var(--reading-gutter-leading) + var(--reading-inset-top))
+    calc(var(--reading-gutter-trailing) + var(--reading-inset-bottom));
+}

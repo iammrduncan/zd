@@ -7,7 +7,7 @@ import {
 } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
-import { moveItems } from "@/miniapps/md/editor/lists";
+import { moveItems } from "@/editor/markdown/lists";
 
 /*
  * Tab and Shift-Tab on list items, measured on the state rather than on screen.

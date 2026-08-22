@@ -53,7 +53,7 @@ ZD already contains small, useful seams:
   access to the launch workspace.
 - The Markdown workspace layout is not a general compositor. It constructs one sidebar, resizer,
   and document host directly in
-  [`workspace/index.ts`](../../../../../packages/app/src/miniapps/md/workspace/index.ts). That is a sound concrete
+  [`workspace/index.ts` at this research snapshot](https://github.com/iammrduncan/zd/blob/889acc9445170594ca6ae38baa5033d5cd518528/packages/app/src/miniapps/md/workspace/index.ts). That is a sound concrete
   implementation, not failed plugin infrastructure.
 - The accepted architecture still uses Tauri and a portable DOM/CodeMirror frontend. A GPUI rebuild
   would supersede, not merely extend, the

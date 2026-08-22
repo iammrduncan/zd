@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { EditorView } from "@codemirror/view";
 
-import { scrollingMeasure } from "@/miniapps/md/editor/measure";
+import { scrollingMeasure } from "@/editor/measure";
 
 /*
  * The coalescing rule for a measurement whose write moves the document.

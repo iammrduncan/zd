@@ -1,0 +1,89 @@
+/* Current-file lifecycle presentation, including local notices and close confirmation. */
+.current-file {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.current-file-notice {
+  position: absolute;
+  z-index: 3;
+  inset-inline: var(--space-3);
+  inset-block-end: var(--space-3);
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--line-quiet);
+  color: var(--text-secondary);
+  background: var(--surface-transient);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+}
+
+.current-file-notice[data-tone="warning"] {
+  color: var(--text-primary);
+  border-color: var(--line-focus);
+}
+
+.current-file-close-confirmation {
+  inline-size: min(var(--reading-measure), calc(100% - (2 * var(--reading-inset-x))));
+  padding: var(--space-4);
+  color: var(--text-primary);
+  background: var(--surface-transient);
+  border: var(--hairline) solid var(--line-quiet);
+}
+
+.current-file-close-confirmation::backdrop {
+  background: color-mix(in srgb, var(--surface-canvas), transparent 35%);
+}
+
+.current-file-close-confirmation h2 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--type-h3-family);
+  font-size: var(--type-h3-size);
+  font-weight: var(--type-h3-weight);
+  font-style: var(--type-h3-style);
+  line-height: var(--type-h3-line);
+}
+
+.current-file-close-confirmation p {
+  margin: 0;
+  font-family: var(--type-prose-family);
+  font-size: var(--type-prose-size);
+  font-weight: var(--type-prose-weight);
+  font-style: var(--type-prose-style);
+  line-height: var(--type-prose-line);
+}
+
+.current-file-close-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-block-start: var(--space-4);
+}
+
+.current-file-close-actions button {
+  min-block-size: calc(var(--space-4) + var(--space-2));
+  padding: var(--space-1) 0;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-bottom: var(--hairline) solid transparent;
+  font-family: var(--type-action-family);
+  font-size: var(--type-action-size);
+  font-weight: var(--type-action-weight);
+  font-style: var(--type-action-style);
+  line-height: var(--type-action-line);
+  cursor: pointer;
+}
+
+.current-file-close-actions button:hover,
+.current-file-close-actions button:focus-visible {
+  color: var(--text-primary);
+  border-bottom-color: var(--line-focus);
+  outline: none;
+}
