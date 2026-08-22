@@ -24,12 +24,16 @@ Apply the authority and interpretation rules in the execution plan's Visual Refe
   are named `zd`.
 - `zd` has no spelled-out product expansion.
 - There is no separately launched `zd md` miniapp.
+- One process owns one root workbench window. Global summon temporarily presents that same window
+  as quick access; hiding it never tears down projects, documents, threads, or terminals.
 - Markdown keeps the current rendered and directly editable CodeMirror surface.
 - Code files use the same CodeMirror engine in a code presentation.
 - Terminal agents are current scope. ACP agents are future scope. A first-party `zd` agent is not
   current scope.
 - The workbench supports multiple projects, project-scoped threads, Files and Changes views,
   installable themes, and a global summon shortcut.
+- The canonical website remains `https://getzensuite.com`, and the desktop identifier remains
+  `com.zensuite.zd`.
 - Low startup time, low memory use, low idle CPU, and responsive interaction are product behavior.
 
 ## Acceptance Criteria

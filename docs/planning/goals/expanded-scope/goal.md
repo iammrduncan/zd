@@ -83,8 +83,9 @@ D Phase B: public docs, website, metadata, final stale-context audit
 
 Complete Documentation Phase A. The new VISION/DESIGN authority must settle workbench regions,
 themes, Focus/sound defaults, tabs/icons, public identity, CLI compatibility, and multi-project
-native authority. Old binding documents cannot remain the instructions feature agents are expected
-to follow.
+native authority. The settled product and platform decisions in `goal-docs.md` are inputs, not open
+questions. Old binding documents cannot remain the instructions feature agents are expected to
+follow.
 
 ### Gate 1: Establish the workbench foundation
 
