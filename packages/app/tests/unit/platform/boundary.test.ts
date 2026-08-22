@@ -95,6 +95,44 @@ describe("the Tauri window boundary", () => {
     expect(invoke).not.toHaveBeenCalled();
   });
 
+  it("keeps Git inspection read-only and scoped to approved identities", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    invoke.mockResolvedValue({ availability: "available" });
+    const scope = { projectId: "project-a", worktreeId: "worktree-a" };
+    const history = { scope, cursor: null, pageSize: 40 };
+    const comparison = {
+      scope,
+      baseCommitId: "a".repeat(40),
+      headCommitId: "b".repeat(40),
+    };
+    const git = detectPlatform().git;
+
+    await git.status(scope);
+    await git.history(history);
+    await git.compare(comparison);
+
+    expect(invoke.mock.calls).toEqual([
+      ["git_status", { scope }],
+      ["git_history_page", { request: history }],
+      ["git_compare", { request: comparison }],
+    ]);
+    expect(scope).not.toHaveProperty("root");
+  });
+
+  it("reports Git inspection as unavailable without a desktop shell", async () => {
+    const scope = { projectId: "project-a", worktreeId: "worktree-a" };
+
+    await expect(detectPlatform().git.status(scope)).resolves.toMatchObject({
+      scope,
+      availability: "unavailable",
+      entries: [],
+    });
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
   it("opens and recovers projects only through native picker commands", async () => {
     Object.defineProperty(window, "__TAURI_INTERNALS__", {
       configurable: true,

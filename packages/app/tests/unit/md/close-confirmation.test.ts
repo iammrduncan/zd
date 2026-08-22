@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { EditorView } from "@codemirror/view";
 import { unavailableFileTreeAdapter } from "@/files";
+import { unavailableGitAdapter } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { unavailableTerminalAdapter } from "@/terminal";
 
@@ -89,6 +90,7 @@ describe("quitting with unsaved work", () => {
       revealDiagnostics: async () => {},
       terminal: unavailableTerminalAdapter,
       fileTree: unavailableFileTreeAdapter,
+      git: unavailableGitAdapter,
       workspaceFiles: async () => {
         throw new Error("no listing");
       },
