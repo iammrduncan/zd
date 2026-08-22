@@ -82,11 +82,26 @@ export interface NotificationRoutingProblem {
   readonly summary: string;
 }
 
+export type NotificationInstrumentationOperation =
+  | "notification.present"
+  | "notification.sound"
+  | "notification.action.view"
+  | "notification.action.close";
+
+export interface NotificationInstrumentationEvent {
+  readonly operation: NotificationInstrumentationOperation;
+  readonly outcome: "ok" | "cancelled" | "refused" | "failed" | "unavailable";
+  readonly projectId: string;
+  readonly worktreeId: string;
+  readonly threadId: string;
+}
+
 export interface AttentionNotificationCoordinatorOptions {
   readonly adapter: AttentionNotificationAdapter;
   readonly threads: AttentionThreadSource;
   readonly settings: () => AttentionNotificationSettings;
   readonly window: AttentionWindowSource;
   readonly reportProblem?: (problem: NotificationRoutingProblem) => void;
+  readonly record?: (event: NotificationInstrumentationEvent) => void | Promise<void>;
   readonly now?: () => number;
 }

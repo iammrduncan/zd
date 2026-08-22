@@ -108,6 +108,7 @@ function coordinator(options: {
   }));
   const showWorkbench = vi.fn(async () => "ordinary" as const);
   const reportProblem = vi.fn();
+  const record = vi.fn();
   const value = new AttentionNotificationCoordinator({
     adapter: native.value,
     threads: {
@@ -128,6 +129,7 @@ function coordinator(options: {
       showWorkbench,
     },
     reportProblem,
+    record,
     ...(options.now ? { now: options.now } : {}),
   });
   return {
@@ -136,6 +138,7 @@ function coordinator(options: {
     activateThread,
     showWorkbench,
     reportProblem,
+    record,
     emitAttention: (next: ThreadAttentionEventV1) => attention?.(next),
     setSnapshot: (next: ThreadWorkbenchSnapshot) => {
       current = next;
@@ -332,5 +335,31 @@ describe("attention notification coordination", () => {
 
     expect(interval).not.toHaveBeenCalled();
     expect(() => runtime.native.emitAction(action())).not.toThrow();
+  });
+
+  it("records only bounded notification outcomes and stable target identities", async () => {
+    const runtime = coordinator({
+      preferences: settings({ soundEnabled: true }),
+    });
+
+    await runtime.value.handleAttention(event);
+
+    expect(runtime.record).toHaveBeenCalledWith({
+      operation: "notification.present",
+      outcome: "ok",
+      projectId: "project-alpha",
+      worktreeId: "worktree-alpha",
+      threadId: "thread-alpha",
+    });
+    expect(runtime.record).toHaveBeenCalledWith({
+      operation: "notification.sound",
+      outcome: "ok",
+      projectId: "project-alpha",
+      worktreeId: "worktree-alpha",
+      threadId: "thread-alpha",
+    });
+    const serialized = JSON.stringify(runtime.record.mock.calls);
+    expect(serialized).not.toContain("Review output");
+    expect(serialized).not.toContain("Workbench ·");
   });
 });
