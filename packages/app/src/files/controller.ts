@@ -152,7 +152,7 @@ export class FileTreeController {
     if (memory.selectedPath === null && activePath !== null) memory.selectedPath = activePath;
     this.#current = memory;
     this.#publish();
-    if (memory.state === "idle" || memory.state === "error") await this.refresh("activate");
+    await this.refresh("activate");
   }
 
   deactivate(): void {
@@ -345,7 +345,7 @@ export class FileTreeController {
     const memory = this.#current;
     if (!memory) return;
     this.#gitStates.set(scopeKey(memory.scope), states);
-    memory.entries = normalizeFileTreeEntries(memory.rawEntries, states);
+    memory.entries = entriesWithGitOverlay(memory.rawEntries, states);
     this.#publish();
   }
 
@@ -390,7 +390,7 @@ export class FileTreeController {
     }
     if (result.status === "ready") {
       memory.rawEntries = result.entries;
-      memory.entries = normalizeFileTreeEntries(
+      memory.entries = entriesWithGitOverlay(
         result.entries,
         this.#gitStates.get(scopeKey(memory.scope)),
       );
@@ -451,6 +451,29 @@ export class FileTreeController {
       }),
     ).catch(() => {});
   }
+}
+
+function entriesWithGitOverlay(
+  entries: readonly NativeFileTreeEntry[],
+  states: ReadonlyMap<string, FileGitState> = new Map(),
+): readonly FileTreeEntry[] {
+  const present = new Set(entries.map((entry) => entry.relativePath));
+  const deleted: NativeFileTreeEntry[] = [];
+  for (const [relativePath, state] of states) {
+    if (state !== "deleted" || present.has(relativePath)) continue;
+    const name = relativePath.split("/").at(-1) ?? relativePath;
+    const slash = relativePath.lastIndexOf("/");
+    deleted.push({
+      relativePath,
+      parentPath: slash < 0 ? null : relativePath.slice(0, slash),
+      name,
+      kind: "file",
+      ignored: false,
+      byteLength: null,
+      modified: null,
+    });
+  }
+  return normalizeFileTreeEntries([...entries, ...deleted], states);
 }
 
 function treeNotice(result: Extract<FileTreeResult, { status: "ready" }>): string | null {

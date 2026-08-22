@@ -1,0 +1,201 @@
+.zd-file-tree {
+  --zd-file-tree-row-height: 19px;
+  --zd-file-tree-indent: 10px;
+  --zd-file-tree-icon-size: 11px;
+
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  min-block-size: 0;
+  block-size: 100%;
+  overflow: hidden;
+  color: var(--text-secondary);
+  background: var(--surface-sidebar);
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-navigation-size);
+  font-style: var(--type-navigation-style);
+  font-weight: var(--type-navigation-weight);
+  line-height: 1;
+}
+
+.zd-file-tree-filter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-block-size: 24px;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  padding-inline: var(--space-2);
+}
+
+.zd-file-tree-filter[hidden] {
+  display: none;
+}
+
+.zd-file-tree-filter-input {
+  min-inline-size: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  padding: 0;
+  color: var(--text-primary);
+  background: transparent;
+  font: inherit;
+  line-height: var(--type-navigation-line);
+}
+
+.zd-file-tree-filter-input::placeholder,
+.zd-file-tree-filter-count {
+  color: var(--text-muted);
+}
+
+.zd-file-tree-filter-input:focus-visible {
+  text-decoration: underline;
+  text-decoration-color: var(--line-focus);
+  text-decoration-thickness: var(--hairline);
+  text-underline-offset: var(--space-1);
+}
+
+.zd-file-tree-filter-count {
+  padding-inline-start: var(--space-2);
+  white-space: nowrap;
+}
+
+.zd-file-tree-viewport {
+  position: relative;
+  min-block-size: 0;
+  overflow: auto;
+  outline: 0;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.zd-file-tree-viewport:focus-visible {
+  box-shadow: inset calc(var(--hairline) * 2) 0 var(--line-focus);
+}
+
+.zd-file-tree-spacer {
+  position: relative;
+  min-inline-size: 100%;
+}
+
+.zd-file-tree-layer {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  min-inline-size: 100%;
+}
+
+.zd-file-tree-row {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  inline-size: 100%;
+  block-size: var(--zd-file-tree-row-height);
+  min-inline-size: max-content;
+  overflow: visible;
+  border: 0;
+  border-inline-start: calc(var(--hairline) * 2) solid transparent;
+  border-radius: 0;
+  padding: 0 var(--space-1) 0 0;
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  line-height: var(--zd-file-tree-row-height);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.zd-file-tree-row:hover {
+  background: color-mix(in srgb, var(--surface-selection), transparent 45%);
+}
+
+.zd-file-tree-row[aria-selected="true"] {
+  border-inline-start-color: var(--line-focus);
+  color: var(--text-primary);
+  background: var(--surface-selection);
+}
+
+.zd-file-tree-row:focus-visible {
+  outline: 0;
+  text-decoration: underline;
+  text-decoration-color: var(--line-focus);
+  text-decoration-thickness: var(--hairline);
+  text-underline-offset: 3px;
+}
+
+.zd-file-tree-row[data-git-state="added"] {
+  color: var(--state-added);
+}
+
+.zd-file-tree-row[data-git-state="changed"] {
+  color: var(--state-changed);
+}
+
+.zd-file-tree-row[data-git-state="deleted"] {
+  color: var(--state-deleted);
+}
+
+.zd-file-tree-row[data-git-state="ignored"] {
+  color: var(--state-ignored);
+}
+
+.zd-file-tree-guides {
+  display: flex;
+  align-self: stretch;
+  flex: 0 0 auto;
+}
+
+.zd-file-tree-guides > span {
+  inline-size: var(--zd-file-tree-indent);
+  border-inline-start: var(--hairline) solid var(--line-quiet);
+}
+
+.zd-file-tree-disclosure {
+  flex: 0 0 var(--zd-file-tree-indent);
+  color: var(--text-muted);
+  font-size: 0.82em;
+  text-align: center;
+}
+
+.zd-file-tree-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 calc(var(--zd-file-tree-icon-size) + var(--hairline));
+  inline-size: var(--zd-file-tree-icon-size);
+  block-size: var(--zd-file-tree-icon-size);
+  margin-inline: 1px 3px;
+  font-size: var(--zd-file-tree-icon-size);
+  line-height: 1;
+}
+
+.zd-file-tree-icon[data-icon="code"],
+.zd-file-tree-icon[data-icon="data"] {
+  font-size: 0.72em;
+  letter-spacing: -0.16em;
+}
+
+.zd-file-tree-name {
+  flex: 0 0 auto;
+}
+
+.zd-file-tree-status,
+.zd-file-tree-notice {
+  margin: 0;
+  padding: var(--space-2);
+  color: var(--text-secondary);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  font-style: var(--type-supporting-style);
+  font-weight: var(--type-supporting-weight);
+  line-height: var(--type-supporting-line);
+}
+
+.zd-file-tree[data-file-tree-state="denied"] .zd-file-tree-status,
+.zd-file-tree[data-file-tree-state="not-directory"] .zd-file-tree-status {
+  color: var(--state-error);
+}
+
+.zd-file-tree-status[hidden],
+.zd-file-tree-notice[hidden] {
+  display: none;
+}
