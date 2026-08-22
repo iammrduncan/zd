@@ -93,6 +93,11 @@ describe("diagnostic record schema", () => {
       depth: 4,
       extension: "txt",
     });
+    expect(redactLogicalPath("file:///Users/alice/notes.txt")).toEqual({
+      scope: "redacted",
+      depth: 4,
+      extension: "txt",
+    });
   });
 
   it("rejects unknown fields so content and environment dumps cannot hitch a ride", () => {

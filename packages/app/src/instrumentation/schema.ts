@@ -121,13 +121,14 @@ function extensionOf(name: string): string | undefined {
 export function redactLogicalPath(path: string): RedactedLogicalPath {
   const windowsAbsolute = /^[A-Za-z]:[\\/]/.test(path) || /^\\\\/.test(path);
   const unixAbsolute = path.startsWith("/") || path.startsWith("~");
+  const scheme = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(path);
   const normalized = path.replaceAll("\\", "/");
   const rawSegments = normalized.split("/").filter((segment) => segment.length > 0);
   const traversal = rawSegments.some((segment) => segment === "..");
   const segments = rawSegments.filter((segment) => segment !== "." && segment !== "..");
   const extension = extensionOf(segments.at(-1) ?? "");
   const result: RedactedLogicalPath = {
-    scope: windowsAbsolute || unixAbsolute || traversal ? "redacted" : "project",
+    scope: windowsAbsolute || unixAbsolute || scheme || traversal ? "redacted" : "project",
     depth: Math.min(segments.length, 255),
     ...(extension ? { extension } : {}),
   };
