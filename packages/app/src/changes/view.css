@@ -87,14 +87,40 @@
   border-block-start: var(--hairline) solid var(--line-quiet);
 }
 
+.zd-changes-section[hidden] {
+  display: none;
+}
+
 .zd-changes-working {
   grid-template-rows: auto auto minmax(0, 1fr);
 }
 
-.zd-changes-history,
+.zd-changes-history {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  block-size: clamp(132px, 30vh, 210px);
+}
+
+.zd-changes-history > .zd-changes-section-heading {
+  grid-row: 1;
+}
+
+.zd-changes-history > .zd-changes-empty,
+.zd-changes-history-list {
+  grid-row: 2;
+}
+
+.zd-changes-history > .zd-changes-action {
+  grid-row: 3;
+}
+
 .zd-changes-comparison {
-  grid-template-rows: auto auto minmax(0, auto) auto;
-  max-block-size: 34vh;
+  grid-template-rows: auto minmax(0, 1fr);
+  block-size: clamp(112px, 26vh, 184px);
+}
+
+.zd-changes-comparison > .zd-changes-empty,
+.zd-changes-comparison > .zd-changes-viewport {
+  grid-row: 2;
 }
 
 .zd-changes-section-heading {
@@ -198,7 +224,11 @@
 }
 
 .zd-changes-history-list {
-  max-block-size: 142px;
+  block-size: 100%;
+}
+
+.zd-changes-history-list[hidden] {
+  display: none;
 }
 
 .zd-changes-commit {
