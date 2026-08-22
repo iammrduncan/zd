@@ -1,4 +1,5 @@
-export type GrantAvailability = "available" | "missing" | "denied" | "unavailable";
+export type GrantAvailability =
+  "available" | "missing" | "denied" | "not-directory" | "unavailable";
 
 export interface WorktreeGrant {
   readonly id: string;
