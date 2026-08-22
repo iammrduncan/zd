@@ -129,15 +129,22 @@ export function normalizeFileTreeEntries(
     });
   }
   return [...entries.values()].sort((left, right) => {
-    const parent = (left.parentPath ?? "").localeCompare(right.parentPath ?? "");
+    const parent = stableTextOrder(left.parentPath ?? "", right.parentPath ?? "");
     if (parent !== 0) return parent;
     const kind = kindOrder(left.kind) - kindOrder(right.kind);
     if (kind !== 0) return kind;
-    return (
-      left.name.localeCompare(right.name, undefined, { sensitivity: "base" }) ||
-      left.name.localeCompare(right.name)
-    );
+    return stableTextOrder(left.name, right.name);
   });
+}
+
+function stableTextOrder(left: string, right: string): number {
+  const foldedLeft = left.toLowerCase();
+  const foldedRight = right.toLowerCase();
+  if (foldedLeft < foldedRight) return -1;
+  if (foldedLeft > foldedRight) return 1;
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
 }
 
 interface IndexedTree {
@@ -161,6 +168,7 @@ function indexTree(entries: readonly FileTreeEntry[]): IndexedTree {
 interface QueryTerm {
   readonly value: string;
   readonly category: FileCategory | null;
+  readonly typedCategory: boolean;
 }
 
 function queryTerms(query: string): readonly QueryTerm[] {
@@ -172,20 +180,19 @@ function queryTerms(query: string): readonly QueryTerm[] {
     .map((term) => {
       const typed = /^(?:type|category):(.+)$/u.exec(term);
       const category = CATEGORY_ALIASES[typed?.[1] ?? ""] ?? null;
-      return { value: typed ? typed[1]! : term, category };
+      return { value: typed ? typed[1]! : term, category, typedCategory: typed !== null };
     });
 }
 
 function entryMatches(entry: FileTreeEntry, terms: readonly QueryTerm[]): boolean {
   const name = entry.name.toLowerCase();
   const path = entry.relativePath.toLowerCase();
-  return terms.every((term) =>
-    term.category
-      ? entry.category === term.category
-      : name.includes(term.value) ||
-        path.includes(term.value) ||
-        entry.category.includes(term.value),
-  );
+  return terms.every((term) => {
+    if (term.typedCategory) return term.category !== null && entry.category === term.category;
+    return (
+      name.includes(term.value) || path.includes(term.value) || entry.category.includes(term.value)
+    );
+  });
 }
 
 export function visibleFileTreeRows(

@@ -37,6 +37,7 @@ interface ScopeMemory {
   truncated: boolean;
   ignoredTruncated: boolean;
   unreadableDirectories: number;
+  treeNotice: string | null;
   notice: string | null;
   refreshPromise: Promise<void> | null;
   refreshQueued: boolean;
@@ -70,6 +71,7 @@ function newMemory(scope: FileTreeScope, activePath: string | null): ScopeMemory
     truncated: false,
     ignoredTruncated: false,
     unreadableDirectories: 0,
+    treeNotice: null,
     notice: null,
     refreshPromise: null,
     refreshQueued: false,
@@ -353,7 +355,6 @@ export class FileTreeController {
     const started = performance.now();
     memory.refreshing = memory.state !== "idle";
     if (memory.state === "idle") memory.state = "loading";
-    memory.notice = null;
     this.#publish();
     let result: FileTreeResult;
     try {
@@ -386,6 +387,7 @@ export class FileTreeController {
     memory.refreshing = false;
     if (result.status === "unchanged") {
       memory.revision = result.revision;
+      memory.notice = memory.treeNotice;
       return;
     }
     if (result.status === "ready") {
@@ -399,7 +401,8 @@ export class FileTreeController {
       memory.truncated = result.truncated;
       memory.ignoredTruncated = result.ignoredTruncated;
       memory.unreadableDirectories = result.unreadableDirectories;
-      memory.notice = treeNotice(result);
+      memory.treeNotice = treeNotice(result);
+      memory.notice = memory.treeNotice;
       return;
     }
     memory.rawEntries = [];
@@ -407,6 +410,8 @@ export class FileTreeController {
     memory.truncated = false;
     memory.ignoredTruncated = false;
     memory.unreadableDirectories = 0;
+    memory.treeNotice = null;
+    memory.notice = null;
     if (result.status === "empty") {
       memory.revision = result.revision;
       memory.state = "empty";

@@ -208,6 +208,24 @@ describe("FileTreeController", () => {
     ]);
   });
 
+  it("retains bounded-tree context when a refresh reports no disk changes", async () => {
+    const controller = new FileTreeController(
+      sequence([
+        ready("one", [entry("notes.md")], { truncated: true }),
+        {
+          ...scope,
+          status: "unchanged",
+          revision: "one",
+          elapsedMicros: 20,
+        },
+      ]),
+    );
+    await controller.activate(scope);
+    await controller.refresh("focus");
+
+    expect(controller.snapshot().notice).toContain("bounded file-tree limit");
+  });
+
   it("adds Git state without status letters and records path-free measurements", async () => {
     const metrics: FileTreeMetric[] = [];
     const controller = new FileTreeController(

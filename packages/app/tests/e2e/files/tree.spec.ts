@@ -200,3 +200,51 @@ test("bounded disk refresh preserves expansion, selection, and active file", asy
     "page",
   );
 });
+
+test("records bounded large-tree work and stays idle between signals", async ({ page }) => {
+  await mountFixture(page);
+  const session = await page.context().newCDPSession(page);
+  await session.send("Performance.enable");
+  const readMetric = async (name: string): Promise<number> => {
+    const result = await session.send("Performance.getMetrics");
+    return result.metrics.find((metric) => metric.name === name)?.value ?? 0;
+  };
+  const taskBefore = await readMetric("TaskDuration");
+  await page.waitForTimeout(300);
+  const idleTaskMs = ((await readMetric("TaskDuration")) - taskBefore) * 1_000;
+  const heapBytes = await readMetric("JSHeapUsedSize");
+  const timings = await page.evaluate(async () => {
+    const controller = window.fileTreeFixture.controller;
+    const filterStarted = performance.now();
+    controller.summonFilter();
+    controller.setFilter("type:text");
+    const filterMs = performance.now() - filterStarted;
+    controller.dismissFilter();
+    const expandStarted = performance.now();
+    controller.expand("src");
+    const expandMs = performance.now() - expandStarted;
+    const refreshStarted = performance.now();
+    await controller.refresh("manual");
+    return {
+      initialRenderMs: window.fileTreeFixture.initialRenderMs,
+      filterMs,
+      expandMs,
+      refreshMs: performance.now() - refreshStarted,
+    };
+  });
+
+  console.info("file-tree browser fixture", {
+    entries: 10_004,
+    liveRows: await page.locator('[role="treeitem"]').count(),
+    heapBytes,
+    idleTaskMs,
+    ...timings,
+  });
+  expect(timings.initialRenderMs).toBeLessThan(2_000);
+  expect(timings.filterMs).toBeLessThan(500);
+  expect(timings.expandMs).toBeLessThan(100);
+  expect(timings.refreshMs).toBeLessThan(1_000);
+  expect(heapBytes).toBeLessThan(256 * 1024 * 1024);
+  expect(idleTaskMs).toBeLessThan(150);
+  expect(await page.locator('[role="treeitem"]').count()).toBeLessThan(40);
+});
