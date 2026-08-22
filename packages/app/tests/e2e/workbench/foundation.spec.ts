@@ -16,7 +16,7 @@ test("the root file surface owns editing, Find, save, and explicit Focus Mode", 
 
   await expect(editor).toHaveAttribute("data-language", "code");
   await expect(editor).toHaveAttribute("data-focus-mode", "false");
-  await expect(content).toContainText("export const workbench = true;");
+  await expect(content).toContainText("bootWorkbench(host, platform)");
 
   await content.click();
   await page.keyboard.press(`${primary}+f`);
@@ -43,7 +43,9 @@ test("project-owned Settings controls local diagnostics without leaving the work
   const threads = page.locator('[data-region="threads"]');
   const settings = threads.locator('[data-diagnostic-settings="true"]');
 
-  await expect(threads.getByRole("button", { name: /^Workbench fixture\./ })).toBeVisible();
+  await expect(threads.locator('[data-project-id="project-zd"] .zd-project-row')).toContainText(
+    "zd",
+  );
   expect(
     await threads.evaluate((region) => {
       const projects = region.querySelector(".zd-projects");
