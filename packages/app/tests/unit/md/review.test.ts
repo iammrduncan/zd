@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Platform, WorkspaceFile } from "@/platform";
+import { unavailableFileTreeAdapter } from "@/files";
 import { unavailableTerminalAdapter } from "@/terminal";
 import { formatFeedback, mountReview, type ReviewSelection } from "@/miniapps/md/review";
 import type { FileResource, ProjectGrant } from "@/workbench/resources";
@@ -82,6 +83,7 @@ function platform(writeTextFile: Platform["writeTextFile"] = async () => {}): Pl
     recordDiagnostic: async () => ({ recorded: false, problem: null }),
     revealDiagnostics: async () => {},
     terminal: unavailableTerminalAdapter,
+    fileTree: unavailableFileTreeAdapter,
     workspaceFiles: async () => {
       throw new Error("no listing");
     },

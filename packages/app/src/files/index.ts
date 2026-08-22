@@ -6,6 +6,7 @@ export {
   visibleFileTreeRows,
 } from "./model";
 export { FILE_TREE_ROW_HEIGHT, fileTreeWindow } from "./virtualizer";
+export { unavailableFileTreeAdapter } from "./types";
 export type {
   FileCategory,
   FileGitState,

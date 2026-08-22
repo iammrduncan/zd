@@ -1,6 +1,7 @@
 import "@/design/index.css";
 
 import type { Platform } from "@/platform";
+import { unavailableFileTreeAdapter } from "@/files";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { unavailableTerminalAdapter } from "@/terminal";
 import { mountCurrentWorkspace } from "..";
@@ -82,6 +83,7 @@ const platform: Platform = {
   recordDiagnostic: async () => ({ recorded: false, problem: null }),
   revealDiagnostics: async () => {},
   terminal: unavailableTerminalAdapter,
+  fileTree: unavailableFileTreeAdapter,
   workspaceFiles: async () => ({
     projectId: project.id,
     worktreeId: project.worktrees[0]!.id,

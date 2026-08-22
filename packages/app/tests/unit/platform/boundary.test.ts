@@ -54,6 +54,47 @@ describe("the Tauri window boundary", () => {
     });
   });
 
+  it("keeps complete file-tree snapshots inside an approved project/worktree scope", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    invoke.mockResolvedValue({
+      status: "empty",
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+      revision: "revision-1",
+      elapsedMicros: 12,
+    });
+    const request = {
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+      previousRevision: null,
+    };
+
+    await detectPlatform().fileTree.snapshot(request);
+
+    expect(invoke).toHaveBeenCalledExactlyOnceWith("file_tree_snapshot", { request });
+    expect(request).not.toHaveProperty("root");
+    expect(request).not.toHaveProperty("followLinks");
+  });
+
+  it("reports file trees as unavailable without a desktop grant boundary", async () => {
+    await expect(
+      detectPlatform().fileTree.snapshot({
+        projectId: "project-a",
+        worktreeId: "worktree-a",
+        previousRevision: null,
+      }),
+    ).resolves.toEqual({
+      status: "unavailable",
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+      problem: "file trees require the desktop shell",
+    });
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
   it("opens and recovers projects only through native picker commands", async () => {
     Object.defineProperty(window, "__TAURI_INTERNALS__", {
       configurable: true,
