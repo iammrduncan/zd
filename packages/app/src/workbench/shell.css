@@ -3,11 +3,7 @@
   --workbench-threads-width: 236px;
   --workbench-files-width: 280px;
   --workbench-centre-split: 42%;
-  --workbench-threads-responsive-width: clamp(
-    184px,
-    var(--workbench-threads-width),
-    300px
-  );
+  --workbench-threads-responsive-width: clamp(184px, var(--workbench-threads-width), 300px);
   --workbench-files-responsive-width: clamp(220px, var(--workbench-files-width), 360px);
   --workbench-threads-column: var(--workbench-threads-responsive-width);
   --workbench-files-column: var(--workbench-files-responsive-width);
@@ -236,7 +232,6 @@
   .zd-workbench > [data-resizer="files"] {
     display: none;
   }
-
 }
 
 @media (max-width: 50rem) {

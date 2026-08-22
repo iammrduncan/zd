@@ -49,8 +49,7 @@ async function mountWorkspaceSession(
     const review = mountReview({
       host,
       root: project?.root ?? "",
-      rootResource:
-        project && worktreeId ? { projectId: project.id, worktreeId } : null,
+      rootResource: project && worktreeId ? { projectId: project.id, worktreeId } : null,
       platform: context.platform,
     });
     const document_ = await mountDocument(
