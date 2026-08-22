@@ -3,8 +3,9 @@
 ## Outcome
 
 Repository context, architecture authority, contributor guidance, product documentation, website
-copy, and active planning all describe one `zd` agent workbench. Historical prototype records stay
-available as history but cannot be mistaken for current direction.
+copy, and active planning all describe one ZenSuite application named `zd`: a single agent
+workbench. Historical prototype records stay available as history but cannot be mistaken for
+current direction.
 
 ## Visual References
 
@@ -21,18 +22,25 @@ Planning concepts must be labelled as concepts anywhere they are published. Rele
 use verified screenshots from the implemented workbench. Apply the shared Visual Reference Contract
 in `goal.md`.
 
-## Required Decisions
+## Settled Naming Decision
+
+- `ZenSuite` is the product-family and repository identity.
+- The application, workbench, and command are named `zd`; product copy does not expand those
+  letters into a longer name.
+- The prohibited expansions named in `goal.md` must not appear as current product identity.
+- ZenSuite names the product family, not a suite launcher or permission to add miniapps.
+
+## Remaining Required Decisions
 
 Record these owner decisions before public identity or compatibility text is finalized:
 
-1. The approved public product name and whether `zd` has a spelled-out expansion.
-2. Whether `zd md` remains a temporary compatibility alias or is removed immediately.
-3. One-app, multi-window, and global-summon behavior.
-4. The canonical website/domain and package description.
-5. Whether the existing desktop bundle identifier is retained for upgrade/settings compatibility.
-6. The final macOS and Windows bindings for Focus, Find, project switching, terminal focus, and
+1. Whether `zd md` remains a temporary compatibility alias or is removed immediately.
+2. One-app, multi-window, and global-summon behavior.
+3. The canonical website/domain and package description.
+4. Whether the existing desktop bundle identifier is retained for upgrade/settings compatibility.
+5. The final macOS and Windows bindings for Focus, Find, project switching, terminal focus, and
    global summon.
-7. Whether `docs/planning/` is the permanent objective/planning location.
+6. Whether `docs/planning/` is the permanent objective/planning location.
 
 ## Acceptance Criteria
 
@@ -40,13 +48,13 @@ Record these owner decisions before public identity or compatibility text is fin
 
 Phase A is a sequential gate before feature fanouts begin.
 
-1. Rewrite `docs/VISION.md` as a dated workbench vision that explicitly supersedes the `zd md`,
-   Zen Suite, and growing-miniapp direction.
+1. Rewrite `docs/VISION.md` as a dated workbench vision that explicitly supersedes the `zd md` and
+   growing-miniapp directions while retaining ZenSuite as the product-family identity.
 2. Rewrite `docs/DESIGN.md` for projects, Threads, current-file Markdown/code, Files/Changes tabs,
    terminals, notifications, installable themes, responsive regions, and Focus Mode off by default.
    Preserve applicable typography, semantic token, accessibility, safety, and editor contracts.
 3. Make `docs/README.md`, `VISION.md`, and `DESIGN.md` publish one identical authority order and
-   point contributors to the active planning location.
+   naming contract, and point contributors to the active planning location.
 4. Preserve accepted ADR history. Add successor ADRs and mark invalid records superseded rather
    than rewriting their original decisions in place. Re-index still-valid Markdown ADRs as
    current-file/editor decisions.
@@ -76,9 +84,10 @@ implemented workbench is stable.
 12. Reconcile active goals and objective indexes with the pivot. Archive or supersede obsolete
     miniapp acceptance criteria without rewriting completed summaries, dated research, fixtures,
     or historical evidence.
-13. Add a scoped stale-context check that rejects `Zen Suite`, product-level `zd md`, and miniapp
-    implementation framing in canonical, public, contributor, and active-planning files. Explicitly
-    labeled historical records and literal compatibility tests use a reviewed allowlist.
+13. Add a scoped stale-context check that rejects the prohibited expansions of `zd`, product-level
+    `zd md`, and miniapp implementation framing in canonical, public, contributor, and
+    active-planning files. Explicit naming-contract statements, labeled historical records, and
+    literal compatibility tests use a reviewed allowlist. `ZenSuite` itself remains valid.
 14. Audit source comments, UI copy, test names, package descriptions, Tauri CLI help, release
     workflows, and generated-site inputs for misleading current-product terminology.
 15. Documentation links, information-architecture tests, objective/archive/session-loop tests,
@@ -87,9 +96,10 @@ implemented workbench is stable.
 ## Terminal Condition
 
 No authoritative, public, contributor, source-adjacent, or active-planning document gives a person
-or agent a plausible instruction to build Zen Suite, add another miniapp, or present `zd md` as the
-current product. Historical records remain discoverable and clearly historical, and all generated
-and tested documentation uses the approved workbench identity.
+or agent a plausible instruction to add another miniapp, present `zd md` as the current product, or
+expand `zd` into a prohibited name. Historical records remain discoverable and clearly historical,
+and all generated and tested documentation uses ZenSuite for the product family and `zd` for the
+application, workbench, and command.
 
 ## Dependencies
 
