@@ -1,12 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Platform } from "@/platform";
-import { md } from "@/miniapps/md";
+import { mountCurrentWorkspace } from "@/miniapps/md";
 import { PERSISTENT_NOTICE } from "@/miniapps/md/notice";
-import { boot } from "@/suite/boot";
-import { clearRegistry, register } from "@/suite/registry";
 import { attachShortcuts, clearCommands } from "@/suite/shortcuts";
-import type { SuiteContext } from "@/suite/types";
+import type { WorkbenchContentContext } from "@/workbench/runtime";
+import { bootWorkbench } from "@/workbench/boot";
 
 // Vision §6: "This is not a second mode — §4 is the surface, and this is what it
 // does when a caret is in it." So the document surface *is* the editor: opening
@@ -25,12 +24,12 @@ function context(
   readTextFile: Platform["readTextFile"],
   writeTextFile: Platform["writeTextFile"] = async () => {},
   fileStamp: Platform["fileStamp"] = async () => null,
-): SuiteContext {
+): WorkbenchContentContext {
   return {
-    launch: { miniapp: "md", path },
+    launch: { path },
     platform: {
       kind: "browser",
-      launchRequest: async () => ({ miniapp: "md", path }),
+      launchRequest: async () => ({ path }),
       onOpenRequested: () => () => {},
       acceptOpenRequest: async () => null,
       workspaceFiles: async () => null,
@@ -44,13 +43,13 @@ function context(
   };
 }
 
-async function mountWith(ctx: SuiteContext) {
+async function mountWith(ctx: WorkbenchContentContext) {
   const host = document.createElement("div");
   // In the document, not loose: the suite's keyboard listener is on the window,
   // and a keydown inside a detached host bubbles nowhere. Mounting the way the
   // app mounts is what makes a key press in these tests mean anything.
   document.body.append(host);
-  const unmount = await md.mount(host, ctx);
+  const unmount = await mountCurrentWorkspace(host, ctx);
   return { host, unmount };
 }
 
@@ -378,8 +377,6 @@ describe("md states read failures at the document", () => {
 });
 
 describe("md mounts and unmounts cleanly", () => {
-  beforeEach(() => clearRegistry());
-
   it("removes the whole surface on unmount", async () => {
     const { host, unmount } = await mountWith(context("/w/a.md", async () => "# Title"));
 
@@ -396,11 +393,9 @@ describe("md mounts and unmounts cleanly", () => {
     expect(host.querySelector(".cm-content")).toBeNull();
   });
 
-  it("boots through the suite with the document already open", async () => {
-    register(md);
-
+  it("boots through the workbench with the document already open", async () => {
     const host = document.createElement("div");
-    await boot(host, context("/w/boot.md", async () => "# Booted").platform);
+    await bootWorkbench(host, context("/w/boot.md", async () => "# Booted").platform);
 
     expect(onScreen(host)).toBe("# Booted");
   });

@@ -79,7 +79,7 @@ describe("the macOS command installer", () => {
     const workspace = resolve(root, "notes");
     mkdirSync(workspace);
     const canonicalWorkspace = realpathSync(workspace);
-    const launchForms = [[], ["md", "."], ["md", "plan.md"]];
+    const launchForms = [[], ["."], ["plan.md"]];
 
     expect(
       launchForms.map((args) => {
@@ -87,11 +87,7 @@ describe("the macOS command installer", () => {
         expect(launch.status, launch.stderr).toBe(0);
         return launch.stdout.trim().split("\n");
       }),
-    ).toEqual([
-      [canonicalWorkspace],
-      [canonicalWorkspace, "md", "."],
-      [canonicalWorkspace, "md", "plan.md"],
-    ]);
+    ).toEqual([[canonicalWorkspace], [canonicalWorkspace, "."], [canonicalWorkspace, "plan.md"]]);
   });
 
   it("replaces the old app instead of merging stale bundle contents", () => {

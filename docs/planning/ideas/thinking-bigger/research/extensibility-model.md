@@ -40,7 +40,8 @@ or execute third-party code.
 
 ZD already contains small, useful seams:
 
-- A [`MiniApp`](../../../../../packages/app/src/suite/types.ts) gets an element, a small
+- A [`MiniApp` at the research snapshot](https://github.com/iammrduncan/zd/blob/4a5fe03/packages/app/src/suite/types.ts)
+  gets an element, a small
   `SuiteContext`, and returns idempotent teardown. The current registry is in-process and
   [`main.ts`](../../../../../packages/app/src/main.ts) is the hardcoded catalog.
 - The [command registry](../../../../../packages/app/src/suite/shortcuts.ts) is suite-owned. One

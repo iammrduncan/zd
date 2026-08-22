@@ -1,7 +1,7 @@
 import "@/design/index.css";
 
 import type { Platform } from "@/platform";
-import { md } from "..";
+import { mountCurrentWorkspace } from "..";
 
 const root = "/workspace";
 const documents = new Map([
@@ -15,7 +15,7 @@ const documents = new Map([
 
 const platform: Platform = {
   kind: "browser",
-  launchRequest: async () => ({ miniapp: "md", path: root }),
+  launchRequest: async () => ({ path: root }),
   onOpenRequested: () => () => {},
   acceptOpenRequest: async () => null,
   workspaceFiles: async () => ({
@@ -46,7 +46,7 @@ const platform: Platform = {
 const host = document.getElementById("zd");
 if (!host) throw new Error("dev/workspace.html is missing the #zd host element");
 
-await md.mount(host, {
+await mountCurrentWorkspace(host, {
   launch: await platform.launchRequest(),
   platform,
 });

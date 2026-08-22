@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import type { LaunchRequest } from "@/suite/types";
+import type { LaunchRequest } from "@/workbench/runtime";
 
 /**
  * The only file in the frontend that knows what shell it is running in.
@@ -128,7 +128,7 @@ const tauri: Platform = {
  */
 const browser: Platform = {
   kind: "browser",
-  launchRequest: async () => ({ miniapp: "md", path: null }),
+  launchRequest: async () => ({ path: null }),
   onOpenRequested: () => () => {},
   acceptOpenRequest: async () => null,
   workspaceFiles: async () => null,

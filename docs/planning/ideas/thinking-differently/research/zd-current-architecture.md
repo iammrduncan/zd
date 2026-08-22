@@ -72,11 +72,13 @@ logic from its Tauri adapters.
 
 - [`main.ts`](../../../../../packages/app/src/main.ts) registers exactly one miniapp and starts the
   suite.
-- [`types.ts`](../../../../../packages/app/src/suite/types.ts) gives a miniapp only an immutable launch
-  request and a `Platform`; the entire mount contract is “fill this element and return teardown.”
-- [`registry.ts`](../../../../../packages/app/src/suite/registry.ts) makes adding another in-process
-  miniapp cheap, and [`boot.ts`](../../../../../packages/app/src/suite/boot.ts) owns cross-miniapp boot,
-  shortcut dispatch, reference overlay, and presence behavior.
+- [`types.ts` at the audited commit](https://github.com/iammrduncan/zd/blob/21bc7dd/packages/app/src/suite/types.ts)
+  gives a miniapp only an immutable launch request and a `Platform`; the entire mount contract is
+  “fill this element and return teardown.”
+- [`registry.ts` at the audited commit](https://github.com/iammrduncan/zd/blob/21bc7dd/packages/app/src/suite/registry.ts)
+  makes adding another in-process miniapp cheap, and
+  [`boot.ts` at that commit](https://github.com/iammrduncan/zd/blob/21bc7dd/packages/app/src/suite/boot.ts)
+  owns cross-miniapp boot, shortcut dispatch, reference overlay, and presence behavior.
 - [`shortcuts.ts`](../../../../../packages/app/src/suite/shortcuts.ts) is a window-local command
   registry driven by DOM `KeyboardEvent`s. It deliberately cannot receive a chord while another app is
   active; a global hotkey requires native registration below this layer.

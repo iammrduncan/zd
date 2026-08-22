@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { EditorView } from "@codemirror/view";
 
-import { md } from "@/miniapps/md";
+import { mountCurrentWorkspace } from "@/miniapps/md";
 import type { Platform } from "@/platform";
 import { attachShortcuts, clearCommands } from "@/suite/shortcuts";
-import type { SuiteContext } from "@/suite/types";
+import type { WorkbenchContentContext } from "@/workbench/runtime";
 
 const MOD = /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "metaKey" : "ctrlKey";
 
@@ -28,11 +28,11 @@ describe("quitting with unsaved work", () => {
     detachShortcuts();
   });
 
-  function context(): SuiteContext {
+  function context(): WorkbenchContentContext {
     const path = "/w/plan.md";
     const platform: Platform = {
       kind: "browser",
-      launchRequest: async () => ({ miniapp: "md", path }),
+      launchRequest: async () => ({ path }),
       onOpenRequested: () => () => {},
       acceptOpenRequest: async () => null,
       workspaceFiles: async () => null,
@@ -50,13 +50,13 @@ describe("quitting with unsaved work", () => {
       },
       openExternal: async () => {},
     };
-    return { launch: { miniapp: "md", path }, platform };
+    return { launch: { path }, platform };
   }
 
   async function mountDocument() {
     const host = document.createElement("div");
     document.body.append(host);
-    unmount = await md.mount(host, context());
+    unmount = await mountCurrentWorkspace(host, context());
     return host;
   }
 

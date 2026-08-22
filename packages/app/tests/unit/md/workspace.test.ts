@@ -2,14 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Platform, WorkspaceListing } from "@/platform";
 import { mountWorkspace, type DocumentMount, type MountedDocument } from "@/miniapps/md/workspace";
-import type { SuiteContext } from "@/suite/types";
+import type { WorkbenchContentContext } from "@/workbench/runtime";
 
-function context(path: string, listing: WorkspaceListing): SuiteContext {
+function context(path: string, listing: WorkspaceListing): WorkbenchContentContext {
   return {
-    launch: { miniapp: "md", path },
+    launch: { path },
     platform: {
       kind: "browser",
-      launchRequest: async () => ({ miniapp: "md", path }),
+      launchRequest: async () => ({ path }),
       onOpenRequested: () => () => {},
       acceptOpenRequest: async () => null,
       workspaceFiles: async () => listing,
@@ -224,7 +224,7 @@ describe("the markdown workspace", () => {
     initial.platform.acceptOpenRequest = async () => {
       accepted += 1;
       activeListing = next;
-      return { miniapp: "md", path: "/next/plan.md" };
+      return { path: "/next/plan.md" };
     };
 
     const unmount = await mountWorkspace(host, initial, mounted.mount);
@@ -253,7 +253,7 @@ describe("the markdown workspace", () => {
     };
     initial.platform.acceptOpenRequest = async () => {
       accepted += 1;
-      return { miniapp: "md", path: "/next/plan.md" };
+      return { path: "/next/plan.md" };
     };
 
     await mountWorkspace(host, initial, mounted.mount);

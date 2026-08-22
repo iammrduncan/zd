@@ -1,28 +1,21 @@
 //! Turns the command line into a launch request.
 //!
-//! The three forms from the vision (§9):
-//!   `zd md .`      open the current folder
-//!   `zd md <file>` open that file, creating it later if it does not exist
-//!   `zd md`        home screen
+//! The three forms from the workbench vision:
+//!   `zd .`      open the current folder
+//!   `zd <file>` open that file, creating it later if it does not exist
+//!   `zd`        home screen
 //!
 //! Launching from Spotlight, the Dock, or the Start menu arrives here with no
-//! arguments and behaves like bare `zd md`.
+//! arguments and behaves like bare `zd`.
 
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 
 use serde::Serialize;
 
-/// Mini apps the command line knows about. Add an id here when its
-/// `src/miniapps/<id>/` directory lands.
-const MINIAPPS: &[&str] = &["md"];
-
-const DEFAULT_MINIAPP: &str = "md";
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LaunchRequest {
-    pub miniapp: String,
     /// Absolute path, or `None` for "show your home surface".
     pub path: Option<String>,
 }
@@ -97,7 +90,7 @@ const INVOCATION_DIR: &str = "ZD_CWD";
 ///
 /// The process working directory, except when something has told us it is not
 /// the directory the user was standing in. `tauri dev` runs the binary from
-/// `src-tauri/`, so `zd md README.md` typed at the repo root went looking for
+/// `src-tauri/`, so `zd README.md` typed at the repo root went looking for
 /// `src-tauri/README.md` and failed — the `app:open` script passes npm's
 /// `INIT_CWD` through so development resolves paths the way a shipped binary
 /// does. A shipped binary never sets it and takes the plain working directory.
@@ -125,11 +118,10 @@ pub fn launch_request(state: tauri::State<'_, LaunchState>) -> LaunchRequest {
     state.current()
 }
 
-/// Turn the first local file in a native open event into the default mini app.
+/// Turn the first local file in a native open event into a workbench request.
 pub fn opened_request(urls: &[tauri::Url]) -> Option<LaunchRequest> {
     let path = urls.iter().find_map(|url| url.to_file_path().ok())?;
     Some(LaunchRequest {
-        miniapp: DEFAULT_MINIAPP.to_string(),
         path: Some(path.to_string_lossy().into_owned()),
     })
 }
@@ -140,28 +132,16 @@ fn parse_args(args: &[String], cwd: &Path) -> LaunchRequest {
     let mut positional = args.iter().filter(|a| !a.starts_with('-'));
 
     let Some(first) = positional.next() else {
-        return LaunchRequest {
-            miniapp: DEFAULT_MINIAPP.to_string(),
-            path: None,
-        };
+        return LaunchRequest { path: None };
     };
 
-    if MINIAPPS.contains(&first.as_str()) {
-        return LaunchRequest {
-            miniapp: first.clone(),
-            path: positional.next().map(|p| absolutize(p, cwd)),
-        };
-    }
-
-    // `zd notes.md` — no mini app named, so it is a path for the default one.
     LaunchRequest {
-        miniapp: DEFAULT_MINIAPP.to_string(),
         path: Some(absolutize(first, cwd)),
     }
 }
 
 /// Resolve against the working directory without requiring the path to exist —
-/// `zd md new-file.md` is allowed to name something that is not there yet.
+/// `zd new-file.md` is allowed to name something that is not there yet.
 fn absolutize(raw: &str, cwd: &Path) -> String {
     let candidate = Path::new(raw);
     let joined = if candidate.is_absolute() {
@@ -170,7 +150,7 @@ fn absolutize(raw: &str, cwd: &Path) -> String {
         cwd.join(candidate)
     };
 
-    // Drop `.` components so `zd md .` reports the folder, not `folder/.`.
+    // Drop `.` components so `zd .` reports the folder, not `folder/.`.
     let cleaned: PathBuf = joined
         .components()
         .filter(|component| !matches!(component, Component::CurDir))
@@ -208,7 +188,7 @@ mod tests {
     #[test]
     fn a_relative_path_resolves_against_the_invocation_directory() {
         // `tauri dev` runs the binary with the working directory set to
-        // `src-tauri/`, so `zd md README.md` typed at the repo root looked for
+        // `src-tauri/`, so `zd README.md` typed at the repo root looked for
         // `src-tauri/README.md` and failed.
         let resolved = resolve_dir(
             Some(PathBuf::from("/repo")),
@@ -237,61 +217,56 @@ mod tests {
     }
 
     #[test]
-    fn bare_launch_opens_the_default_miniapp_home() {
+    fn bare_launch_opens_the_workbench_home() {
         let request = parse_args(&args(&[]), &cwd());
-        assert_eq!(request.miniapp, "md");
         assert_eq!(request.path, None);
     }
 
     #[test]
     fn finder_launch_process_serial_argument_is_ignored() {
         let request = parse_args(&args(&["-psn_0_774321"]), &cwd());
-        assert_eq!(request.miniapp, "md");
         assert_eq!(request.path, None);
     }
 
     #[test]
     fn dot_opens_the_current_folder() {
-        let request = parse_args(&args(&["md", "."]), &cwd());
-        assert_eq!(request.miniapp, "md");
+        let request = parse_args(&args(&["."]), &cwd());
         assert_eq!(request.path.as_deref(), Some("/work/notes"));
     }
 
     #[test]
     fn a_relative_file_resolves_against_the_working_directory() {
-        let request = parse_args(&args(&["md", "plan.md"]), &cwd());
+        let request = parse_args(&args(&["plan.md"]), &cwd());
         assert_eq!(request.path.as_deref(), Some("/work/notes/plan.md"));
     }
 
     #[test]
     fn an_absolute_file_is_used_as_given() {
-        let request = parse_args(&args(&["md", "/tmp/plan.md"]), &cwd());
+        let request = parse_args(&args(&["/tmp/plan.md"]), &cwd());
         assert_eq!(request.path.as_deref(), Some("/tmp/plan.md"));
     }
 
     #[test]
-    fn a_named_miniapp_without_a_path_shows_its_home() {
+    fn md_is_a_path_name_and_not_a_compatibility_selector() {
         let request = parse_args(&args(&["md"]), &cwd());
-        assert_eq!(request.miniapp, "md");
-        assert_eq!(request.path, None);
+        assert_eq!(request.path.as_deref(), Some("/work/notes/md"));
     }
 
     #[test]
-    fn a_path_without_a_miniapp_goes_to_the_default_miniapp() {
+    fn one_path_goes_to_the_workbench() {
         let request = parse_args(&args(&["plan.md"]), &cwd());
-        assert_eq!(request.miniapp, "md");
         assert_eq!(request.path.as_deref(), Some("/work/notes/plan.md"));
     }
 
     #[test]
     fn interior_dot_components_are_dropped_too() {
-        let request = parse_args(&args(&["md", "./docs/./plan.md"]), &cwd());
+        let request = parse_args(&args(&["./docs/./plan.md"]), &cwd());
         assert_eq!(request.path.as_deref(), Some("/work/notes/docs/plan.md"));
     }
 
     #[test]
     fn a_file_that_does_not_exist_yet_still_resolves() {
-        let request = parse_args(&args(&["md", "not-created-yet.md"]), &cwd());
+        let request = parse_args(&args(&["not-created-yet.md"]), &cwd());
         assert_eq!(
             request.path.as_deref(),
             Some("/work/notes/not-created-yet.md")
@@ -299,13 +274,24 @@ mod tests {
     }
 
     #[test]
-    fn a_finder_file_url_becomes_a_markdown_launch_request() {
+    fn a_finder_file_url_becomes_a_workbench_launch_request() {
         let urls = vec![tauri::Url::parse("file:///work/notes/plan.md").unwrap()];
 
         let request = opened_request(&urls).expect("the file URL should be accepted");
 
-        assert_eq!(request.miniapp, "md");
         assert_eq!(request.path.as_deref(), Some("/work/notes/plan.md"));
+    }
+
+    #[test]
+    fn launch_json_has_no_surface_selector() {
+        let request = parse_args(&args(&["plan.md"]), &cwd());
+        let json = serde_json::to_value(request).unwrap();
+
+        assert_eq!(
+            json.get("path").and_then(|path| path.as_str()),
+            Some("/work/notes/plan.md")
+        );
+        assert!(json.get("miniapp").is_none());
     }
 
     #[test]
@@ -318,12 +304,10 @@ mod tests {
     #[test]
     fn a_queued_open_does_not_replace_the_launch_until_it_is_accepted() {
         let current = LaunchRequest {
-            miniapp: "md".to_string(),
             path: Some("/work/notes/old.md".to_string()),
         };
         let state = LaunchState::new(current.clone());
         let next = LaunchRequest {
-            miniapp: "md".to_string(),
             path: Some("/work/notes/new.md".to_string()),
         };
 

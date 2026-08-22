@@ -1,4 +1,4 @@
-import type { MiniApp, SuiteContext, Unmount } from "@/suite/types";
+import type { WorkbenchContentContext, Unmount } from "@/workbench/runtime";
 import { createEditor, type Editor } from "./editor/editor";
 import { languageFor } from "./editor/language";
 import { register } from "@/suite/shortcuts";
@@ -19,8 +19,8 @@ const LAUNCH_HINT_MS = 5_000;
 /**
  * Briefly teach the motion command that is useful as soon as the caret appears.
  *
- * This belongs to the successful document mount, not suite boot: a read failure,
- * the future Home surface, and every other mini app have neither an editor to
+ * This belongs to the successful document mount, not workbench boot: a read failure,
+ * the Home surface, and thread content have neither an editor to
  * focus nor a focus block to jump. It is removed from the DOM rather than merely
  * hidden so an assistive reader cannot discover stale launch advice later.
  */
@@ -45,7 +45,9 @@ function teachFocusJump(host: HTMLElement): () => void {
  * resolves to something the surface can show. Callers get one or the other,
  * never an exception.
  */
-async function documentSource(ctx: SuiteContext): Promise<{ text: string } | { problem: string }> {
+async function documentSource(
+  ctx: WorkbenchContentContext,
+): Promise<{ text: string } | { problem: string }> {
   const { path } = ctx.launch;
   if (!path) return { problem: "No document open. The Home surface lands in session 2.4." };
 
@@ -60,7 +62,7 @@ async function documentSource(ctx: SuiteContext): Promise<{ text: string } | { p
 }
 
 /**
- * `zd md` — the markdown editor. Tool #1.
+ * The retained Markdown document surface inside the `zd` workbench.
  *
  * The document surface is the editor. Vision §6: "This is not a second mode —
  * §4 is the surface, and this is what it does when a caret is in it." Opening a
@@ -75,7 +77,7 @@ async function documentSource(ctx: SuiteContext): Promise<{ text: string } | { p
 const documentApp = {
   async mount(
     host: HTMLElement,
-    ctx: SuiteContext,
+    ctx: WorkbenchContentContext,
     review?: ReviewDocument,
   ): Promise<MountedDocument> {
     // Two elements, two jobs: the surface scrolls, the column holds the measure.
@@ -469,11 +471,9 @@ const documentApp = {
   },
 };
 
-export const md: MiniApp = {
-  id: "md",
-  title: "zd md",
-
-  mount(host: HTMLElement, ctx: SuiteContext): Promise<Unmount> {
-    return mountWorkspace(host, ctx, documentApp.mount);
-  },
-};
+export function mountCurrentWorkspace(
+  host: HTMLElement,
+  context: WorkbenchContentContext,
+): Promise<Unmount> {
+  return mountWorkspace(host, context, documentApp.mount);
+}

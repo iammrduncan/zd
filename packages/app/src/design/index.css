@@ -1,10 +1,10 @@
-/* The suite design system. Import this once, from src/main.ts. Order matters. */
+/* The workbench design system. Import this once, from src/main.ts. Order matters. */
 @import "./fonts.css";
 @import "./tokens.css";
 @import "./reset.css";
 
-/* The Shortcut Reference, a suite surface over whichever mini app is mounted. */
+/* The Shortcut Reference is a workbench transient over the current content. */
 @import "../suite/reference.css";
 
-/* The one sentence the suite can draw when there is no mini app to draw anything. */
-@import "../suite/boot.css";
+/* The one sentence boot can draw before content mounts. */
+@import "../workbench/boot.css";

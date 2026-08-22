@@ -1,5 +1,5 @@
 import type { WorkspaceFile } from "@/platform";
-import type { SuiteContext, Unmount } from "@/suite/types";
+import type { WorkbenchContentContext, Unmount } from "@/workbench/runtime";
 import { mountReview, type ReviewDocument } from "../review";
 import { mountSidebarResizer } from "./resize";
 import { buildFileTree } from "./tree";
@@ -11,7 +11,7 @@ export interface MountedDocument {
 
 export type DocumentMount = (
   host: HTMLElement,
-  context: SuiteContext,
+  context: WorkbenchContentContext,
   review?: ReviewDocument,
 ) => Promise<MountedDocument>;
 
@@ -38,7 +38,7 @@ function parentPath(path: string): string {
  */
 async function mountWorkspaceSession(
   host: HTMLElement,
-  context: SuiteContext,
+  context: WorkbenchContentContext,
   mountDocument: DocumentMount,
 ): Promise<MountedWorkspace> {
   const listing = await context.platform.workspaceFiles().catch(() => null);
@@ -166,7 +166,7 @@ async function mountWorkspaceSession(
  */
 export async function mountWorkspace(
   host: HTMLElement,
-  context: SuiteContext,
+  context: WorkbenchContentContext,
   mountDocument: DocumentMount,
 ): Promise<Unmount> {
   let mounted = await mountWorkspaceSession(host, context, mountDocument);
