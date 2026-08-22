@@ -12,6 +12,7 @@ import {
   type ThreadWorkbenchSnapshot,
 } from "@/threads";
 import {
+  defaultThreadId,
   inferredThreadRecovery,
   processBackingAfter,
   processRecoveryAfter,
@@ -23,6 +24,7 @@ import type {
   ThreadRuntimeUpdate,
   ThreadState,
   ThreadsVisibility,
+  TransitionDecision,
   TransitionResult,
   WorkbenchStateOwner,
 } from "./state";
@@ -46,16 +48,6 @@ const DEFAULT_VIEWPORT: TerminalViewport = {
   pixelHeight: 0,
 };
 
-let fallbackIdentity = 0;
-
-function defaultThreadId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `thread-${crypto.randomUUID()}`;
-  }
-  fallbackIdentity += 1;
-  return `thread-${Date.now().toString(36)}-${fallbackIdentity.toString(36)}`;
-}
-
 function refused(cause: unknown): TransitionResult {
   return { status: "refused", reason: cause instanceof Error ? cause.message : String(cause) };
 }
@@ -71,6 +63,8 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
   readonly #instrumentation?: InstrumentationClient;
   readonly #lifecycleTails = new Map<string, Promise<TransitionResult>>();
   readonly #sessions = new Map<string, TerminalThreadSession>();
+  readonly #stopProjectRemovalGuard: () => void;
+  #disposed = false;
 
   constructor(
     readonly owner: WorkbenchStateOwner,
@@ -80,6 +74,10 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     this.#createId = options.createId ?? defaultThreadId;
     this.#initialViewport = { ...(options.initialViewport ?? DEFAULT_VIEWPORT) };
     this.#instrumentation = options.instrumentation;
+    this.#stopProjectRemovalGuard = owner.registerProjectRemovalGuard({
+      id: "workbench.threads",
+      prepareRemoval: ({ projectId }) => this.#prepareProjectRemoval(projectId),
+    });
   }
 
   snapshot(): ThreadWorkbenchSnapshot {
@@ -277,6 +275,9 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
   }
 
   async dispose(): Promise<void> {
+    if (this.#disposed) return;
+    this.#disposed = true;
+    this.#stopProjectRemovalGuard();
     const sessions = [...this.#sessions.values()];
     this.#sessions.clear();
     await Promise.all(
@@ -288,6 +289,25 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
         }
       }),
     );
+  }
+
+  #prepareProjectRemoval(projectId: string): TransitionDecision {
+    const live = this.owner.snapshot().threads.filter(({ id, projectId: owner }) => {
+      if (owner !== projectId) return false;
+      const status = this.#sessions.get(id)?.snapshot().status;
+      return status === "running" || status === "starting";
+    });
+    if (live.length === 0) return { status: "ready" };
+    return {
+      status: "refused",
+      reason: `${live.length} project thread${live.length === 1 ? " is" : "s are"} still running`,
+      recovery: {
+        label: live.length === 1 ? "Terminate project thread" : "Terminate project threads",
+        run: async () => {
+          for (const thread of live) await this.#terminateAndClose(thread.id);
+        },
+      },
+    };
   }
 
   async #resolveScope(request: CreateThreadRequest): Promise<TerminalScope | TransitionResult> {

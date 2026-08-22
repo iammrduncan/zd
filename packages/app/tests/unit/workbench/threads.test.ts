@@ -3,8 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { CreateThreadWorktreeRequest, CreateThreadWorktreeResult } from "@/platform";
 import type { TerminalAdapter, TerminalExitStatus, TerminalSessionHandle } from "@/terminal";
 import type { CreateThreadRequest, ThreadAttentionEventV1 } from "@/threads";
+import { mountActiveThread } from "@/workbench/features";
 import { createRootThreadsAdapter } from "@/workbench/threads";
 import type { ProjectGrant } from "@/workbench/resources";
+import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
 import {
   createWorkbenchStateOwner,
   defaultWorkbenchState,
@@ -346,5 +348,51 @@ describe("the root Threads runtime adapter", () => {
       recovery: { kind: "missing-worktree" },
     });
     expect(state.snapshot().active.threadId).not.toBe("thread-existing");
+  });
+
+  it("guards project removal until its live terminal has an explicit safe action", async () => {
+    const state = owner();
+    const native = terminalAdapter();
+    const runtime = createRootThreadsAdapter(state, platform(native), {
+      createId: () => "thread-project-live",
+    });
+    await runtime.createThread(existingRequest());
+    const revoke = vi.fn(async () => undefined);
+
+    const removal = await state.removeProject(project.id, revoke);
+
+    expect(removal).toMatchObject({
+      status: "refused",
+      reason: expect.stringContaining("running"),
+      recovery: { label: expect.stringContaining("Terminate") },
+    });
+    expect(revoke).not.toHaveBeenCalled();
+    if (removal.status === "refused") await removal.recovery?.run();
+    await expect(state.removeProject(project.id, revoke)).resolves.toEqual({
+      status: "committed",
+    });
+    expect(revoke).toHaveBeenCalledOnce();
+    await runtime.dispose();
+  });
+
+  it("mounts the active runtime session into the centre thread surface", async () => {
+    const state = owner();
+    const runtime = createRootThreadsAdapter(state, platform(), {
+      createId: () => "thread-mounted",
+    });
+    await runtime.createThread(existingRequest());
+    const host = document.createElement("div");
+
+    const unmount = mountActiveThread(
+      host,
+      { state } as unknown as WorkbenchRuntimeContext,
+      runtime,
+    );
+
+    expect(host.querySelector(".zd-terminal-thread-surface")).not.toBeNull();
+    expect(host.querySelector(".zd-terminal-thread-metadata")?.textContent).toContain("Review");
+    unmount();
+    expect(host.querySelector(".zd-terminal-thread-surface")).toBeNull();
+    await runtime.dispose();
   });
 });
