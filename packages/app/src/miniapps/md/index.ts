@@ -2,7 +2,7 @@ import type { WorkbenchRuntimeContext, Unmount } from "@/workbench/runtime";
 import { launchResource } from "@/workbench/resources";
 import { createEditor, type Editor } from "./editor/editor";
 import { languageFor } from "./editor/language";
-import { register } from "@/suite/shortcuts";
+import { register, registerCommandTarget } from "@/suite/shortcuts";
 import { setWordWrap, wordWrap } from "@/suite/preferences";
 import { clearStatus, lineCount, showNotice, showStatus, wordCount } from "./status";
 import { clearPersistentNotice, documentNotice, persistentNotice } from "./notice";
@@ -265,18 +265,10 @@ const documentApp = {
             return true;
           },
         }),
-        register({
+        registerCommandTarget({
           id: "document.dropCaret",
-          /*
-           * Escape, and it is the editor's alone. It belonged to the Shortcut
-           * Reference until 2026-07-30, when that became a held surface — see the
-           * note in suite/reference.ts. §7.1's one-key-one-answer rule is why this
-           * waited rather than being layered on top of the Reference's command.
-           */
-          chord: { key: "Escape" },
-          description: "Drop the caret and follow the reading anchor again",
-          // §8: with no caret placed there is no mode to unwind, so the key falls
-          // through instead of being swallowed. The Reference reads the same fact.
+          commandId: "workbench.escape",
+          priority: 10,
           available: () => document_.hasCaret(),
           run: () => document_.dropCaret(),
         }),

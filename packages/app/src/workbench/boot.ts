@@ -1,9 +1,10 @@
 import type { Platform } from "@/platform";
-import { ThemeController, loadThemeCatalog, type ThemeNotice } from "@/design/themes";
+import { ThemeController, loadThemeCatalog } from "@/design/themes";
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import { registerReference } from "@/suite/reference";
 import { attachShortcuts } from "@/suite/shortcuts";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "./state";
+import { attachWorkbenchCommands } from "./commands";
 import { mountWorkbenchShell } from "./shell";
 import type { Unmount, WorkbenchMount } from "./runtime";
 
@@ -20,19 +21,14 @@ function saySoOnScreen(host: HTMLElement, message: string): void {
   host.replaceChildren(line);
 }
 
-function showLocalNotices(host: HTMLElement, notices: readonly ThemeNotice[]): void {
+function showLocalNotices(host: HTMLElement, notices: readonly string[]): void {
   if (notices.length === 0) return;
-  const stack = document.createElement("aside");
-  stack.className = "zd-local-notices";
-  stack.setAttribute("aria-label", "Configuration notices");
-  for (const notice of notices) {
-    const line = document.createElement("p");
-    line.className = "zd-local-notice";
-    line.setAttribute("role", "status");
-    line.textContent = `Theme ${notice.source}: ${notice.problem}`;
-    stack.append(line);
-  }
-  host.append(stack);
+  const line = document.createElement("p");
+  line.className = "zd-local-notice";
+  line.setAttribute("role", "status");
+  line.setAttribute("aria-label", "Configuration notice");
+  line.textContent = notices.join(" ");
+  host.append(line);
 }
 
 function reasonFor(cause: unknown): string {
@@ -62,7 +58,6 @@ export async function bootWorkbench(
   }
 
   const detachShortcuts = attachShortcuts();
-  const detachReference = registerReference(host);
   const [grants, themeFiles] = await Promise.all([
     platform.projectGrants().catch(() => (launch.project ? [launch.project] : [])),
     platform
@@ -72,13 +67,13 @@ export async function bootWorkbench(
   ]);
   const state = createWorkbenchStateOwner(workbenchStateFromGrants(grants, launch));
   const catalog = loadThemeCatalog(themeFiles.files);
-  const themeNotices = [...catalog.notices];
+  const localNotices = catalog.notices.map(({ source, problem }) => `Theme ${source}: ${problem}`);
   if (themeFiles.problem) {
-    themeNotices.push({ source: "configuration directory", problem: themeFiles.problem });
+    localNotices.push(`Theme configuration directory: ${themeFiles.problem}`);
   }
   const theme = new ThemeController(document.documentElement, catalog, {
     ...state.snapshot().theme,
-    onNotice: (notice) => themeNotices.push(notice),
+    onNotice: ({ source, problem }) => localNotices.push(`Theme ${source}: ${problem}`),
     onChange: ({ selected, lastValid }) => state.setThemeSelection(selected, lastValid),
   });
   const detachThemeState = state.subscribe(({ theme: selection }) => {
@@ -87,6 +82,8 @@ export async function bootWorkbench(
       theme.setSelection(selection.selected, selection.lastValid);
     }
   });
+  const rootCommands = attachWorkbenchCommands(host, { launch, platform, state });
+  const detachReference = registerReference(host);
 
   let unmount: Unmount;
   try {
@@ -96,6 +93,7 @@ export async function bootWorkbench(
       state,
     });
   } catch (cause) {
+    rootCommands.detach();
     detachThemeState();
     theme.dispose();
     detachReference();
@@ -104,12 +102,14 @@ export async function bootWorkbench(
     return NOTHING;
   }
 
-  showLocalNotices(host, themeNotices);
+  localNotices.push(...(await rootCommands.ready));
+  showLocalNotices(host, localNotices);
 
   return () => {
     detachThemeState();
     theme.dispose();
     detachReference();
+    rootCommands.detach();
     detachShortcuts();
     unmount();
   };

@@ -35,6 +35,8 @@ export interface Command {
   /** Stable dotted name, e.g. `document.save`. Not shown to anyone. */
   readonly id: string;
   readonly chord: Chord;
+  /** Global bindings are displayed here but dispatched by the native registrar. */
+  readonly scope?: "window" | "global";
   /** Prose for the Reference. What it does, not which key does it. */
   readonly description: string;
   /**
@@ -65,8 +67,50 @@ export interface Command {
   readonly release?: () => void;
 }
 
+/** One contextual implementation behind a root-owned semantic command. */
+export interface CommandTarget {
+  readonly id: string;
+  readonly commandId: string;
+  readonly priority?: number;
+  readonly available: () => boolean;
+  readonly run: () => boolean;
+}
+
 /** Registration order, which is the order the Reference lists them in. */
 const registered = new Map<string, Command>();
+const targets = new Map<string, Map<string, CommandTarget>>();
+
+/** Attach one feature behavior without creating another binding or displayed row. */
+export function registerCommandTarget(target: CommandTarget): () => void {
+  let commandTargets = targets.get(target.commandId);
+  if (!commandTargets) {
+    commandTargets = new Map();
+    targets.set(target.commandId, commandTargets);
+  }
+  commandTargets.set(target.id, target);
+  return () => {
+    const current = targets.get(target.commandId);
+    if (current?.get(target.id) !== target) return;
+    current.delete(target.id);
+    if (current.size === 0) targets.delete(target.commandId);
+  };
+}
+
+function availableTargets(commandId: string): CommandTarget[] {
+  return [...(targets.get(commandId)?.values() ?? [])]
+    .filter((target) => target.available())
+    .sort((left, right) => (right.priority ?? 0) - (left.priority ?? 0));
+}
+
+/** Whether the root command has a contextual implementation right now. */
+export function commandTargetAvailable(commandId: string): boolean {
+  return availableTargets(commandId).length > 0;
+}
+
+/** Run exactly one contextual implementation; priorities never cascade. */
+export function runCommandTarget(commandId: string): boolean {
+  return availableTargets(commandId)[0]?.run() ?? false;
+}
 
 /** Chords already taken, so a collision is loud rather than arbitrary. */
 function chordKey(chord: Chord): string {
@@ -114,6 +158,7 @@ export function commands(): Command[] {
 export function clearCommands(): void {
   registered.clear();
   holding.clear();
+  targets.clear();
 }
 
 function matches(chord: Chord, event: KeyboardEvent, platform: Platform): boolean {
@@ -196,6 +241,7 @@ export function dispatch(event: KeyboardEvent): boolean {
   const platform = currentPlatform();
 
   for (const command of registered.values()) {
+    if (command.scope === "global") continue;
     if (!matches(command.chord, event, platform)) continue;
     if (command.available && !command.available()) return false;
     if (!command.run()) return false;

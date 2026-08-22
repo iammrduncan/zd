@@ -493,6 +493,7 @@ export class WorkbenchStateOwner {
   }
 
   setWindowPresentation(presentation: WindowPresentation): void {
+    if (this.#state.window.presentation === presentation) return;
     this.#publish({ ...this.#state, window: { presentation } });
   }
 

@@ -48,6 +48,15 @@ const platform: Platform = {
   projectGrants: async () => [project],
   removeProjectGrant: async () => project,
   themeConfigFiles: async () => [],
+  registerGlobalSummon: async () => ({
+    supported: false,
+    registered: false,
+    shortcut: "CmdOrCtrl+Shift+Space",
+    problem: null,
+  }),
+  onWindowPresentationChanged: () => () => {},
+  toggleQuickAccess: async () => "ordinary",
+  hideQuickAccess: async () => "ordinary",
   workspaceFiles: async () => ({
     projectId: project.id,
     worktreeId: project.worktrees[0]!.id,

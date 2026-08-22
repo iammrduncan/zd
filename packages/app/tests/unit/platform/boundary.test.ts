@@ -82,6 +82,33 @@ describe("the Tauri window boundary", () => {
     expect(invoke).toHaveBeenCalledExactlyOnceWith("theme_config_files");
   });
 
+  it("keeps native global summon behind the typed window boundary", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    invoke
+      .mockResolvedValueOnce({
+        supported: true,
+        registered: true,
+        shortcut: "CmdOrCtrl+Shift+Space",
+        problem: null,
+      })
+      .mockResolvedValueOnce("quick-access")
+      .mockResolvedValueOnce("ordinary");
+    const platform = detectPlatform();
+
+    await platform.registerGlobalSummon();
+    await platform.toggleQuickAccess();
+    await platform.hideQuickAccess();
+
+    expect(invoke.mock.calls).toEqual([
+      ["register_global_summon"],
+      ["toggle_quick_access"],
+      ["hide_quick_access"],
+    ]);
+  });
+
   it("never sends an absolute path through ordinary file commands", async () => {
     Object.defineProperty(window, "__TAURI_INTERNALS__", {
       configurable: true,

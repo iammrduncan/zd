@@ -47,6 +47,15 @@ export interface ThemeConfigFile {
   readonly problem: string | null;
 }
 
+export type WindowPresentation = "ordinary" | "quick-access";
+
+export interface GlobalShortcutRegistration {
+  readonly supported: boolean;
+  readonly registered: boolean;
+  readonly shortcut: string;
+  readonly problem: string | null;
+}
+
 export interface Platform {
   readonly kind: "tauri" | "browser";
   /** What the process was launched to open. */
@@ -63,6 +72,14 @@ export interface Platform {
   removeProjectGrant(projectId: string): Promise<ProjectGrant>;
   /** Read direct `<name>.theme.config` children of the platform `zd` config directory. */
   themeConfigFiles(): Promise<readonly ThemeConfigFile[]>;
+  /** Register the one native summon chord, returning a conflict instead of failing launch. */
+  registerGlobalSummon(): Promise<GlobalShortcutRegistration>;
+  /** Mirror native show, hide, repeated summon, and focus-loss changes into root state. */
+  onWindowPresentationChanged(handler: (presentation: WindowPresentation) => void): () => void;
+  /** Toggle the existing root window between hidden and quick-access presentation. */
+  toggleQuickAccess(): Promise<WindowPresentation>;
+  /** Hide quick access without closing or tearing down the root window. */
+  hideQuickAccess(): Promise<WindowPresentation>;
   /** Read a UTF-8 text file. */
   readTextFile(resource: FileResource): Promise<string>;
   /** Markdown files inside one already-approved project/worktree root. */
@@ -121,6 +138,19 @@ const tauri: Platform = {
   projectGrants: () => invoke<readonly ProjectGrant[]>("project_grants"),
   removeProjectGrant: (projectId) => invoke<ProjectGrant>("remove_project_grant", { projectId }),
   themeConfigFiles: () => invoke<readonly ThemeConfigFile[]>("theme_config_files"),
+  registerGlobalSummon: () => invoke<GlobalShortcutRegistration>("register_global_summon"),
+  onWindowPresentationChanged: (handler) => {
+    let active = true;
+    const pending = listen<WindowPresentation>("window-presentation-changed", (event) => {
+      if (active) handler(event.payload);
+    });
+    return () => {
+      active = false;
+      void pending.then((unlisten) => unlisten());
+    };
+  },
+  toggleQuickAccess: () => invoke<WindowPresentation>("toggle_quick_access"),
+  hideQuickAccess: () => invoke<WindowPresentation>("hide_quick_access"),
   workspaceFiles: (projectId, worktreeId) =>
     invoke<WorkspaceListing>("workspace_files", { projectId, worktreeId }),
   readTextFile: (resource) => invoke<string>("read_text_file", { resource }),
@@ -164,6 +194,15 @@ const browser: Platform = {
     throw new Error(`no project grants in the browser shell: ${projectId}`);
   },
   themeConfigFiles: async () => [],
+  registerGlobalSummon: async () => ({
+    supported: false,
+    registered: false,
+    shortcut: "CmdOrCtrl+Shift+Space",
+    problem: null,
+  }),
+  onWindowPresentationChanged: () => () => {},
+  toggleQuickAccess: async () => "ordinary",
+  hideQuickAccess: async () => "ordinary",
   workspaceFiles: async (projectId, worktreeId) => {
     throw new Error(`no filesystem in the browser shell: ${projectId}/${worktreeId}`);
   },

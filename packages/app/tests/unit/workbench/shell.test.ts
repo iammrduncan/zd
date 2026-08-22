@@ -18,6 +18,15 @@ function context(): WorkbenchRuntimeContext {
       throw new Error("no grants");
     },
     themeConfigFiles: async () => [],
+    registerGlobalSummon: async () => ({
+      supported: false,
+      registered: false,
+      shortcut: "CmdOrCtrl+Shift+Space",
+      problem: null,
+    }),
+    onWindowPresentationChanged: () => () => {},
+    toggleQuickAccess: async () => "ordinary",
+    hideQuickAccess: async () => "ordinary",
     workspaceFiles: async () => {
       throw new Error("no listing");
     },
@@ -122,5 +131,27 @@ describe("the root workbench shell", () => {
 
     expect(unmountContent).toHaveBeenCalledOnce();
     expect(host.children).toHaveLength(0);
+  });
+
+  it("restores the last meaningful workbench focus when quick access is summoned", async () => {
+    const runtime = context();
+    const host = document.createElement("div");
+    const outside = document.createElement("button");
+    document.body.append(host, outside);
+    const unmount = await mountWorkbenchShell(host, runtime, () => () => {});
+    const changes = host.querySelector<HTMLButtonElement>(
+      '[role="tab"][aria-controls="zd-changes-panel"]',
+    )!;
+    changes.focus();
+    outside.focus();
+    expect(document.activeElement).toBe(outside);
+
+    runtime.state.setWindowPresentation("quick-access");
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(changes);
+    unmount();
+    host.remove();
+    outside.remove();
   });
 });

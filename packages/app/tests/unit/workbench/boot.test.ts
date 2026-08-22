@@ -40,6 +40,15 @@ function stubPlatform(path: string | null = null): Platform {
     projectGrants: async () => [project],
     removeProjectGrant: async () => project,
     themeConfigFiles: async () => [],
+    registerGlobalSummon: async () => ({
+      supported: false,
+      registered: false,
+      shortcut: "CmdOrCtrl+Shift+Space",
+      problem: null,
+    }),
+    onWindowPresentationChanged: () => () => {},
+    toggleQuickAccess: async () => "ordinary",
+    hideQuickAccess: async () => "ordinary",
     workspaceFiles: async () => {
       throw new Error("no listing");
     },
@@ -165,6 +174,30 @@ describe("one workbench boot", () => {
     expect(document.documentElement.dataset.themeName).toBe("dracula");
     expect(document.documentElement.style.getPropertyValue("--surface-canvas")).toBe("#282a36");
     expect(state!.snapshot().theme).toEqual({ selected: "dracula", lastValid: "dracula" });
+    teardown();
+  });
+
+  it("shows a native shortcut conflict without blocking ordinary launch", async () => {
+    const platform = stubPlatform();
+    platform.registerGlobalSummon = async () => ({
+      supported: true,
+      registered: false,
+      shortcut: "CmdOrCtrl+Shift+Space",
+      problem: "shortcut is already registered",
+    });
+    const mount = vi.fn<WorkbenchMount>((host) => {
+      host.append(document.createElement("main"));
+      return () => host.replaceChildren();
+    });
+    const host = document.createElement("div");
+
+    const teardown = await bootWorkbench(host, platform, mount);
+
+    expect(mount).toHaveBeenCalledOnce();
+    expect(host.querySelector(".zd-local-notice")?.textContent).toContain(
+      "shortcut is already registered",
+    );
+    expect(host.querySelector(".zd-local-notice")?.textContent).toContain("relaunch zd");
     teardown();
   });
 });
