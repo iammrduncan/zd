@@ -178,7 +178,8 @@ impl SessionWriter {
             .ok_or_else(|| "diagnostic writer is closed".to_string())
             .and_then(|file| {
                 file.write_all(&line)
-                    .map_err(|error| io_problem("write a record", &error))
+                    .and_then(|()| file.flush())
+                    .map_err(|error| io_problem("commit a record", &error))
             });
         if let Err(problem) = write_result {
             return self.stop_with(problem);
@@ -242,5 +243,10 @@ fn write_manifest(directory: &Path, manifest: &DiagnosticManifest) -> Result<(),
     let temporary = directory.join("manifest.json.tmp");
     let destination = directory.join("manifest.json");
     fs::write(&temporary, bytes).map_err(|error| io_problem("write its manifest", &error))?;
+    match fs::remove_file(&destination) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(io_problem("replace its manifest", &error)),
+    }
     fs::rename(&temporary, &destination).map_err(|error| io_problem("commit its manifest", &error))
 }
