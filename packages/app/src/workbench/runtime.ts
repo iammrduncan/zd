@@ -19,3 +19,12 @@ export type WorkbenchMount = (
   host: HTMLElement,
   context: WorkbenchRuntimeContext,
 ) => Unmount | Promise<Unmount>;
+
+/** Optional feature mounts behind the shell's stable semantic region hosts. */
+export interface WorkbenchRegionMounts {
+  readonly threads?: WorkbenchMount;
+  readonly thread?: WorkbenchMount;
+  readonly file: WorkbenchMount;
+  readonly files?: WorkbenchMount;
+  readonly changes?: WorkbenchMount;
+}

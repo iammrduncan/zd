@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Platform } from "@/platform";
-import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
+import type { WorkbenchMount, WorkbenchRuntimeContext } from "@/workbench/runtime";
 import { mountWorkbenchShell } from "@/workbench/shell";
 import { createWorkbenchStateOwner } from "@/workbench/state";
 import { homeLaunch } from "@/workbench/resources";
@@ -41,6 +41,55 @@ function context(): WorkbenchRuntimeContext {
 }
 
 describe("the root workbench shell", () => {
+  it("mounts every feature through a named region host and tears them down in reverse", async () => {
+    const host = document.createElement("div");
+    const mounted: string[] = [];
+    const unmounted: string[] = [];
+    const mount =
+      (name: string): WorkbenchMount =>
+      (region) => {
+        mounted.push(`${name}:${region.dataset.workbenchSlot}`);
+        region.replaceChildren(document.createTextNode(name));
+        return () => unmounted.push(name);
+      };
+
+    const unmount = await mountWorkbenchShell(host, context(), {
+      threads: mount("threads"),
+      thread: mount("thread"),
+      file: mount("file"),
+      files: mount("files"),
+      changes: mount("changes"),
+    });
+
+    expect(mounted).toEqual([
+      "threads:threads",
+      "thread:thread",
+      "file:file",
+      "files:files",
+      "changes:changes",
+    ]);
+
+    unmount();
+    expect(unmounted).toEqual(["changes", "files", "file", "thread", "threads"]);
+  });
+
+  it("tears down mounted sibling regions when one feature cannot mount", async () => {
+    const host = document.createElement("div");
+    const stopThreads = vi.fn();
+
+    await expect(
+      mountWorkbenchShell(host, context(), {
+        threads: () => stopThreads,
+        file: () => {
+          throw new Error("file surface unavailable");
+        },
+      }),
+    ).rejects.toThrow("file surface unavailable");
+
+    expect(stopThreads).toHaveBeenCalledOnce();
+    expect(host.children).toHaveLength(0);
+  });
+
   it("owns Threads, centre content, and Files/Changes in the specified order", async () => {
     const host = document.createElement("div");
     const mountedContent = vi.fn(() => () => {});
