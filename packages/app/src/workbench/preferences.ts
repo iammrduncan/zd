@@ -1,3 +1,11 @@
+import {
+  defaultAttentionSettings,
+  isCompletionSound,
+  type AttentionNotificationSettings,
+  type CompletionSound,
+  type SupportedAttentionAgent,
+} from "@/notifications";
+
 /**
  * Durable workbench preferences.
  *
@@ -16,6 +24,14 @@ const session = new Map<string, string>();
 
 const WORD_WRAP = "zd.wordWrap";
 const DIAGNOSTICS_ENABLED = "zd.diagnosticsEnabled";
+const ATTENTION_DESKTOP = "zd.attentionDesktop";
+const ATTENTION_SOUND = "zd.attentionSound";
+const ATTENTION_MUTED = "zd.attentionMuted";
+const ATTENTION_VOLUME = "zd.attentionVolume";
+
+function attentionSoundKey(agent: SupportedAttentionAgent): string {
+  return `zd.attentionSound.${agent}`;
+}
 
 function read(key: string): string | null {
   const remembered = session.get(key);
@@ -65,6 +81,57 @@ export function diagnosticsEnabled(): boolean {
 /** Remember whether the next workbench session should collect local diagnostics. */
 export function setDiagnosticsEnabled(enabled: boolean): void {
   write(DIAGNOSTICS_ENABLED, String(enabled));
+}
+
+/** Desktop notification permission is requested only after this explicit choice. */
+export function setAttentionDesktopEnabled(enabled: boolean): void {
+  write(ATTENTION_DESKTOP, String(enabled));
+}
+
+/** Optional completion audio is deliberately off until explicitly enabled. */
+export function setAttentionSoundEnabled(enabled: boolean): void {
+  write(ATTENTION_SOUND, String(enabled));
+}
+
+export function setAttentionMuted(muted: boolean): void {
+  write(ATTENTION_MUTED, String(muted));
+}
+
+export function setAttentionVolume(selectedVolume: number): void {
+  const bounded = Number.isFinite(selectedVolume) ? Math.min(1, Math.max(0, selectedVolume)) : 0.5;
+  write(ATTENTION_VOLUME, String(bounded));
+}
+
+export function setAttentionAgentSound(
+  agent: SupportedAttentionAgent,
+  sound: CompletionSound,
+): void {
+  write(attentionSoundKey(agent), sound);
+}
+
+/** One normalized answer for both Settings and the event-time coordinator. */
+export function attentionSettings(): AttentionNotificationSettings {
+  const defaults = defaultAttentionSettings();
+  const rawVolume = read(ATTENTION_VOLUME);
+  const storedVolume = rawVolume === null ? Number.NaN : Number(rawVolume);
+  const volume = Number.isFinite(storedVolume)
+    ? Math.min(1, Math.max(0, storedVolume))
+    : defaults.volume;
+  const sound = (agent: SupportedAttentionAgent): CompletionSound => {
+    const stored = read(attentionSoundKey(agent));
+    return isCompletionSound(stored) ? stored : defaults.agentSounds[agent];
+  };
+  return {
+    desktopEnabled: read(ATTENTION_DESKTOP) === "true",
+    soundEnabled: read(ATTENTION_SOUND) === "true",
+    muted: read(ATTENTION_MUTED) === "true",
+    volume,
+    agentSounds: {
+      codex: sound("codex"),
+      "claude-code": sound("claude-code"),
+      opencode: sound("opencode"),
+    },
+  };
 }
 
 /**

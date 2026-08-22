@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  attentionSettings,
   diagnosticsEnabled,
   forgetPreferences,
+  setAttentionAgentSound,
+  setAttentionDesktopEnabled,
+  setAttentionMuted,
+  setAttentionSoundEnabled,
+  setAttentionVolume,
   setDiagnosticsEnabled,
   setWordWrap,
   wordWrap,
@@ -64,6 +70,43 @@ describe("local diagnostics", () => {
 
     setDiagnosticsEnabled(false);
     expect(diagnosticsEnabled()).toBe(false);
+  });
+});
+
+describe("attention presentation", () => {
+  it("defaults desktop presentation and completion sound off", () => {
+    expect(attentionSettings()).toEqual({
+      desktopEnabled: false,
+      soundEnabled: false,
+      muted: false,
+      volume: 0.5,
+      agentSounds: { codex: "subtle", "claude-code": "gentle", opencode: "bright" },
+    });
+  });
+
+  it("persists permission intent, mute, bounded volume, and per-agent sounds", () => {
+    setAttentionDesktopEnabled(true);
+    setAttentionSoundEnabled(true);
+    setAttentionMuted(true);
+    setAttentionVolume(4);
+    setAttentionAgentSound("codex", "bright");
+
+    expect(attentionSettings()).toEqual({
+      desktopEnabled: true,
+      soundEnabled: true,
+      muted: true,
+      volume: 1,
+      agentSounds: { codex: "bright", "claude-code": "gentle", opencode: "bright" },
+    });
+  });
+
+  it("falls back from invalid persisted sound and volume values", () => {
+    window.localStorage.setItem("zd.attentionVolume", "loud");
+    window.localStorage.setItem("zd.attentionSound.codex", "custom-file");
+    forgetPreferences();
+
+    expect(attentionSettings().volume).toBe(0.5);
+    expect(attentionSettings().agentSounds.codex).toBe("subtle");
   });
 });
 

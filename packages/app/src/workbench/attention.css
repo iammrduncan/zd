@@ -1,0 +1,39 @@
+.zd-attention-settings {
+  display: grid;
+  gap: 5px;
+  padding-block: 4px 7px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.zd-attention-settings h3 {
+  margin: 0;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.zd-attention-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 22px;
+  gap: 8px;
+}
+
+.zd-attention-setting-row select,
+.zd-attention-setting-row input[type="range"] {
+  min-width: 0;
+  max-width: 104px;
+}
+
+.zd-attention-status,
+.zd-attention-routing-problem {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.zd-attention-routing-problem:not([hidden]) {
+  color: var(--text-caution, var(--text-muted));
+}
