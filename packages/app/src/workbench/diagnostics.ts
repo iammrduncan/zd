@@ -1,6 +1,7 @@
 import "./diagnostics.css";
 
 import type { DiagnosticStatus, InstrumentationClient } from "@/instrumentation";
+import { mountAttentionSettings, type AttentionSettingsController } from "./attention";
 import { diagnosticsEnabled, setDiagnosticsEnabled } from "./preferences";
 import type { Unmount } from "./runtime";
 import type { WorkbenchState, WorkbenchStateOwner } from "./state";
@@ -52,6 +53,7 @@ export function mountDiagnosticSettings(
   host: HTMLElement,
   instrumentation: InstrumentationClient,
   reveal: () => Promise<void>,
+  attention?: AttentionSettingsController,
 ): Unmount {
   const settings = document.createElement("details");
   settings.className = "zd-diagnostic-settings";
@@ -74,6 +76,7 @@ export function mountDiagnosticSettings(
 
   const status = document.createElement("p");
   status.className = "zd-diagnostic-status";
+  status.dataset.diagnosticStatus = "true";
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
 
@@ -83,6 +86,7 @@ export function mountDiagnosticSettings(
   revealButton.dataset.diagnosticsReveal = "true";
   revealButton.textContent = "Reveal logs";
   body.append(label, status, revealButton);
+  const stopAttention = attention ? mountAttentionSettings(body, attention) : () => {};
   settings.append(summary, body);
   host.append(settings);
 
@@ -130,6 +134,7 @@ export function mountDiagnosticSettings(
     active = false;
     toggle.removeEventListener("change", onToggle);
     revealButton.removeEventListener("click", onReveal);
+    stopAttention();
     settings.remove();
   };
 }

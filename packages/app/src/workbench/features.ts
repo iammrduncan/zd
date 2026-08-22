@@ -13,6 +13,7 @@ import {
 import { createWorkbenchChangesRuntime, mountCurrentFileWithChanges } from "./changes";
 import { mountDiagnosticSettings } from "./diagnostics";
 import { createWorkbenchFilesRuntime } from "./files";
+import { createWorkbenchAttentionRuntime } from "./notifications";
 import { createProjectWorkbenchAdapter } from "./projects";
 import type { Unmount, WorkbenchMount, WorkbenchRuntimeContext } from "./runtime";
 import { mountWorkbenchShell } from "./shell";
@@ -37,7 +38,10 @@ function recordThreadAction(
   });
 }
 
-function threadsNavigationMount(threads: ThreadsController): WorkbenchMount {
+function threadsNavigationMount(
+  threads: ThreadsController,
+  attention: Awaited<ReturnType<typeof createWorkbenchAttentionRuntime>>["settings"],
+): WorkbenchMount {
   return (host, context) => {
     const projects = new ProjectsController(
       createProjectWorkbenchAdapter(context.state, context.platform, context.instrumentation),
@@ -58,6 +62,7 @@ function threadsNavigationMount(threads: ThreadsController): WorkbenchMount {
       host,
       context.instrumentation,
       context.platform.revealDiagnostics,
+      attention,
     );
     return () => {
       stopDiagnostics();
@@ -182,6 +187,12 @@ export async function mountWorkbenchFeatures(
   const threads = new ThreadsController(threadsAdapter, (event) =>
     recordThreadAction(context, event),
   );
+  const attention = await createWorkbenchAttentionRuntime(
+    context.state,
+    context.platform,
+    threadsAdapter,
+  );
+  const stopAttention = attention.attach();
   const files = createWorkbenchFilesRuntime(
     context.state,
     context.platform.fileTree,
@@ -200,7 +211,7 @@ export async function mountWorkbenchFeatures(
   let stopShell: Unmount;
   try {
     stopShell = await mountWorkbenchShell(host, context, {
-      threads: threadsNavigationMount(threads),
+      threads: threadsNavigationMount(threads, attention.settings),
       thread: (threadHost, threadContext) =>
         mountActiveThread(threadHost, threadContext, threadsAdapter),
       file: (fileHost, fileContext) =>
@@ -211,6 +222,7 @@ export async function mountWorkbenchFeatures(
   } catch (cause) {
     stopChangesRuntime();
     stopFilesRuntime();
+    stopAttention();
     void threadsAdapter.dispose();
     throw cause;
   }
@@ -219,6 +231,7 @@ export async function mountWorkbenchFeatures(
     stopShell();
     stopChangesRuntime();
     stopFilesRuntime();
+    stopAttention();
     void threadsAdapter.dispose();
   };
 }
