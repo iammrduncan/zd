@@ -18,6 +18,8 @@ const COLOUR_ROLES = [
   ["surface-transient", "#f7f7f3", "#222320"],
   ["surface-selection", "#e7e8e2", "#30322e"],
   ["surface-code", "#f0f1ec", "#242622"],
+  ["surface-diff-added", "#e7efe5", "#26352a"],
+  ["surface-diff-deleted", "#f2e7e5", "#382827"],
   ["text-primary", "#242522", "#e5e2d9"],
   ["text-secondary", "#5f625c", "#b4b1a9"],
   ["text-muted", "#4a4e48", "#b4b5ae"],
@@ -27,7 +29,11 @@ const COLOUR_ROLES = [
   ["state-added", "#2d5338", "#a6cfb1"],
   ["state-changed", "#85682c", "#d1b36c"],
   ["state-deleted", "#8a4d4a", "#d99993"],
+  ["state-ignored", "#9b9d97", "#777a73"],
   ["state-error", "#854943", "#db938b"],
+  ["state-waiting", "#506f78", "#86a9b2"],
+  ["state-busy", "#a66a18", "#d7a252"],
+  ["state-idle", "#9b9d97", "#777a73"],
 ] as const;
 
 function palette(role: string): { light: string; dark: string } {

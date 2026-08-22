@@ -39,6 +39,7 @@ function stubPlatform(path: string | null = null): Platform {
     acceptOpenRequest: async () => null,
     projectGrants: async () => [project],
     removeProjectGrant: async () => project,
+    themeConfigFiles: async () => [],
     workspaceFiles: async () => {
       throw new Error("no listing");
     },
@@ -124,5 +125,46 @@ describe("one workbench boot", () => {
     await bootWorkbench(host, stubPlatform(), mount);
 
     expect(commands().map(({ id }) => id)).not.toContain("suite.ssps");
+  });
+
+  it("reports one invalid theme locally without preventing the workbench", async () => {
+    const platform = stubPlatform();
+    platform.themeConfigFiles = async () => [
+      { fileName: "broken.theme.config", contents: "{", problem: null },
+    ];
+    const mount = vi.fn<WorkbenchMount>((host) => {
+      const content = document.createElement("main");
+      content.textContent = "workbench ready";
+      host.append(content);
+      return () => content.remove();
+    });
+    const host = document.createElement("div");
+
+    const teardown = await bootWorkbench(host, platform, mount);
+
+    expect(mount).toHaveBeenCalledOnce();
+    expect(host.textContent).toContain("workbench ready");
+    expect(host.querySelector(".zd-local-notice")?.textContent).toContain("broken.theme.config");
+    expect(document.documentElement.dataset.themeName).toBe("current-light");
+    teardown();
+  });
+
+  it("applies root-owned theme changes without remounting the workbench", async () => {
+    let state: Parameters<WorkbenchMount>[1]["state"] | null = null;
+    const mount = vi.fn<WorkbenchMount>((host, context) => {
+      state = context.state;
+      host.append(document.createElement("main"));
+      return () => host.replaceChildren();
+    });
+    const host = document.createElement("div");
+    const teardown = await bootWorkbench(host, stubPlatform(), mount);
+
+    state!.setThemeSelection("dracula", "current-light");
+
+    expect(mount).toHaveBeenCalledOnce();
+    expect(document.documentElement.dataset.themeName).toBe("dracula");
+    expect(document.documentElement.style.getPropertyValue("--surface-canvas")).toBe("#282a36");
+    expect(state!.snapshot().theme).toEqual({ selected: "dracula", lastValid: "dracula" });
+    teardown();
   });
 });

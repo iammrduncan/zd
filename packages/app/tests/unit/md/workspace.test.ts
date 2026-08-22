@@ -63,6 +63,7 @@ function context(path: string, listing: WorkspaceListing): WorkbenchRuntimeConte
       acceptOpenRequest: async () => null,
       projectGrants: async () => [project],
       removeProjectGrant: async () => project,
+      themeConfigFiles: async () => [],
       workspaceFiles: async () => listing,
       readTextFile: async () => "",
       writeTextFile: async () => {},

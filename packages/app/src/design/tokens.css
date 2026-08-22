@@ -437,6 +437,8 @@
   --surface-transient: light-dark(#f7f7f3, #222320);
   --surface-selection: light-dark(#e7e8e2, #30322e);
   --surface-code: light-dark(#f0f1ec, #242622);
+  --surface-diff-added: light-dark(#e7efe5, #26352a);
+  --surface-diff-deleted: light-dark(#f2e7e5, #382827);
 
   /* Text. secondary and muted describe purpose and contrast, not an emphasis
      ladder — a source marker is not supporting prose (DESIGN.md §5.2). */
@@ -453,22 +455,28 @@
   --state-added: light-dark(#2d5338, #a6cfb1);
   --state-changed: light-dark(#85682c, #d1b36c);
   --state-deleted: light-dark(#8a4d4a, #d99993);
+  --state-ignored: light-dark(#9b9d97, #777a73);
   --state-error: light-dark(#854943, #db938b);
+  --state-waiting: light-dark(#506f78, #86a9b2);
+  --state-busy: light-dark(#a66a18, #d7a252);
+  --state-idle: light-dark(#9b9d97, #777a73);
 
   /*
-   * Syntax categories. DESIGN.md §5.2 names exactly three — keywords, strings,
-   * comments — and requires they be coloured "through the active DesignSystem…
-   * never with miniapp-local colours", which is why they are here rather than in
-   * a highlighter theme. Any language added later reuses these three; adding a
-   * fourth category is a DESIGN.md change, not a stylesheet one.
+   * Syntax categories. DESIGN.md §5 names the closed seven-role theme schema
+   * and requires them to come from the active theme rather than a local
+   * highlighter palette.
    *
    * §4.3 also requires syntax to stay "distinguishable at the warmest setting
    * and without colour", so these are separated by lightness as well as hue and
    * none of them is the only signal a reader has.
    */
   --syntax-keyword: light-dark(#7a3d55, #d9a3b6);
+  --syntax-type: light-dark(#315e73, #8fbfd1);
+  --syntax-function: light-dark(#744f2d, #d0b078);
   --syntax-string: light-dark(#3f5d3f, #a9c8a0);
+  --syntax-number: light-dark(#6b4e7c, #c9a3d5);
   --syntax-comment: light-dark(#6b6f68, #8e938b);
+  --syntax-punctuation: light-dark(#5f625c, #b4b1a9);
 
   /*
    * Focus. DESIGN.md §4.4 derives two roles from the palette: `focus.target` is

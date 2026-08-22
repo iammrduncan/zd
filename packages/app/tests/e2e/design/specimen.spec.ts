@@ -27,6 +27,8 @@ const COLOUR_TOKENS = [
   "--surface-transient",
   "--surface-selection",
   "--surface-code",
+  "--surface-diff-added",
+  "--surface-diff-deleted",
   "--text-primary",
   "--text-secondary",
   "--text-muted",
@@ -36,7 +38,11 @@ const COLOUR_TOKENS = [
   "--state-added",
   "--state-changed",
   "--state-deleted",
+  "--state-ignored",
   "--state-error",
+  "--state-waiting",
+  "--state-busy",
+  "--state-idle",
 ];
 
 test("shows every DESIGN.md 5.2 type role, and only those", async ({ page }) => {
@@ -84,6 +90,9 @@ test("the theme buttons switch the palette and return to following the system", 
 
   await page.getByRole("button", { name: "light" }).click();
   expect(await canvas()).toBe("rgb(250, 250, 247)");
+
+  await page.getByRole("button", { name: "dracula" }).click();
+  expect(await canvas()).toBe("rgb(40, 42, 54)");
 
   await page.getByRole("button", { name: "system" }).click();
   expect(await canvas()).toBe("rgb(25, 26, 25)");

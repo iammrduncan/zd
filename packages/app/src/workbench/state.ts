@@ -152,10 +152,7 @@ function uniqueGrants(
   return [...byId.values()];
 }
 
-function stateWithGrants(
-  current: WorkbenchState,
-  grants: readonly ProjectGrant[],
-): WorkbenchState {
+function stateWithGrants(current: WorkbenchState, grants: readonly ProjectGrant[]): WorkbenchState {
   const projects = grants.map(({ id, name, root, availability }) => ({
     id,
     name,
@@ -195,8 +192,7 @@ function contextForLaunch(state: WorkbenchState, launch: LaunchRequest): Workben
     projectId: launch.project.id,
     worktreeId: launch.worktreeId,
     threadId:
-      state.active.projectId === launch.project.id &&
-      state.active.worktreeId === launch.worktreeId
+      state.active.projectId === launch.project.id && state.active.worktreeId === launch.worktreeId
         ? state.active.threadId
         : null,
     fileId: file?.id ?? null,
@@ -400,10 +396,7 @@ export class WorkbenchStateOwner {
     return this.#commitTransition(this.#state, target);
   }
 
-  applyLaunch(
-    launch: LaunchRequest,
-    grants: readonly ProjectGrant[],
-  ): Promise<TransitionResult> {
+  applyLaunch(launch: LaunchRequest, grants: readonly ProjectGrant[]): Promise<TransitionResult> {
     const work = this.#transitionTail.then(() => this.#applyLaunch(launch, grants));
     this.#transitionTail = work.then(
       () => undefined,
@@ -501,6 +494,13 @@ export class WorkbenchStateOwner {
 
   setWindowPresentation(presentation: WindowPresentation): void {
     this.#publish({ ...this.#state, window: { presentation } });
+  }
+
+  setThemeSelection(selected: string, lastValid: string): void {
+    if (!selected || !lastValid) return;
+    if (this.#state.theme.selected === selected && this.#state.theme.lastValid === lastValid)
+      return;
+    this.#publish({ ...this.#state, theme: { selected, lastValid } });
   }
 
   #publish(next: WorkbenchState): void {

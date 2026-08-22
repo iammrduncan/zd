@@ -1,4 +1,5 @@
 import type { Platform } from "@/platform";
+import { ThemeController, loadThemeCatalog, type ThemeNotice } from "@/design/themes";
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import { registerReference } from "@/suite/reference";
 import { attachShortcuts } from "@/suite/shortcuts";
@@ -17,6 +18,21 @@ function saySoOnScreen(host: HTMLElement, message: string): void {
   line.className = "zd-boot-notice";
   line.textContent = message;
   host.replaceChildren(line);
+}
+
+function showLocalNotices(host: HTMLElement, notices: readonly ThemeNotice[]): void {
+  if (notices.length === 0) return;
+  const stack = document.createElement("aside");
+  stack.className = "zd-local-notices";
+  stack.setAttribute("aria-label", "Configuration notices");
+  for (const notice of notices) {
+    const line = document.createElement("p");
+    line.className = "zd-local-notice";
+    line.setAttribute("role", "status");
+    line.textContent = `Theme ${notice.source}: ${notice.problem}`;
+    stack.append(line);
+  }
+  host.append(stack);
 }
 
 function reasonFor(cause: unknown): string {
@@ -47,25 +63,52 @@ export async function bootWorkbench(
 
   const detachShortcuts = attachShortcuts();
   const detachReference = registerReference(host);
-  const grants = await platform
-    .projectGrants()
-    .catch(() => (launch.project ? [launch.project] : []));
+  const [grants, themeFiles] = await Promise.all([
+    platform.projectGrants().catch(() => (launch.project ? [launch.project] : [])),
+    platform
+      .themeConfigFiles()
+      .then((files) => ({ files, problem: null }))
+      .catch((cause: unknown) => ({ files: [], problem: reasonFor(cause) })),
+  ]);
+  const state = createWorkbenchStateOwner(workbenchStateFromGrants(grants, launch));
+  const catalog = loadThemeCatalog(themeFiles.files);
+  const themeNotices = [...catalog.notices];
+  if (themeFiles.problem) {
+    themeNotices.push({ source: "configuration directory", problem: themeFiles.problem });
+  }
+  const theme = new ThemeController(document.documentElement, catalog, {
+    ...state.snapshot().theme,
+    onNotice: (notice) => themeNotices.push(notice),
+    onChange: ({ selected, lastValid }) => state.setThemeSelection(selected, lastValid),
+  });
+  const detachThemeState = state.subscribe(({ theme: selection }) => {
+    const applied = theme.snapshot();
+    if (selection.selected !== applied.selected || selection.lastValid !== applied.lastValid) {
+      theme.setSelection(selection.selected, selection.lastValid);
+    }
+  });
 
   let unmount: Unmount;
   try {
     unmount = await mount(host, {
       launch,
       platform,
-      state: createWorkbenchStateOwner(workbenchStateFromGrants(grants, launch)),
+      state,
     });
   } catch (cause) {
+    detachThemeState();
+    theme.dispose();
     detachReference();
     detachShortcuts();
     saySoOnScreen(host, `zd could not start: ${reasonFor(cause)}`);
     return NOTHING;
   }
 
+  showLocalNotices(host, themeNotices);
+
   return () => {
+    detachThemeState();
+    theme.dispose();
     detachReference();
     detachShortcuts();
     unmount();

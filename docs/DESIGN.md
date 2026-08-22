@@ -136,6 +136,9 @@ Validation rejects:
 - unsafe paths, URLs, imports, scripts, commands, or executable content; and
 - files larger than the documented configuration limit.
 
+The configuration limit is **65,536 bytes (64 KiB) per file**. Discovery reads only regular,
+direct-child `*.theme.config` files; symbolic links and nested paths are rejected.
+
 One invalid theme produces one specific local notice and falls back to the last valid theme or the
 current light theme. It never prevents launch. A theme change updates every open region without
 restarting processes, clearing editor history, or moving the semantic viewport anchor.
