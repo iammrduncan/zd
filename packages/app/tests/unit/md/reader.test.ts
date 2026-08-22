@@ -103,7 +103,15 @@ function context(
         throw new Error("no listing");
       },
       readTextFile,
-      readBoundedFile: async () => ({ status: "unavailable", problem: "unused test boundary" }),
+      readBoundedFile: async (resource) => {
+        const text = await readTextFile(resource);
+        return {
+          status: "text",
+          text,
+          byteLength: new TextEncoder().encode(text).byteLength,
+          writable: true,
+        };
+      },
       writeTextFile,
       fileStamp,
       onCloseRequested: () => () => {},
