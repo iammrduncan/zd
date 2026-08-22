@@ -1,0 +1,262 @@
+.zd-workbench {
+  /* Safe first-frame values; the root state owner overrides these per instance. */
+  --workbench-threads-width: 236px;
+  --workbench-files-width: 280px;
+  --workbench-centre-split: 42%;
+  --workbench-threads-responsive-width: clamp(
+    184px,
+    var(--workbench-threads-width),
+    300px
+  );
+  --workbench-files-responsive-width: clamp(220px, var(--workbench-files-width), 360px);
+  --workbench-threads-column: var(--workbench-threads-responsive-width);
+  --workbench-files-column: var(--workbench-files-responsive-width);
+  --workbench-threads-divider: var(--hairline);
+  --workbench-files-divider: var(--hairline);
+
+  display: grid;
+  grid-template-columns:
+    var(--workbench-threads-column) var(--workbench-threads-divider) minmax(0, 1fr)
+    var(--workbench-files-divider)
+    var(--workbench-files-column);
+  height: 100%;
+  overflow: hidden;
+  background: var(--surface-canvas);
+}
+
+.zd-workbench-threads,
+.zd-workbench-files {
+  min-width: 0;
+  overflow: auto;
+  padding-block: var(--space-5) var(--space-3);
+  padding-inline: var(--space-2);
+  background: var(--surface-sidebar);
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-navigation-size);
+  line-height: var(--type-navigation-line);
+}
+
+.zd-workbench-threads {
+  grid-column: 1;
+}
+
+.zd-workbench-centre {
+  grid-column: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.zd-workbench-files {
+  grid-column: 5;
+}
+
+.zd-centre-surface {
+  grid-area: 1 / 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.zd-workbench[data-centre-mode="side-by-side"] .zd-workbench-centre {
+  grid-template-columns:
+    minmax(0, var(--workbench-centre-split)) var(--hairline)
+    minmax(0, 1fr);
+}
+
+.zd-workbench[data-centre-mode="side-by-side"] .zd-thread-surface {
+  grid-area: 1 / 1;
+}
+
+.zd-workbench[data-centre-mode="side-by-side"] [data-resizer="centre"] {
+  grid-area: 1 / 2;
+}
+
+.zd-workbench[data-centre-mode="side-by-side"] .zd-file-surface {
+  grid-area: 1 / 3;
+}
+
+.zd-region-heading,
+.zd-region-empty {
+  margin: 0;
+  font: inherit;
+}
+
+.zd-region-heading {
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.zd-region-empty {
+  margin-block-start: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.zd-workbench-separator {
+  position: relative;
+  z-index: 1;
+  min-width: var(--hairline);
+  background: var(--line-quiet);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.zd-workbench > [data-resizer="threads"] {
+  grid-column: 2;
+}
+
+.zd-workbench > [data-resizer="files"] {
+  grid-column: 4;
+}
+
+.zd-workbench-separator::after {
+  position: absolute;
+  inset-block: 0;
+  inset-inline: -4px;
+  content: "";
+}
+
+.zd-workbench-separator:focus-visible {
+  outline: none;
+  background: var(--line-focus);
+}
+
+.zd-files-tabs {
+  display: flex;
+  gap: var(--space-3);
+  min-height: 24px;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+}
+
+.zd-files-tab {
+  appearance: none;
+  padding: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0;
+  border-block-end: 2px solid transparent;
+  font: inherit;
+}
+
+.zd-files-tab[aria-selected="true"] {
+  color: var(--text-primary);
+  border-block-end-color: var(--line-focus);
+}
+
+.zd-files-tab:focus-visible {
+  outline: none;
+  text-decoration: underline;
+  text-decoration-color: var(--line-focus);
+  text-underline-offset: 3px;
+}
+
+.zd-files-panel {
+  min-width: 0;
+  overflow: auto;
+  padding-block-start: var(--space-2);
+}
+
+.zd-workbench[data-threads-visibility="hidden"] {
+  --workbench-threads-responsive-width: 0px;
+  --workbench-threads-divider: 0px;
+}
+
+.zd-workbench[data-threads-visibility="collapsed"] {
+  --workbench-threads-responsive-width: 56px;
+}
+
+.zd-workbench[data-files-visibility="hidden"] {
+  --workbench-files-responsive-width: 0px;
+  --workbench-files-divider: 0px;
+}
+
+.zd-workbench[data-threads-visibility="hidden"] > .zd-workbench-threads,
+.zd-workbench[data-threads-visibility="hidden"] > [data-resizer="threads"],
+.zd-workbench[data-files-visibility="hidden"] > .zd-workbench-files,
+.zd-workbench[data-files-visibility="hidden"] > [data-resizer="files"] {
+  display: none;
+}
+
+@media (max-width: 80rem) {
+  .zd-workbench[data-threads-visibility="full"] {
+    --workbench-threads-responsive-width: 184px;
+  }
+
+  .zd-workbench[data-files-visibility="visible"] {
+    --workbench-files-responsive-width: 220px;
+  }
+}
+
+@media (max-width: 75rem) {
+  .zd-workbench[data-centre-mode="side-by-side"] .zd-workbench-centre {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zd-workbench[data-centre-mode="side-by-side"] [data-resizer="centre"] {
+    display: none;
+  }
+
+  .zd-workbench[data-centre-mode="side-by-side"]:is(
+      [data-focus-region="thread"],
+      [data-focus-region="threads"]
+    )
+    .zd-file-surface,
+  .zd-workbench[data-centre-mode="side-by-side"]:is(
+      [data-focus-region="file"],
+      [data-focus-region="files"]
+    )
+    .zd-thread-surface {
+    display: none;
+  }
+
+  .zd-workbench[data-centre-mode="side-by-side"]:is(
+      [data-focus-region="thread"],
+      [data-focus-region="threads"]
+    )
+    .zd-thread-surface,
+  .zd-workbench[data-centre-mode="side-by-side"]:is(
+      [data-focus-region="file"],
+      [data-focus-region="files"]
+    )
+    .zd-file-surface {
+    display: block;
+    grid-area: 1 / 1;
+  }
+}
+
+@media (max-width: 68.75rem) {
+  .zd-workbench[data-files-visibility] {
+    --workbench-files-responsive-width: 0px;
+    --workbench-files-divider: 0px;
+  }
+
+  .zd-workbench > .zd-workbench-files,
+  .zd-workbench > [data-resizer="files"] {
+    display: none;
+  }
+
+}
+
+@media (max-width: 50rem) {
+  .zd-workbench[data-threads-visibility]:not([data-threads-visibility="hidden"]) {
+    --workbench-threads-responsive-width: 56px;
+  }
+
+  .zd-workbench-threads {
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 40rem) {
+  .zd-workbench[data-threads-visibility][data-files-visibility] {
+    --workbench-threads-responsive-width: 0px;
+    --workbench-threads-divider: 0px;
+  }
+
+  .zd-workbench > .zd-workbench-threads,
+  .zd-workbench > [data-resizer="threads"] {
+    display: none;
+  }
+}
