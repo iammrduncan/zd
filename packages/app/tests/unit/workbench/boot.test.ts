@@ -179,7 +179,7 @@ describe("one workbench boot", () => {
     expect(mount).toHaveBeenCalledOnce();
     expect(mount.mock.calls[0]?.[1].launch).toEqual(launch("/work/plan.md"));
     expect(mount.mock.calls[0]?.[1].state.snapshot()).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       projects: [{ id: "project-test" }],
       active: {
         projectId: "project-test",

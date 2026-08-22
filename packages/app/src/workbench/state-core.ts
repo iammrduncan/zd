@@ -1,6 +1,6 @@
 import type { FileResource, LaunchRequest, ProjectGrant } from "./resources";
 
-export const WORKBENCH_STATE_VERSION = 1 as const;
+export const WORKBENCH_STATE_VERSION = 2 as const;
 
 export type ProjectAvailability =
   "available" | "missing" | "denied" | "not-directory" | "unavailable";
@@ -10,6 +10,25 @@ export type FilesTab = "files" | "changes";
 export type CentreMode = "overlap" | "side-by-side";
 export type WorkbenchFocus = "threads" | "thread" | "file" | "files";
 export type WindowPresentation = "ordinary" | "quick-access";
+export type ThreadType = "terminal";
+export type ThreadAgent = "shell" | "codex" | "claude-code" | "opencode" | "unknown";
+export type ThreadLifecycle =
+  "starting" | "idle" | "busy" | "waiting" | "exited" | "failed" | "unknown";
+export type ThreadLifecycleSource = "process" | "supported-agent" | "terminal-output";
+export type ThreadBackingAvailability = "not-started" | "starting" | "ready" | "missing" | "closed";
+export type ThreadRecoveryKind =
+  | "missing-project"
+  | "missing-worktree"
+  | "missing-session"
+  | "worktree-collision"
+  | "worktree-locked"
+  | "failed";
+
+export interface ThreadRecoveryState {
+  readonly kind: ThreadRecoveryKind;
+  readonly summary: string;
+  readonly actionLabel: string;
+}
 
 export interface ProjectState {
   readonly id: string;
@@ -31,7 +50,29 @@ export interface ThreadState {
   readonly projectId: string;
   readonly worktreeId: string;
   readonly name: string;
-  readonly sessionId: string | null;
+  readonly order: number;
+  readonly type: ThreadType;
+  readonly agent: ThreadAgent;
+  readonly lifecycle: ThreadLifecycle;
+  readonly lifecycleSource: ThreadLifecycleSource;
+  readonly lifecycleRevision: number;
+  readonly attentionUnread: boolean;
+  readonly attentionVersion: number;
+  /** Stable logical identity only. Native process handles remain runtime-only. */
+  readonly backingId: string;
+  readonly backingAvailability: ThreadBackingAvailability;
+  readonly recovery: ThreadRecoveryState | null;
+  readonly fileId: string | null;
+}
+
+export interface ThreadRuntimeUpdate {
+  readonly lifecycle: ThreadLifecycle;
+  readonly lifecycleSource: ThreadLifecycleSource;
+  readonly lifecycleRevision: number;
+  readonly attentionUnread: boolean;
+  readonly attentionVersion: number;
+  readonly backingAvailability: ThreadBackingAvailability;
+  readonly recovery: ThreadRecoveryState | null;
 }
 
 export interface OpenFileState {
@@ -185,9 +226,9 @@ export function stateWithGrants(
     ...current,
     projects,
     worktrees,
-    threads: current.threads.filter(
-      ({ projectId, worktreeId }) => projectIds.has(projectId) && worktreeIds.has(worktreeId),
-    ),
+    // A temporarily absent worktree must not erase its durable thread record.
+    // The Threads adapter presents recovery while active context remains valid.
+    threads: current.threads.filter(({ projectId }) => projectIds.has(projectId)),
     openFiles: current.openFiles.filter(
       ({ projectId, worktreeId }) => projectIds.has(projectId) && worktreeIds.has(worktreeId),
     ),
@@ -252,7 +293,58 @@ function validWorktree(value: unknown): value is WorktreeState {
   );
 }
 
+function validThreadRecovery(value: unknown): value is ThreadRecoveryState | null {
+  return (
+    value === null ||
+    (isRecord(value) &&
+      [
+        "missing-project",
+        "missing-worktree",
+        "missing-session",
+        "worktree-collision",
+        "worktree-locked",
+        "failed",
+      ].includes(value.kind as string) &&
+      hasStrings(value, ["summary", "actionLabel"]))
+  );
+}
+
 function validThread(value: unknown): value is ThreadState {
+  return (
+    isRecord(value) &&
+    hasStrings(value, ["id", "projectId", "worktreeId", "name", "type", "agent"]) &&
+    value.type === "terminal" &&
+    ["shell", "codex", "claude-code", "opencode", "unknown"].includes(value.agent as string) &&
+    ["starting", "idle", "busy", "waiting", "exited", "failed", "unknown"].includes(
+      value.lifecycle as string,
+    ) &&
+    ["process", "supported-agent", "terminal-output"].includes(value.lifecycleSource as string) &&
+    Number.isSafeInteger(value.order) &&
+    (value.order as number) >= 0 &&
+    Number.isSafeInteger(value.lifecycleRevision) &&
+    (value.lifecycleRevision as number) >= 0 &&
+    typeof value.attentionUnread === "boolean" &&
+    Number.isSafeInteger(value.attentionVersion) &&
+    (value.attentionVersion as number) >= 0 &&
+    typeof value.backingId === "string" &&
+    value.backingId.length > 0 &&
+    ["not-started", "starting", "ready", "missing", "closed"].includes(
+      value.backingAvailability as string,
+    ) &&
+    validThreadRecovery(value.recovery) &&
+    isNullableString(value.fileId)
+  );
+}
+
+interface LegacyThreadState {
+  readonly id: string;
+  readonly projectId: string;
+  readonly worktreeId: string;
+  readonly name: string;
+  readonly sessionId: string | null;
+}
+
+function validLegacyThread(value: unknown): value is LegacyThreadState {
   return (
     isRecord(value) &&
     hasStrings(value, ["id", "projectId", "worktreeId", "name"]) &&
@@ -293,11 +385,9 @@ function validRegions(value: unknown): value is WorkbenchRegions {
   );
 }
 
-function stateShape(value: unknown): value is WorkbenchState {
-  if (!isRecord(value) || value.schemaVersion !== WORKBENCH_STATE_VERSION) return false;
+function validStateEnvelope(value: Record<string, unknown>): boolean {
   if (!Array.isArray(value.projects) || !value.projects.every(validProject)) return false;
   if (!Array.isArray(value.worktrees) || !value.worktrees.every(validWorktree)) return false;
-  if (!Array.isArray(value.threads) || !value.threads.every(validThread)) return false;
   if (!Array.isArray(value.openFiles) || !value.openFiles.every(validFile)) return false;
   if (!validContext(value.active) || !validRegions(value.regions)) return false;
   if (
@@ -307,14 +397,29 @@ function stateShape(value: unknown): value is WorkbenchState {
     return false;
   }
   if (!isRecord(value.theme) || !hasStrings(value.theme, ["selected", "lastValid"])) return false;
-  return contextProblem(value as unknown as WorkbenchState, value.active) === null;
+  return true;
+}
+
+function stateShape(value: unknown): value is WorkbenchState {
+  if (!isRecord(value) || value.schemaVersion !== WORKBENCH_STATE_VERSION) return false;
+  if (!validStateEnvelope(value)) return false;
+  if (!Array.isArray(value.threads) || !value.threads.every(validThread)) return false;
+  return (
+    contextProblem(
+      value as unknown as WorkbenchState,
+      value.active as unknown as WorkbenchContext,
+    ) === null
+  );
 }
 export function cloneState(state: WorkbenchState): WorkbenchState {
   return {
     ...state,
     projects: state.projects.map((project) => ({ ...project })),
     worktrees: state.worktrees.map((worktree) => ({ ...worktree })),
-    threads: state.threads.map((thread) => ({ ...thread })),
+    threads: state.threads.map((thread) => ({
+      ...thread,
+      recovery: thread.recovery ? { ...thread.recovery } : null,
+    })),
     openFiles: state.openFiles.map((file) => ({ ...file })),
     active: { ...state.active },
     regions: {
@@ -329,7 +434,59 @@ export function cloneState(state: WorkbenchState): WorkbenchState {
 }
 
 export function parseWorkbenchState(value: unknown): WorkbenchState {
-  return stateShape(value) ? cloneState(value) : defaultWorkbenchState();
+  if (stateShape(value)) return cloneState(value);
+  const migrated = migrateVersionOneState(value);
+  return migrated && stateShape(migrated) ? cloneState(migrated) : defaultWorkbenchState();
+}
+
+function migrateVersionOneState(value: unknown): WorkbenchState | null {
+  if (!isRecord(value) || value.schemaVersion !== 1 || !validStateEnvelope(value)) return null;
+  if (!Array.isArray(value.threads) || !value.threads.every(validLegacyThread)) return null;
+
+  const active = value.active as unknown as WorkbenchContext;
+  const files = value.openFiles as unknown as readonly OpenFileState[];
+  const projectOrders = new Map<string, number>();
+  const threads = value.threads.map((legacy): ThreadState => {
+    const order = projectOrders.get(legacy.projectId) ?? 0;
+    projectOrders.set(legacy.projectId, order + 1);
+    const rememberedFile =
+      (active.threadId === legacy.id ? active.fileId : null) ??
+      files.find(
+        (file) => file.projectId === legacy.projectId && file.worktreeId === legacy.worktreeId,
+      )?.id ??
+      null;
+    const hadSession = legacy.sessionId !== null && legacy.sessionId.length > 0;
+    return {
+      id: legacy.id,
+      projectId: legacy.projectId,
+      worktreeId: legacy.worktreeId,
+      name: legacy.name,
+      order,
+      type: "terminal",
+      agent: "shell",
+      lifecycle: "unknown",
+      lifecycleSource: "process",
+      lifecycleRevision: 0,
+      attentionUnread: false,
+      attentionVersion: 0,
+      backingId: hadSession ? legacy.sessionId! : `terminal:${legacy.id}`,
+      backingAvailability: hadSession ? "missing" : "not-started",
+      recovery: hadSession
+        ? {
+            kind: "missing-session",
+            summary: "The previous terminal process is no longer attached.",
+            actionLabel: "Restart terminal",
+          }
+        : null,
+      fileId: rememberedFile,
+    };
+  });
+
+  return {
+    ...(value as unknown as Omit<WorkbenchState, "schemaVersion" | "threads">),
+    schemaVersion: WORKBENCH_STATE_VERSION,
+    threads,
+  };
 }
 export function contextProblem(state: WorkbenchState, context: WorkbenchContext): string | null {
   if (context.projectId === null) {

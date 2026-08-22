@@ -68,14 +68,36 @@ function populatedState(): WorkbenchState {
         projectId: "project-a",
         worktreeId: "worktree-a",
         name: "Plan",
-        sessionId: "session-a",
+        order: 0,
+        type: "terminal",
+        agent: "shell",
+        lifecycle: "idle",
+        lifecycleSource: "process",
+        lifecycleRevision: 1,
+        attentionUnread: false,
+        attentionVersion: 0,
+        backingId: "terminal-thread-a",
+        backingAvailability: "ready",
+        recovery: null,
+        fileId: "file-a",
       },
       {
         id: "thread-b",
         projectId: "project-b",
         worktreeId: "worktree-b",
         name: "Build",
-        sessionId: "session-b",
+        order: 0,
+        type: "terminal",
+        agent: "shell",
+        lifecycle: "idle",
+        lifecycleSource: "process",
+        lifecycleRevision: 1,
+        attentionUnread: false,
+        attentionVersion: 0,
+        backingId: "terminal-thread-b",
+        backingAvailability: "ready",
+        recovery: null,
+        fileId: "file-b",
       },
     ],
     openFiles: [
@@ -113,7 +135,7 @@ const beta: WorkbenchContext = {
 describe("the versioned workbench state", () => {
   it("starts with one safe region, focus, and theme contract", () => {
     expect(defaultWorkbenchState()).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       active: { projectId: null, worktreeId: null, threadId: null, fileId: null },
       regions: {
         threads: { visibility: "full", width: 236 },
@@ -127,14 +149,14 @@ describe("the versioned workbench state", () => {
   });
 
   it("rejects unsupported or malformed persisted state without preventing launch", () => {
-    expect(parseWorkbenchState({ schemaVersion: 2 })).toEqual(defaultWorkbenchState());
+    expect(parseWorkbenchState({ schemaVersion: 3 })).toEqual(defaultWorkbenchState());
     expect(parseWorkbenchState({ schemaVersion: 1, projects: "not-an-array" })).toEqual(
       defaultWorkbenchState(),
     );
     expect(parseWorkbenchState("not state")).toEqual(defaultWorkbenchState());
   });
 
-  it("accepts a valid version-one snapshot", () => {
+  it("accepts a valid version-two snapshot", () => {
     const state = populatedState();
     expect(parseWorkbenchState(JSON.parse(JSON.stringify(state)))).toEqual(state);
   });
