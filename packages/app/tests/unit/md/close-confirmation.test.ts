@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { EditorView } from "@codemirror/view";
+import { createUnavailableInstrumentationClient } from "@/instrumentation";
 
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import type { Platform } from "@/platform";
@@ -105,6 +106,7 @@ describe("quitting with unsaved work", () => {
       launch,
       platform,
       state: createWorkbenchStateOwner(workbenchStateFromGrants([project], launch)),
+      instrumentation: createUnavailableInstrumentationClient(),
     };
   }
 

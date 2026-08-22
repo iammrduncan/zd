@@ -6,6 +6,7 @@ import {
   commands,
   dispatch,
   register,
+  registerCommandObserver,
   releaseHeld,
   type Command,
 } from "@/workbench/shortcuts";
@@ -92,6 +93,20 @@ describe("the registry", () => {
 });
 
 describe("dispatch", () => {
+  it("publishes only commands that actually ran", () => {
+    const observed = vi.fn();
+    const detach = registerCommandObserver(observed);
+    register(save());
+
+    dispatch(key({ key: "s", metaKey: true }));
+    dispatch(key({ key: "q", metaKey: true }));
+
+    expect(observed).toHaveBeenCalledExactlyOnceWith("document.save");
+    detach();
+    dispatch(key({ key: "s", metaKey: true }));
+    expect(observed).toHaveBeenCalledOnce();
+  });
+
   it("runs the command whose chord matches", () => {
     const run = vi.fn(() => true);
     register(save(run));

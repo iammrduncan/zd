@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Platform, WorkspaceListing } from "@/platform";
+import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { mountWorkspace, type DocumentMount, type MountedDocument } from "@/miniapps/md/workspace";
 import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
 import type { LaunchRequest, ProjectGrant } from "@/workbench/resources";
@@ -104,6 +105,7 @@ function context(path: string, listing: WorkspaceListing): WorkbenchRuntimeConte
       openExternal: async () => {},
     } satisfies Platform,
     state: createWorkbenchStateOwner(workbenchStateFromGrants([project], request)),
+    instrumentation: createUnavailableInstrumentationClient(),
   };
 }
 

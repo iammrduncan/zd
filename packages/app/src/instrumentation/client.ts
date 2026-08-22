@@ -155,3 +155,14 @@ export function createInstrumentationClient(
   };
   return client;
 }
+
+/** An honest local boundary for fixtures that are intentionally detached from a desktop shell. */
+export function createUnavailableInstrumentationClient(
+  problem = "local diagnostics are unavailable in this fixture",
+): InstrumentationClient {
+  return createInstrumentationClient(() => ({
+    enable: async () => ({ ...OFF, problem }),
+    disable: async () => OFF,
+    record: async () => NOT_RECORDED,
+  }));
+}

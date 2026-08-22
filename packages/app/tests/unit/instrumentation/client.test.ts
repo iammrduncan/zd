@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createInstrumentationClient,
+  createUnavailableInstrumentationClient,
   type DiagnosticStatus,
   type DiagnosticTransport,
 } from "@/instrumentation";
@@ -29,6 +30,17 @@ function transport(): DiagnosticTransport {
 }
 
 describe("instrumentation client lifecycle", () => {
+  it("provides an honest unavailable client for disconnected feature fixtures", async () => {
+    const client = createUnavailableInstrumentationClient();
+
+    expect(client.snapshot()).toEqual(disabled);
+    await expect(client.enable()).resolves.toMatchObject({
+      enabled: false,
+      problem: expect.any(String),
+    });
+    await expect(client.disable()).resolves.toEqual(disabled);
+  });
+
   it("does not create a transport, read a clock, or emit work while off", async () => {
     const native = transport();
     const factory = vi.fn(() => native);
