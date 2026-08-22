@@ -1,4 +1,5 @@
 import { AttentionNotificationCoordinator, type AttentionThreadSource } from "@/notifications";
+import type { InstrumentationClient } from "@/instrumentation";
 import type { Platform } from "@/platform";
 import { AttentionSettingsController } from "./attention";
 import type { Unmount } from "./runtime";
@@ -21,6 +22,7 @@ export async function createWorkbenchAttentionRuntime(
   state: WorkbenchStateOwner,
   platform: AttentionPlatform,
   threads: AttentionThreadSource,
+  instrumentation?: InstrumentationClient,
 ): Promise<WorkbenchAttentionRuntime> {
   let focused = await platform.isWindowFocused().catch(() => false);
   const settings = new AttentionSettingsController(platform.notifications);
@@ -37,6 +39,18 @@ export async function createWorkbenchAttentionRuntime(
       showWorkbench: platform.showWorkbench,
     },
     reportProblem: (problem) => settings.reportRoutingProblem(problem),
+    record: (event) => {
+      void instrumentation?.record({
+        recordType: "event",
+        operation: event.operation,
+        outcome: event.outcome,
+        context: {
+          projectId: event.projectId,
+          worktreeId: event.worktreeId,
+          threadId: event.threadId,
+        },
+      });
+    },
   });
 
   return {

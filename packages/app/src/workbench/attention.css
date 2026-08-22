@@ -2,7 +2,7 @@
   display: grid;
   gap: 5px;
   padding-block: 4px 7px;
-  border-bottom: 1px solid var(--line-subtle);
+  border-bottom: var(--hairline) solid var(--line-quiet);
 }
 
 .zd-attention-settings h3 {
@@ -32,8 +32,4 @@
   margin: 0;
   color: var(--text-muted);
   line-height: 1.35;
-}
-
-.zd-attention-routing-problem:not([hidden]) {
-  color: var(--text-caution, var(--text-muted));
 }

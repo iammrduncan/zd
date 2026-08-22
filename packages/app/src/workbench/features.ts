@@ -191,6 +191,7 @@ export async function mountWorkbenchFeatures(
     context.state,
     context.platform,
     threadsAdapter,
+    context.instrumentation,
   );
   const stopAttention = attention.attach();
   const files = createWorkbenchFilesRuntime(

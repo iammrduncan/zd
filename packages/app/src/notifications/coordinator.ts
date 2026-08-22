@@ -5,6 +5,7 @@ import {
   type AttentionNotificationSettings,
   type CompletionSound,
   type NotificationActionV1,
+  type NotificationInstrumentationEvent,
   type NotificationRoutingProblem,
   type SupportedAttentionAgent,
   type ThreadNotificationRequestV1,
@@ -113,47 +114,88 @@ export class AttentionNotificationCoordinator {
 
     const { request, target } = resolved;
     this.#targets.set(request.notificationId, target);
+    const settings = this.#options.settings();
     if (
       this.#options.window.isFocused() &&
       this.#options.window.targetThreadOwnsFocus(event.threadId)
     ) {
+      if (settings.desktopEnabled) this.#record("notification.present", "cancelled", target);
+      if (soundFor(settings, event.agent)) {
+        this.#record("notification.sound", "cancelled", target);
+      }
       return;
     }
 
-    const settings = this.#options.settings();
     const work: Promise<unknown>[] = [];
-    if (settings.desktopEnabled) work.push(this.#present(request));
+    if (settings.desktopEnabled) work.push(this.#present(request, target));
     const sound = soundFor(settings, event.agent);
-    if (sound) work.push(this.#playSound(sound, volume(settings.volume)));
+    if (sound) work.push(this.#playSound(sound, volume(settings.volume), target));
     await Promise.all(work);
   }
 
-  async #present(request: ThreadNotificationRequestV1): Promise<void> {
+  async #present(request: ThreadNotificationRequestV1, target: NotificationTarget): Promise<void> {
     let permission;
     try {
       permission = await this.#options.adapter.permission();
     } catch {
+      this.#record("notification.present", "failed", target);
       return;
     }
-    if (permission !== "granted") return;
+    if (permission !== "granted") {
+      this.#record(
+        "notification.present",
+        permission === "unsupported" ? "unavailable" : "refused",
+        target,
+      );
+      return;
+    }
     try {
       const result = await this.#options.adapter.show(request);
+      this.#record(
+        "notification.present",
+        result.status === "presented"
+          ? "ok"
+          : result.status === "unsupported"
+            ? "unavailable"
+            : result.status === "denied"
+              ? "refused"
+              : "failed",
+        target,
+      );
       if (result.status === "failed" && result.problem) {
         this.#report(request, result.problem);
       }
     } catch (cause) {
+      this.#record("notification.present", "failed", target);
       this.#report(request, cause instanceof Error ? cause.message : String(cause));
     }
   }
 
-  async #playSound(sound: CompletionSound, selectedVolume: number): Promise<void> {
+  async #playSound(
+    sound: CompletionSound,
+    selectedVolume: number,
+    target: NotificationTarget,
+  ): Promise<void> {
     const now = this.#now();
-    if (this.#soundInFlight || now - this.#lastSoundStartedAt < SOUND_INTERVAL_MS) return;
+    if (this.#soundInFlight || now - this.#lastSoundStartedAt < SOUND_INTERVAL_MS) {
+      this.#record("notification.sound", "cancelled", target);
+      return;
+    }
     this.#soundInFlight = true;
     this.#lastSoundStartedAt = now;
     try {
-      await this.#options.adapter.playSound({ sound, volume: selectedVolume });
+      const result = await this.#options.adapter.playSound({ sound, volume: selectedVolume });
+      this.#record(
+        "notification.sound",
+        result.status === "played"
+          ? "ok"
+          : result.status === "unsupported"
+            ? "unavailable"
+            : "failed",
+        target,
+      );
     } catch {
+      this.#record("notification.sound", "failed", target);
       // The in-app attention row is already committed; audio is optional presentation only.
     } finally {
       this.#soundInFlight = false;
@@ -240,14 +282,32 @@ export class AttentionNotificationCoordinator {
       const expired = this.#handledActionOrder.shift();
       if (expired) this.#handledActions.delete(expired);
     }
-    if (action.action === "close") return;
+    if (action.action === "close") {
+      this.#record("notification.action.close", "ok", target);
+      return;
+    }
+    let summonFailed = false;
     try {
       await this.#options.window.showWorkbench();
     } catch (cause) {
+      summonFailed = true;
       this.#report(action, cause instanceof Error ? cause.message : String(cause));
     }
     const result = await this.#options.threads.activateThread(target.threadId);
-    if (result.status === "refused") this.#report(action, result.reason);
+    if (result.status === "refused") {
+      this.#record("notification.action.view", "refused", target);
+      this.#report(action, result.reason);
+    } else {
+      this.#record("notification.action.view", summonFailed ? "failed" : "ok", target);
+    }
+  }
+
+  #record(
+    operation: NotificationInstrumentationEvent["operation"],
+    outcome: NotificationInstrumentationEvent["outcome"],
+    target: NotificationTarget,
+  ): void {
+    void this.#options.record?.({ operation, outcome, ...target });
   }
 
   #report(
