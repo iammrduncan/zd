@@ -8,6 +8,7 @@ import {
   workbenchStateFromGrants,
   type WorkbenchContext,
   type ProjectRemoval,
+  type ProjectState,
   type WorkbenchState,
 } from "@/workbench/state";
 import type { FileResource, LaunchRequest, ProjectGrant } from "@/workbench/resources";
@@ -136,6 +137,15 @@ describe("the versioned workbench state", () => {
   it("accepts a valid version-one snapshot", () => {
     const state = populatedState();
     expect(parseWorkbenchState(JSON.parse(JSON.stringify(state)))).toEqual(state);
+  });
+
+  it("keeps the public parsed snapshot isolated from caller-owned arrays", () => {
+    const source = populatedState();
+    const parsed = parseWorkbenchState(source);
+
+    (source.projects as ProjectState[]).splice(0);
+
+    expect(parsed.projects.map(({ id }) => id)).toEqual(["project-a", "project-b"]);
   });
 
   it("seeds every native grant and the launched file into one active snapshot", () => {
