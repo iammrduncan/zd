@@ -1,22 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  forgetPreferences,
-  onSspsEnabledChange,
-  setSspsEnabled,
-  setWordWrap,
-  sspsEnabled,
-  wordWrap,
-} from "@/suite/preferences";
+import { forgetPreferences, setWordWrap, wordWrap } from "@/suite/preferences";
 
-/*
- * Suite preferences — DESIGN.md §7.6's "suite preference applied to every
- * document" and vision §6.1's "it persists".
- *
- * Storage behaviour, measured on the store. That a *document* opens wrapped or
- * unwrapped after a reload is a browser claim and lives in
- * tests/e2e/editor/word-wrap.spec.ts.
- */
+/* Workbench preference storage; browser behavior lives in the e2e editor tests. */
 
 afterEach(() => {
   forgetPreferences();
@@ -79,36 +65,6 @@ describe("unit storage harness", () => {
   it("starts isolated from the preceding test", () => {
     expect(window.localStorage.getItem("verification.left-behind")).toBeNull();
     expect(window.localStorage.length).toBe(0);
-  });
-});
-
-describe("SSPS", () => {
-  it("is enabled until globally disabled", () => {
-    expect(sspsEnabled()).toBe(true);
-
-    setSspsEnabled(false);
-    expect(sspsEnabled()).toBe(false);
-
-    forgetPreferences();
-    expect(sspsEnabled()).toBe(false);
-  });
-
-  it("notifies this window and follows a change from another window", () => {
-    const changed = vi.fn();
-    const stop = onSspsEnabledChange(changed);
-
-    setSspsEnabled(false);
-    window.dispatchEvent(
-      new StorageEvent("storage", {
-        key: "zd.sspsEnabled",
-        newValue: "true",
-        storageArea: window.localStorage,
-      }),
-    );
-
-    expect(changed.mock.calls).toEqual([[false], [true]]);
-    expect(sspsEnabled()).toBe(true);
-    stop();
   });
 });
 

@@ -184,7 +184,8 @@ for the expensive one.
   possibly agent metadata. Store only what is needed, version it, avoid environment snapshots and
   transcript persistence by default, and make deletion predictable.
 
-The one current privacy caveat is [`presence.ts`](../../../../../packages/app/src/suite/presence.ts):
+The one current privacy caveat at this research snapshot is
+[`presence.ts`](https://github.com/iammrduncan/zd/blob/f831843d37ac0d46dfa4375e3a7a3b48056572f6/packages/app/src/suite/presence.ts):
 native windows create a persistent anonymous visitor ID and connect to SSPS by default. The user can
 globally disable it. Any claim that a future ZD shell is fully local/offline must name this exception or
 change that policy separately.

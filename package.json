@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Zen Suite — focused tools for AI-assisted development. Tool #1 is zd md.",
+  "description": "ZenSuite — a fast, local agent workbench for projects, threads, terminals, files, and Git.",
   "license": "MIT",
   "repository": "https://github.com/iammrduncan/zd",
   "workspaces": [

@@ -1,7 +1,7 @@
 [package]
 name = "zd"
 version = "0.1.0"
-description = "Zen Suite — focused tools for AI-assisted development"
+description = "ZenSuite — a fast, local agent workbench for projects, threads, terminals, files, and Git."
 authors = ["Duncan"]
 edition = "2021"
 license = "MIT"

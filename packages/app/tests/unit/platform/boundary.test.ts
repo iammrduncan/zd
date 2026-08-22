@@ -11,23 +11,7 @@ vi.mock("@tauri-apps/api/event", () => ({ listen: genericListen }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => nativeWindow }));
 
 import { detectPlatform } from "@/platform";
-import { forgetPreferences, setSspsEnabled } from "@/suite/preferences";
-import { trackAppPresence } from "@/suite/presence";
-
-class Socket {
-  static instances: Socket[] = [];
-
-  readonly close = vi.fn();
-  readonly url: string;
-  onclose: (() => void) | null = null;
-  onerror: (() => void) | null = null;
-  onopen: (() => void) | null = null;
-
-  constructor(url: string) {
-    this.url = url;
-    Socket.instances.push(this);
-  }
-}
+import { forgetPreferences } from "@/suite/preferences";
 
 describe("the Tauri window boundary", () => {
   afterEach(() => {
@@ -35,7 +19,6 @@ describe("the Tauri window boundary", () => {
     invoke.mockReset();
     genericListen.mockClear();
     nativeWindow.onCloseRequested.mockReset();
-    Socket.instances = [];
     forgetPreferences();
     window.localStorage.clear();
     vi.unstubAllGlobals();
@@ -170,42 +153,5 @@ describe("the Tauri window boundary", () => {
     stop();
     await Promise.resolve();
     expect(unlisten).toHaveBeenCalledOnce();
-  });
-
-  it("tracks only the launched desktop app as present", () => {
-    vi.stubGlobal("WebSocket", Socket);
-
-    const stopBrowser = trackAppPresence("browser");
-    const stopDesktop = trackAppPresence("tauri");
-    const stopDuplicate = trackAppPresence("tauri");
-
-    expect(Socket.instances).toHaveLength(1);
-    expect(Socket.instances[0]?.url).toContain("wss://usessps.com/ws?site-id=271");
-    expect(stopDuplicate).toBe(stopDesktop);
-    stopBrowser();
-    stopDesktop();
-  });
-
-  it("disconnects immediately and stays off when globally disabled", () => {
-    vi.stubGlobal("WebSocket", Socket);
-    const stop = trackAppPresence("tauri");
-    const socket = Socket.instances[0]!;
-
-    setSspsEnabled(false);
-
-    expect(socket.close).toHaveBeenCalledOnce();
-    expect(Socket.instances).toHaveLength(1);
-    stop();
-  });
-
-  it("starts a disabled window when the global preference is turned back on", () => {
-    vi.stubGlobal("WebSocket", Socket);
-    setSspsEnabled(false);
-    const stop = trackAppPresence("tauri");
-    expect(Socket.instances).toHaveLength(0);
-
-    setSspsEnabled(true);
-    expect(Socket.instances).toHaveLength(1);
-    stop();
   });
 });

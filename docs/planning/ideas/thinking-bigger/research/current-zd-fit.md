@@ -110,7 +110,8 @@ CodeMirror state + Lezer + DOM/CSS
   keys, persist user bindings, or resolve commands across widgets.
 - [preferences.ts](../../../../../packages/app/src/suite/preferences.ts) persists only word wrap
   and SSPS enablement in localStorage with an in-memory fallback.
-  [presence.ts](../../../../../packages/app/src/suite/presence.ts) separately stores an anonymous
+  [presence.ts at this research snapshot](https://github.com/iammrduncan/zd/blob/f831843d37ac0d46dfa4375e3a7a3b48056572f6/packages/app/src/suite/presence.ts)
+  separately stores an anonymous
   visitor ID. These are browser-origin values, not a versioned suite database.
 - [workspace/index.ts](../../../../../packages/app/src/miniapps/md/workspace/index.ts) mounts one document at a
   time and destroys it on a safe file switch. It has no retained tabs, dirty-buffer collection,

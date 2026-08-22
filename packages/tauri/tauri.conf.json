@@ -25,15 +25,15 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' asset: data: blob:; connect-src 'self' ipc: http://ipc.localhost wss://usessps.com"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' asset: data: blob:; connect-src 'self' ipc: http://ipc.localhost"
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
     "category": "Productivity",
-    "shortDescription": "Zen Suite",
-    "longDescription": "Zen Suite — focused tools for AI-assisted development. Tool #1 is zd md, a markdown reader/editor for agent-written documents.",
+    "shortDescription": "A fast, local agent workbench",
+    "longDescription": "ZenSuite — a fast, local agent workbench for projects, threads, terminals, files, and Git.",
     "fileAssociations": [
       {
         "ext": ["md", "markdown"],
