@@ -237,6 +237,9 @@ const editor = createEditor(column, source, {
   language: languageFor(path),
   // The same read the mini app makes, so the dev page persists what the app does.
   wrap: wordWrap(),
+  // The focused-reading regression pages exercise the enabled treatment. The
+  // product workbench itself starts with this explicit mode off.
+  focus: true,
 });
 
 /*

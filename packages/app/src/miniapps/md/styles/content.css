@@ -77,15 +77,15 @@
  * setting and without colour" — a dimmed code block is still a code block, so the
  * categories must not collapse into one ink.
  */
-.md-editor [data-focus="context"] .md-syn-keyword {
+.md-editor[data-focus-mode="true"] [data-focus="context"] .md-syn-keyword {
   color: var(--focus-context-keyword);
 }
 
-.md-editor [data-focus="context"] .md-syn-string {
+.md-editor[data-focus-mode="true"] [data-focus="context"] .md-syn-string {
   color: var(--focus-context-string);
 }
 
-.md-editor [data-focus="context"] .md-syn-comment {
+.md-editor[data-focus-mode="true"] [data-focus="context"] .md-syn-comment {
   color: var(--focus-context-comment);
 }
 
@@ -173,7 +173,7 @@
   color: var(--text-muted);
 }
 
-.md-editor .cm-line[data-focus="context"] .md-emphasis-mark {
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-emphasis-mark {
   color: var(--focus-context-text);
   transition: color var(--focus-ease-out) ease-out;
 }
@@ -218,8 +218,8 @@
  * is not the target, and a label holding `text.link` on a dimmed row would be the
  * one bright thing on it.
  */
-.md-editor .cm-line[data-focus="context"] .md-rendered a,
-.md-editor .cm-line[data-focus="context"] .md-link-label {
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-rendered a,
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-link-label {
   color: var(--focus-context-text);
   transition: color var(--focus-ease-out) ease-out;
 }
