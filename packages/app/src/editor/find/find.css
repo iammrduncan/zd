@@ -1,0 +1,100 @@
+.editor-find-layer {
+  position: sticky;
+  z-index: 1;
+  inset-block-start: 0;
+  height: 0;
+  overflow: visible;
+}
+
+.editor-find {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  background: var(--surface-transient);
+  color: var(--text-secondary);
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-navigation-size);
+  font-style: var(--type-navigation-style);
+  font-weight: var(--type-navigation-weight);
+  line-height: var(--type-navigation-line);
+}
+
+.editor-find[hidden] {
+  display: none;
+}
+
+.editor-find-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.editor-find-query,
+.editor-find-replacement {
+  min-width: 8rem;
+  flex: 1;
+  padding: var(--space-1) 0;
+  border: 0;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.editor-find-query:focus,
+.editor-find-replacement:focus {
+  border-block-end-color: var(--line-focus);
+}
+
+.editor-find button {
+  min-height: 24px;
+  padding: 0 var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  text-decoration-color: transparent;
+  text-underline-offset: var(--space-1);
+}
+
+.editor-find button:hover:not(:disabled),
+.editor-find button:focus-visible,
+.editor-find button[aria-pressed="true"] {
+  color: var(--text-primary);
+  text-decoration-line: underline;
+  text-decoration-color: var(--line-focus);
+}
+
+.editor-find button:focus-visible {
+  outline: var(--hairline) solid var(--line-focus);
+  outline-offset: 0;
+}
+
+.editor-find button:disabled {
+  color: var(--text-muted);
+}
+
+.editor-find-count {
+  min-width: 5.5rem;
+  color: var(--text-muted);
+  text-align: end;
+}
+
+.editor-find-error {
+  margin: 0;
+  color: var(--state-error);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+}
+
+.editor-find-match {
+  background: var(--surface-selection);
+}
+
+.editor-find-match-active {
+  outline: var(--hairline) solid var(--line-focus);
+}

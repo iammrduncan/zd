@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { undo } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
 
 import {
@@ -275,5 +276,88 @@ describe("saving", () => {
     // Never two starts before a matching end. Interleaving is the race.
     expect(order[0]!.startsWith("start:")).toBe(true);
     expect(order[1]!.startsWith("end:"), `writes overlapped: ${order.join(" ")}`).toBe(true);
+  });
+});
+
+describe("current-file Find and Replace", () => {
+  function searchable(doc: string, options: EditorOptions = {}) {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const editor = createEditor(host, doc, options);
+    return { host, editor, view: EditorView.findFromDOM(host)! };
+  }
+
+  it("opens one quiet Find surface without changing the document", () => {
+    const { host, editor } = searchable("one two");
+    const before = editor.selection();
+
+    editor.find.open();
+
+    expect(host.querySelector(".editor-find")?.hasAttribute("hidden")).toBe(false);
+    expect(host.querySelector<HTMLInputElement>('[aria-label="Find"]')).toBe(
+      document.activeElement,
+    );
+    expect(editor.selection()).toEqual(before);
+  });
+
+  it("navigates next and previous with a one-based position", () => {
+    const { editor } = searchable("cat dog cat bird cat");
+
+    expect(editor.find.search("cat")).toMatchObject({ count: 3, position: 1 });
+    expect(editor.selection()).toMatchObject({ from: 0, to: 3 });
+    expect(editor.find.next()).toMatchObject({ count: 3, position: 2 });
+    expect(editor.selection()).toMatchObject({ from: 8, to: 11 });
+    expect(editor.find.previous()).toMatchObject({ count: 3, position: 1 });
+  });
+
+  it("keeps hidden Markdown source out until Raw Mode exposes it", () => {
+    const { editor } = searchable("A [label](hidden-target).");
+
+    expect(editor.find.search("hidden-target").count).toBe(0);
+    editor.toggleRaw();
+    expect(editor.find.snapshot().count).toBe(1);
+    expect(editor.find.snapshot().matches[0]).toMatchObject({ from: 10, to: 23 });
+  });
+
+  it("replaces one match in one undoable transaction", () => {
+    const { editor, view } = searchable("cat cat");
+    editor.find.search("cat");
+
+    expect(editor.find.replaceNext("dog")).toMatchObject({ status: "replaced", count: 1 });
+    expect(editor.text()).toBe("dog cat");
+    expect(undo(view)).toBe(true);
+    expect(editor.text()).toBe("cat cat");
+  });
+
+  it("replaces every regex match in one undoable transaction", () => {
+    const source = "one=1 two=22";
+    const { editor, view } = searchable(source);
+    editor.find.search("([a-z]+)=(\\d+)", { regularExpression: true });
+
+    expect(editor.find.replaceAll("$2:$1")).toMatchObject({ status: "replaced", count: 2 });
+    expect(editor.text()).toBe("1:one 22:two");
+    expect(undo(view)).toBe(true);
+    expect(editor.text()).toBe(source);
+  });
+
+  it("never replaces through a read-only buffer", () => {
+    const { editor } = searchable("fixed fixed", { readOnly: true });
+    editor.find.search("fixed");
+
+    expect(editor.find.replaceNext("changed")).toMatchObject({
+      status: "read-only",
+      count: 0,
+    });
+    expect(editor.find.replaceAll("changed")).toMatchObject({ status: "read-only", count: 0 });
+    expect(editor.text()).toBe("fixed fixed");
+  });
+
+  it("dismisses Find once and reports when there is nothing left to dismiss", () => {
+    const { host, editor } = searchable("text");
+    editor.find.open();
+
+    expect(editor.find.close()).toBe(true);
+    expect(host.querySelector(".editor-find")?.hasAttribute("hidden")).toBe(true);
+    expect(editor.find.close()).toBe(false);
   });
 });

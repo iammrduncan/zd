@@ -1,7 +1,14 @@
-import { syntaxTree } from "@codemirror/language";
+import { ensureSyntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
 
 import type { SourceRange } from "./matches";
+
+export const MARKDOWN_PARSE_SLICE_MS = 12;
+
+export interface MarkdownSourceVisibility {
+  readonly ranges: readonly SourceRange[];
+  readonly complete: boolean;
+}
 
 function normalized(ranges: readonly SourceRange[], length: number): SourceRange[] {
   const ordered = ranges
@@ -69,18 +76,26 @@ interface SyntaxNodeLike {
  * explicitly added back. Long notation and destinations are subtracted. Raw
  * Mode is the identity mapping.
  */
-export function visibleMarkdownSourceRanges(
+export function markdownSourceVisibility(
   state: EditorState,
   raw: boolean,
-): readonly SourceRange[] {
+): MarkdownSourceVisibility {
   const length = state.doc.length;
-  if (raw || length === 0) return length === 0 ? [] : [{ from: 0, to: length }];
+  if (raw || length === 0) {
+    return { ranges: length === 0 ? [] : [{ from: 0, to: length }], complete: true };
+  }
+
+  // CodeMirror normally parses the viewport and a margin around it. Find needs
+  // source honesty beyond that viewport, so it advances the same incremental
+  // parse in a bounded slice. A caller schedules another frame when incomplete.
+  const tree = ensureSyntaxTree(state, length, MARKDOWN_PARSE_SLICE_MS);
+  if (!tree) return { ranges: [], complete: false };
 
   const replaced: SourceRange[] = [];
   const renderedSource: SourceRange[] = [];
   const hidden: SourceRange[] = [];
 
-  syntaxTree(state).iterate({
+  tree.iterate({
     enter: (node) => {
       if (node.name === "Table") replaced.push({ from: node.from, to: node.to });
       if (node.name === "TableCell") renderedSource.push({ from: node.from, to: node.to });
@@ -154,5 +169,15 @@ export function visibleMarkdownSourceRanges(
     );
     return subtract([range], nested, length);
   });
-  return normalized(subtract([...base, ...explicit], hidden, length), length);
+  return {
+    ranges: normalized(subtract([...base, ...explicit], hidden, length), length),
+    complete: true,
+  };
+}
+
+export function visibleMarkdownSourceRanges(
+  state: EditorState,
+  raw: boolean,
+): readonly SourceRange[] {
+  return markdownSourceVisibility(state, raw).ranges;
 }

@@ -15,6 +15,12 @@ Element.prototype.scrollIntoView ??= function scrollIntoView(): void {
   // No layout, nothing to scroll.
 };
 
+Range.prototype.getClientRects ??= function getClientRects(): DOMRectList {
+  // CodeMirror asks while applying a scroll-into-view selection. jsdom has no
+  // boxes to return; the real navigation geometry is covered in Playwright.
+  return [] as unknown as DOMRectList;
+};
+
 HTMLDialogElement.prototype.showModal ??= function showModal(): void {
   this.open = true;
 };

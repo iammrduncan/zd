@@ -274,13 +274,24 @@ register({
 });
 
 register({
+  id: "file.find",
+  chord: { key: "f", mod: true },
+  description: "Find in the current file",
+  available: () => true,
+  run: () => {
+    editor.find.open();
+    return true;
+  },
+});
+
+register({
   id: "document.dropCaret",
-  // Escape belongs to the document now — the Shortcut Reference gave it up when it
-  // became a held surface on 2026-07-30. See workbench/reference.ts.
+  // The product routes this through `workbench.escape`; the standalone fixture
+  // keeps one direct owner because it has no root workbench attachment.
   chord: { key: "Escape" },
-  description: "Drop the caret and follow the reading anchor again",
-  available: () => editor.hasCaret(),
-  run: () => editor.dropCaret(),
+  description: "Dismiss Find, or drop the caret and follow the reading anchor again",
+  available: () => editor.find.isOpen() || editor.hasCaret(),
+  run: () => editor.find.close() || editor.dropCaret(),
 });
 
 register({

@@ -2,6 +2,8 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { Compartment, EditorState, Text } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 
+import { createEditorFind, editorFindExtension, type EditorFind } from "@/editor/find";
+
 import { caretFocus, dropCaret, hasCaret } from "./focus";
 import { markdownStructure } from "./continuation";
 import { isTypewriter, setTypewriter, typewriterMode } from "./typewriter";
@@ -33,6 +35,8 @@ import "../styles/editor.css";
 export interface Editor {
   /** The document as it stands right now. */
   text(): string;
+  /** The one current-file Find/Replace session for this document. */
+  readonly find: EditorFind;
   /** Put the caret in the document. */
   focus(): void;
   /** True while the caret is in this editor. */
@@ -255,6 +259,7 @@ export function createEditor(
   parent.dataset.language = language.markdown ? "markdown" : "code";
   parent.dataset.editable = String(!readOnly);
   let dirty = false;
+  let find: EditorFind | null = null;
 
   /**
    * The save in flight, so the next one queues behind it rather than racing it.
@@ -298,8 +303,11 @@ export function createEditor(
         EditorState.readOnly.of(readOnly),
         EditorView.editable.of(!readOnly),
         history(),
+        editorFindExtension(),
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) recheck();
+          if (!update.docChanged) return;
+          recheck();
+          find?.queueRefresh();
         }),
         /*
          * No chords of our own. Every binding this surface used to own — save,
@@ -351,10 +359,12 @@ export function createEditor(
             ]
           : (language.support ?? []),
         caretFocus(),
-        reviewAnnotations({
-          activate: (id) => options.onCommentActivate?.(id),
-          select: (selection) => options.onSelectionChange?.(selection),
-        }),
+        options.onSelectionChange || options.onCommentActivate
+          ? reviewAnnotations({
+              activate: (id) => options.onCommentActivate?.(id),
+              select: (selection) => options.onSelectionChange?.(selection),
+            })
+          : [],
         // After caretFocus so its own measurement runs first: focus reads where the
         // caret is, this moves the document under it, and §7.6 requires the two to
         // "always identify the same current line". See typewriter.ts.
@@ -369,8 +379,16 @@ export function createEditor(
     }),
   });
 
+  find = createEditorFind(parent, view, {
+    markdown: language.markdown,
+    readOnly,
+    raw: () => isRaw(view.state),
+  });
+  const documentFind = find;
+
   return {
     text: () => view.state.doc.toString(),
+    find: documentFind,
     focus: () => view.focus(),
     hasFocus: () => view.hasFocus,
     selection: () => {
@@ -466,6 +484,7 @@ export function createEditor(
     toggleRaw: () => {
       const next = !isRaw(view.state);
       view.dispatch({ effects: setRaw.of(next) });
+      documentFind.refresh();
       return next;
     },
     isRaw: () => isRaw(view.state),
@@ -494,7 +513,11 @@ export function createEditor(
         selection: { anchor: 0 },
       });
       recheck();
+      documentFind.refresh();
     },
-    destroy: () => view.destroy(),
+    destroy: () => {
+      documentFind.destroy();
+      view.destroy();
+    },
   };
 }
