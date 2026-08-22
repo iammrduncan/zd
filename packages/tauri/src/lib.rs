@@ -55,6 +55,14 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(launch)
         .manage(quick_access::QuickAccessState::default())
+        .setup(|app| {
+            let directory = app.path().app_config_dir()?.join("diagnostics");
+            let diagnostics =
+                instrumentation::DiagnosticState::new(directory, env!("CARGO_PKG_VERSION"))
+                    .map_err(std::io::Error::other)?;
+            app.manage(diagnostics);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             cli::launch_request,
             cli::project_grants,
@@ -73,6 +81,11 @@ pub fn run() {
             quick_access::register_global_summon,
             quick_access::toggle_quick_access,
             quick_access::hide_quick_access,
+            instrumentation::runtime::diagnostics_status,
+            instrumentation::runtime::enable_diagnostics,
+            instrumentation::runtime::disable_diagnostics,
+            instrumentation::runtime::record_diagnostic,
+            instrumentation::runtime::reveal_diagnostics,
             close_window,
         ])
         /*
@@ -99,6 +112,12 @@ pub fn run() {
         .expect("error while building zd");
 
     app.run(|app_handle, event| {
+        if matches!(&event, tauri::RunEvent::Exit) {
+            app_handle
+                .state::<instrumentation::DiagnosticState>()
+                .shutdown();
+        }
+
         #[cfg(target_os = "macos")]
         match event {
             tauri::RunEvent::Opened { urls } => {
