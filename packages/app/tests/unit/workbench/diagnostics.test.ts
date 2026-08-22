@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DiagnosticStatus, InstrumentationClient } from "@/instrumentation";
+import type { AttentionNotificationAdapter } from "@/notifications";
+import { AttentionSettingsController } from "@/workbench/attention";
 import { attachWorkbenchDiagnostics, mountDiagnosticSettings } from "@/workbench/diagnostics";
 import {
   diagnosticsEnabled,
@@ -51,6 +53,32 @@ afterEach(() => {
 });
 
 describe("local diagnostic settings", () => {
+  it("shares one Settings sheet with the Attention controls", async () => {
+    const notifications: AttentionNotificationAdapter = {
+      permission: vi.fn(async () => "unsupported" as const),
+      requestPermission: vi.fn(async () => "unsupported" as const),
+      show: vi.fn(async () => ({ status: "unsupported" as const, problem: null })),
+      onAction: () => () => {},
+      playSound: vi.fn(async () => ({ status: "unsupported" as const, problem: null })),
+    };
+    const host = document.createElement("div");
+
+    const unmount = mountDiagnosticSettings(
+      host,
+      client().value,
+      async () => {},
+      new AttentionSettingsController(notifications),
+    );
+
+    expect(host.querySelectorAll("details")).toHaveLength(1);
+    expect(host.querySelector("[data-attention-settings]")).not.toBeNull();
+    expect(host.querySelector("[data-diagnostics-toggle]")).not.toBeNull();
+    await vi.waitFor(() =>
+      expect(host.querySelector("[data-attention-status]")?.textContent).toContain("unavailable"),
+    );
+    unmount();
+  });
+
   it("records bounded active-context transitions without file identifiers or roots", async () => {
     const alpha: ProjectGrant = {
       id: "alpha",
