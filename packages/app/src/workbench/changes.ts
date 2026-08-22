@@ -89,7 +89,7 @@ export async function mountCurrentFileWithChanges(
   controller: ChangesController,
 ): Promise<Unmount> {
   const root = document.createElement("div");
-  root.className = "zd-file-context";
+  root.className = "zd-file-context current-file";
   const live = document.createElement("div");
   live.className = "zd-file-context-surface";
   live.dataset.changesSurface = "live";
