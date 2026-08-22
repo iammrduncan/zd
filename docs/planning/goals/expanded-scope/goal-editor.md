@@ -1,0 +1,6 @@
+- compare our  current editor (codemirror) with https://microsoft.github.io/monaco-editor/
+- Look for feature completeness and performance.
+- keep our current editor look and feel consistent, and keep it as the markdown first reader/editor.
+- make focus mode off by default now, toggle it with cmd+f, win+f. 
+- allow opening of non-markdown files in the editor and apply syntax highlighting.
+- allow find/replace and search in the editor.
