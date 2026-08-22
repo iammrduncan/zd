@@ -7,6 +7,7 @@ import type {
   ProjectWorkbenchSnapshot,
 } from "@/projects/types";
 import { mountProjectList } from "@/projects/view";
+import type { ProjectGrant } from "@/workbench/resources";
 
 function snapshot(): ProjectWorkbenchSnapshot {
   return {
@@ -59,13 +60,16 @@ function snapshot(): ProjectWorkbenchSnapshot {
   };
 }
 
-function adapter(initial = snapshot()) {
+function adapter(initial = snapshot(), choice: ProjectGrant | null = null) {
   let current = initial;
   const listeners = new Set<(next: ProjectWorkbenchSnapshot) => void>();
   const committed: ProjectActionResult = { status: "committed" };
   const workbench: ProjectWorkbenchAdapter & {
+    chooseProject: ReturnType<typeof vi.fn>;
+    acceptChosenProject: ReturnType<typeof vi.fn>;
     activateProject: ReturnType<typeof vi.fn>;
     reorderProjects: ReturnType<typeof vi.fn>;
+    removeProject: ReturnType<typeof vi.fn>;
     recoverProject: ReturnType<typeof vi.fn>;
     publish(next: ProjectWorkbenchSnapshot): void;
   } = {
@@ -74,11 +78,11 @@ function adapter(initial = snapshot()) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    chooseProject: async () => null,
-    acceptChosenProject: async () => committed,
+    chooseProject: vi.fn(async () => choice),
+    acceptChosenProject: vi.fn(async () => committed),
     activateProject: vi.fn(async () => committed),
     reorderProjects: vi.fn(async () => committed),
-    removeProject: async () => committed,
+    removeProject: vi.fn(async () => committed),
     recoverProject: vi.fn(async () => committed),
     publish: (next) => {
       current = next;
@@ -94,6 +98,36 @@ async function settle(): Promise<void> {
 }
 
 describe("the Projects list", () => {
+  it("opens the native project chooser and exposes removal without mutating early", async () => {
+    const gamma: ProjectGrant = {
+      id: "gamma",
+      name: "Gamma",
+      root: "/work/gamma",
+      availability: "available",
+      worktrees: [
+        {
+          id: "gamma-root",
+          name: "main",
+          root: "/work/gamma",
+          availability: "available",
+        },
+      ],
+    };
+    const workbench = adapter(snapshot(), gamma);
+    const host = document.createElement("div");
+    mountProjectList(host, new ProjectsController(workbench));
+
+    host.querySelector<HTMLButtonElement>("[data-project-add]")!.click();
+    host.querySelector<HTMLButtonElement>('[data-project-remove="beta"]')!.click();
+    await settle();
+
+    expect(workbench.chooseProject).toHaveBeenCalledOnce();
+    expect(workbench.acceptChosenProject).toHaveBeenCalledExactlyOnceWith(gamma);
+    expect(workbench.removeProject).toHaveBeenCalledExactlyOnceWith("beta");
+    expect(host.querySelector('[data-project-id="beta"]')).not.toBeNull();
+    expect(host.querySelector('[data-project-id="gamma"]')).toBeNull();
+  });
+
   it("renders ordered project headings with thread content nested under each owner", () => {
     const workbench = adapter();
     const host = document.createElement("div");

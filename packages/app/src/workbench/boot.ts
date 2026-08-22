@@ -2,18 +2,28 @@ import type { Platform } from "@/platform";
 import { registerThemeSelectionOwner } from "@/design/appearance";
 import { ThemeController, loadThemeCatalog } from "@/design/themes";
 import { mountCurrentWorkspace } from "@/miniapps/md";
+import { mountProjectList, ProjectsController } from "@/projects";
 import { registerReference } from "./reference";
 import { attachShortcuts } from "./shortcuts";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "./state";
 import { attachWorkbenchCommands } from "./commands";
+import { createProjectWorkbenchAdapter } from "./projects";
 import { mountWorkbenchShell } from "./shell";
 import type { Unmount, WorkbenchMount } from "./runtime";
 
 export type { WorkbenchMount } from "./runtime";
 
 const NOTHING: Unmount = () => {};
+const mountProjects: WorkbenchMount = (host, context) =>
+  mountProjectList(
+    host,
+    new ProjectsController(createProjectWorkbenchAdapter(context.state, context.platform)),
+  );
 const mountCurrentEditor: WorkbenchMount = (host, context) =>
-  mountWorkbenchShell(host, context, mountCurrentWorkspace);
+  mountWorkbenchShell(host, context, {
+    threads: mountProjects,
+    file: mountCurrentWorkspace,
+  });
 
 function saySoOnScreen(host: HTMLElement, message: string): void {
   const line = document.createElement("p");

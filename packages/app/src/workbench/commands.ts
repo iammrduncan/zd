@@ -5,31 +5,15 @@ import {
   runCommandTarget,
 } from "./shortcuts";
 import type { Unmount, WorkbenchRuntimeContext } from "./runtime";
-import type { WorkbenchContext, WorkbenchRegions } from "./state";
+import type { WorkbenchRegions } from "./state";
 
 export interface WorkbenchCommandsAttachment {
   readonly ready: Promise<readonly string[]>;
   readonly detach: Unmount;
 }
 
-function projectContext(
-  context: WorkbenchRuntimeContext,
-  projectIndex: number,
-): WorkbenchContext | null {
-  const state = context.state.snapshot();
-  const project = state.projects[projectIndex];
-  if (!project || project.availability !== "available") return null;
-  const worktree = state.worktrees.find(
-    (candidate) => candidate.projectId === project.id && candidate.availability === "available",
-  );
-  if (!worktree) return null;
-  const sameProject = state.active.projectId === project.id;
-  return {
-    projectId: project.id,
-    worktreeId: worktree.id,
-    threadId: sameProject ? state.active.threadId : null,
-    fileId: sameProject ? state.active.fileId : null,
-  };
+function projectId(context: WorkbenchRuntimeContext, projectIndex: number): string | null {
+  return context.state.snapshot().projects[projectIndex]?.id ?? null;
 }
 
 function updateRegionFocus(
@@ -114,11 +98,11 @@ export function attachWorkbenchCommands(
         id: `project.activate.${number}`,
         chord: { key: String(number), mod: true },
         description: `Activate project ${number}`,
-        available: () => projectContext(context, projectIndex) !== null,
+        available: () => projectId(context, projectIndex) !== null,
         run: () => {
-          const target = projectContext(context, projectIndex);
+          const target = projectId(context, projectIndex);
           if (!target) return false;
-          void context.state.activateContext(target);
+          void context.state.activateProject(target);
           return true;
         },
       }),

@@ -111,6 +111,7 @@ describe("root workbench commands", () => {
   it("activates the complete project context through the root state owner", async () => {
     const native = setupPlatform();
     const runtime = context(native.platform);
+    const activateProject = vi.spyOn(runtime.state, "activateProject");
     const attached = attachWorkbenchCommands(document.createElement("div"), runtime);
     await attached.ready;
 
@@ -120,6 +121,7 @@ describe("root workbench commands", () => {
         ?.run(),
     ).toBe(true);
     await vi.waitFor(() => expect(runtime.state.snapshot().active.projectId).toBe("project-two"));
+    expect(activateProject).toHaveBeenCalledExactlyOnceWith("project-two");
     expect(runtime.state.snapshot().active).toEqual({
       projectId: "project-two",
       worktreeId: "worktree-two",
