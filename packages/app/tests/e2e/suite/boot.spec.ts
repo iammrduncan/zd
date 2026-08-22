@@ -8,7 +8,7 @@ test("boots the styled workbench editor at the root route", async ({ page }) => 
   await page.goto("/");
   await expect(page).toHaveTitle("zd");
 
-  const surface = page.locator("#zd > .md-surface");
+  const surface = page.locator('[data-centre-surface="file"] > .md-surface');
   await expect(surface, "the root route did not mount the md surface").toBeVisible();
   await expect(surface.locator(".md-document-error")).toContainText("No document open.");
 

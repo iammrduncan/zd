@@ -8,3 +8,4 @@
 
 /* The one sentence boot can draw before content mounts. */
 @import "../workbench/boot.css";
+@import "../workbench/shell.css";

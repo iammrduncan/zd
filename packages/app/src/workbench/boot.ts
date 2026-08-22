@@ -3,12 +3,14 @@ import { mountCurrentWorkspace } from "@/miniapps/md";
 import { registerReference } from "@/suite/reference";
 import { attachShortcuts } from "@/suite/shortcuts";
 import { createWorkbenchStateOwner } from "./state";
+import { mountWorkbenchShell } from "./shell";
 import type { Unmount, WorkbenchMount } from "./runtime";
 
 export type { WorkbenchMount } from "./runtime";
 
 const NOTHING: Unmount = () => {};
-const mountCurrentEditor: WorkbenchMount = (host, context) => mountCurrentWorkspace(host, context);
+const mountCurrentEditor: WorkbenchMount = (host, context) =>
+  mountWorkbenchShell(host, context, mountCurrentWorkspace);
 
 function saySoOnScreen(host: HTMLElement, message: string): void {
   const line = document.createElement("p");
