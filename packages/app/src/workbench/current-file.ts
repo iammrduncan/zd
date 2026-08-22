@@ -14,6 +14,11 @@ import { register, registerCommandTarget } from "./shortcuts";
 import type { WorkbenchState } from "./state";
 import "./current-file.css";
 
+export interface MountCurrentFileOptions {
+  /** Whether this surface currently owns editor commands. Lifecycle guards remain active. */
+  readonly isActive?: () => boolean;
+}
+
 function activeResource(state: WorkbenchState): FileResource | null {
   const file = state.openFiles.find(({ id }) => id === state.active.fileId);
   return file
@@ -36,6 +41,7 @@ function emptyFile(host: HTMLElement): void {
 export async function mountCurrentFile(
   host: HTMLElement,
   context: WorkbenchRuntimeContext,
+  options: MountCurrentFileOptions = {},
 ): Promise<Unmount> {
   let mounted: MountedEditorBuffer | null = null;
   let active = true;
@@ -157,14 +163,16 @@ export async function mountCurrentFile(
   };
 
   const currentEditor = () => mounted?.editor ?? null;
+  const ownsCommands = options.isActive ?? (() => true);
+  const commandEditor = () => (ownsCommands() ? currentEditor() : null);
   const registrations: Unmount[] = [
     registerCommandTarget({
       id: "current-file.find",
       commandId: "file.find",
       priority: 100,
-      available: () => currentEditor() !== null,
+      available: () => commandEditor() !== null,
       run: () => {
-        const editor = currentEditor();
+        const editor = commandEditor();
         if (!editor) return false;
         editor.find.open();
         return true;
@@ -174,23 +182,23 @@ export async function mountCurrentFile(
       id: "current-file.close-find",
       commandId: "workbench.escape",
       priority: 300,
-      available: () => currentEditor()?.find.isOpen() ?? false,
-      run: () => currentEditor()?.find.close() ?? false,
+      available: () => commandEditor()?.find.isOpen() ?? false,
+      run: () => commandEditor()?.find.close() ?? false,
     }),
     registerCommandTarget({
       id: "current-file.drop-caret",
       commandId: "workbench.escape",
       priority: 20,
-      available: () => currentEditor()?.hasCaret() ?? false,
-      run: () => currentEditor()?.dropCaret() ?? false,
+      available: () => commandEditor()?.hasCaret() ?? false,
+      run: () => commandEditor()?.dropCaret() ?? false,
     }),
     registerCommandTarget({
       id: "current-file.focus-mode",
       commandId: "focus.toggle",
       priority: 100,
-      available: () => currentEditor() !== null,
+      available: () => commandEditor() !== null,
       run: () => {
-        const editor = currentEditor();
+        const editor = commandEditor();
         if (!editor) return false;
         editor.toggleFocus();
         return true;
@@ -200,8 +208,11 @@ export async function mountCurrentFile(
       id: "document.save",
       chord: { key: "s", mod: true },
       description: "Save the current file",
+      available: () => commandEditor() !== null,
       run: () => {
-        void currentEditor()?.save();
+        const editor = commandEditor();
+        if (!editor) return false;
+        void editor.save();
         return true;
       },
     }),
@@ -209,9 +220,9 @@ export async function mountCurrentFile(
       id: "document.raw",
       chord: { key: "e", mod: true },
       description: "Raw mode: show literal Markdown source",
-      available: () => Boolean(currentEditor() && mounted?.buffer.language.markdown),
+      available: () => Boolean(commandEditor() && mounted?.buffer.language.markdown),
       run: () => {
-        const editor = currentEditor();
+        const editor = commandEditor();
         if (!editor || !mounted?.buffer.language.markdown) return false;
         editor.toggleRaw();
         return true;
@@ -221,9 +232,9 @@ export async function mountCurrentFile(
       id: "document.wrap",
       chord: { key: "z", mod: true, alt: true },
       description: "Turn line wrapping on or off",
-      available: () => currentEditor() !== null,
+      available: () => commandEditor() !== null,
       run: () => {
-        const editor = currentEditor();
+        const editor = commandEditor();
         if (!editor) return false;
         setWordWrap(editor.toggleWrap());
         return true;
@@ -233,22 +244,22 @@ export async function mountCurrentFile(
       id: "document.typewriter",
       chord: { key: "t", mod: true, alt: true },
       description: "Turn Typewriter Mode on or off",
-      available: () => currentEditor()?.hasCaret() ?? false,
-      run: () => currentEditor()?.toggleTypewriter() ?? false,
+      available: () => commandEditor()?.hasCaret() ?? false,
+      run: () => commandEditor()?.toggleTypewriter() ?? false,
     }),
     register({
       id: "document.jumpNext",
       chord: { key: "ArrowDown", alt: true },
       description: "Jump to the next focus block",
-      available: () => currentEditor()?.hasCaret() ?? false,
-      run: () => currentEditor()?.jumpBlock("next") ?? false,
+      available: () => commandEditor()?.hasCaret() ?? false,
+      run: () => commandEditor()?.jumpBlock("next") ?? false,
     }),
     register({
       id: "document.jumpPrevious",
       chord: { key: "ArrowUp", alt: true },
       description: "Jump to the previous focus block",
-      available: () => currentEditor()?.hasCaret() ?? false,
-      run: () => currentEditor()?.jumpBlock("previous") ?? false,
+      available: () => commandEditor()?.hasCaret() ?? false,
+      run: () => commandEditor()?.jumpBlock("previous") ?? false,
     }),
   ];
 
