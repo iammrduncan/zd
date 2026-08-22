@@ -15,11 +15,16 @@ export async function openEditor(
 
   const editor = page.locator(".md-editor .cm-content");
   await expect(editor, "the editor fixture did not mount").toBeVisible();
-  const code = (options.url ?? "").includes("doc=code");
+  const requested = options.url ?? "";
+  const code = requested.includes("doc=code") || requested.includes("doc=large");
   if (code) {
     await expect(page.locator('.md-editor[data-language="code"]')).toBeVisible();
     await expect(
-      page.locator(".md-editor .cm-line", { hasText: "readFile" }).first(),
+      page
+        .locator(".md-editor .cm-line", {
+          hasText: requested.includes("doc=large") ? "record_00000" : "readFile",
+        })
+        .first(),
     ).toBeVisible();
   } else {
     await expect(
