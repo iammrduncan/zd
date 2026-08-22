@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Platform } from "@/platform";
+import { unavailableFileTreeAdapter } from "@/files";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { unavailableTerminalAdapter } from "@/terminal";
 import type { WorkbenchMount, WorkbenchRuntimeContext } from "@/workbench/runtime";
@@ -52,6 +53,7 @@ function context(): WorkbenchRuntimeContext {
     recordDiagnostic: async () => ({ recorded: false, problem: null }),
     revealDiagnostics: async () => {},
     terminal: unavailableTerminalAdapter,
+    fileTree: unavailableFileTreeAdapter,
     workspaceFiles: async () => {
       throw new Error("no listing");
     },

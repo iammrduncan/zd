@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Platform, WorkspaceListing } from "@/platform";
+import { unavailableFileTreeAdapter } from "@/files";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { unavailableTerminalAdapter } from "@/terminal";
 import { mountWorkspace, type DocumentMount, type MountedDocument } from "@/miniapps/md/workspace";
@@ -98,6 +99,7 @@ function context(path: string, listing: WorkspaceListing): WorkbenchRuntimeConte
       recordDiagnostic: async () => ({ recorded: false, problem: null }),
       revealDiagnostics: async () => {},
       terminal: unavailableTerminalAdapter,
+      fileTree: unavailableFileTreeAdapter,
       workspaceFiles: async () => listing,
       readTextFile: async () => "",
       readBoundedFile: async () => ({ status: "unavailable", problem: "unused test boundary" }),

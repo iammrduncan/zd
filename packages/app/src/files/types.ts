@@ -69,6 +69,16 @@ export interface FileTreeAdapter {
   snapshot(request: FileTreeRequest): Promise<FileTreeResult>;
 }
 
+/** Honest inert adapter for browser fixtures and surfaces without native file authority. */
+export const unavailableFileTreeAdapter: FileTreeAdapter = {
+  snapshot: async (request) => ({
+    status: "unavailable",
+    projectId: request.projectId,
+    worktreeId: request.worktreeId,
+    problem: "file trees require the desktop shell",
+  }),
+};
+
 /** Root-owned context transition. The Files feature never sets active file state itself. */
 export interface FileTreeActions {
   activateFile(resource: FileResource): Promise<TransitionResult>;

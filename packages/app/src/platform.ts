@@ -7,6 +7,7 @@ import type {
   PreparedDiagnosticRecord,
 } from "@/instrumentation";
 import type { BoundedFileRead } from "@/editor";
+import { unavailableFileTreeAdapter, type FileTreeAdapter } from "@/files";
 import { unavailableTerminalAdapter, type TerminalAdapter } from "@/terminal";
 import {
   homeLaunch,
@@ -19,7 +20,8 @@ import {
  * The only file in the frontend that knows what shell it is running in.
  *
  * Everything above this line is portable. If Tauri ever stops being the right
- * shell, this file is the change — see suite ADR 0002.
+ * shell, this file is the change — see
+ * docs/adr/suite/0002-put-native-authority-behind-platform-boundary_H.md.
  */
 /**
  * Identity enough to notice someone else wrote the file. See `file_stamp` in
@@ -27,8 +29,8 @@ import {
  *
  * Here rather than beside the code that reconciles with it — audit finding L1. It
  * describes what a platform command returns, and the platform is the bottom
- * layer: a type owned by a mini app and named here would mean the next mini app
- * that touches files inheriting a type from `md`'s directory.
+ * layer. A feature-owned type placed here would make every other file consumer
+ * depend on that feature's source directory.
  */
 export interface FileStamp {
   modified: number | null;
@@ -103,6 +105,8 @@ export interface Platform {
   revealDiagnostics(): Promise<void>;
   /** Structured, project-scoped native terminal lifecycle; never arbitrary process execution. */
   readonly terminal: TerminalAdapter;
+  /** Complete bounded snapshots for one native-approved project/worktree. */
+  readonly fileTree: FileTreeAdapter;
   /** Read a UTF-8 text file. */
   readTextFile(resource: FileResource): Promise<string>;
   /** Classify and read at most one bounded text file without guessing an encoding. */
@@ -193,6 +197,9 @@ const tauri: Platform = {
     terminate: (session) => invoke("terminal_terminate", { session }),
     dispose: (session) => invoke<void>("terminal_dispose", { session }),
   },
+  fileTree: {
+    snapshot: (request) => invoke("file_tree_snapshot", { request }),
+  },
   workspaceFiles: (projectId, worktreeId) =>
     invoke<WorkspaceListing>("workspace_files", { projectId, worktreeId }),
   readTextFile: (resource) => invoke<string>("read_text_file", { resource }),
@@ -271,6 +278,7 @@ const browser: Platform = {
     throw new Error("local diagnostics require the desktop shell");
   },
   terminal: unavailableTerminalAdapter,
+  fileTree: unavailableFileTreeAdapter,
   workspaceFiles: async (projectId, worktreeId) => {
     throw new Error(`no filesystem in the browser shell: ${projectId}/${worktreeId}`);
   },
