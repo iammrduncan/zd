@@ -4,6 +4,7 @@ mod terminal;
 use std::path::{Path, PathBuf};
 #[cfg(any(unix, windows))]
 use std::process::Command;
+use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -148,6 +149,37 @@ fn one_pty_starts_emits_accepts_input_resizes_and_exits() {
     assert_eq!(status.code, Some(7));
     assert!(rendered.contains("37 101"), "output was {rendered:?}");
     assert!(rendered.contains("hello 👩🏽‍💻"), "output was {rendered:?}");
+}
+
+#[test]
+fn output_arrival_signals_the_exact_session_without_polling() {
+    let scratch = Scratch::new("output-signal");
+    let mut sessions = TerminalSessions::with_output_limit(4 * 1024).unwrap();
+    let (sender, signals) = mpsc::sync_channel(4);
+    let handle = sessions
+        .start_shell_with_output_signal(
+            scope(&scratch),
+            viewport(24, 80),
+            Arc::new(move |session| {
+                let _ = sender.try_send(session);
+            }),
+        )
+        .unwrap();
+    sessions
+        .write(&handle, b"printf '__ZD_SIGNAL__'\n")
+        .unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut output = Vec::new();
+    while !output.windows(13).any(|bytes| bytes == b"__ZD_SIGNAL__") {
+        let signaled = signals
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .expect("the PTY reader signals output arrival");
+        assert_eq!(signaled, handle);
+        output.extend(sessions.read(&handle).unwrap().bytes);
+    }
+
+    sessions.dispose(&handle).unwrap();
 }
 
 #[test]

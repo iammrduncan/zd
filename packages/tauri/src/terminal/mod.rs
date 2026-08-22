@@ -22,6 +22,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 pub const DEFAULT_OUTPUT_LIMIT_BYTES: usize = 4 * 1024 * 1024;
 pub const MAX_OUTPUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_INPUT_BYTES: usize = 64 * 1024;
+pub type TerminalOutputSignal = Arc<dyn Fn(TerminalSessionHandle) + Send + Sync + 'static>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -248,7 +249,17 @@ impl TerminalSessions {
         viewport: TerminalViewport,
     ) -> Result<TerminalSessionHandle, TerminalError> {
         let command = CommandBuilder::new_default_prog();
-        self.start_command(scope, viewport, command)
+        self.start_command(scope, viewport, command, None)
+    }
+
+    pub fn start_shell_with_output_signal(
+        &mut self,
+        scope: TerminalScope,
+        viewport: TerminalViewport,
+        output_signal: TerminalOutputSignal,
+    ) -> Result<TerminalSessionHandle, TerminalError> {
+        let command = CommandBuilder::new_default_prog();
+        self.start_command(scope, viewport, command, Some(output_signal))
     }
 
     #[cfg(test)]
@@ -261,7 +272,7 @@ impl TerminalSessions {
     ) -> Result<TerminalSessionHandle, TerminalError> {
         let mut command = CommandBuilder::new(program);
         command.args(arguments);
-        self.start_command(scope, viewport, command)
+        self.start_command(scope, viewport, command, None)
     }
 
     fn start_command(
@@ -269,6 +280,7 @@ impl TerminalSessions {
         scope: TerminalScope,
         viewport: TerminalViewport,
         mut command: CommandBuilder,
+        output_signal: Option<TerminalOutputSignal>,
     ) -> Result<TerminalSessionHandle, TerminalError> {
         command.cwd(&scope.cwd);
         command.env("TERM", "xterm-256color");
@@ -286,8 +298,15 @@ impl TerminalSessions {
             .master
             .take_writer()
             .map_err(|error| TerminalError::new(TerminalErrorKind::Io, error.to_string()))?;
+        let handle = TerminalSessionHandle {
+            session_id: format!("session-{:016x}", self.next_identity),
+            project_id: scope.project_id,
+            worktree_id: scope.worktree_id,
+        };
+        self.next_identity = self.next_identity.saturating_add(1);
         let output = Arc::new(Mutex::new(BoundedOutput::new(self.output_limit_bytes)));
-        let output_reader = OutputReader::start(reader, Arc::clone(&output))?;
+        let output_reader =
+            OutputReader::start(reader, Arc::clone(&output), handle.clone(), output_signal)?;
         let child = match pair.slave.spawn_command(command) {
             Ok(child) => child,
             Err(error) => {
@@ -316,12 +335,6 @@ impl TerminalSessions {
             }
         };
 
-        let handle = TerminalSessionHandle {
-            session_id: format!("session-{:016x}", self.next_identity),
-            project_id: scope.project_id,
-            worktree_id: scope.worktree_id,
-        };
-        self.next_identity = self.next_identity.saturating_add(1);
         self.sessions.insert(
             handle.session_id.clone(),
             TerminalSession {

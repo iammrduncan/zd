@@ -7,7 +7,7 @@ use std::time::Duration;
 use portable_pty::{Child, ExitStatus, MasterPty};
 
 use super::output::BoundedOutput;
-use super::{TerminalError, TerminalErrorKind};
+use super::{TerminalError, TerminalErrorKind, TerminalOutputSignal, TerminalSessionHandle};
 
 /// Platform process-tree ownership attached to one PTY session.
 ///
@@ -74,6 +74,8 @@ impl OutputReader {
     pub(super) fn start(
         mut reader: Box<dyn Read + Send>,
         output: Arc<Mutex<BoundedOutput>>,
+        session: TerminalSessionHandle,
+        output_signal: Option<TerminalOutputSignal>,
     ) -> Result<Self, TerminalError> {
         let (finished_sender, finished) = mpsc::sync_channel(1);
         let thread = thread::Builder::new()
@@ -82,11 +84,18 @@ impl OutputReader {
                 let mut chunk = [0_u8; 8 * 1024];
                 loop {
                     match reader.read(&mut chunk) {
-                        Ok(0) => break,
-                        Ok(length) => lock_output(&output).push(&chunk[..length]),
+                        Ok(0) => {
+                            signal_output(&output_signal, &session);
+                            break;
+                        }
+                        Ok(length) => {
+                            lock_output(&output).push(&chunk[..length]);
+                            signal_output(&output_signal, &session);
+                        }
                         Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
                         Err(error) => {
                             lock_output(&output).fail(error.to_string());
+                            signal_output(&output_signal, &session);
                             break;
                         }
                     }
@@ -123,6 +132,12 @@ impl OutputReader {
                 "terminal output reader stopped unexpectedly",
             )
         })
+    }
+}
+
+fn signal_output(signal: &Option<TerminalOutputSignal>, session: &TerminalSessionHandle) {
+    if let Some(signal) = signal {
+        signal(session.clone());
     }
 }
 

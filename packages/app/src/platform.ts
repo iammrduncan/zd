@@ -9,7 +9,11 @@ import type {
 import type { BoundedFileRead } from "@/editor";
 import { unavailableFileTreeAdapter, type FileTreeAdapter } from "@/files";
 import { createTauriGitAdapter, unavailableGitAdapter, type GitAdapter } from "@/git";
-import { unavailableTerminalAdapter, type TerminalAdapter } from "@/terminal";
+import {
+  unavailableTerminalAdapter,
+  type TerminalAdapter,
+  type TerminalSessionHandle,
+} from "@/terminal";
 import {
   homeLaunch,
   type FileResource,
@@ -228,6 +232,16 @@ const tauri: Platform = {
   revealDiagnostics: () => invoke<void>("reveal_diagnostics"),
   terminal: {
     start: (request) => invoke("terminal_start", { request }),
+    onOutputReady: (handler) => {
+      let active = true;
+      const pending = listen<TerminalSessionHandle>("terminal-output-ready", (event) => {
+        if (active) handler(event.payload);
+      });
+      return () => {
+        active = false;
+        void pending.then((unlisten) => unlisten());
+      };
+    },
     write: (session, bytes) => invoke<void>("terminal_write", { session, bytes }),
     resize: (session, viewport) => invoke<void>("terminal_resize", { session, viewport }),
     read: (session) => invoke("terminal_read", { session }),
