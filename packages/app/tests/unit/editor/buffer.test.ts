@@ -21,6 +21,7 @@ describe("bounded editor buffers", () => {
 
     expect(buffer).toMatchObject({
       schemaVersion: EDITOR_BUFFER_SCHEMA_VERSION,
+      identity: "live:src/main.ts",
       kind: "editable",
       path: "src/main.ts",
       content: "const ready = true;",
@@ -29,6 +30,25 @@ describe("bounded editor buffers", () => {
       reason: null,
     });
     expect(buffer.language.id).toBe("typescript");
+  });
+
+  it("keeps a native revision identity separate from its display path", () => {
+    const buffer = editorBufferFromRead(
+      "src/main.ts",
+      {
+        status: "text",
+        text: "const old = true;",
+        byteLength: 17,
+        writable: false,
+      },
+      "git-buffer-revision",
+    );
+
+    expect(buffer).toMatchObject({
+      identity: "git-buffer-revision",
+      path: "src/main.ts",
+      kind: "read-only",
+    });
   });
 
   it("keeps readable text inspectable when the platform says it is read-only", () => {

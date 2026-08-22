@@ -22,6 +22,7 @@ export function mountEditorBuffer(
 ): MountedEditorBuffer {
   const surface = document.createElement("section");
   surface.className = "editor-buffer md-surface";
+  surface.dataset.bufferIdentity = buffer.identity;
   surface.dataset.bufferKind = buffer.kind;
   surface.dataset.hasContent = String(buffer.content !== null);
   surface.setAttribute("role", "region");

@@ -80,16 +80,23 @@ describe("the workbench editor facade", () => {
   it("mounts editable code through the same CodeMirror owner", () => {
     const host = document.createElement("div");
     document.body.append(host);
-    const buffer = editorBufferFromRead("src/main.ts", {
-      status: "text",
-      text: "const ready = true;",
-      byteLength: 19,
-      writable: true,
-    });
+    const buffer = editorBufferFromRead(
+      "src/main.ts",
+      {
+        status: "text",
+        text: "const ready = true;",
+        byteLength: 19,
+        writable: true,
+      },
+      "buffer-main",
+    );
 
     const mounted = mountEditorBuffer(host, buffer);
 
     expect(host.querySelector(".editor-buffer")?.getAttribute("data-buffer-kind")).toBe("editable");
+    expect(host.querySelector(".editor-buffer")?.getAttribute("data-buffer-identity")).toBe(
+      "buffer-main",
+    );
     expect(host.querySelector(".md-editor")?.getAttribute("data-language")).toBe("code");
     expect(host.querySelector(".cm-content")?.getAttribute("contenteditable")).toBe("true");
     expect(mounted.editor?.text()).toBe("const ready = true;");
