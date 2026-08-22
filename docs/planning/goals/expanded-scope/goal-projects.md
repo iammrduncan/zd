@@ -5,6 +5,15 @@
 One `zd` session can hold multiple user-approved folders as projects. Activating a project changes
 every project-scoped workbench region together while preserving inactive projects and their work.
 
+## Visual References
+
+- [Approved overlap workbench](assets/workbench-light-overlap-v2.png) and
+  [approved side-by-side workbench](assets/workbench-light-side-by-side-v2.png) show multiple project
+  headings in the left region with threads nested under their owning project.
+
+These concepts define visible project grouping and density, not the complete project lifecycle or
+the exact sample project names. Apply the shared Visual Reference Contract in `goal.md`.
+
 ## Acceptance Criteria
 
 1. A project has a stable ID, canonical root, display name, order, availability state, and native

@@ -5,6 +5,19 @@
 The project navigation region has two coherent views: Files for the active project/worktree and
 Changes for its Git state, history, comparisons, and read-only diffs.
 
+## Visual References
+
+- [Approved overlap workbench](assets/workbench-light-overlap-v2.png) and
+  [approved side-by-side workbench](assets/workbench-light-side-by-side-v2.png) define the compact
+  right-side Files/Changes region, expanded tree density, small file-type icons, shallow nesting,
+  and Git state expressed through filename/icon colour.
+- [Current reader](../../../user-facing-docs/assets/zd-reader.jpeg) records the actual navigation
+  typography, selection hairline, surfaces, and restrained light-theme treatment to preserve while
+  moving project navigation to the right.
+
+The concepts do not define Git behavior, filtering, accessibility alternatives, or exact sample
+paths. Apply the shared Visual Reference Contract in `goal.md`.
+
 ## Acceptance Criteria
 
 1. The region has keyboard-accessible Files and Changes tabs that preserve independent selection,
@@ -36,6 +49,7 @@ Changes for its Git state, history, comparisons, and read-only diffs.
 12. Unit, browser, and native tests cover filtering, scrolling, accessibility, watch updates, every
     Git state, non-repository behavior, ignored-path bounds, history, comparison, and editor diff
     integration.
+13. file tree/directory tree updates as files on disk change.
 
 ## Terminal Condition
 

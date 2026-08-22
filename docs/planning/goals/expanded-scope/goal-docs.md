@@ -6,6 +6,21 @@ Repository context, architecture authority, contributor guidance, product docume
 copy, and active planning all describe one `zd` agent workbench. Historical prototype records stay
 available as history but cannot be mistaken for current direction.
 
+## Visual References
+
+- [Approved overlap workbench](assets/workbench-light-overlap-v2.png) and
+  [approved side-by-side workbench](assets/workbench-light-side-by-side-v2.png) are the current
+  planning references for workbench composition and light-theme continuity.
+- [Current reader](../../../user-facing-docs/assets/zd-reader.jpeg) and
+  [current comments view](../../../user-facing-docs/assets/zd-comments.png) are retained-product
+  evidence, not final workbench screenshots.
+- [Current social card](../../../user-facing-docs/assets/zd-social-card.png) is migration input that
+  must be replaced or regenerated from the implemented workbench before Phase B closes.
+
+Planning concepts must be labelled as concepts anywhere they are published. Released-product docs
+use verified screenshots from the implemented workbench. Apply the shared Visual Reference Contract
+in `goal.md`.
+
 ## Required Decisions
 
 Record these owner decisions before public identity or compatibility text is finalized:

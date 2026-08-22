@@ -6,6 +6,18 @@
 replaced by one application shell that coordinates projects, threads, the current file, the file
 tree, Git changes, and terminal sessions without duplicating their state.
 
+## Visual References
+
+- [Approved overlap workbench](assets/workbench-light-overlap-v2.png) defines the default region
+  placement and single-centre-surface composition.
+- [Approved side-by-side workbench](assets/workbench-light-side-by-side-v2.png) defines the expanded
+  centre composition without moving the persistent Threads or Files/Changes regions.
+- [Current reader](../../../user-facing-docs/assets/zd-reader.jpeg) and
+  [current comments view](../../../user-facing-docs/assets/zd-comments.png) are the actual light-theme
+  and editor-character baseline to retain through the shell migration.
+
+Apply the authority and interpretation rules in the execution plan's Visual Reference Contract.
+
 ## Product Decisions
 
 - The product is `zd`; there is no separately launched `zd md` miniapp.
