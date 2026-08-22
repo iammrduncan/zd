@@ -58,6 +58,13 @@ fn generous_limits() -> TreeLimits {
     }
 }
 
+#[test]
+fn tauri_command_compiles_against_native_grant_state() {
+    let launch = cli::LaunchState::new(cli::NativeOpenRequest { path: None });
+    assert!(launch.root("project-a", "worktree-a").is_err());
+    let _command = file_tree::file_tree_snapshot;
+}
+
 fn ready(result: FileTreeResult) -> (String, Vec<FileTreeEntry>, bool, bool) {
     match result {
         FileTreeResult::Ready {
