@@ -374,9 +374,9 @@
  * thing on a dimmed row — §4.1 dims everything that is not the target, notation
  * included.
  */
-.md-editor .cm-line[data-focus="context"] .md-notation-mark,
-.md-editor .cm-line[data-focus="context"] .md-line-marker,
-.md-editor .cm-line[data-focus="context"] .md-quote-mark {
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-notation-mark,
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-line-marker,
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-quote-mark {
   color: var(--focus-context-text);
   transition: color var(--focus-ease-out) ease-out;
 }
@@ -456,11 +456,11 @@
  * frame; a line becoming context eases over the suite's single duration (§6.3).
  * Reduce Motion is handled globally in reset.css.
  */
-.md-editor .cm-line[data-focus="target"] {
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="target"] {
   transition: none;
 }
 
-.md-editor .cm-line[data-focus="context"] {
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] {
   color: var(--focus-context-text);
   transition: color var(--focus-ease-out) ease-out;
 }
@@ -481,12 +481,12 @@
  * `:where()` keeps the specificity at zero for the negation, so these two rules
  * weigh exactly what the two above do and the cascade stays readable.
  */
-.md-editor .cm-content > :where(:not(.cm-line))[data-focus="target"] {
+.md-editor[data-focus-mode="true"] .cm-content > :where(:not(.cm-line))[data-focus="target"] {
   transition: none;
 }
 
-.md-editor .cm-content > :where(:not(.cm-line))[data-focus="context"],
-.md-editor .cm-content > :where(:not(.cm-line))[data-focus="context"] * {
+.md-editor[data-focus-mode="true"] .cm-content > :where(:not(.cm-line))[data-focus="context"],
+.md-editor[data-focus-mode="true"] .cm-content > :where(:not(.cm-line))[data-focus="context"] * {
   color: var(--focus-context-text);
   transition: color var(--focus-ease-out) ease-out;
 }
@@ -500,7 +500,7 @@
  * explicitly rather than inherit: what it inherits from is the dimmed line,
  * which is the thing it exists to undo.
  */
-.md-editor .cm-line [data-focus="target"] {
+.md-editor[data-focus-mode="true"] .cm-line [data-focus="target"] {
   color: var(--text-primary);
   transition: none;
 }
@@ -553,7 +553,7 @@
   color: var(--text-muted);
 }
 
-.md-editor .cm-line[data-focus="context"] .md-code-mark {
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-code-mark {
   color: var(--focus-context-text);
   transition: color var(--focus-ease-out) ease-out;
 }

@@ -52,6 +52,20 @@ describe("the editing surface", () => {
     expect(editor.hasFocus()).toBe(false);
   });
 
+  it("keeps Focus Mode off until explicitly toggled", () => {
+    const { host, editor } = mount("one\n\ntwo");
+
+    expect(editor.isFocusMode()).toBe(false);
+    expect(host.dataset.focusMode).toBe("false");
+
+    expect(editor.toggleFocus()).toBe(true);
+    expect(editor.isFocusMode()).toBe(true);
+    expect(host.dataset.focusMode).toBe("true");
+
+    expect(editor.toggleFocus()).toBe(false);
+    expect(host.dataset.focusMode).toBe("false");
+  });
+
   it("makes a read-only buffer selectable but not editable", () => {
     const host = document.createElement("div");
     document.body.append(host);

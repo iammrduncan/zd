@@ -98,6 +98,10 @@ export interface Editor {
    * no-op, which is what makes the dev page and the tests honest.
    */
   save(): Promise<void>;
+  /** Enable or disable the document's explicit focus treatment. */
+  toggleFocus(): boolean;
+  /** True only after Focus Mode has been explicitly enabled. */
+  isFocusMode(): boolean;
   /**
    * Show the literal source of every rendered construct, or stop showing it.
    *
@@ -211,6 +215,8 @@ export interface EditorOptions {
    * meant.
    */
   wrap?: boolean;
+  /** Focus Mode starts off unless an owning surface explicitly opts in. */
+  focus?: boolean;
   /** Report a non-empty source selection so the workspace can offer a comment. */
   onSelectionChange?: (selection: ReviewSelection | null) => void;
   /** Open the workspace feedback view from an inline comment tag. */
@@ -258,6 +264,8 @@ export function createEditor(
    */
   parent.dataset.language = language.markdown ? "markdown" : "code";
   parent.dataset.editable = String(!readOnly);
+  let focusMode = options.focus ?? false;
+  parent.dataset.focusMode = String(focusMode);
   let dirty = false;
   let find: EditorFind | null = null;
 
@@ -481,6 +489,12 @@ export function createEditor(
       saving = attempt;
       return attempt;
     },
+    toggleFocus: () => {
+      focusMode = !focusMode;
+      parent.dataset.focusMode = String(focusMode);
+      return focusMode;
+    },
+    isFocusMode: () => focusMode,
     toggleRaw: () => {
       const next = !isRaw(view.state);
       view.dispatch({ effects: setRaw.of(next) });
