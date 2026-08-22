@@ -28,6 +28,13 @@ const PUBLIC_PAGES = [
   "docs/user-facing-docs/reference/cli.md",
   "docs/user-facing-docs/explanation/architecture.md",
 ];
+const CONTRIBUTOR_PAGES = [
+  "CONTRIBUTING.md",
+  "docs/README.md",
+  "packages/app/src/README.md",
+  "packages/app/src/miniapps/README.md",
+  "packages/tauri/src/README.md",
+];
 const MAINTAINED_CONTEXT_ROOTS = [
   ".agents/skills",
   ".claude/commands",
@@ -53,7 +60,7 @@ function localLinks(path: string) {
     .map((target) => decodeURIComponent(target.split("#", 1)[0]!));
 }
 
-describe("the public documentation map", () => {
+describe("the repository documentation map", () => {
   it("separates decisions, proposals, user docs, internal records, and objectives", () => {
     for (const area of DOC_AREAS) {
       expect(existsSync(resolve(ROOT, "docs", area)), `docs/${area} is missing`).toBe(true);
@@ -122,8 +129,29 @@ describe("the public documentation map", () => {
     const guide = page("packages/app/src/miniapps/README.md");
 
     expect(guide).toContain("migration input, not an extension point");
-    expect(guide).toContain("goal-reorganize.md");
+    expect(guide).toContain("../README.md");
+    expect(guide).not.toContain("while Gate 1");
     expect(guide).not.toContain("## Adding one");
+  });
+
+  it("routes implementation contributors through the current source owners", () => {
+    const contributing = page("CONTRIBUTING.md");
+    const hub = page("docs/README.md");
+    const app = page("packages/app/src/README.md");
+    const native = page("packages/tauri/src/README.md");
+
+    for (const source of [contributing, hub]) {
+      expect(source).toContain("packages/app/src/README.md");
+      expect(source).toContain("packages/tauri/src/README.md");
+    }
+
+    expect(app).toContain("workbench/boot.ts");
+    expect(app).toContain("workbench/state.ts");
+    expect(app).toContain("platform.ts");
+    expect(app).toContain("miniapps/README.md");
+    expect(native).toContain("lib.rs");
+    expect(native).toContain("grants.rs");
+    expect(native).toContain("terminal/");
   });
 
   it("gives user documentation one entry point for every Diátaxis purpose", () => {
@@ -173,6 +201,13 @@ describe("the public documentation map", () => {
   });
 
   it.each(PUBLIC_PAGES)("has no broken local link in %s", (path) => {
+    for (const target of localLinks(path)) {
+      const destination = resolve(ROOT, dirname(path), target);
+      expect(existsSync(destination), `${path} links to missing ${target}`).toBe(true);
+    }
+  });
+
+  it.each(CONTRIBUTOR_PAGES)("has no broken local contributor link in %s", (path) => {
     for (const target of localLinks(path)) {
       const destination = resolve(ROOT, dirname(path), target);
       expect(existsSync(destination), `${path} links to missing ${target}`).toBe(true);

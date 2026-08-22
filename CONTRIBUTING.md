@@ -11,10 +11,12 @@ user need, decision, implementation, and verification together.
    directly to a pull request without a ZSIP.
 3. Follow accepted [ADRs](docs/adr/README.md). When an accepted ZSIP creates an architecture
    decision, maintainers record that decision as an ADR.
-4. Read [AGENTS.md](AGENTS.md) for repository engineering rules.
-5. Follow [Develop zd](docs/user-facing-docs/how-to/develop.md) to install dependencies and run the
+4. Use the [documentation map](docs/README.md), [app source map](packages/app/src/README.md), and
+   [native source map](packages/tauri/src/README.md) before choosing an implementation owner.
+5. Read [AGENTS.md](AGENTS.md) for repository engineering rules.
+6. Follow [Develop zd](docs/user-facing-docs/how-to/develop.md) to install dependencies and run the
    app.
-6. Follow the [user-documentation instructions](docs/user-facing-docs/AGENTS.md) when a change
+7. Follow the [user-documentation instructions](docs/user-facing-docs/AGENTS.md) when a change
    affects product guidance.
 
 ## Tests and commits
