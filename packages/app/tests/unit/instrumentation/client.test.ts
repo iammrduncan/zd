@@ -138,4 +138,28 @@ describe("instrumentation client lifecycle", () => {
     release();
     await stopping;
   });
+
+  it("serializes a disable requested while native enable is still starting", async () => {
+    let finishEnable!: () => void;
+    const native = transport();
+    vi.mocked(native.enable).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishEnable = () => resolve(enabled);
+        }),
+    );
+    const client = createInstrumentationClient(() => native);
+
+    const starting = client.enable();
+    await vi.waitFor(() => expect(native.enable).toHaveBeenCalledOnce());
+    const stopping = client.disable();
+    finishEnable();
+
+    await starting;
+    await expect(stopping).resolves.toEqual(disabled);
+    expect(native.disable).toHaveBeenCalledOnce();
+    expect(client.snapshot()).toEqual(disabled);
+    await client.record({ recordType: "event", operation: "file.open", outcome: "ok" });
+    expect(native.record).not.toHaveBeenCalled();
+  });
 });
