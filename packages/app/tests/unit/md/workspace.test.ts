@@ -98,6 +98,7 @@ function context(path: string, listing: WorkspaceListing): WorkbenchRuntimeConte
       revealDiagnostics: async () => {},
       workspaceFiles: async () => listing,
       readTextFile: async () => "",
+      readBoundedFile: async () => ({ status: "unavailable", problem: "unused test boundary" }),
       writeTextFile: async () => {},
       fileStamp: async () => null,
       onCloseRequested: () => () => {},

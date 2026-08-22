@@ -54,6 +54,7 @@ function context(): WorkbenchRuntimeContext {
       throw new Error("no listing");
     },
     readTextFile: async () => "",
+    readBoundedFile: async () => ({ status: "unavailable", problem: "unused test boundary" }),
     writeTextFile: async () => {},
     fileStamp: async () => null,
     onCloseRequested: () => () => {},

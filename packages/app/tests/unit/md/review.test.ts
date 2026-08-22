@@ -84,6 +84,7 @@ function platform(writeTextFile: Platform["writeTextFile"] = async () => {}): Pl
       throw new Error("no listing");
     },
     readTextFile: async () => "",
+    readBoundedFile: async () => ({ status: "unavailable", problem: "unused test boundary" }),
     writeTextFile,
     fileStamp: async () => null,
     onCloseRequested: () => () => {},

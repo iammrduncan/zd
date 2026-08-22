@@ -199,14 +199,29 @@ describe("the Tauri window boundary", () => {
     const platform = detectPlatform();
 
     await platform.readTextFile(resource);
+    await platform.readBoundedFile(resource);
     await platform.writeTextFile(resource, "updated");
     await platform.fileStamp(resource);
 
     expect(invoke.mock.calls).toEqual([
       ["read_text_file", { resource }],
+      ["read_bounded_file", { resource }],
       ["write_text_file", { resource, contents: "updated" }],
       ["file_stamp", { resource }],
     ]);
+  });
+
+  it("returns an honest bounded-read state without a desktop shell", async () => {
+    const resource = {
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+      relativePath: "src/main.ts",
+    };
+
+    await expect(detectPlatform().readBoundedFile(resource)).resolves.toEqual({
+      status: "unavailable",
+      problem: "bounded file reads require the desktop shell",
+    });
   });
 
   it("routes the native close request through the document before the window can close", async () => {

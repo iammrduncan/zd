@@ -101,6 +101,7 @@ function context(
         throw new Error("no listing");
       },
       readTextFile,
+      readBoundedFile: async () => ({ status: "unavailable", problem: "unused test boundary" }),
       writeTextFile,
       fileStamp,
       onCloseRequested: () => () => {},
