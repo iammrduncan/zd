@@ -24,6 +24,14 @@ function updateRegionFocus(
   context.state.updateRegions({ ...context.state.snapshot().regions, focus });
 }
 
+function regionForFocus(element: HTMLElement): WorkbenchRegions["focus"] | null {
+  if (element.closest('[data-centre-surface="thread"]')) return "thread";
+  if (element.closest('[data-centre-surface="file"]')) return "file";
+  if (element.closest('[data-region="threads"]')) return "threads";
+  if (element.closest('[data-region="files"]')) return "files";
+  return null;
+}
+
 /** Register the stable, workbench-wide command identities and their one native shortcut. */
 export function attachWorkbenchCommands(
   host: HTMLElement,
@@ -37,6 +45,32 @@ export function attachWorkbenchCommands(
     shortcut: "CmdOrCtrl+Shift+Space",
     problem: null as string | null,
   };
+  let previousThreadFocus: HTMLElement | null = null;
+
+  cleanups.push(
+    registerCommandTarget({
+      id: "thread.restore-focus",
+      commandId: "workbench.escape",
+      priority: 80,
+      available: () => {
+        const thread = host.querySelector<HTMLElement>('[data-centre-surface="thread"]');
+        return Boolean(
+          previousThreadFocus?.isConnected &&
+          thread &&
+          (document.activeElement === thread || thread.contains(document.activeElement)),
+        );
+      },
+      run: () => {
+        const target = previousThreadFocus;
+        previousThreadFocus = null;
+        if (!target?.isConnected) return false;
+        target.focus({ preventScroll: true });
+        const region = regionForFocus(target);
+        if (region) updateRegionFocus(context, region);
+        return true;
+      },
+    }),
+  );
 
   cleanups.push(
     registerCommandObserver((commandId) => {
@@ -135,10 +169,19 @@ export function attachWorkbenchCommands(
       available: () => context.state.snapshot().active.threadId !== null,
       run: () => {
         if (context.state.snapshot().active.threadId === null) return false;
+        const target = host.querySelector<HTMLElement>('[data-centre-surface="thread"]');
+        if (!target) return false;
+        const active = document.activeElement;
+        if (
+          active instanceof HTMLElement &&
+          active !== target &&
+          !target.contains(active) &&
+          active.isConnected
+        ) {
+          previousThreadFocus = active;
+        }
         updateRegionFocus(context, "thread");
-        host.querySelector<HTMLElement>('[data-centre-surface="thread"]')?.focus({
-          preventScroll: true,
-        });
+        target.focus({ preventScroll: true });
         return true;
       },
     }),
@@ -178,6 +221,7 @@ export function attachWorkbenchCommands(
     detach: () => {
       if (!attached) return;
       attached = false;
+      previousThreadFocus = null;
       for (const cleanup of [...cleanups].reverse()) cleanup();
     },
   };

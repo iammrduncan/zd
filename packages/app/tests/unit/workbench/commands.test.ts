@@ -252,4 +252,54 @@ describe("root workbench commands", () => {
     attached.detach();
     removeEditor();
   });
+
+  it("restores the previous focus target when terminal focus is dismissed", async () => {
+    const native = setupPlatform();
+    const runtime = context(native.platform);
+    await runtime.state.addThread({
+      id: "thread-focus",
+      projectId: "project-one",
+      worktreeId: "worktree-one",
+      name: "Shell",
+      order: 0,
+      type: "terminal",
+      agent: "shell",
+      lifecycle: "idle",
+      lifecycleSource: "process",
+      lifecycleRevision: 1,
+      attentionUnread: false,
+      attentionVersion: 0,
+      backingId: "terminal:thread-focus",
+      backingAvailability: "ready",
+      recovery: null,
+      fileId: null,
+    });
+    const host = document.createElement("div");
+    const file = document.createElement("button");
+    file.dataset.centreSurface = "file";
+    const thread = document.createElement("section");
+    thread.dataset.centreSurface = "thread";
+    thread.tabIndex = -1;
+    host.append(file, thread);
+    document.body.append(host);
+    file.focus();
+    const attached = attachWorkbenchCommands(host, runtime);
+    await attached.ready;
+
+    expect(
+      commands()
+        .find(({ id }) => id === "thread.focus")
+        ?.run(),
+    ).toBe(true);
+    expect(document.activeElement).toBe(thread);
+    expect(
+      commands()
+        .find(({ id }) => id === "workbench.escape")
+        ?.run(),
+    ).toBe(true);
+    expect(document.activeElement).toBe(file);
+    expect(runtime.state.snapshot().regions.focus).toBe("file");
+
+    attached.detach();
+  });
 });

@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { CreateThreadWorktreeRequest, CreateThreadWorktreeResult } from "@/platform";
 import type { TerminalAdapter, TerminalExitStatus, TerminalSessionHandle } from "@/terminal";
-import type { CreateThreadRequest, ThreadAttentionEventV1 } from "@/threads";
+import type { CreateThreadRequest, TerminalEmulator, ThreadAttentionEventV1 } from "@/threads";
 import { mountActiveThread } from "@/workbench/features";
+import { runCommandTarget } from "@/workbench/shortcuts";
 import { createRootThreadsAdapter } from "@/workbench/threads";
 import type { ProjectGrant } from "@/workbench/resources";
 import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
@@ -132,6 +133,37 @@ function existingRequest(): CreateThreadRequest {
       projectId: project.id,
       worktreeId: project.worktrees[0]!.id,
     },
+  };
+}
+
+function headlessEmulator(): TerminalEmulator {
+  let host: HTMLElement | null = null;
+  return {
+    columns: 80,
+    rows: 24,
+    open: (nextHost, label) => {
+      host = nextHost;
+      const input = document.createElement("textarea");
+      input.setAttribute("aria-label", label);
+      host.append(input);
+    },
+    write: () => undefined,
+    onData: () => () => undefined,
+    onBinary: () => () => undefined,
+    onSearchResults: () => () => undefined,
+    attachCustomKeyEventHandler: () => undefined,
+    setLabel: (label) => host?.querySelector("textarea")?.setAttribute("aria-label", label),
+    focus: () => host?.querySelector("textarea")?.focus(),
+    fit: () => ({ columns: 80, rows: 24 }),
+    hasSelection: () => false,
+    getSelection: () => "",
+    paste: () => undefined,
+    selectAll: () => undefined,
+    findNext: () => false,
+    findPrevious: () => false,
+    clearSearch: () => undefined,
+    refreshTheme: () => undefined,
+    dispose: () => undefined,
   };
 }
 
@@ -388,12 +420,48 @@ describe("the root Threads runtime adapter", () => {
       host,
       { state } as unknown as WorkbenchRuntimeContext,
       runtime,
+      { createEmulator: headlessEmulator },
     );
 
     expect(host.querySelector(".zd-terminal-thread-surface")).not.toBeNull();
     expect(host.querySelector(".zd-terminal-thread-metadata")?.textContent).toContain("Review");
     unmount();
     expect(host.querySelector(".zd-terminal-thread-surface")).toBeNull();
+    await runtime.dispose();
+  });
+
+  it("keeps inactive emulator state mounted and routes find to the focused terminal", async () => {
+    const state = owner();
+    const identities = ["thread-one", "thread-two"];
+    const runtime = createRootThreadsAdapter(state, platform(), {
+      createId: () => identities.shift()!,
+    });
+    await runtime.createThread(existingRequest());
+    const host = document.createElement("div");
+    document.body.append(host);
+    const unmount = mountActiveThread(
+      host,
+      { state } as unknown as WorkbenchRuntimeContext,
+      runtime,
+      { createEmulator: headlessEmulator },
+    );
+    const first = host.querySelector<HTMLElement>(".zd-terminal-thread-surface")!;
+
+    await runtime.createThread({ ...existingRequest(), name: "Second" });
+    await vi.waitFor(() =>
+      expect(host.querySelectorAll(".zd-terminal-thread-surface")).toHaveLength(2),
+    );
+    expect(first.hidden).toBe(true);
+
+    await runtime.activateThread("thread-one");
+    await vi.waitFor(() => expect(first.hidden).toBe(false));
+    first.querySelector("textarea")?.focus();
+    expect(runCommandTarget("file.find")).toBe(true);
+    expect(first.querySelector<HTMLElement>(".zd-terminal-thread-search")?.hidden).toBe(false);
+    expect(runCommandTarget("workbench.escape")).toBe(true);
+    expect(first.querySelector<HTMLElement>(".zd-terminal-thread-search")?.hidden).toBe(true);
+
+    unmount();
     await runtime.dispose();
   });
 

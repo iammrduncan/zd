@@ -6,7 +6,7 @@
 
   position: relative;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   min-inline-size: 0;
   block-size: 100%;
   overflow: hidden;
@@ -14,9 +14,23 @@
   color: var(--terminal-foreground);
 }
 
+.zd-terminal-thread-surface[hidden],
+.zd-terminal-thread-search[hidden] {
+  display: none;
+}
+
 .zd-terminal-thread-surface:focus-within {
   outline: var(--hairline) solid var(--terminal-focus);
   outline-offset: calc(var(--hairline) * -1);
+}
+
+.zd-terminal-thread-header,
+.zd-terminal-thread-search {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  background: var(--surface-sidebar);
 }
 
 .zd-terminal-thread-metadata,
@@ -31,54 +45,108 @@
   line-height: var(--type-supporting-line);
 }
 
-.zd-terminal-thread-output {
+.zd-terminal-thread-metadata {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zd-terminal-thread-search-toggle,
+.zd-terminal-thread-search button,
+.zd-terminal-thread-search-option {
+  min-inline-size: 24px;
+  min-block-size: 24px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+}
+
+.zd-terminal-thread-search-toggle {
+  margin-inline-end: var(--space-2);
+  padding-inline: var(--space-2);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+}
+
+.zd-terminal-thread-search-toggle:hover,
+.zd-terminal-thread-search button:hover,
+.zd-terminal-thread-search-option:hover {
+  background: var(--surface-selection);
+  color: var(--text-primary);
+}
+
+.zd-terminal-thread-search-toggle:focus-visible,
+.zd-terminal-thread-search button:focus-visible,
+.zd-terminal-thread-search-option:focus-within,
+.zd-terminal-thread-search input[type="search"]:focus-visible {
+  outline: var(--hairline) solid var(--line-focus);
+  outline-offset: calc(var(--hairline) * -1);
+}
+
+.zd-terminal-thread-search {
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+}
+
+.zd-terminal-thread-search input[type="search"] {
+  flex: 1;
+  min-inline-size: 80px;
+  block-size: 24px;
+  border: var(--hairline) solid var(--line-quiet);
+  border-radius: 0;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.zd-terminal-thread-search-option {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--space-1);
+}
+
+.zd-terminal-thread-search-option input {
+  margin: 0;
+}
+
+.zd-terminal-thread-search-status {
+  min-inline-size: 4.5em;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.zd-terminal-thread-viewport {
   min-inline-size: 0;
   min-block-size: 0;
-  margin: 0;
-  padding: var(--space-3);
-  overflow: auto;
+  overflow: hidden;
+  padding: var(--space-2) var(--space-3);
   background: var(--terminal-canvas);
   color: var(--terminal-foreground);
   font-family: var(--type-code-family);
   font-size: var(--type-code-size);
-  font-style: var(--type-code-style);
-  font-weight: var(--type-code-weight);
   line-height: var(--type-code-line);
-  overflow-wrap: anywhere;
-  tab-size: 4;
-  white-space: pre-wrap;
-  user-select: text;
 }
 
-.zd-terminal-thread-output::selection {
-  background: var(--terminal-selection);
-}
-
-.zd-terminal-thread-output:focus-visible {
+.zd-terminal-thread-viewport:focus-visible {
   outline: none;
-  text-decoration: underline;
-  text-decoration-color: var(--terminal-focus);
-  text-decoration-thickness: var(--hairline);
-  text-underline-offset: var(--space-1);
+}
+
+.zd-terminal-thread-viewport .xterm {
+  block-size: 100%;
+}
+
+.zd-terminal-thread-viewport .xterm-viewport {
+  scrollbar-color: var(--line-quiet) transparent;
+  scrollbar-width: thin;
 }
 
 .zd-terminal-thread-status {
   color: var(--state-error);
-}
-
-.zd-terminal-thread-input {
-  position: absolute;
-  inset-block-end: 0;
-  inset-inline-start: 0;
-  inline-size: var(--hairline);
-  block-size: var(--hairline);
-  padding: 0;
-  overflow: hidden;
-  opacity: 0;
-}
-
-.zd-terminal-thread-measure {
-  position: absolute;
-  visibility: hidden;
-  white-space: pre;
 }
