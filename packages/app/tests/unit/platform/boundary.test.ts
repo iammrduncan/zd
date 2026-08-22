@@ -11,7 +11,7 @@ vi.mock("@tauri-apps/api/event", () => ({ listen: genericListen }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => nativeWindow }));
 
 import { detectPlatform } from "@/platform";
-import { forgetPreferences } from "@/suite/preferences";
+import { forgetPreferences } from "@/workbench/preferences";
 
 describe("the Tauri window boundary", () => {
   afterEach(() => {

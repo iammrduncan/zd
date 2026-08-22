@@ -41,8 +41,8 @@ Playwright drives Chromium; changes to the Tauri shell still need an appropriate
 
 | Path | Responsibility |
 | --- | --- |
-| `packages/app/src/miniapps` | Product surfaces; `md` owns documents and workspaces |
-| `packages/app/src/suite` | Boot, registry, preferences, and suite-wide overlays |
+| `packages/app/src/workbench` | Root state, shell, commands, preferences, and shared transients |
+| `packages/app/src/miniapps/md` | Retained Markdown/editor implementation during migration |
 | `packages/app/src/design` | Tokens, fonts, and shared visual rules |
 | `packages/app/src/platform.ts` | The frontend’s complete native boundary |
 | `packages/tauri` | Filesystem scope, launch parsing, and native windows |

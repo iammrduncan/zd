@@ -18,7 +18,7 @@ import { chordLabel, commands, register, type Command } from "./shortcuts";
  *    shortcut registry. The Reference renders it; it is not a hand-maintained
  *    list that drifts from reality."
  *
- * Suite-owned: a mini app never cooperates with this and does not know it exists.
+ * Workbench-owned: feature surfaces do not maintain or render a competing list.
  */
 
 const SHEET = "zd-reference";

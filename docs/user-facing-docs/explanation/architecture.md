@@ -4,15 +4,15 @@
 reading and editing behavior close together while trapping operating-system authority behind one
 narrow boundary.
 
-## One suite, several future tools
+## One workbench, shared owners
 
-The native executable is `zd`; `md` is a mini app selected by the launch request. Suite code owns
-boot, preferences, design tokens, shortcut dispatch, and overlays that should work above any mini
-app. A mini app owns only its working surface. Adding a future `td` tool should mean registering one
-new mini app, not cloning a window shell.
+The native executable is `zd`; every supported launch enters the same root workbench. Workbench code
+owns boot, versioned state, preferences, shortcut dispatch, the Shortcut Reference, and region
+composition. The retained Markdown implementation supplies the current-file surface while its deep
+CodeMirror behavior migrates behind editor contracts.
 
-This is why the shortcut reference lives in `src/suite/` while Markdown continuation and focus live
-under `src/miniapps/md/`.
+This is why shared application behavior lives in `src/workbench/`, while Markdown continuation and
+focus remain temporarily under `src/miniapps/md/`.
 
 ## A deep native boundary
 

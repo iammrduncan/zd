@@ -44,7 +44,7 @@ ZD already contains small, useful seams:
   gets an element, a small
   `SuiteContext`, and returns idempotent teardown. The current registry is in-process and
   [`main.ts`](../../../../../packages/app/src/main.ts) is the hardcoded catalog.
-- The [command registry](../../../../../packages/app/src/suite/shortcuts.ts) is suite-owned. One
+- The [command registry at this research snapshot](https://github.com/iammrduncan/zd/blob/9c72b8a29eed1a0a35dac7eddab0eef953513a0b/packages/app/src/suite/shortcuts.ts) is suite-owned. One
   entry supplies behavior and the Shortcut Reference; duplicate chords are rejected instead of won
   by registration order. Commands are installed and removed with the active surface.
 - Native authority is behind [`platform.ts`](../../../../../packages/app/src/platform.ts), and the

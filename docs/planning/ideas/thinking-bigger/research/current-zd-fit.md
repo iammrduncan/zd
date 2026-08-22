@@ -104,11 +104,11 @@ CodeMirror state + Lezer + DOM/CSS
   [registry.ts at the audited commit](https://github.com/iammrduncan/zd/blob/4a5fe03/packages/app/src/suite/registry.ts)
   is an in-memory map; [main.ts](../../../../../packages/app/src/main.ts) statically registers only
   md. This is a useful composition seam, not a runtime plugin system.
-- [shortcuts.ts](../../../../../packages/app/src/suite/shortcuts.ts) is a well-defined,
+- [shortcuts.ts at this research snapshot](https://github.com/iammrduncan/zd/blob/9c72b8a29eed1a0a35dac7eddab0eef953513a0b/packages/app/src/suite/shortcuts.ts) is a well-defined,
   window-local command registry. It provides stable command IDs, collision checks,
   availability, press/release behavior, and one dispatch path. It does not register OS-global
   keys, persist user bindings, or resolve commands across widgets.
-- [preferences.ts](../../../../../packages/app/src/suite/preferences.ts) persists only word wrap
+- [preferences.ts at this research snapshot](https://github.com/iammrduncan/zd/blob/9c72b8a29eed1a0a35dac7eddab0eef953513a0b/packages/app/src/suite/preferences.ts) persists only word wrap
   and SSPS enablement in localStorage with an in-memory fallback.
   [presence.ts at this research snapshot](https://github.com/iammrduncan/zd/blob/f831843d37ac0d46dfa4375e3a7a3b48056572f6/packages/app/src/suite/presence.ts)
   separately stores an anonymous

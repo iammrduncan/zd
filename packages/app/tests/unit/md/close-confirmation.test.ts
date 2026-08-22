@@ -4,7 +4,7 @@ import { EditorView } from "@codemirror/view";
 
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import type { Platform } from "@/platform";
-import { attachShortcuts, clearCommands } from "@/suite/shortcuts";
+import { attachShortcuts, clearCommands } from "@/workbench/shortcuts";
 import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
 import type { ProjectGrant } from "@/workbench/resources";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";

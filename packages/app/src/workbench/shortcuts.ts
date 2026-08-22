@@ -11,10 +11,8 @@
  * and a `Command` cannot be constructed without a handler — the type is the
  * guarantee, not a convention.
  *
- * Suite-owned, per vision §3: "the design system, settings, window shell, and
- * shortcut registry are suite-owned, not md-owned." A mini app registers its
- * commands on mount and removes them on unmount; it never listens for keys
- * itself, because a second listener is the drift starting again.
+ * Workbench-owned: a feature registers contextual command targets on mount and
+ * removes them on unmount. It never creates a second application key listener.
  */
 
 /**
@@ -128,7 +126,7 @@ function chordKey(chord: Chord): string {
  *
  * Re-registering the same id replaces it, because that is a window remounting
  * its own commands with fresh closures, not a collision. Throwing on that would
- * make the second mount of any mini app a crash.
+ * make the second mount of any feature a crash.
  */
 export function register(command: Command): () => void {
   const taken = [...registered.values()].find(
@@ -143,7 +141,7 @@ export function register(command: Command): () => void {
 
   registered.set(command.id, command);
   return () => {
-    // Only if it is still the same command. A mini app remounting registers a
+    // Only if it is still the same command. A feature remounting registers a
     // fresh closure, and an old unregister must not remove the new one.
     if (registered.get(command.id) === command) registered.delete(command.id);
   };

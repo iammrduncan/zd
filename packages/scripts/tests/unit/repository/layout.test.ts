@@ -116,7 +116,7 @@ describe("package ownership", () => {
       readFileSync(resolve(ROOT, "packages/tauri/tauri.conf.json"), "utf8"),
     ) as { app: { security: { csp: string } } };
     const preferences = readFileSync(
-      resolve(ROOT, "packages/app/src/suite/preferences.ts"),
+      resolve(ROOT, "packages/app/src/workbench/preferences.ts"),
       "utf8",
     );
 
@@ -124,7 +124,7 @@ describe("package ownership", () => {
     expect(config.app.security.csp).toContain("connect-src 'self' ipc: http://ipc.localhost");
     expect(config.app.security.csp).not.toContain("ws:");
     expect(config.app.security.csp).not.toContain("wss:");
-    expect(existsSync(resolve(ROOT, "packages/app/src/suite/presence.ts"))).toBe(false);
+    expect(existsSync(resolve(ROOT, "packages/app/src/suite"))).toBe(false);
     expect(preferences).not.toMatch(/presence|ssps/i);
   });
 });

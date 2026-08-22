@@ -3,7 +3,7 @@ import {
   register,
   registerCommandTarget,
   runCommandTarget,
-} from "@/suite/shortcuts";
+} from "./shortcuts";
 import type { Unmount, WorkbenchRuntimeContext } from "./runtime";
 import type { WorkbenchContext, WorkbenchRegions } from "./state";
 

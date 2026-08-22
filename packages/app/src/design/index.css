@@ -4,7 +4,7 @@
 @import "./reset.css";
 
 /* The Shortcut Reference is a workbench transient over the current content. */
-@import "../suite/reference.css";
+@import "../workbench/reference.css";
 
 /* The one sentence boot can draw before content mounts. */
 @import "../workbench/boot.css";

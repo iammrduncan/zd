@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Platform } from "@/platform";
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import { PERSISTENT_NOTICE } from "@/miniapps/md/notice";
-import { attachShortcuts, clearCommands } from "@/suite/shortcuts";
+import { attachShortcuts, clearCommands } from "@/workbench/shortcuts";
 import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
 import { bootWorkbench } from "@/workbench/boot";
 import { homeLaunch, type FileResource, type ProjectGrant } from "@/workbench/resources";
