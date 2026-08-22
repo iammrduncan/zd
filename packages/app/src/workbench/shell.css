@@ -47,6 +47,9 @@
 
 .zd-workbench-files {
   grid-column: 5;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .zd-centre-surface {
@@ -150,7 +153,8 @@
 
 .zd-files-panel {
   min-width: 0;
-  overflow: auto;
+  min-height: 0;
+  overflow: hidden;
   padding-block-start: var(--space-2);
 }
 

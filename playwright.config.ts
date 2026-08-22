@@ -9,7 +9,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: "list",
-  testIgnore: "**/terminal-performance.spec.ts",
+  testIgnore: "**/*-performance.spec.ts",
   use: {
     baseURL: "http://localhost:1420",
     trace: "on-first-retry",

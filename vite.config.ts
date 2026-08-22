@@ -39,6 +39,9 @@ export default defineConfig(({ mode }) => ({
               terminalPerformance: fileURLToPath(
                 new URL("./packages/app/dev/terminal-performance.html", import.meta.url),
               ),
+              changesPerformance: fileURLToPath(
+                new URL("./packages/app/dev/changes-performance.html", import.meta.url),
+              ),
             },
           },
         },

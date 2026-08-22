@@ -224,6 +224,7 @@ function renderHistory(
 ) {
   ui.historyState.textContent = historyState(snapshot.history, snapshot.historyLoading);
   ui.historyState.hidden = ui.historyState.textContent.length === 0;
+  ui.historyList.hidden = (snapshot.history?.commits.length ?? 0) === 0;
   const fragment = document.createDocumentFragment();
   for (const commit of snapshot.history?.commits ?? []) {
     const button = document.createElement("button");

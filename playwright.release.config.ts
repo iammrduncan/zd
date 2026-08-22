@@ -7,7 +7,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: "list",
-  testMatch: "**/terminal-performance.spec.ts",
+  testMatch: "**/*-performance.spec.ts",
   use: {
     baseURL: "http://localhost:1422",
     trace: "on-first-retry",
