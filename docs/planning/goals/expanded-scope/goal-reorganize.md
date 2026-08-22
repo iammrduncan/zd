@@ -2,9 +2,9 @@
 
 ## Outcome
 
-`zd` is one fast, beautiful agent workbench. The `zd md` command and growing-miniapp model are
-replaced by one application shell that coordinates projects, threads, the current file, the file
-tree, Git changes, and terminal sessions without duplicating their state.
+ZenSuite's `zd` is one fast, beautiful agent workbench. The `zd md` command and growing-miniapp
+model are replaced by one application shell that coordinates projects, threads, the current file,
+the file tree, Git changes, and terminal sessions without duplicating their state.
 
 ## Visual References
 
@@ -20,7 +20,11 @@ Apply the authority and interpretation rules in the execution plan's Visual Refe
 
 ## Product Decisions
 
-- The product is `zd`; there is no separately launched `zd md` miniapp.
+- ZenSuite is the product-family and repository identity; the application, workbench, and command
+  are named `zd`.
+- `zd` has no spelled-out product expansion. In particular, it must never be called Zendesk or
+  ZenDesk.
+- There is no separately launched `zd md` miniapp.
 - Markdown keeps the current rendered and directly editable CodeMirror surface.
 - Code files use the same CodeMirror engine in a code presentation.
 - Terminal agents are current scope. ACP agents are future scope. A first-party `zd` agent is not

@@ -2,9 +2,20 @@
 
 ## Outcome
 
-Execute the pivot from `zd md`/Zen Suite to one `zd` agent workbench without letting parallel work
-create competing state, platform authority, themes, shortcuts, or lifecycle models. Each feature
-goal remains independently verifiable; integration crosses explicit sequential gates.
+Execute the pivot from `zd md` and the ZenSuite growing-miniapp model to one `zd` agent workbench
+without letting parallel work create competing state, platform authority, themes, shortcuts, or
+lifecycle models. Each feature goal remains independently verifiable; integration crosses explicit
+sequential gates.
+
+## Naming Contract
+
+- `ZenSuite` is the product-family and repository identity.
+- `zd` is the complete user-facing name of the application, workbench, and command. It is not an
+  abbreviation and receives no spelled-out expansion in product copy.
+- `Zendesk`, `ZenDesk`, and similar expansions of `zd` are prohibited because they conflict with an
+  existing trademark and are not this product's name.
+- Retaining the ZenSuite identity does not retain the old suite launcher, growing-miniapp model, or
+  separately launched `zd md` product.
 
 ## Visual Reference Contract
 
@@ -192,4 +203,5 @@ only after the feature behavior is verified.
 All nine goals meet their terminal conditions; one native `zd` workbench can hold multiple
 projects, files, terminals, and threads; Git navigation and current-file editing remain responsive;
 completion attention returns to the exact thread; local diagnostics explain resource problems; and
-no active repository context directs future agents back toward Zen Suite or miniapps.
+no active repository context directs future agents toward the retired ZenSuite miniapp model or a
+spelled-out expansion of `zd`.
