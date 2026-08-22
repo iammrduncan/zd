@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { unavailableThreadWorktree, type Platform, type WorkspaceFile } from "@/platform";
+import {
+  unavailableAttentionPlatform,
+  unavailableThreadWorktree,
+  type Platform,
+  type WorkspaceFile,
+} from "@/platform";
 import { unavailableFileTreeAdapter } from "@/files";
 import { unavailableGitAdapter } from "@/git";
 import { unavailableTerminalAdapter } from "@/terminal";
@@ -39,6 +44,7 @@ const selection: ReviewSelection = {
 
 function platform(writeTextFile: Platform["writeTextFile"] = async () => {}): Platform {
   return {
+    ...unavailableAttentionPlatform,
     kind: "browser",
     launchRequest: async () => ({
       project,

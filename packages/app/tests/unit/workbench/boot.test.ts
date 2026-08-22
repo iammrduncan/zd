@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { unavailableThreadWorktree, type Platform } from "@/platform";
+import { unavailableAttentionPlatform, unavailableThreadWorktree, type Platform } from "@/platform";
 import { setTheme } from "@/design/appearance";
 import { unavailableFileTreeAdapter } from "@/files";
 import { unavailableGitAdapter } from "@/git";
@@ -37,6 +37,7 @@ function launch(path: string | null) {
 
 function stubPlatform(path: string | null = null): Platform {
   return {
+    ...unavailableAttentionPlatform,
     kind: "browser",
     launchRequest: async () => launch(path),
     onOpenRequested: () => () => {},

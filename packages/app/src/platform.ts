@@ -6,6 +6,13 @@ import type {
   DiagnosticWriteOutcome,
   PreparedDiagnosticRecord,
 } from "@/instrumentation";
+import type {
+  AttentionNotificationAdapter,
+  CompletionSoundResult,
+  NotificationActionV1,
+  NotificationPermission,
+  NotificationPresentationResult,
+} from "@/notifications";
 import type { BoundedFileRead } from "@/editor";
 import { unavailableFileTreeAdapter, type FileTreeAdapter } from "@/files";
 import { createTauriGitAdapter, unavailableGitAdapter, type GitAdapter } from "@/git";
@@ -132,6 +139,14 @@ export interface Platform {
   toggleQuickAccess(): Promise<WindowPresentation>;
   /** Hide quick access without closing or tearing down the root window. */
   hideQuickAccess(): Promise<WindowPresentation>;
+  /** Restore the one ordinary workbench window for an explicit notification action. */
+  showWorkbench(): Promise<WindowPresentation>;
+  /** Read native application-window focus for foreground attention policy. */
+  isWindowFocused(): Promise<boolean>;
+  /** Observe native application-window focus without polling. */
+  onWindowFocusChanged(handler: (focused: boolean) => void): () => void;
+  /** Privacy-closed desktop notification and completion-sound presentation. */
+  readonly notifications: AttentionNotificationAdapter;
   /** Inspect the local, opt-in diagnostic session without enabling it. */
   diagnosticsStatus(): Promise<DiagnosticStatus>;
   /** Start one bounded local diagnostic session. */
@@ -184,6 +199,31 @@ export interface Platform {
   openExternal(url: string): Promise<void>;
 }
 
+const unavailableNotifications: AttentionNotificationAdapter = {
+  permission: async () => "unsupported",
+  requestPermission: async () => "unsupported",
+  show: async () => ({
+    status: "unsupported",
+    problem: "desktop notifications require a supported desktop shell",
+  }),
+  onAction: () => () => {},
+  playSound: async () => ({
+    status: "unsupported",
+    problem: "completion sounds require a supported desktop shell",
+  }),
+};
+
+/** Honest attention capabilities for typed fixtures that do not own a desktop window. */
+export const unavailableAttentionPlatform = {
+  showWorkbench: async () => "ordinary" as const,
+  isWindowFocused: async () => false,
+  onWindowFocusChanged: () => () => {},
+  notifications: unavailableNotifications,
+} satisfies Pick<
+  Platform,
+  "showWorkbench" | "isWindowFocused" | "onWindowFocusChanged" | "notifications"
+>;
+
 const tauri: Platform = {
   kind: "tauri",
   launchRequest: () => invoke<LaunchRequest>("launch_request"),
@@ -225,6 +265,41 @@ const tauri: Platform = {
   },
   toggleQuickAccess: () => invoke<WindowPresentation>("toggle_quick_access"),
   hideQuickAccess: () => invoke<WindowPresentation>("hide_quick_access"),
+  showWorkbench: () => invoke<WindowPresentation>("show_workbench"),
+  isWindowFocused: () => getCurrentWindow().isFocused(),
+  onWindowFocusChanged: (handler) => {
+    let active = true;
+    const pending = getCurrentWindow().onFocusChanged(({ payload }) => {
+      if (active) handler(payload);
+    });
+    return () => {
+      active = false;
+      void pending.then((unlisten) => unlisten());
+    };
+  },
+  notifications: {
+    permission: () => invoke<NotificationPermission>("notification_permission"),
+    requestPermission: () => invoke<NotificationPermission>("notification_request_permission"),
+    show: (request) =>
+      invoke<NotificationPresentationResult>("show_thread_notification", { request }),
+    onAction: (handler) => {
+      let active = true;
+      const pending = listen<NotificationActionV1>("notification-action", (event) => {
+        if (active) handler(event.payload);
+      }).then(async (unlisten) => {
+        const waiting = await invoke<readonly NotificationActionV1[]>(
+          "pending_notification_actions",
+        );
+        if (active) waiting.forEach((action) => handler(action));
+        return unlisten;
+      });
+      return () => {
+        active = false;
+        void pending.then((unlisten) => unlisten());
+      };
+    },
+    playSound: (request) => invoke<CompletionSoundResult>("play_completion_sound", { request }),
+  },
   diagnosticsStatus: () => invoke<DiagnosticStatus>("diagnostics_status"),
   enableDiagnostics: () => invoke<DiagnosticStatus>("enable_diagnostics"),
   disableDiagnostics: () => invoke<DiagnosticStatus>("disable_diagnostics"),
@@ -309,6 +384,19 @@ const browser: Platform = {
   onWindowPresentationChanged: () => () => {},
   toggleQuickAccess: async () => "ordinary",
   hideQuickAccess: async () => "ordinary",
+  showWorkbench: async () => "ordinary",
+  isWindowFocused: async () => document.hasFocus(),
+  onWindowFocusChanged: (handler) => {
+    const focused = () => handler(true);
+    const blurred = () => handler(false);
+    window.addEventListener("focus", focused);
+    window.addEventListener("blur", blurred);
+    return () => {
+      window.removeEventListener("focus", focused);
+      window.removeEventListener("blur", blurred);
+    };
+  },
+  notifications: unavailableNotifications,
   diagnosticsStatus: async () => ({
     enabled: false,
     sessionId: null,

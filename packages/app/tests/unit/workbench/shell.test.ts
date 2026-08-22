@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { unavailableThreadWorktree, type Platform } from "@/platform";
+import { unavailableAttentionPlatform, unavailableThreadWorktree, type Platform } from "@/platform";
 import { unavailableFileTreeAdapter } from "@/files";
 import { unavailableGitAdapter } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
@@ -12,6 +12,7 @@ import { homeLaunch } from "@/workbench/resources";
 
 function context(): WorkbenchRuntimeContext {
   const platform: Platform = {
+    ...unavailableAttentionPlatform,
     kind: "browser",
     launchRequest: async () => homeLaunch(),
     onOpenRequested: () => () => {},
