@@ -2,9 +2,8 @@ import "@/design/index.css";
 import "../styles/md.css";
 import "../styles/content.css";
 
-import { createEditor } from "./editor";
+import { createEditor, languageFor } from "@/editor";
 import { setGranularity } from "./focus";
-import { languageFor } from "./language";
 import { typewriterY } from "./typewriter";
 import { lineCount, showStatus, wordCount } from "../status";
 import { setWordWrap, wordWrap } from "@/workbench/preferences";

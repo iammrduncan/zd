@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { EditorView } from "@codemirror/view";
 
-import { createEditor, type EditorOptions } from "@/editor";
+import {
+  createEditor,
+  editorBufferFromRead,
+  mountEditorBuffer,
+  type EditorOptions,
+} from "@/editor";
 
 // The interface, not the library. What CodeMirror does with a keystroke is
 // CodeMirror's business and is measured in a real engine — see
@@ -53,6 +58,74 @@ describe("the editing surface", () => {
 
     expect(host.querySelector(".cm-content")?.getAttribute("contenteditable")).toBe("false");
     expect(editor.isReadOnly()).toBe(true);
+  });
+});
+
+describe("the workbench editor facade", () => {
+  it("mounts editable code through the same CodeMirror owner", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const buffer = editorBufferFromRead("src/main.ts", {
+      status: "text",
+      text: "const ready = true;",
+      byteLength: 19,
+      writable: true,
+    });
+
+    const mounted = mountEditorBuffer(host, buffer);
+
+    expect(host.querySelector(".editor-buffer")?.getAttribute("data-buffer-kind")).toBe("editable");
+    expect(host.querySelector(".md-editor")?.getAttribute("data-language")).toBe("code");
+    expect(host.querySelector(".cm-content")?.getAttribute("contenteditable")).toBe("true");
+    expect(mounted.editor?.text()).toBe("const ready = true;");
+  });
+
+  it("shows one reason above inspectable read-only content", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const buffer = editorBufferFromRead("old.ts", {
+      status: "text",
+      text: "const old = true;",
+      byteLength: 17,
+      writable: false,
+      reason: "This is a historical revision.",
+    });
+
+    mountEditorBuffer(host, buffer);
+
+    expect(host.querySelectorAll(".editor-buffer-reason")).toHaveLength(1);
+    expect(host.querySelector(".editor-buffer-reason")?.textContent).toContain(
+      "historical revision",
+    );
+    expect(host.querySelector(".cm-content")?.getAttribute("contenteditable")).toBe("false");
+  });
+
+  it("states an unavailable buffer without mounting an empty editor", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const buffer = editorBufferFromRead("gone.md", { status: "missing" });
+
+    const mounted = mountEditorBuffer(host, buffer);
+
+    expect(mounted.editor).toBeNull();
+    expect(host.querySelector(".cm-editor")).toBeNull();
+    expect(host.querySelector(".editor-buffer-reason")?.textContent).toContain("no longer exists");
+  });
+
+  it("removes the facade and CodeMirror together", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const buffer = editorBufferFromRead("notes.md", {
+      status: "text",
+      text: "# Notes",
+      byteLength: 7,
+      writable: true,
+    });
+    const mounted = mountEditorBuffer(host, buffer);
+
+    mounted.destroy();
+
+    expect(host.children).toHaveLength(0);
   });
 });
 

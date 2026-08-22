@@ -15,3 +15,8 @@ export {
   type EditorBuffer,
   type EditorBufferKind,
 } from "./buffer";
+export {
+  mountEditorBuffer,
+  type MountedEditorBuffer,
+  type MountEditorBufferOptions,
+} from "./surface";
