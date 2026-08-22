@@ -6,6 +6,7 @@
 mod cli;
 mod fs;
 mod grants;
+mod projects;
 mod quick_access;
 pub mod terminal;
 mod themes;
@@ -49,12 +50,15 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(launch)
         .manage(quick_access::QuickAccessState::default())
         .invoke_handler(tauri::generate_handler![
             cli::launch_request,
             cli::project_grants,
+            projects::choose_project,
+            projects::recover_project_grant,
             cli::pending_open_request,
             cli::remove_project_grant,
             has_pending_open_request,

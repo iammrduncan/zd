@@ -14,6 +14,8 @@ function context(): WorkbenchRuntimeContext {
     pendingOpenRequest: async () => null,
     acceptOpenRequest: async () => null,
     projectGrants: async () => [],
+    chooseProject: async () => null,
+    recoverProjectGrant: async () => null,
     removeProjectGrant: async () => {
       throw new Error("no grants");
     },

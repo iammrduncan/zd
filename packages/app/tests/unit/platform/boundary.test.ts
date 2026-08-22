@@ -53,6 +53,31 @@ describe("the Tauri window boundary", () => {
     });
   });
 
+  it("opens and recovers projects only through native picker commands", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    invoke.mockResolvedValue(null);
+    const platform = detectPlatform();
+
+    await platform.chooseProject();
+    await platform.recoverProjectGrant("project-a");
+
+    expect(invoke.mock.calls).toEqual([
+      ["choose_project"],
+      ["recover_project_grant", { projectId: "project-a" }],
+    ]);
+  });
+
+  it("treats project picking as unavailable in the browser shell", async () => {
+    const platform = detectPlatform();
+
+    await expect(platform.chooseProject()).resolves.toBeNull();
+    await expect(platform.recoverProjectGrant("project-a")).resolves.toBeNull();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
   it("reads theme configuration only through the native config boundary", async () => {
     Object.defineProperty(window, "__TAURI_INTERNALS__", {
       configurable: true,
