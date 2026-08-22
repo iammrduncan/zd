@@ -173,7 +173,7 @@ test("colour settings change immediately without borrowing focus motion", async 
   await settled(page);
 
   const result = await page.evaluate(async () => {
-    const appearanceModule = "/src/suite/appearance.ts";
+    const appearanceModule = "/src/design/appearance.ts";
     const { setFocusDim, setTheme } = await import(appearanceModule);
     const root = document.documentElement;
     const context = document.querySelector<HTMLElement>('.cm-line[data-focus="context"]')!;
