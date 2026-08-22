@@ -10,6 +10,7 @@ pub mod instrumentation;
 mod projects;
 mod quick_access;
 pub mod terminal;
+mod terminal_runtime;
 mod themes;
 
 #[cfg(target_os = "macos")]
@@ -55,6 +56,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(launch)
         .manage(quick_access::QuickAccessState::default())
+        .manage(terminal_runtime::TerminalState::default())
         .setup(|app| {
             let directory = app.path().app_config_dir()?.join("diagnostics");
             let diagnostics =
@@ -87,6 +89,13 @@ pub fn run() {
             instrumentation::runtime::disable_diagnostics,
             instrumentation::runtime::record_diagnostic,
             instrumentation::runtime::reveal_diagnostics,
+            terminal_runtime::terminal_start,
+            terminal_runtime::terminal_write,
+            terminal_runtime::terminal_resize,
+            terminal_runtime::terminal_read,
+            terminal_runtime::terminal_poll_exit,
+            terminal_runtime::terminal_terminate,
+            terminal_runtime::terminal_dispose,
             close_window,
         ])
         /*
@@ -116,6 +125,9 @@ pub fn run() {
         if matches!(&event, tauri::RunEvent::Exit) {
             app_handle
                 .state::<instrumentation::DiagnosticState>()
+                .shutdown();
+            app_handle
+                .state::<terminal_runtime::TerminalState>()
                 .shutdown();
         }
 

@@ -9,6 +9,62 @@ use portable_pty::{Child, ExitStatus, MasterPty};
 use super::output::BoundedOutput;
 use super::{TerminalError, TerminalErrorKind};
 
+/// Platform process-tree ownership attached to one PTY session.
+///
+/// Unix shells lead an isolated process group. Windows shells are assigned to
+/// a kill-on-close Job Object so descendants share the session lifecycle.
+pub(super) struct ProcessTree {
+    #[cfg(unix)]
+    process_group: Option<i32>,
+    #[cfg(windows)]
+    job: WindowsJob,
+}
+
+impl ProcessTree {
+    pub(super) fn attach(
+        master: &dyn MasterPty,
+        child: &(dyn Child + Send + Sync),
+    ) -> Result<Self, TerminalError> {
+        #[cfg(unix)]
+        {
+            Ok(Self {
+                process_group: master.process_group_leader().or_else(|| {
+                    child
+                        .process_id()
+                        .and_then(|identity| i32::try_from(identity).ok())
+                }),
+            })
+        }
+
+        #[cfg(windows)]
+        {
+            let _ = master;
+            Ok(Self {
+                job: WindowsJob::attach(child)?,
+            })
+        }
+
+        #[cfg(not(any(unix, windows)))]
+        {
+            let _ = (master, child);
+            Ok(Self {})
+        }
+    }
+
+    pub(super) fn cleanup_descendants(&mut self) -> Result<(), TerminalError> {
+        #[cfg(unix)]
+        {
+            signal_group(self.process_group, libc::SIGHUP)?;
+            signal_group(self.process_group, libc::SIGKILL)?;
+        }
+
+        #[cfg(windows)]
+        self.job.terminate()?;
+
+        Ok(())
+    }
+}
+
 pub(super) struct OutputReader {
     thread: Option<JoinHandle<()>>,
     finished: Receiver<()>,
@@ -76,27 +132,11 @@ fn lock_output(output: &Mutex<BoundedOutput>) -> std::sync::MutexGuard<'_, Bound
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-pub(super) fn process_group(master: &dyn MasterPty, process_id: Option<u32>) -> Option<i32> {
-    #[cfg(unix)]
-    {
-        master
-            .process_group_leader()
-            .or_else(|| process_id.and_then(|id| i32::try_from(id).ok()))
-    }
-
-    #[cfg(not(unix))]
-    {
-        let _ = (master, process_id);
-        None
-    }
-}
-
 pub(super) fn terminate(
     child: &mut (dyn Child + Send + Sync),
-    process_group: Option<i32>,
+    process_tree: &mut ProcessTree,
 ) -> Result<ExitStatus, TerminalError> {
-    #[cfg(unix)]
-    signal_group(process_group, libc::SIGHUP)?;
+    process_tree.cleanup_descendants()?;
 
     if let Err(error) = child.kill() {
         if child.try_wait().map_err(io_error)?.is_none() {
@@ -107,27 +147,87 @@ pub(super) fn terminate(
         }
     }
 
-    #[cfg(unix)]
-    signal_group(process_group, libc::SIGKILL)?;
-
-    // The portable Windows backend gives this module the same PTY and direct
-    // child lifecycle, but not a descendant Job Object. Gate 2 must add a
-    // kill-on-close Job Object before generalized Windows sessions are enabled.
-
     child.wait().map_err(io_error)
 }
 
-pub(super) fn cleanup_descendants(process_group: Option<i32>) -> Result<(), TerminalError> {
-    #[cfg(unix)]
-    {
-        signal_group(process_group, libc::SIGHUP)?;
-        signal_group(process_group, libc::SIGKILL)?;
+#[cfg(windows)]
+struct WindowsJob {
+    handle: usize,
+    terminated: bool,
+}
+
+#[cfg(windows)]
+impl WindowsJob {
+    fn attach(child: &(dyn Child + Send + Sync)) -> Result<Self, TerminalError> {
+        use std::mem::size_of;
+        use std::ptr;
+
+        use windows_sys::Win32::System::JobObjects::{
+            AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+            SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+            JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        };
+
+        let process = child.as_raw_handle().ok_or_else(|| {
+            TerminalError::new(
+                TerminalErrorKind::Io,
+                "the Windows terminal process did not expose a native handle",
+            )
+        })?;
+        let handle = unsafe { CreateJobObjectW(ptr::null(), ptr::null()) };
+        if handle.is_null() {
+            return Err(io_error(std::io::Error::last_os_error()));
+        }
+        let job = Self {
+            handle: handle as usize,
+            terminated: false,
+        };
+        let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        let configured = unsafe {
+            SetInformationJobObject(
+                job.handle(),
+                JobObjectExtendedLimitInformation,
+                std::ptr::from_ref(&limits).cast(),
+                size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+            )
+        };
+        if configured == 0 {
+            return Err(io_error(std::io::Error::last_os_error()));
+        }
+        let assigned = unsafe { AssignProcessToJobObject(job.handle(), process.cast()) };
+        if assigned == 0 {
+            return Err(io_error(std::io::Error::last_os_error()));
+        }
+        Ok(job)
     }
 
-    #[cfg(not(unix))]
-    let _ = process_group;
+    fn handle(&self) -> windows_sys::Win32::Foundation::HANDLE {
+        self.handle as windows_sys::Win32::Foundation::HANDLE
+    }
 
-    Ok(())
+    fn terminate(&mut self) -> Result<(), TerminalError> {
+        use windows_sys::Win32::System::JobObjects::TerminateJobObject;
+
+        if self.terminated {
+            return Ok(());
+        }
+        let result = unsafe { TerminateJobObject(self.handle(), 1) };
+        if result == 0 {
+            return Err(io_error(std::io::Error::last_os_error()));
+        }
+        self.terminated = true;
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+impl Drop for WindowsJob {
+    fn drop(&mut self) {
+        unsafe {
+            windows_sys::Win32::Foundation::CloseHandle(self.handle());
+        }
+    }
 }
 
 #[cfg(unix)]

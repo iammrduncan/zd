@@ -17,12 +17,14 @@ use std::sync::{Arc, Mutex};
 use output::BoundedOutput;
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use process::OutputReader;
+use serde::{de, Deserialize, Deserializer, Serialize};
 
 pub const DEFAULT_OUTPUT_LIMIT_BYTES: usize = 4 * 1024 * 1024;
 pub const MAX_OUTPUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_INPUT_BYTES: usize = 64 * 1024;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum TerminalErrorKind {
     InvalidScope,
     InvalidViewport,
@@ -32,14 +34,15 @@ pub enum TerminalErrorKind {
     Io,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TerminalError {
     pub kind: TerminalErrorKind,
     pub message: String,
 }
 
 impl TerminalError {
-    fn new(kind: TerminalErrorKind, message: impl Into<String>) -> Self {
+    pub(crate) fn new(kind: TerminalErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
             message: message.into(),
@@ -105,12 +108,46 @@ fn valid_identity(kind: &str, identity: String) -> Result<String, TerminalError>
     Ok(identity)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TerminalViewport {
     rows: u16,
     columns: u16,
     pixel_width: u16,
     pixel_height: u16,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TerminalViewportWire {
+    rows: u16,
+    columns: u16,
+    pixel_width: u16,
+    pixel_height: u16,
+}
+
+impl<'de> Deserialize<'de> for TerminalViewport {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let wire = TerminalViewportWire::deserialize(deserializer)?;
+        Self::new(wire.rows, wire.columns, wire.pixel_width, wire.pixel_height)
+            .map_err(de::Error::custom)
+    }
+}
+
+/// The complete start authority accepted from the webview.
+///
+/// Cwd, executable, arguments, and environment are deliberately impossible to
+/// deserialize here. Native grant resolution supplies the cwd and this module
+/// starts only the user's configured shell.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct TerminalStartRequest {
+    pub project_id: String,
+    pub worktree_id: String,
+    pub viewport: TerminalViewport,
 }
 
 impl TerminalViewport {
@@ -144,14 +181,16 @@ impl TerminalViewport {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TerminalSessionHandle {
     pub session_id: String,
     pub project_id: String,
     pub worktree_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TerminalOutputBatch {
     pub offset: u64,
     pub dropped_before: u64,
@@ -159,14 +198,16 @@ pub struct TerminalOutputBatch {
     pub read_error: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum TerminalExitReason {
     Exited,
     Terminated,
     Disposed,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TerminalExitStatus {
     pub reason: TerminalExitReason,
     pub code: Option<u32>,
@@ -261,7 +302,19 @@ impl TerminalSessions {
             }
         };
         drop(pair.slave);
-        let process_group = process::process_group(pair.master.as_ref(), child.process_id());
+        let process_tree = match process::ProcessTree::attach(pair.master.as_ref(), child.as_ref())
+        {
+            Ok(process_tree) => process_tree,
+            Err(error) => {
+                let mut child = child;
+                let _ = child.kill();
+                drop(writer);
+                drop(pair.master);
+                let _ = child.wait();
+                output_reader.join()?;
+                return Err(error);
+            }
+        };
 
         let handle = TerminalSessionHandle {
             session_id: format!("session-{:016x}", self.next_identity),
@@ -276,7 +329,7 @@ impl TerminalSessions {
                 master: Some(pair.master),
                 writer: Some(writer),
                 child: Some(child),
-                process_group,
+                process_tree,
                 output,
                 output_reader: Some(output_reader),
                 exit: None,
@@ -368,6 +421,22 @@ impl TerminalSessions {
         Ok(())
     }
 
+    /// Stop and release every process, reader, writer, and buffered byte owned by
+    /// this manager. One failed session never strands the rest.
+    pub fn shutdown(&mut self) -> Result<(), TerminalError> {
+        let mut first_error = None;
+        for session in self.sessions.values_mut() {
+            if let Err(error) = session.terminate(TerminalExitReason::Disposed) {
+                first_error.get_or_insert(error);
+            }
+        }
+        self.sessions.clear();
+        match first_error {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
+    }
+
     fn session(&self, handle: &TerminalSessionHandle) -> Result<&TerminalSession, TerminalError> {
         self.sessions
             .get(&handle.session_id)
@@ -388,10 +457,7 @@ impl TerminalSessions {
 
 impl Drop for TerminalSessions {
     fn drop(&mut self) {
-        for session in self.sessions.values_mut() {
-            let _ = session.terminate(TerminalExitReason::Disposed);
-        }
-        self.sessions.clear();
+        let _ = self.shutdown();
     }
 }
 
@@ -407,7 +473,7 @@ struct TerminalSession {
     master: Option<Box<dyn MasterPty + Send>>,
     writer: Option<Box<dyn Write + Send>>,
     child: Option<Box<dyn Child + Send + Sync>>,
-    process_group: Option<i32>,
+    process_tree: process::ProcessTree,
     output: Arc<Mutex<BoundedOutput>>,
     output_reader: Option<OutputReader>,
     exit: Option<TerminalExitStatus>,
@@ -455,7 +521,7 @@ impl TerminalSession {
                 .as_mut()
                 .expect("a running terminal owns its child")
                 .as_mut(),
-            self.process_group,
+            &mut self.process_tree,
         )?;
         self.finish(reason, status)?;
         Ok(self.exit.clone().expect("finish records terminal exit"))
@@ -466,7 +532,7 @@ impl TerminalSession {
         reason: TerminalExitReason,
         status: portable_pty::ExitStatus,
     ) -> Result<(), TerminalError> {
-        process::cleanup_descendants(self.process_group)?;
+        self.process_tree.cleanup_descendants()?;
         self.writer.take();
         self.master.take();
         self.child.take();
