@@ -1,20 +1,17 @@
 import type { FileResource, LaunchRequest, ProjectGrant } from "./resources";
 import { cloneState, parseWorkbenchState } from "./state-codec";
+import { ProjectStateMutations } from "./state-owner-projects";
 import {
   bufferStateId,
   clamp,
   contextForLaunch,
   contextProblem,
   defaultWorkbenchState,
-  emptyContext,
   fileStateId,
-  grantProblem,
   launchFile,
-  projectFromGrant,
   sameContext,
   stateWithGrants,
   uniqueGrants,
-  worktreesFromGrant,
   type ContextTransition,
   type OpenFileState,
   type ProjectRemoval,
@@ -49,13 +46,33 @@ export class WorkbenchStateOwner {
   readonly #guards = new Map<string, TransitionGuard>();
   readonly #listeners = new Set<(state: WorkbenchState) => void>();
   readonly #projectContexts = new Map<string, WorkbenchContext>();
+  readonly #projectMutations: ProjectStateMutations;
   readonly #projectRemovalGuards = new Map<string, ProjectRemovalGuard>();
   #state: WorkbenchState;
   #transitionTail: Promise<void> = Promise.resolve();
 
   constructor(initial: WorkbenchState = defaultWorkbenchState()) {
     this.#state = parseWorkbenchState(initial);
+    this.#projectMutations = new ProjectStateMutations({
+      snapshot: () => this.#state,
+      commitTransition: (candidate, target) => this.#commitTransition(candidate, target),
+      contextForProject: (state, projectId) => this.#contextForProject(state, projectId),
+      forgetContext: (projectId) => this.#projectContexts.delete(projectId),
+      prepareProjectRemoval: (change) => this.#prepareProjectRemoval(change),
+      prepareTransition: (change) => this.#prepareTransition(change),
+      publish: (next) => this.#publish(next),
+      rememberContext: (state, context) => this.#rememberContext(state, context),
+    });
     this.#rememberContext(this.#state, this.#state.active);
+  }
+
+  #enqueue(operation: () => Promise<TransitionResult>): Promise<TransitionResult> {
+    const work = this.#transitionTail.then(operation);
+    this.#transitionTail = work.then(
+      () => undefined,
+      () => undefined,
+    );
+    return work;
   }
 
   snapshot(): WorkbenchState {
@@ -84,12 +101,7 @@ export class WorkbenchStateOwner {
   }
 
   activateContext(target: WorkbenchContext): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#activateContext(target));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
+    return this.#enqueue(() => this.#activateContext(target));
   }
 
   async #activateContext(target: WorkbenchContext): Promise<TransitionResult> {
@@ -97,12 +109,7 @@ export class WorkbenchStateOwner {
   }
 
   activateProject(projectId: string): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#activateProject(projectId));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
+    return this.#enqueue(() => this.#activateProject(projectId));
   }
 
   async #activateProject(projectId: string): Promise<TransitionResult> {
@@ -113,12 +120,7 @@ export class WorkbenchStateOwner {
   }
 
   addThread(thread: ThreadState): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#addThread(thread));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
+    return this.#enqueue(() => this.#addThread(thread));
   }
 
   async #addThread(thread: ThreadState): Promise<TransitionResult> {
@@ -145,12 +147,7 @@ export class WorkbenchStateOwner {
   }
 
   activateThread(threadId: string): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#activateThread(threadId));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
+    return this.#enqueue(() => this.#activateThread(threadId));
   }
 
   async #activateThread(threadId: string): Promise<TransitionResult> {
@@ -172,12 +169,7 @@ export class WorkbenchStateOwner {
   }
 
   renameThread(threadId: string, name: string): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#renameThread(threadId, name));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
+    return this.#enqueue(() => this.#renameThread(threadId, name));
   }
 
   async #renameThread(threadId: string, name: string): Promise<TransitionResult> {
@@ -194,12 +186,7 @@ export class WorkbenchStateOwner {
   }
 
   reorderThreads(projectId: string, orderedIds: readonly string[]): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#reorderThreads(projectId, orderedIds));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
+    return this.#enqueue(() => this.#reorderThreads(projectId, orderedIds));
   }
 
   async #reorderThreads(
@@ -233,12 +220,7 @@ export class WorkbenchStateOwner {
   }
 
   updateThreadRuntime(threadId: string, update: ThreadRuntimeUpdate): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#updateThreadRuntime(threadId, update));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
+    return this.#enqueue(() => this.#updateThreadRuntime(threadId, update));
   }
 
   async #updateThreadRuntime(
@@ -263,14 +245,7 @@ export class WorkbenchStateOwner {
   }
 
   acknowledgeThreadAttention(threadId: string, version: number): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() =>
-      this.#acknowledgeThreadAttention(threadId, version),
-    );
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
+    return this.#enqueue(() => this.#acknowledgeThreadAttention(threadId, version));
   }
 
   async #acknowledgeThreadAttention(threadId: string, version: number): Promise<TransitionResult> {
@@ -287,12 +262,7 @@ export class WorkbenchStateOwner {
   }
 
   removeThread(threadId: string): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#removeThread(threadId));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
+    return this.#enqueue(() => this.#removeThread(threadId));
   }
 
   async #removeThread(threadId: string): Promise<TransitionResult> {
@@ -336,12 +306,7 @@ export class WorkbenchStateOwner {
   }
 
   setThreadsVisibility(visibility: ThreadsVisibility): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#setThreadsVisibility(visibility));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
+    return this.#enqueue(() => this.#setThreadsVisibility(visibility));
   }
 
   async #setThreadsVisibility(visibility: ThreadsVisibility): Promise<TransitionResult> {
@@ -368,163 +333,23 @@ export class WorkbenchStateOwner {
   }
 
   acceptProjectGrant(grant: ProjectGrant): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#acceptProjectGrant(grant));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
-  }
-
-  async #acceptProjectGrant(grant: ProjectGrant): Promise<TransitionResult> {
-    const existing = this.#state.projects.find(({ root }) => root === grant.root);
-    if (existing) return this.#activateProject(existing.id);
-
-    const problem = grantProblem(this.#state, grant);
-    if (problem) return { status: "refused", reason: problem };
-    const candidate: WorkbenchState = {
-      ...this.#state,
-      projects: [...this.#state.projects, projectFromGrant(grant)],
-      worktrees: [...this.#state.worktrees, ...worktreesFromGrant(grant)],
-    };
-    const target = this.#contextForProject(candidate, grant.id);
-    return target
-      ? this.#commitTransition(candidate, target)
-      : { status: "refused", reason: `Project ${grant.id} has no approved worktree` };
+    return this.#enqueue(() => this.#projectMutations.accept(grant));
   }
 
   reorderProjects(orderedIds: readonly string[]): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#reorderProjects(orderedIds));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
-  }
-
-  async #reorderProjects(orderedIds: readonly string[]): Promise<TransitionResult> {
-    const currentIds = this.#state.projects.map(({ id }) => id);
-    const exact =
-      orderedIds.length === currentIds.length &&
-      new Set(orderedIds).size === orderedIds.length &&
-      currentIds.every((id) => orderedIds.includes(id));
-    if (!exact)
-      return { status: "refused", reason: "Project order must contain the complete identity set" };
-    if (currentIds.every((id, index) => id === orderedIds[index])) return { status: "committed" };
-
-    const projects = new Map(this.#state.projects.map((project) => [project.id, project]));
-    this.#publish({
-      ...this.#state,
-      projects: orderedIds.map((id) => projects.get(id)!),
-    });
-    return { status: "committed" };
+    return this.#enqueue(async () => this.#projectMutations.reorder(orderedIds));
   }
 
   removeProject(projectId: string, revoke: () => Promise<void>): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#removeProject(projectId, revoke));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
-  }
-
-  async #removeProject(projectId: string, revoke: () => Promise<void>): Promise<TransitionResult> {
-    const projectIndex = this.#state.projects.findIndex(({ id }) => id === projectId);
-    if (projectIndex < 0) return { status: "refused", reason: `Unknown project ${projectId}` };
-
-    this.#rememberContext(this.#state, this.#state.active);
-    const projects = this.#state.projects.filter(({ id }) => id !== projectId);
-    const worktrees = this.#state.worktrees.filter(({ projectId: owner }) => owner !== projectId);
-    const threads = this.#state.threads.filter(({ projectId: owner }) => owner !== projectId);
-    const openFiles = this.#state.openFiles.filter(({ projectId: owner }) => owner !== projectId);
-    const candidate: WorkbenchState = {
-      ...this.#state,
-      projects,
-      worktrees,
-      threads,
-      openFiles,
-    };
-    const wasActive = this.#state.active.projectId === projectId;
-    const fallbackProject = projects[Math.min(projectIndex, projects.length - 1)];
-    const fallback = wasActive
-      ? fallbackProject
-        ? (this.#contextForProject(candidate, fallbackProject.id) ?? emptyContext())
-        : emptyContext()
-      : this.#state.active;
-    const contextIssue = contextProblem(candidate, fallback);
-    if (contextIssue) return { status: "refused", reason: contextIssue };
-
-    const removal: ProjectRemoval = { projectId, wasActive, fallback };
-    const removalDecision = await this.#prepareProjectRemoval(removal);
-    if (removalDecision.status === "refused") return removalDecision;
-    if (wasActive) {
-      const transitionDecision = await this.#prepareTransition({
-        from: this.#state.active,
-        to: fallback,
-      });
-      if (transitionDecision.status === "refused") return transitionDecision;
-    }
-
-    try {
-      await revoke();
-    } catch (cause) {
-      return { status: "refused", reason: cause instanceof Error ? cause.message : String(cause) };
-    }
-
-    this.#projectContexts.delete(projectId);
-    this.#rememberContext(candidate, fallback);
-    this.#publish({ ...candidate, active: { ...fallback } });
-    return { status: "committed" };
+    return this.#enqueue(() => this.#projectMutations.remove(projectId, revoke));
   }
 
   refreshProjectGrant(grant: ProjectGrant): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#refreshProjectGrant(grant));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
-  }
-
-  async #refreshProjectGrant(grant: ProjectGrant): Promise<TransitionResult> {
-    const projectIndex = this.#state.projects.findIndex(({ id }) => id === grant.id);
-    if (projectIndex < 0) return { status: "refused", reason: `Unknown project ${grant.id}` };
-    const problem = grantProblem(this.#state, grant, grant.id);
-    if (problem) return { status: "refused", reason: problem };
-
-    const projects = [...this.#state.projects];
-    projects[projectIndex] = projectFromGrant(grant);
-    const grantedWorktrees = worktreesFromGrant(grant);
-    const grantedIds = new Set(grantedWorktrees.map(({ id }) => id));
-    const candidate: WorkbenchState = {
-      ...this.#state,
-      projects,
-      worktrees: [
-        ...this.#state.worktrees.filter(({ projectId }) => projectId !== grant.id),
-        ...grantedWorktrees,
-      ],
-      // Durable thread records remain so a missing worktree becomes an explicit
-      // recoverable thread instead of silently erasing the user's organization.
-      threads: this.#state.threads,
-      openFiles: this.#state.openFiles.filter(
-        ({ projectId, worktreeId }) => projectId !== grant.id || grantedIds.has(worktreeId),
-      ),
-    };
-    const target =
-      this.#state.active.projectId === grant.id
-        ? (this.#contextForProject(candidate, grant.id) ?? emptyContext())
-        : this.#state.active;
-    return this.#commitTransition(candidate, target);
+    return this.#enqueue(() => this.#projectMutations.refresh(grant));
   }
 
   applyLaunch(launch: LaunchRequest, grants: readonly ProjectGrant[]): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#applyLaunch(launch, grants));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
+    return this.#enqueue(() => this.#applyLaunch(launch, grants));
   }
 
   async #applyLaunch(
@@ -543,12 +368,7 @@ export class WorkbenchStateOwner {
   }
 
   activateFile(resource: FileResource): Promise<TransitionResult> {
-    const work = this.#transitionTail.then(() => this.#activateFile(resource));
-    this.#transitionTail = work.then(
-      () => undefined,
-      () => undefined,
-    );
-    return work;
+    return this.#enqueue(() => this.#activateFile(resource));
   }
 
   async #activateFile(resource: FileResource): Promise<TransitionResult> {
