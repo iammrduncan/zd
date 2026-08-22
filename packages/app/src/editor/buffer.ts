@@ -1,6 +1,6 @@
 import { languageFor, type DocumentLanguage } from "./language";
 
-export const EDITOR_BUFFER_SCHEMA_VERSION = 1 as const;
+export const EDITOR_BUFFER_SCHEMA_VERSION = 2 as const;
 
 export type BoundedFileRead =
   | {
@@ -26,6 +26,7 @@ export type EditorBufferKind = BoundedFileRead["status"] | "editable" | "read-on
 
 export interface EditorBuffer {
   readonly schemaVersion: typeof EDITOR_BUFFER_SCHEMA_VERSION;
+  readonly identity: string;
   readonly kind: EditorBufferKind;
   readonly path: string;
   readonly language: DocumentLanguage;
@@ -49,9 +50,14 @@ function mebibytes(bytes: number): string {
  * Translate one bounded native read into the exhaustive state the editor renders.
  * No error string is parsed and no byte sequence is decoded in the frontend.
  */
-export function editorBufferFromRead(path: string, read: BoundedFileRead): EditorBuffer {
+export function editorBufferFromRead(
+  path: string,
+  read: BoundedFileRead,
+  identity = `live:${path}`,
+): EditorBuffer {
   const common = {
     schemaVersion: EDITOR_BUFFER_SCHEMA_VERSION,
+    identity,
     path,
     language: languageFor(path),
   } as const;
