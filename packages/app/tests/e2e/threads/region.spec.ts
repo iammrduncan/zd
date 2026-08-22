@@ -6,6 +6,7 @@ declare global {
       calls: string[];
       intervalCount: number;
       mountDurationMs: number;
+      mountProjectCreator(): void;
       setVisibility(visibility: import("../../../src/workbench/state").ThreadsVisibility): void;
     };
   }
@@ -15,7 +16,7 @@ async function mountFixture(page: Page, threadCount = 3): Promise<void> {
   await page.goto("/");
   await page.evaluate(async (count) => {
     const modulePath = "/src/threads/index.ts";
-    const { ThreadsController, mountThreadsRegion } = (await import(
+    const { ThreadsController, mountProjectThreads, mountThreadsRegion } = (await import(
       /* @vite-ignore */ modulePath
     )) as typeof import("../../../src/threads");
     type Snapshot = import("../../../src/threads").ThreadWorkbenchSnapshot;
@@ -62,8 +63,14 @@ async function mountFixture(page: Page, threadCount = 3): Promise<void> {
         listeners.add(listener);
         return () => listeners.delete(listener);
       },
-      createThread: async () => ({ status: "committed" }),
-      renameThread: async () => ({ status: "committed" }),
+      createThread: async (request) => {
+        calls.push(`create:${JSON.stringify(request)}`);
+        return { status: "committed" };
+      },
+      renameThread: async (threadId, name) => {
+        calls.push(`rename:${threadId}:${name}`);
+        return { status: "committed" };
+      },
       reorderThreads: async () => ({ status: "committed" }),
       activateThread: async (threadId) => {
         calls.push(`activate:${threadId}`);
@@ -71,8 +78,14 @@ async function mountFixture(page: Page, threadCount = 3): Promise<void> {
         publish();
         return { status: "committed" };
       },
-      closeThread: async () => ({ status: "committed" }),
-      removeThread: async () => ({ status: "committed" }),
+      closeThread: async (threadId) => {
+        calls.push(`close:${threadId}`);
+        return { status: "committed" };
+      },
+      removeThread: async (threadId) => {
+        calls.push(`remove:${threadId}`);
+        return { status: "committed" };
+      },
       recoverThread: async () => ({ status: "committed" }),
       setThreadsVisibility: async (visibility) => {
         snapshot = { ...snapshot, visibility };
@@ -92,7 +105,8 @@ async function mountFixture(page: Page, threadCount = 3): Promise<void> {
     host.id = "thread-fixture";
     document.body.replaceChildren(host);
     const started = performance.now();
-    mountThreadsRegion(host, new ThreadsController(adapter));
+    const controller = new ThreadsController(adapter);
+    const unmount = mountThreadsRegion(host, controller);
     const mountDurationMs = performance.now() - started;
     window.setInterval = originalSetInterval;
 
@@ -100,6 +114,23 @@ async function mountFixture(page: Page, threadCount = 3): Promise<void> {
       calls,
       intervalCount,
       mountDurationMs,
+      mountProjectCreator() {
+        unmount();
+        const projectHost = document.createElement("aside");
+        projectHost.id = "thread-fixture";
+        document.body.replaceChildren(projectHost);
+        mountProjectThreads(projectHost, controller, "alpha", {
+          projectName: "Alpha",
+          workspaces: [
+            {
+              id: "alpha-root",
+              label: "project root",
+              kind: "project-root",
+              availability: "available",
+            },
+          ],
+        });
+      },
       setVisibility(visibility) {
         snapshot = { ...snapshot, visibility };
         publish();
@@ -145,6 +176,30 @@ test("pointer and keyboard activation use the same transaction request", async (
   await expect
     .poll(() => page.evaluate(() => window.threadFixture.calls))
     .toEqual(["activate:thread-1", "activate:thread-1"]);
+});
+
+test("compact controls create, rename, close, and remove through the adapter", async ({ page }) => {
+  await mountFixture(page);
+  await page.getByRole("button", { name: "Rename Thread 0" }).click();
+  const rename = page.getByRole("textbox", { name: "New name for Thread 0" });
+  await rename.fill("Renamed thread");
+  await rename.press("Enter");
+  await page.getByRole("button", { name: "Close Thread 0" }).click();
+  await page.getByRole("button", { name: "Remove Thread 2" }).click();
+
+  await page.evaluate(() => window.threadFixture.mountProjectCreator());
+  await page.getByRole("button", { name: "Create thread in Alpha" }).click();
+  await page.getByLabel("Name", { exact: true }).fill("New shell");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+
+  await expect
+    .poll(() => page.evaluate(() => window.threadFixture.calls))
+    .toEqual([
+      "rename:thread-0:Renamed thread",
+      "close:thread-0",
+      "remove:thread-2",
+      'create:{"name":"New shell","type":{"kind":"terminal","agent":"shell"},"workspace":{"kind":"project-root","projectId":"alpha","worktreeId":"alpha-root"}}',
+    ]);
 });
 
 test("collapsed and hidden modes preserve selection without retaining hidden focus", async ({
