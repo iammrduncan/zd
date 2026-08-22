@@ -407,7 +407,7 @@
 
 /*
  * Theme and Dim Level are immediate setting changes, not focus movement.
- * `suite/appearance.ts` holds this state through the frame that resolves the
+ * `design/appearance.ts` holds this state through the frame that resolves the
  * new colours, then restores the one duration token for the next outgoing
  * Focus Target (§6.3).
  */

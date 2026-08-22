@@ -10,8 +10,9 @@ async function paint(
   page: import("@playwright/test").Page,
   theme: "system" | "light" | "dark" | "dracula" = "system",
 ) {
+  await page.locator(".zd-workbench").waitFor();
   await page.evaluate(async (value) => {
-    const appearanceModule = "/src/suite/appearance.ts";
+    const appearanceModule = "/src/design/appearance.ts";
     const { setTheme } = await import(appearanceModule);
     setTheme(value);
   }, theme);

@@ -1,4 +1,5 @@
 import type { Platform } from "@/platform";
+import { registerThemeSelectionOwner } from "@/design/appearance";
 import { ThemeController, loadThemeCatalog } from "@/design/themes";
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import { registerReference } from "@/suite/reference";
@@ -82,6 +83,9 @@ export async function bootWorkbench(
       theme.setSelection(selection.selected, selection.lastValid);
     }
   });
+  const detachThemeSelectionOwner = registerThemeSelectionOwner((selected) => {
+    state.setThemeSelection(selected, theme.snapshot().lastValid);
+  });
   const rootCommands = attachWorkbenchCommands(host, { launch, platform, state });
   const detachReference = registerReference(host);
 
@@ -94,6 +98,7 @@ export async function bootWorkbench(
     });
   } catch (cause) {
     rootCommands.detach();
+    detachThemeSelectionOwner();
     detachThemeState();
     theme.dispose();
     detachReference();
@@ -106,6 +111,7 @@ export async function bootWorkbench(
   showLocalNotices(host, localNotices);
 
   return () => {
+    detachThemeSelectionOwner();
     detachThemeState();
     theme.dispose();
     detachReference();

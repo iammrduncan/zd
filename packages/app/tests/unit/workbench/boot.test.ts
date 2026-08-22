@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Platform } from "@/platform";
+import { setTheme } from "@/design/appearance";
 import { bootWorkbench, type WorkbenchMount } from "@/workbench/boot";
 import { homeLaunch, type ProjectGrant } from "@/workbench/resources";
 import { clearCommands, commands } from "@/suite/shortcuts";
@@ -168,7 +169,7 @@ describe("one workbench boot", () => {
     const host = document.createElement("div");
     const teardown = await bootWorkbench(host, stubPlatform(), mount);
 
-    state!.setThemeSelection("dracula", "current-light");
+    setTheme("dracula");
 
     expect(mount).toHaveBeenCalledOnce();
     expect(document.documentElement.dataset.themeName).toBe("dracula");

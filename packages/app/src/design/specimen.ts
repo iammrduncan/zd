@@ -1,7 +1,7 @@
 import "./index.css";
 import "./specimen.css";
 
-import { setTheme } from "@/suite/appearance";
+import { setTheme } from "./appearance";
 
 /*
  * The type specimen. A design tool, not part of the app — it has its own Vite
