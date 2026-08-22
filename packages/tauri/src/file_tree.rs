@@ -13,7 +13,6 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 
-#[cfg(not(test))]
 use crate::cli::LaunchState;
 
 const DEFAULT_MAX_ENTRIES: usize = 20_000;
@@ -124,7 +123,6 @@ struct Scan {
 
 /// Tauri integration seam. The root registers this exact command after adding
 /// `mod file_tree;` to the native shell.
-#[cfg(not(test))]
 #[tauri::command]
 pub fn file_tree_snapshot(
     launch: tauri::State<'_, LaunchState>,

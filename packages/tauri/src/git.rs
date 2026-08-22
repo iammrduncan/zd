@@ -5,30 +5,26 @@
 
 #[path = "git/history.rs"]
 mod history;
-#[path = "git/process.rs"]
-mod process;
 #[path = "git/status.rs"]
 mod status;
 #[path = "git/types.rs"]
-mod types;
+pub(crate) mod types;
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::cli::LaunchState;
+use crate::git_process::{run_git, GitRunError};
 use history::{
     full_commit_id, page_size, parse_comparison, parse_cursor, parse_history, HistoryCursor,
     MAX_HISTORY_OFFSET,
 };
-use process::{run_git, GitRunError};
 use status::parse_status;
 
 pub use types::{
-    GitAvailability, GitCompareRequest, GitComparison, GitHistoryPage, GitHistoryRequest,
-    GitScope, GitStatusSnapshot,
+    GitAvailability, GitCompareRequest, GitComparison, GitHistoryPage, GitHistoryRequest, GitScope,
+    GitStatusSnapshot,
 };
-#[cfg(test)]
-pub use types::GitChangeState;
 
 const PROBE_OUTPUT_LIMIT: usize = 16 * 1024;
 const STATUS_OUTPUT_LIMIT: usize = 8 * 1024 * 1024;

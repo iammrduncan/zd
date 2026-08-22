@@ -7,6 +7,8 @@ mod cli;
 mod file_tree;
 mod fs;
 mod git;
+#[path = "git/process.rs"]
+mod git_process;
 mod grants;
 pub mod instrumentation;
 mod projects;
@@ -14,6 +16,7 @@ mod quick_access;
 pub mod terminal;
 mod terminal_runtime;
 mod themes;
+mod worktrees;
 
 #[cfg(target_os = "macos")]
 use tauri::Emitter;
@@ -80,6 +83,7 @@ pub fn run() {
             git::git_status,
             git::git_history_page,
             git::git_compare,
+            worktrees::create_thread_worktree,
             fs::read_text_file,
             fs::read_bounded_file,
             fs::workspace_files,

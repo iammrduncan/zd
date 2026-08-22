@@ -14,7 +14,7 @@ use std::sync::Mutex;
 
 use serde::Serialize;
 
-use crate::grants::{GrantStore, ProjectGrant, ResourceRef};
+use crate::grants::{GrantStore, ProjectGrant, ResourceRef, WorktreeGrant};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NativeOpenRequest {
@@ -137,6 +137,22 @@ impl LaunchState {
             .expect("launch state was poisoned")
             .grants
             .root(project_id, worktree_id)
+    }
+
+    pub fn project_root(&self, project_id: &str) -> Result<PathBuf, String> {
+        self.0
+            .lock()
+            .expect("launch state was poisoned")
+            .grants
+            .project_root(project_id)
+    }
+
+    pub fn approve_worktree(&self, project_id: &str, root: &Path) -> Result<WorktreeGrant, String> {
+        self.0
+            .lock()
+            .expect("launch state was poisoned")
+            .grants
+            .approve_worktree(project_id, root)
     }
 
     pub fn remove_project(&self, project_id: &str) -> Result<ProjectGrant, String> {

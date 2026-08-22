@@ -1,5 +1,11 @@
+#![allow(dead_code)]
+
+#[path = "../src/cli.rs"]
+mod cli;
 #[path = "../src/file_tree.rs"]
 mod file_tree;
+#[path = "../src/grants.rs"]
+mod grants;
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
