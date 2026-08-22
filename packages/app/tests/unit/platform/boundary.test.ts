@@ -41,19 +41,57 @@ describe("the Tauri window boundary", () => {
     vi.unstubAllGlobals();
   });
 
-  it("asks the native shell for the scoped workspace files", async () => {
+  it("asks the native shell for one approved project/worktree listing", async () => {
     Object.defineProperty(window, "__TAURI_INTERNALS__", {
       configurable: true,
       value: {},
     });
     invoke.mockResolvedValue({
+      projectId: "project-a",
+      worktreeId: "worktree-a",
       root: "/w",
-      files: [{ path: "/w/notes.md", relative: "notes.md" }],
+      files: [
+        {
+          resource: {
+            projectId: "project-a",
+            worktreeId: "worktree-a",
+            relativePath: "notes.md",
+          },
+          relative: "notes.md",
+        },
+      ],
     });
 
-    await detectPlatform().workspaceFiles();
+    await detectPlatform().workspaceFiles("project-a", "worktree-a");
 
-    expect(invoke).toHaveBeenCalledExactlyOnceWith("workspace_files");
+    expect(invoke).toHaveBeenCalledExactlyOnceWith("workspace_files", {
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+    });
+  });
+
+  it("never sends an absolute path through ordinary file commands", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    invoke.mockResolvedValue(null);
+    const resource = {
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+      relativePath: "docs/notes.md",
+    };
+    const platform = detectPlatform();
+
+    await platform.readTextFile(resource);
+    await platform.writeTextFile(resource, "updated");
+    await platform.fileStamp(resource);
+
+    expect(invoke.mock.calls).toEqual([
+      ["read_text_file", { resource }],
+      ["write_text_file", { resource, contents: "updated" }],
+      ["file_stamp", { resource }],
+    ]);
   });
 
   it("routes the native close request through the document before the window can close", async () => {

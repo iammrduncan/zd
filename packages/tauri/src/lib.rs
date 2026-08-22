@@ -29,7 +29,7 @@ fn has_pending_open_request(launch: tauri::State<'_, cli::LaunchState>) -> bool 
     launch.has_pending()
 }
 
-/// Accept the queued Finder request and move the filesystem boundary with it.
+/// Accept the queued Finder request after the current work says switching is safe.
 #[tauri::command]
 fn accept_open_request(launch: tauri::State<'_, cli::LaunchState>) -> Option<cli::LaunchRequest> {
     launch.accept_pending()
@@ -38,11 +38,9 @@ fn accept_open_request(launch: tauri::State<'_, cli::LaunchState>) -> Option<cli
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     /*
-     * The launch request and filesystem scope are one native state — suite ADR 0003.
-     * A CLI launch settles both before the webview exists. A Finder request is
-     * queued here and only accepted after the document says switching is safe;
-     * accepting moves both facts under one lock, so the old document never gains
-     * access to the new folder and never loses access while it is still unsaved.
+     * Native launch/open events add project grants before the webview sees their
+     * opaque identities. Accepting a queued request changes only active context;
+     * earlier grants stay valid so inactive dirty work is not stranded.
      */
     let launch = cli::LaunchState::new(cli::launch_from_environment());
 
@@ -51,6 +49,9 @@ pub fn run() {
         .manage(launch)
         .invoke_handler(tauri::generate_handler![
             cli::launch_request,
+            cli::project_grants,
+            cli::pending_open_request,
+            cli::remove_project_grant,
             has_pending_open_request,
             accept_open_request,
             fs::read_text_file,

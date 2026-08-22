@@ -4,8 +4,10 @@ import type { Platform } from "@/platform";
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import { PERSISTENT_NOTICE } from "@/miniapps/md/notice";
 import { attachShortcuts, clearCommands } from "@/suite/shortcuts";
-import type { WorkbenchContentContext } from "@/workbench/runtime";
+import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
 import { bootWorkbench } from "@/workbench/boot";
+import { homeLaunch, type FileResource, type ProjectGrant } from "@/workbench/resources";
+import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";
 
 // Vision §6: "This is not a second mode — §4 is the surface, and this is what it
 // does when a caret is in it." So the document surface *is* the editor: opening
@@ -18,21 +20,55 @@ import { bootWorkbench } from "@/workbench/boot";
 
 /** Which modifier this platform means by "mod". One definition, two describes. */
 const MOD = /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "metaKey" : "ctrlKey";
+const project: ProjectGrant = {
+  id: "project-w",
+  name: "w",
+  root: "/w",
+  availability: "available",
+  worktrees: [
+    { id: "worktree-w", name: "w", root: "/w", availability: "available" },
+  ],
+};
+
+function resource(path: string): FileResource {
+  return {
+    projectId: project.id,
+    worktreeId: project.worktrees[0]!.id,
+    relativePath: path.replace(/^\/w\//, ""),
+  };
+}
+
+function launch(path: string | null) {
+  return path === null
+    ? homeLaunch()
+    : {
+        project,
+        worktreeId: project.worktrees[0]!.id,
+        relativePath: resource(path).relativePath,
+        problem: null,
+      };
+}
 
 function context(
   path: string | null,
   readTextFile: Platform["readTextFile"],
   writeTextFile: Platform["writeTextFile"] = async () => {},
   fileStamp: Platform["fileStamp"] = async () => null,
-): WorkbenchContentContext {
+): WorkbenchRuntimeContext {
+  const request = launch(path);
   return {
-    launch: { path },
+    launch: request,
     platform: {
       kind: "browser",
-      launchRequest: async () => ({ path }),
+      launchRequest: async () => launch(path),
       onOpenRequested: () => () => {},
+      pendingOpenRequest: async () => null,
       acceptOpenRequest: async () => null,
-      workspaceFiles: async () => null,
+      projectGrants: async () => [project],
+      removeProjectGrant: async () => project,
+      workspaceFiles: async () => {
+        throw new Error("no listing");
+      },
       readTextFile,
       writeTextFile,
       fileStamp,
@@ -40,10 +76,11 @@ function context(
       closeWindow: async () => {},
       openExternal: async () => {},
     },
+    state: createWorkbenchStateOwner(workbenchStateFromGrants([project], request)),
   };
 }
 
-async function mountWith(ctx: WorkbenchContentContext) {
+async function mountWith(ctx: WorkbenchRuntimeContext) {
   const host = document.createElement("div");
   // In the document, not loose: the suite's keyboard listener is on the window,
   // and a keydown inside a detached host bubbles nowhere. Mounting the way the
@@ -118,7 +155,7 @@ describe("md opens the launched document in the editor", () => {
     const readTextFile = vi.fn(async () => "# ok");
     await mountWith(context("/w/docs/notes.md", readTextFile));
 
-    expect(readTextFile).toHaveBeenCalledExactlyOnceWith("/w/docs/notes.md");
+    expect(readTextFile).toHaveBeenCalledExactlyOnceWith(resource("/w/docs/notes.md"));
   });
 
   it("puts the document inside the measure column, not loose on the surface", async () => {
@@ -299,7 +336,7 @@ describe("md saves the launched document", () => {
 
     await save(host);
 
-    expect(writeTextFile).toHaveBeenCalledExactlyOnceWith("/w/plan.md", "# Plan");
+    expect(writeTextFile).toHaveBeenCalledExactlyOnceWith(resource("/w/plan.md"), "# Plan");
   });
 
   it("writes the document back to the path it was opened from", async () => {
@@ -310,7 +347,7 @@ describe("md saves the launched document", () => {
 
     // The editor holds text and a caret and knows nothing about files; this is
     // the join, and it is the only place that knows both.
-    expect(writeTextFile).toHaveBeenCalledExactlyOnceWith("/w/plan.md", "# Plan");
+    expect(writeTextFile).toHaveBeenCalledExactlyOnceWith(resource("/w/plan.md"), "# Plan");
   });
 
   it("does not write anywhere when there is no path to write to", async () => {
@@ -333,7 +370,7 @@ describe("md states read failures at the document", () => {
     );
 
     const notice = host.querySelector(".md-notice");
-    expect(notice?.textContent).toContain("/w/missing.md");
+    expect(notice?.textContent).toContain("missing.md");
     expect(notice?.textContent).toContain("no such file");
   });
 

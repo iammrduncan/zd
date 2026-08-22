@@ -1,3 +1,5 @@
+import type { FileResource, LaunchRequest, ProjectGrant } from "./resources";
+
 export const WORKBENCH_STATE_VERSION = 1 as const;
 
 export type ProjectAvailability = "available" | "missing" | "denied" | "unavailable";
@@ -117,6 +119,99 @@ export function defaultWorkbenchState(): WorkbenchState {
     window: { presentation: "ordinary" },
     theme: { selected: "system", lastValid: "current-light" },
   };
+}
+
+export function fileStateId(resource: FileResource): string {
+  return `file:${resource.projectId}\0${resource.worktreeId}\0${resource.relativePath}`;
+}
+
+function bufferStateId(resource: FileResource): string {
+  return `buffer:${resource.projectId}\0${resource.worktreeId}\0${resource.relativePath}`;
+}
+
+function launchFile(launch: LaunchRequest): OpenFileState | null {
+  if (!launch.project || !launch.worktreeId || launch.relativePath === null) return null;
+  const resource = {
+    projectId: launch.project.id,
+    worktreeId: launch.worktreeId,
+    relativePath: launch.relativePath,
+  };
+  return {
+    id: fileStateId(resource),
+    ...resource,
+    bufferId: bufferStateId(resource),
+  };
+}
+
+function uniqueGrants(
+  grants: readonly ProjectGrant[],
+  launch: LaunchRequest,
+): readonly ProjectGrant[] {
+  const byId = new Map(grants.map((grant) => [grant.id, grant]));
+  if (launch.project) byId.set(launch.project.id, launch.project);
+  return [...byId.values()];
+}
+
+function stateWithGrants(
+  current: WorkbenchState,
+  grants: readonly ProjectGrant[],
+): WorkbenchState {
+  const projects = grants.map(({ id, name, root, availability }) => ({
+    id,
+    name,
+    root,
+    availability,
+  }));
+  const worktrees = grants.flatMap((project) =>
+    project.worktrees.map(({ id, name, root, availability }) => ({
+      id,
+      projectId: project.id,
+      name,
+      root,
+      availability,
+    })),
+  );
+  const projectIds = new Set(projects.map(({ id }) => id));
+  const worktreeIds = new Set(worktrees.map(({ id }) => id));
+  return {
+    ...current,
+    projects,
+    worktrees,
+    threads: current.threads.filter(
+      ({ projectId, worktreeId }) => projectIds.has(projectId) && worktreeIds.has(worktreeId),
+    ),
+    openFiles: current.openFiles.filter(
+      ({ projectId, worktreeId }) => projectIds.has(projectId) && worktreeIds.has(worktreeId),
+    ),
+  };
+}
+
+function contextForLaunch(state: WorkbenchState, launch: LaunchRequest): WorkbenchContext {
+  if (!launch.project || !launch.worktreeId) {
+    return { projectId: null, worktreeId: null, threadId: null, fileId: null };
+  }
+  const file = launchFile(launch);
+  return {
+    projectId: launch.project.id,
+    worktreeId: launch.worktreeId,
+    threadId:
+      state.active.projectId === launch.project.id &&
+      state.active.worktreeId === launch.worktreeId
+        ? state.active.threadId
+        : null,
+    fileId: file?.id ?? null,
+  };
+}
+
+export function workbenchStateFromGrants(
+  grants: readonly ProjectGrant[],
+  launch: LaunchRequest,
+): WorkbenchState {
+  let state = stateWithGrants(defaultWorkbenchState(), uniqueGrants(grants, launch));
+  const file = launchFile(launch);
+  if (file) state = { ...state, openFiles: [file] };
+  const active = contextForLaunch(state, launch);
+  return contextProblem(state, active) === null ? { ...state, active } : defaultWorkbenchState();
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -302,7 +397,68 @@ export class WorkbenchStateOwner {
   }
 
   async #activateContext(target: WorkbenchContext): Promise<TransitionResult> {
-    const problem = contextProblem(this.#state, target);
+    return this.#commitTransition(this.#state, target);
+  }
+
+  applyLaunch(
+    launch: LaunchRequest,
+    grants: readonly ProjectGrant[],
+  ): Promise<TransitionResult> {
+    const work = this.#transitionTail.then(() => this.#applyLaunch(launch, grants));
+    this.#transitionTail = work.then(
+      () => undefined,
+      () => undefined,
+    );
+    return work;
+  }
+
+  async #applyLaunch(
+    launch: LaunchRequest,
+    grants: readonly ProjectGrant[],
+  ): Promise<TransitionResult> {
+    if (launch.problem && !launch.project) {
+      return { status: "refused", reason: launch.problem };
+    }
+    let candidate = stateWithGrants(this.#state, uniqueGrants(grants, launch));
+    const file = launchFile(launch);
+    if (file && !candidate.openFiles.some(({ id }) => id === file.id)) {
+      candidate = { ...candidate, openFiles: [...candidate.openFiles, file] };
+    }
+    return this.#commitTransition(candidate, contextForLaunch(candidate, launch));
+  }
+
+  activateFile(resource: FileResource): Promise<TransitionResult> {
+    const work = this.#transitionTail.then(() => this.#activateFile(resource));
+    this.#transitionTail = work.then(
+      () => undefined,
+      () => undefined,
+    );
+    return work;
+  }
+
+  async #activateFile(resource: FileResource): Promise<TransitionResult> {
+    const id = fileStateId(resource);
+    if (this.#state.active.fileId === id) return { status: "committed" };
+    const file: OpenFileState = { id, ...resource, bufferId: bufferStateId(resource) };
+    const candidate = this.#state.openFiles.some((open) => open.id === id)
+      ? this.#state
+      : { ...this.#state, openFiles: [...this.#state.openFiles, file] };
+    const sameWorkspace =
+      this.#state.active.projectId === resource.projectId &&
+      this.#state.active.worktreeId === resource.worktreeId;
+    return this.#commitTransition(candidate, {
+      projectId: resource.projectId,
+      worktreeId: resource.worktreeId,
+      threadId: sameWorkspace ? this.#state.active.threadId : null,
+      fileId: id,
+    });
+  }
+
+  async #commitTransition(
+    candidate: WorkbenchState,
+    target: WorkbenchContext,
+  ): Promise<TransitionResult> {
+    const problem = contextProblem(candidate, target);
     if (problem) return { status: "refused", reason: problem };
 
     const change = { from: this.#state.active, to: target };
@@ -317,7 +473,7 @@ export class WorkbenchStateOwner {
       if (decision.status === "refused") return decision;
     }
 
-    this.#publish({ ...this.#state, active: { ...target } });
+    this.#publish({ ...candidate, active: { ...target } });
     return { status: "committed" };
   }
 

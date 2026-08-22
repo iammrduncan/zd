@@ -1,7 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import type { LaunchRequest } from "@/workbench/runtime";
+import {
+  homeLaunch,
+  type FileResource,
+  type LaunchRequest,
+  type ProjectGrant,
+} from "@/workbench/resources";
 
 /**
  * The only file in the frontend that knows what shell it is running in.
@@ -24,11 +29,13 @@ export interface FileStamp {
 }
 
 export interface WorkspaceFile {
-  path: string;
+  resource: FileResource;
   relative: string;
 }
 
 export interface WorkspaceListing {
+  projectId: string;
+  worktreeId: string;
   root: string;
   files: WorkspaceFile[];
 }
@@ -39,18 +46,24 @@ export interface Platform {
   launchRequest(): Promise<LaunchRequest>;
   /** A native file-open request is waiting. Returns an unsubscribe. */
   onOpenRequested(handler: () => void): () => void;
-  /** Accept that request after the current document says switching is safe. */
+  /** Inspect the oldest native request without changing active native context. */
+  pendingOpenRequest(): Promise<LaunchRequest | null>;
+  /** Accept that inspected request after the root transition guards approve it. */
   acceptOpenRequest(): Promise<LaunchRequest | null>;
+  /** All roots approved by native launch/open/picker/worktree flows. */
+  projectGrants(): Promise<readonly ProjectGrant[]>;
+  /** Revoke an inactive project after root lifecycle guards approve it. */
+  removeProjectGrant(projectId: string): Promise<ProjectGrant>;
   /** Read a UTF-8 text file. */
-  readTextFile(path: string): Promise<string>;
-  /** Markdown files inside the launch path's scoped workspace. */
-  workspaceFiles(): Promise<WorkspaceListing | null>;
+  readTextFile(resource: FileResource): Promise<string>;
+  /** Markdown files inside one already-approved project/worktree root. */
+  workspaceFiles(projectId: string, worktreeId: string): Promise<WorkspaceListing>;
   /**
    * Save a UTF-8 text file. Vision §6.3: writes are atomic, so a save that is
    * interrupted leaves the previous document intact rather than a truncated one.
    * The guarantee lives on the other side of this boundary — see fs.rs.
    */
-  writeTextFile(path: string, contents: string): Promise<void>;
+  writeTextFile(resource: FileResource, contents: string): Promise<void>;
   /**
    * Identity enough to notice someone else wrote the file, or null if it is gone.
    *
@@ -59,7 +72,7 @@ export interface Platform {
    * events to debounce, none of which is needed to answer "is the file still the
    * one I read?". See fs.rs.
    */
-  fileStamp(path: string): Promise<FileStamp | null>;
+  fileStamp(resource: FileResource): Promise<FileStamp | null>;
   /**
    * The window was asked to close. Returns an unsubscribe.
    *
@@ -94,11 +107,17 @@ const tauri: Platform = {
       void pending.then((unlisten) => unlisten());
     };
   },
+  pendingOpenRequest: () => invoke<LaunchRequest | null>("pending_open_request"),
   acceptOpenRequest: () => invoke<LaunchRequest | null>("accept_open_request"),
-  workspaceFiles: () => invoke<WorkspaceListing | null>("workspace_files"),
-  readTextFile: (path) => invoke<string>("read_text_file", { path }),
-  writeTextFile: (path, contents) => invoke<void>("write_text_file", { path, contents }),
-  fileStamp: (path) => invoke<FileStamp | null>("file_stamp", { path }),
+  projectGrants: () => invoke<readonly ProjectGrant[]>("project_grants"),
+  removeProjectGrant: (projectId) =>
+    invoke<ProjectGrant>("remove_project_grant", { projectId }),
+  workspaceFiles: (projectId, worktreeId) =>
+    invoke<WorkspaceListing>("workspace_files", { projectId, worktreeId }),
+  readTextFile: (resource) => invoke<string>("read_text_file", { resource }),
+  writeTextFile: (resource, contents) =>
+    invoke<void>("write_text_file", { resource, contents }),
+  fileStamp: (resource) => invoke<FileStamp | null>("file_stamp", { resource }),
   onCloseRequested: (handler) => {
     /*
      * Listen at the native window boundary. Cmd+W, the title-bar close button,
@@ -128,15 +147,22 @@ const tauri: Platform = {
  */
 const browser: Platform = {
   kind: "browser",
-  launchRequest: async () => ({ path: null }),
+  launchRequest: async () => homeLaunch(),
   onOpenRequested: () => () => {},
+  pendingOpenRequest: async () => null,
   acceptOpenRequest: async () => null,
-  workspaceFiles: async () => null,
-  readTextFile: async (path) => {
-    throw new Error(`no filesystem in the browser shell: ${path}`);
+  projectGrants: async () => [],
+  removeProjectGrant: async (projectId) => {
+    throw new Error(`no project grants in the browser shell: ${projectId}`);
   },
-  writeTextFile: async (path) => {
-    throw new Error(`no filesystem in the browser shell: ${path}`);
+  workspaceFiles: async (projectId, worktreeId) => {
+    throw new Error(`no filesystem in the browser shell: ${projectId}/${worktreeId}`);
+  },
+  readTextFile: async (resource) => {
+    throw new Error(`no filesystem in the browser shell: ${resource.relativePath}`);
+  },
+  writeTextFile: async (resource) => {
+    throw new Error(`no filesystem in the browser shell: ${resource.relativePath}`);
   },
   // Null rather than a throw: "there is no file here" is the honest answer in a
   // browser, and it makes the reconcile path a no-op instead of an error to catch.

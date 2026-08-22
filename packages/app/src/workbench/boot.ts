@@ -2,7 +2,7 @@ import type { Platform } from "@/platform";
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import { registerReference } from "@/suite/reference";
 import { attachShortcuts } from "@/suite/shortcuts";
-import { createWorkbenchStateOwner } from "./state";
+import { createWorkbenchStateOwner, workbenchStateFromGrants } from "./state";
 import { mountWorkbenchShell } from "./shell";
 import type { Unmount, WorkbenchMount } from "./runtime";
 
@@ -26,7 +26,7 @@ function reasonFor(cause: unknown): string {
 /**
  * Boot the one workbench and return its complete teardown.
  *
- * Launch selects a path, never an application surface. The current Markdown
+ * Launch selects an approved project resource, never an application surface. The current Markdown
  * workspace remains the content mount until the new shell wraps it, but it is no
  * longer discovered through a selector or registry.
  */
@@ -47,13 +47,16 @@ export async function bootWorkbench(
 
   const detachShortcuts = attachShortcuts();
   const detachReference = registerReference(host);
+  const grants = await platform
+    .projectGrants()
+    .catch(() => (launch.project ? [launch.project] : []));
 
   let unmount: Unmount;
   try {
     unmount = await mount(host, {
       launch,
       platform,
-      state: createWorkbenchStateOwner(),
+      state: createWorkbenchStateOwner(workbenchStateFromGrants(grants, launch)),
     });
   } catch (cause) {
     detachReference();

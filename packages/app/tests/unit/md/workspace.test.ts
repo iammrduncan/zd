@@ -2,16 +2,67 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Platform, WorkspaceListing } from "@/platform";
 import { mountWorkspace, type DocumentMount, type MountedDocument } from "@/miniapps/md/workspace";
-import type { WorkbenchContentContext } from "@/workbench/runtime";
+import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
+import type { LaunchRequest, ProjectGrant } from "@/workbench/resources";
+import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";
 
-function context(path: string, listing: WorkspaceListing): WorkbenchContentContext {
+function projectFor(listing: WorkspaceListing): ProjectGrant {
+  const name = listing.root.split(/[\\/]/).at(-1) ?? listing.root;
   return {
-    launch: { path },
+    id: listing.projectId,
+    name,
+    root: listing.root,
+    availability: "available",
+    worktrees: [
+      {
+        id: listing.worktreeId,
+        name,
+        root: listing.root,
+        availability: "available",
+      },
+    ],
+  };
+}
+
+function launch(path: string, listing: WorkspaceListing): LaunchRequest {
+  return {
+    project: projectFor(listing),
+    worktreeId: listing.worktreeId,
+    relativePath: path === listing.root ? null : path.slice(listing.root.length + 1),
+    problem: null,
+  };
+}
+
+function workspace(
+  root: string,
+  relativePaths: readonly string[],
+  projectId = "project-w",
+  worktreeId = "worktree-w",
+): WorkspaceListing {
+  return {
+    projectId,
+    worktreeId,
+    root,
+    files: relativePaths.map((relative) => ({
+      resource: { projectId, worktreeId, relativePath: relative },
+      relative,
+    })),
+  };
+}
+
+function context(path: string, listing: WorkspaceListing): WorkbenchRuntimeContext {
+  const request = launch(path, listing);
+  const project = projectFor(listing);
+  return {
+    launch: request,
     platform: {
       kind: "browser",
-      launchRequest: async () => ({ path }),
+      launchRequest: async () => request,
       onOpenRequested: () => () => {},
+      pendingOpenRequest: async () => null,
       acceptOpenRequest: async () => null,
+      projectGrants: async () => [project],
+      removeProjectGrant: async () => project,
       workspaceFiles: async () => listing,
       readTextFile: async () => "",
       writeTextFile: async () => {},
@@ -20,6 +71,7 @@ function context(path: string, listing: WorkspaceListing): WorkbenchContentConte
       closeWindow: async () => {},
       openExternal: async () => {},
     } satisfies Platform,
+    state: createWorkbenchStateOwner(workbenchStateFromGrants([project], request)),
   };
 }
 
@@ -31,7 +83,7 @@ function documentMount(switchable: () => boolean): {
   const paths: string[] = [];
   const unmounted: string[] = [];
   const mount: DocumentMount = async (host, ctx) => {
-    const path = ctx.launch.path!;
+    const path = ctx.launch.relativePath!;
     paths.push(path);
     host.textContent = `open:${path}`;
     return {
@@ -45,13 +97,7 @@ function documentMount(switchable: () => boolean): {
   return { mount, paths, unmounted };
 }
 
-const listing: WorkspaceListing = {
-  root: "/w",
-  files: [
-    { path: "/w/notes/b.md", relative: "notes/b.md" },
-    { path: "/w/a.md", relative: "a.md" },
-  ],
-};
+const listing = workspace("/w", ["notes/b.md", "a.md"]);
 
 describe("the markdown workspace", () => {
   it("opens the first markdown file when the launch path is the folder", async () => {
@@ -60,7 +106,7 @@ describe("the markdown workspace", () => {
 
     await mountWorkspace(host, context("/w", listing), mounted.mount);
 
-    expect(mounted.paths).toEqual(["/w/a.md"]);
+    expect(mounted.paths).toEqual(["a.md"]);
     expect(
       [...host.querySelectorAll(".md-workspace-file")].map((file) => file.textContent),
     ).toEqual(["b.md", "a.md"]);
@@ -74,15 +120,7 @@ describe("the markdown workspace", () => {
   it("sorts folders before files and alphabetizes each group", async () => {
     const host = document.createElement("div");
     const mounted = documentMount(() => true);
-    const unsorted: WorkspaceListing = {
-      root: "/w",
-      files: [
-        { path: "/w/z.md", relative: "z.md" },
-        { path: "/w/beta/one.md", relative: "beta/one.md" },
-        { path: "/w/a.md", relative: "a.md" },
-        { path: "/w/alpha/two.md", relative: "alpha/two.md" },
-      ],
-    };
+    const unsorted = workspace("/w", ["z.md", "beta/one.md", "a.md", "alpha/two.md"]);
 
     await mountWorkspace(host, context("/w", unsorted), mounted.mount);
 
@@ -98,10 +136,7 @@ describe("the markdown workspace", () => {
   it("expands and collapses a folder subtree from its context menu", async () => {
     const host = document.createElement("div");
     const mounted = documentMount(() => true);
-    const nested: WorkspaceListing = {
-      root: "/w",
-      files: [{ path: "/w/outer/inner/deep.md", relative: "outer/inner/deep.md" }],
-    };
+    const nested = workspace("/w", ["outer/inner/deep.md"]);
     const unmount = await mountWorkspace(host, context("/w", nested), mounted.mount);
     const folders = [...host.querySelectorAll<HTMLButtonElement>(".md-workspace-folder")];
 
@@ -146,7 +181,7 @@ describe("the markdown workspace", () => {
 
     expect(folder.getAttribute("aria-expanded")).toBe("false");
     expect(children.hidden).toBe(true);
-    expect(mounted.paths).toEqual(["/w/a.md"]);
+    expect(mounted.paths).toEqual(["a.md"]);
 
     folder.click();
     expect(folder.getAttribute("aria-expanded")).toBe("true");
@@ -163,11 +198,11 @@ describe("the markdown workspace", () => {
 
     await mountWorkspace(host, context("/w", listing), mounted.mount);
     host.querySelector<HTMLButtonElement>('.md-workspace-file[title="notes/b.md"]')!.click();
-    await vi.waitFor(() => expect(mounted.paths).toEqual(["/w/a.md", "/w/notes/b.md"]));
+    await vi.waitFor(() => expect(mounted.paths).toEqual(["a.md", "notes/b.md"]));
 
-    expect(mounted.unmounted).toEqual(["/w/a.md"]);
+    expect(mounted.unmounted).toEqual(["a.md"]);
     expect(host.querySelector('[aria-current="page"]')?.textContent).toBe("b.md");
-    expect(host.querySelector(".md-workspace-document")?.textContent).toBe("open:/w/notes/b.md");
+    expect(host.querySelector(".md-workspace-document")?.textContent).toBe("open:notes/b.md");
   });
 
   it("keeps an unsaved document open instead of losing it during a switch", async () => {
@@ -178,7 +213,7 @@ describe("the markdown workspace", () => {
     host.querySelectorAll<HTMLButtonElement>(".md-workspace-file")[1]!.click();
     await Promise.resolve();
 
-    expect(mounted.paths).toEqual(["/w/a.md"]);
+    expect(mounted.paths).toEqual(["a.md"]);
     expect(mounted.unmounted).toEqual([]);
     expect(host.querySelector('[aria-current="page"]')?.textContent).toBe("a.md");
   });
@@ -189,7 +224,7 @@ describe("the markdown workspace", () => {
 
     await mountWorkspace(host, context("/w/notes/b.md", listing), mounted.mount);
 
-    expect(mounted.paths).toEqual(["/w/notes/b.md"]);
+    expect(mounted.paths).toEqual(["notes/b.md"]);
     expect(host.querySelector('[aria-current="page"]')?.textContent).toBe("b.md");
   });
 
@@ -199,17 +234,14 @@ describe("the markdown workspace", () => {
 
     await mountWorkspace(host, context("/w/new.md", listing), mounted.mount);
 
-    expect(mounted.paths).toEqual(["/w/new.md"]);
+    expect(mounted.paths).toEqual(["new.md"]);
     expect(host.querySelector('[aria-current="page"]')?.textContent).toBe("new.md");
   });
 
   it("accepts a Finder open only after the current document can switch", async () => {
     const host = document.createElement("div");
     const mounted = documentMount(() => true);
-    const next: WorkspaceListing = {
-      root: "/next",
-      files: [{ path: "/next/plan.md", relative: "plan.md" }],
-    };
+    const next = workspace("/next", ["plan.md"], "project-next", "worktree-next");
     let openRequested: (() => void) | undefined;
     let activeListing = listing;
     let accepted = 0;
@@ -221,18 +253,20 @@ describe("the markdown workspace", () => {
         openRequested = undefined;
       };
     };
+    const nextLaunch = launch("/next/plan.md", next);
+    initial.platform.pendingOpenRequest = async () => nextLaunch;
     initial.platform.acceptOpenRequest = async () => {
       accepted += 1;
       activeListing = next;
-      return { path: "/next/plan.md" };
+      return nextLaunch;
     };
 
     const unmount = await mountWorkspace(host, initial, mounted.mount);
     openRequested?.();
-    await vi.waitFor(() => expect(mounted.paths).toEqual(["/w/a.md", "/next/plan.md"]));
+    await vi.waitFor(() => expect(mounted.paths).toEqual(["a.md", "plan.md"]));
 
     expect(accepted).toBe(1);
-    expect(mounted.unmounted).toEqual(["/w/a.md"]);
+    expect(mounted.unmounted).toEqual(["a.md"]);
     expect(host.querySelector(".md-workspace-sidebar")?.getAttribute("aria-label")).toContain(
       "/next",
     );
@@ -251,9 +285,14 @@ describe("the markdown workspace", () => {
       openRequested = handler;
       return () => {};
     };
+    const nextLaunch = launch(
+      "/next/plan.md",
+      workspace("/next", ["plan.md"], "project-next", "worktree-next"),
+    );
+    initial.platform.pendingOpenRequest = async () => nextLaunch;
     initial.platform.acceptOpenRequest = async () => {
       accepted += 1;
-      return { path: "/next/plan.md" };
+      return nextLaunch;
     };
 
     await mountWorkspace(host, initial, mounted.mount);
@@ -261,7 +300,7 @@ describe("the markdown workspace", () => {
     await Promise.resolve();
 
     expect(accepted).toBe(0);
-    expect(mounted.paths).toEqual(["/w/a.md"]);
+    expect(mounted.paths).toEqual(["a.md"]);
     expect(mounted.unmounted).toEqual([]);
   });
 });

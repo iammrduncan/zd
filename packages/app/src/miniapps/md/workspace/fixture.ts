@@ -2,40 +2,73 @@ import "@/design/index.css";
 
 import type { Platform } from "@/platform";
 import { mountCurrentWorkspace } from "..";
+import type { FileResource, ProjectGrant } from "@/workbench/resources";
+import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";
 
 const root = "/workspace";
+const project: ProjectGrant = {
+  id: "project-fixture",
+  name: "workspace",
+  root,
+  availability: "available",
+  worktrees: [
+    {
+      id: "worktree-fixture",
+      name: "workspace",
+      root,
+      availability: "available",
+    },
+  ],
+};
+const resource = (relativePath: string): FileResource => ({
+  projectId: project.id,
+  worktreeId: project.worktrees[0]!.id,
+  relativePath,
+});
 const documents = new Map([
-  ["/workspace/README.md", "# Workspace readme\n\nThe first document in the folder."],
-  ["/workspace/plans/roadmap.md", "# Roadmap\n\nThe second document in the folder."],
+  ["README.md", "# Workspace readme\n\nThe first document in the folder."],
+  ["plans/roadmap.md", "# Roadmap\n\nThe second document in the folder."],
   [
-    "/workspace/plans/this-is-a-long-document-name-that-exceeds-the-file-tree-panel-width.md",
+    "plans/this-is-a-long-document-name-that-exceeds-the-file-tree-panel-width.md",
     "# Long document\n\nA file-tree overflow fixture.",
   ],
 ]);
 
 const platform: Platform = {
   kind: "browser",
-  launchRequest: async () => ({ path: root }),
+  launchRequest: async () => ({
+    project,
+    worktreeId: project.worktrees[0]!.id,
+    relativePath: null,
+    problem: null,
+  }),
   onOpenRequested: () => () => {},
+  pendingOpenRequest: async () => null,
   acceptOpenRequest: async () => null,
+  projectGrants: async () => [project],
+  removeProjectGrant: async () => project,
   workspaceFiles: async () => ({
+    projectId: project.id,
+    worktreeId: project.worktrees[0]!.id,
     root,
     files: [
-      { path: "/workspace/README.md", relative: "README.md" },
-      { path: "/workspace/plans/roadmap.md", relative: "plans/roadmap.md" },
+      { resource: resource("README.md"), relative: "README.md" },
+      { resource: resource("plans/roadmap.md"), relative: "plans/roadmap.md" },
       {
-        path: "/workspace/plans/this-is-a-long-document-name-that-exceeds-the-file-tree-panel-width.md",
+        resource: resource(
+          "plans/this-is-a-long-document-name-that-exceeds-the-file-tree-panel-width.md",
+        ),
         relative: "plans/this-is-a-long-document-name-that-exceeds-the-file-tree-panel-width.md",
       },
     ],
   }),
-  readTextFile: async (path) => {
-    const source = documents.get(path);
-    if (source === undefined) throw new Error(`missing fixture document: ${path}`);
+  readTextFile: async (file) => {
+    const source = documents.get(file.relativePath);
+    if (source === undefined) throw new Error(`missing fixture document: ${file.relativePath}`);
     return source;
   },
-  writeTextFile: async (path, contents) => {
-    documents.set(path, contents);
+  writeTextFile: async (file, contents) => {
+    documents.set(file.relativePath, contents);
   },
   fileStamp: async () => null,
   onCloseRequested: () => () => {},
@@ -46,7 +79,9 @@ const platform: Platform = {
 const host = document.getElementById("zd");
 if (!host) throw new Error("dev/workspace.html is missing the #zd host element");
 
+const launch = await platform.launchRequest();
 await mountCurrentWorkspace(host, {
-  launch: await platform.launchRequest(),
+  launch,
   platform,
+  state: createWorkbenchStateOwner(workbenchStateFromGrants([project], launch)),
 });

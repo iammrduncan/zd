@@ -1,10 +1,8 @@
 import type { Platform } from "@/platform";
 import type { WorkbenchStateOwner } from "./state";
+import type { LaunchRequest } from "./resources";
 
-export interface LaunchRequest {
-  /** Absolute native launch path, or null for the workbench home. */
-  readonly path: string | null;
-}
+export type { LaunchRequest } from "./resources";
 
 export type Unmount = () => void;
 

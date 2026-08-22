@@ -7,122 +7,42 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::cli::LaunchState;
+use crate::grants::ResourceRef;
 use tauri_plugin_opener::OpenerExt;
 
 /// One file in the workspace tree, named both for opening and for display.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct WorkspaceFile {
-    pub path: String,
+    pub resource: ResourceRef,
     pub relative: String,
 }
 
 /// The sidebar root and its visible Markdown files.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct WorkspaceListing {
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    #[serde(rename = "worktreeId")]
+    pub worktree_id: String,
     pub root: String,
     pub files: Vec<WorkspaceFile>,
-}
-
-/// The one folder this window may read and write — audit finding M2.
-///
-/// `read_text_file`, `write_text_file` and `file_stamp` accepted any absolute path
-/// the webview sent. There was no bug: the only caller passes the launch path. The
-/// trust boundary is still worth closing, because this app's entire purpose is
-/// rendering **untrusted, agent-written markdown**, so a webview compromise — a
-/// renderer bug, a future regression in the markdown pipeline — converted directly
-/// into arbitrary file read and write as the user. AGENTS.md says to think in blast
-/// radius, and the blast radius of three unscoped commands is the home directory.
-///
-/// **The launch path is the scope**, which is why this needs nothing from phase 3:
-/// `zd notes.md` scopes to the folder holding it, `zd .` scopes to that folder,
-/// and the sidebar's workspace root will be this same value when it lands. ADR 0002's
-/// workspace model needs exactly this, so the two compose rather than compete.
-///
-/// `None` when the app was launched with no path at all. Everything is refused then,
-/// which is right: there is no document, and §5.3's Home surface will set a root
-/// before it offers to open anything.
-/// Resolve `requested` and refuse it if it lands outside `root`.
-///
-/// **Canonicalized, and the parent rather than the path itself.** `fs::canonicalize`
-/// requires the thing to exist, and `zd new-file.md` is allowed to name something
-/// that is not there yet — so the check resolves the *directory*, which does exist,
-/// and rejoins the file name. That is also what makes it proof against the two ways
-/// out of a folder: `..` collapses during canonicalization, and a symlink resolves to
-/// wherever it truly points before the comparison rather than after.
-///
-/// Returns the canonical path, so callers act on the resolved location rather than on
-/// the string they were handed. Audit L5 (`..` surviving in the launch path) and L6
-/// (a rename replacing a symlink) both wanted exactly this and are answered here.
-fn within_scope(root: &Path, requested: &str) -> Result<PathBuf, String> {
-    let path = Path::new(requested);
-
-    let parent = path.parent().unwrap_or_else(|| Path::new("/"));
-    let name = path.file_name();
-
-    let resolved_parent = parent
-        .canonicalize()
-        .map_err(|error| format!("{requested}: {error}"))?;
-    let rejoined = match name {
-        Some(name) => resolved_parent.join(name),
-        // The path *is* a directory — `zd .` resolves to the folder itself.
-        None => resolved_parent,
-    };
-
-    /*
-     * Resolve the last component too, when there is something there to resolve.
-     *
-     * The parent alone is not enough, and the symlink test is what said so: a link
-     * at `<scope>/innocent.md` pointing at another folder has a parent inside the
-     * scope and a target outside it, so rejoining the name and stopping there let
-     * it straight through. Canonicalizing the whole path follows the link.
-     *
-     * Falling back to the rejoined path when that fails is the `zd new-file.md`
-     * case and only that case: nothing exists at the name yet, so there is no link
-     * to follow and the resolved parent already settles where it would be created.
-     */
-    let resolved = rejoined.canonicalize().unwrap_or(rejoined);
-
-    let resolved_root = root
-        .canonicalize()
-        .map_err(|error| format!("{}: {error}", root.display()))?;
-
-    if !resolved.starts_with(&resolved_root) {
-        return Err(format!("refused a path outside the workspace: {requested}"));
-    }
-
-    Ok(resolved)
-}
-
-/// The folder a launch path scopes to: itself when it is one, its parent when it is a
-/// file.
-///
-/// A path that does not exist yet is treated as a file, because that is what `zd
-/// new-file.md` means — the folder it will be created in is the scope.
-#[cfg(test)]
-fn scope_for(path: &Path) -> PathBuf {
-    crate::cli::scope_for(&path.to_string_lossy())
-}
-
-/// Check a path against the window's scope, or say why not.
-fn allowed(scope: Option<&Path>, path: &str) -> Result<PathBuf, String> {
-    match scope {
-        Some(root) => within_scope(root, path),
-        None => Err(format!("refused a path with no workspace open: {path}")),
-    }
 }
 
 #[tauri::command]
 pub fn read_text_file(
     launch: tauri::State<'_, LaunchState>,
-    path: String,
+    resource: ResourceRef,
 ) -> Result<String, String> {
-    let scope = launch.scope();
-    let path = allowed(scope.as_deref(), &path)?;
+    let path = launch.resolve(&resource)?;
     std::fs::read_to_string(&path).map_err(|error| format!("{}: {error}", path.display()))
 }
 
 /// List the Markdown files below a workspace root in stable display order.
-fn workspace_files_in(root: &Path) -> Result<WorkspaceListing, String> {
+fn workspace_files_in(
+    root: &Path,
+    project_id: &str,
+    worktree_id: &str,
+) -> Result<WorkspaceListing, String> {
     let root = root
         .canonicalize()
         .map_err(|error| format!("{}: {error}", root.display()))?;
@@ -150,13 +70,19 @@ fn workspace_files_in(root: &Path) -> Result<WorkspaceListing, String> {
             .strip_prefix(&root)
             .map_err(|error| format!("{}: {error}", path.display()))?;
         files.push(WorkspaceFile {
-            path: path.to_string_lossy().into_owned(),
+            resource: ResourceRef {
+                project_id: project_id.to_string(),
+                worktree_id: worktree_id.to_string(),
+                relative_path: relative.to_string_lossy().into_owned(),
+            },
             relative: relative.to_string_lossy().into_owned(),
         });
     }
     files.sort_by(|left, right| left.relative.cmp(&right.relative));
 
     Ok(WorkspaceListing {
+        project_id: project_id.to_string(),
+        worktree_id: worktree_id.to_string(),
         root: root.to_string_lossy().into_owned(),
         files,
     })
@@ -166,11 +92,11 @@ fn workspace_files_in(root: &Path) -> Result<WorkspaceListing, String> {
 #[tauri::command]
 pub fn workspace_files(
     launch: tauri::State<'_, LaunchState>,
-) -> Result<Option<WorkspaceListing>, String> {
-    match launch.scope() {
-        Some(root) => workspace_files_in(&root).map(Some),
-        None => Ok(None),
-    }
+    project_id: String,
+    worktree_id: String,
+) -> Result<WorkspaceListing, String> {
+    let root = launch.root(&project_id, &worktree_id)?;
+    workspace_files_in(&root, &project_id, &worktree_id)
 }
 
 /// Save a document. Vision §6.3: "`cmd+s` saves. Writes are atomic."
@@ -187,11 +113,10 @@ pub fn workspace_files(
 #[tauri::command]
 pub fn write_text_file(
     launch: tauri::State<'_, LaunchState>,
-    path: String,
+    resource: ResourceRef,
     contents: String,
 ) -> Result<(), String> {
-    let scope = launch.scope();
-    let path = allowed(scope.as_deref(), &path)?;
+    let path = launch.resolve(&resource)?;
     atomic_write(&path, &contents).map_err(|error| format!("{}: {error}", path.display()))
 }
 
@@ -215,20 +140,9 @@ pub fn write_text_file(
 #[tauri::command]
 pub fn file_stamp(
     launch: tauri::State<'_, LaunchState>,
-    path: String,
+    resource: ResourceRef,
 ) -> Result<Option<FileStamp>, String> {
-    /*
-     * A path outside the scope reports `None` rather than an error, and that is
-     * deliberate: this command's whole contract is that a missing file is a state
-     * rather than a failure, and the caller asks it on every window focus. Refusing
-     * loudly would put a scope error on the §7.3 notice every time the window came
-     * back, about a path the reader never typed. Nothing is read either way.
-     */
-    let scope = launch.scope();
-    let Ok(path) = allowed(scope.as_deref(), &path) else {
-        return Ok(None);
-    };
-
+    let path = launch.resolve(&resource)?;
     stamp_of(&path)
 }
 
@@ -370,10 +284,7 @@ fn is_web_url(url: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        allowed, atomic_write, is_web_url, scope_for, stamp_of, temporary_beside, within_scope,
-        workspace_files_in,
-    };
+    use super::{atomic_write, is_web_url, stamp_of, temporary_beside, workspace_files_in};
     use std::path::{Path, PathBuf};
 
     /// A directory of our own under the system temp dir, removed on drop.
@@ -415,7 +326,7 @@ mod tests {
         atomic_write(&scratch.join("generated/ignored.md"), "generated\n").unwrap();
         atomic_write(&scratch.join(".gitignore"), "generated/\n").unwrap();
 
-        let workspace = workspace_files_in(&scratch.0).unwrap();
+        let workspace = workspace_files_in(&scratch.0, "project-a", "worktree-a").unwrap();
         let relative: Vec<_> = workspace
             .files
             .iter()
@@ -423,6 +334,14 @@ mod tests {
             .collect();
 
         assert_eq!(relative, vec!["notes/a.MD", "z.md"]);
+        assert!(workspace.files.iter().all(|file| {
+            file.resource.project_id == "project-a"
+                && file.resource.worktree_id == "worktree-a"
+                && file.resource.relative_path == file.relative
+        }));
+        let json = serde_json::to_value(&workspace.files[0]).unwrap();
+        assert!(json.get("resource").is_some());
+        assert!(json.get("path").is_none());
     }
 
     #[test]
@@ -573,107 +492,6 @@ mod tests {
             let mode = std::fs::metadata(&path).unwrap().permissions().mode();
             assert_eq!(mode & 0o777, 0o600, "saving changed the file's mode");
         }
-    }
-
-    /*
-     * The scope — audit finding M2.
-     *
-     * Every one of these is about the trust boundary rather than about files: the
-     * webview is the untrusted side, and what it sends is a string it chose.
-     */
-
-    #[test]
-    fn a_path_inside_the_scope_is_allowed() {
-        // The control, and it has to come first: a check that refused everything
-        // would pass every assertion below and ship an app that cannot open a file.
-        let scratch = Scratch::new("scope-inside");
-        let path = scratch.join("notes.md");
-        atomic_write(&path, "# Notes\n").unwrap();
-
-        let allowed = within_scope(&scratch.0, &path.display().to_string()).unwrap();
-        assert_eq!(allowed.file_name().unwrap(), "notes.md");
-    }
-
-    #[test]
-    fn the_scope_folder_itself_is_allowed() {
-        let scratch = Scratch::new("scope-root");
-        assert!(within_scope(&scratch.0, &scratch.0.display().to_string()).is_ok());
-    }
-
-    #[test]
-    fn a_file_that_does_not_exist_yet_is_allowed_inside_the_scope() {
-        // `zd new-file.md` names something that is not there. Canonicalizing the
-        // path itself would fail here, which is why the check resolves the parent.
-        let scratch = Scratch::new("scope-new");
-        let path = scratch.join("not-yet.md");
-
-        assert!(within_scope(&scratch.0, &path.display().to_string()).is_ok());
-    }
-
-    #[test]
-    fn a_path_outside_the_scope_is_refused() {
-        let scratch = Scratch::new("scope-outside");
-        let elsewhere = Scratch::new("scope-elsewhere");
-        let path = elsewhere.join("secrets.md");
-        atomic_write(&path, "not yours\n").unwrap();
-
-        assert!(within_scope(&scratch.0, &path.display().to_string()).is_err());
-    }
-
-    #[test]
-    fn dot_dot_cannot_climb_out_of_the_scope() {
-        // The obvious escape, and the reason the check canonicalizes rather than
-        // comparing strings: `<scope>/../<elsewhere>/secrets.md` starts with the
-        // scope as text and does not as a location.
-        let scratch = Scratch::new("scope-climb");
-        let inside = scratch.join("sub");
-        std::fs::create_dir(&inside).unwrap();
-
-        let climbed = format!("{}/../../etc/hosts", inside.display());
-        assert!(within_scope(&scratch.0, &climbed).is_err());
-    }
-
-    #[test]
-    fn a_symlink_pointing_out_of_the_scope_is_refused() {
-        #[cfg(unix)]
-        {
-            // The escape that a purely textual check cannot see at all: the string is
-            // inside the scope and the file is not.
-            let scratch = Scratch::new("scope-symlink");
-            let elsewhere = Scratch::new("scope-symlink-target");
-            let target = elsewhere.join("secrets.md");
-            atomic_write(&target, "not yours\n").unwrap();
-
-            let link = scratch.join("innocent.md");
-            std::os::unix::fs::symlink(&target, &link).unwrap();
-
-            assert!(within_scope(&scratch.0, &link.display().to_string()).is_err());
-        }
-    }
-
-    #[test]
-    fn nothing_is_allowed_when_no_workspace_is_open() {
-        // Launched with no path — §5.3's Home surface. There is no document, so
-        // there is nothing to read, and default-to-deny is the whole point.
-        let scratch = Scratch::new("scope-none");
-        let path = scratch.join("notes.md");
-        atomic_write(&path, "# Notes\n").unwrap();
-
-        assert!(allowed(None, &path.display().to_string()).is_err());
-    }
-
-    #[test]
-    fn a_launch_file_scopes_to_its_folder_and_a_launch_folder_to_itself() {
-        let scratch = Scratch::new("scope-for");
-        let file = scratch.join("notes.md");
-        atomic_write(&file, "# Notes\n").unwrap();
-
-        assert_eq!(scope_for(&file), scratch.0);
-        assert_eq!(scope_for(&scratch.0), scratch.0);
-
-        // Not there yet: treated as a file, so the scope is the folder it will be
-        // created in. `zd new-file.md` has to keep working.
-        assert_eq!(scope_for(&scratch.join("not-yet.md")), scratch.0);
     }
 
     #[test]

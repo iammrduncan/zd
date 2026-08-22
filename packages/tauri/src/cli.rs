@@ -8,41 +8,53 @@
 //! Launching from Spotlight, the Dock, or the Start menu arrives here with no
 //! arguments and behaves like bare `zd`.
 
+use std::collections::VecDeque;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 
 use serde::Serialize;
 
+use crate::grants::{GrantStore, ProjectGrant, ResourceRef};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeOpenRequest {
+    /// Absolute native path, or `None` for the workbench home.
+    pub path: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LaunchRequest {
-    /// Absolute path, or `None` for "show your home surface".
-    pub path: Option<String>,
+    pub project: Option<ProjectGrant>,
+    pub worktree_id: Option<String>,
+    pub relative_path: Option<String>,
+    pub problem: Option<String>,
 }
 
 #[derive(Debug)]
 struct LaunchSession {
     current: LaunchRequest,
-    pending: Option<LaunchRequest>,
-    scope: Option<PathBuf>,
+    pending: VecDeque<LaunchRequest>,
+    grants: GrantStore,
 }
 
 /// The one native source of truth for what this window may open.
 ///
 /// Finder can ask an already-running macOS application to open another file.
 /// That request stays pending until the document confirms switching will not
-/// discard unsaved work; accepting it changes the launch request and filesystem
-/// scope under the same lock.
+/// discard unsaved work. Its grant is additive; accepting changes only the
+/// native active launch request, under the same lock that owns the pending queue.
 #[derive(Debug)]
 pub struct LaunchState(Mutex<LaunchSession>);
 
 impl LaunchState {
-    pub fn new(current: LaunchRequest) -> Self {
-        let scope = current.path.as_deref().map(scope_for);
+    pub fn new(current: NativeOpenRequest) -> Self {
+        let mut grants = GrantStore::default();
+        let current = resolve_open_request(&mut grants, current);
         Self(Mutex::new(LaunchSession {
             current,
-            pending: None,
-            scope,
+            pending: VecDeque::new(),
+            grants,
         }))
     }
 
@@ -54,32 +66,130 @@ impl LaunchState {
             .clone()
     }
 
-    pub fn scope(&self) -> Option<PathBuf> {
-        self.0
-            .lock()
-            .expect("launch state was poisoned")
-            .scope
-            .clone()
-    }
-
-    pub fn queue(&self, request: LaunchRequest) {
-        self.0.lock().expect("launch state was poisoned").pending = Some(request);
+    pub fn queue(&self, request: NativeOpenRequest) {
+        let mut session = self.0.lock().expect("launch state was poisoned");
+        let request = resolve_open_request(&mut session.grants, request);
+        session.pending.push_back(request);
     }
 
     pub fn has_pending(&self) -> bool {
+        !self
+            .0
+            .lock()
+            .expect("launch state was poisoned")
+            .pending
+            .is_empty()
+    }
+
+    pub fn pending(&self) -> Option<LaunchRequest> {
         self.0
             .lock()
             .expect("launch state was poisoned")
             .pending
-            .is_some()
+            .front()
+            .cloned()
     }
 
     pub fn accept_pending(&self) -> Option<LaunchRequest> {
         let mut session = self.0.lock().expect("launch state was poisoned");
-        let request = session.pending.take()?;
-        session.scope = request.path.as_deref().map(scope_for);
+        let request = session.pending.pop_front()?;
         session.current = request.clone();
         Some(request)
+    }
+
+    pub fn project_grants(&self) -> Vec<ProjectGrant> {
+        self.0
+            .lock()
+            .expect("launch state was poisoned")
+            .grants
+            .projects()
+    }
+
+    pub fn resolve(&self, resource: &ResourceRef) -> Result<PathBuf, String> {
+        self.0
+            .lock()
+            .expect("launch state was poisoned")
+            .grants
+            .resolve(resource)
+    }
+
+    pub fn root(&self, project_id: &str, worktree_id: &str) -> Result<PathBuf, String> {
+        self.0
+            .lock()
+            .expect("launch state was poisoned")
+            .grants
+            .root(project_id, worktree_id)
+    }
+
+    pub fn remove_project(&self, project_id: &str) -> Result<ProjectGrant, String> {
+        let mut session = self.0.lock().expect("launch state was poisoned");
+        let in_use = std::iter::once(&session.current)
+            .chain(session.pending.iter())
+            .any(|request| {
+                request
+                    .project
+                    .as_ref()
+                    .is_some_and(|project| project.id == project_id)
+            });
+        if in_use {
+            return Err(format!("project grant {project_id} is still active"));
+        }
+        session.grants.remove_project(project_id)
+    }
+}
+
+fn resolve_open_request(grants: &mut GrantStore, request: NativeOpenRequest) -> LaunchRequest {
+    let Some(raw_path) = request.path else {
+        return LaunchRequest {
+            project: None,
+            worktree_id: None,
+            relative_path: None,
+            problem: None,
+        };
+    };
+    let path = Path::new(&raw_path);
+    let root = scope_for(&raw_path);
+    let approved = match grants.approve_project(&root) {
+        Ok(approved) => approved,
+        Err(problem) => {
+            return LaunchRequest {
+                project: None,
+                worktree_id: None,
+                relative_path: None,
+                problem: Some(problem),
+            };
+        }
+    };
+
+    let relative_path = if path.is_dir() {
+        None
+    } else {
+        let root = Path::new(&approved.project.root);
+        let resolved_parent = path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .canonicalize();
+        match (resolved_parent, path.file_name()) {
+            (Ok(parent), Some(name)) => parent
+                .join(name)
+                .strip_prefix(root)
+                .ok()
+                .map(|relative| relative.to_string_lossy().into_owned()),
+            _ => None,
+        }
+    };
+    let problem = (!path.is_dir() && relative_path.is_none()).then(|| {
+        format!(
+            "{} could not be represented inside its approved project",
+            path.display()
+        )
+    });
+
+    LaunchRequest {
+        project: Some(approved.project),
+        worktree_id: Some(approved.worktree_id),
+        relative_path,
+        problem,
     }
 }
 
@@ -104,7 +214,7 @@ fn resolve_dir(override_dir: Option<PathBuf>, working_dir: PathBuf) -> PathBuf {
     }
 }
 
-pub fn launch_from_environment() -> LaunchRequest {
+pub fn launch_from_environment() -> NativeOpenRequest {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cwd = resolve_dir(
         std::env::var_os(INVOCATION_DIR).map(PathBuf::from),
@@ -118,24 +228,42 @@ pub fn launch_request(state: tauri::State<'_, LaunchState>) -> LaunchRequest {
     state.current()
 }
 
+#[tauri::command]
+pub fn project_grants(state: tauri::State<'_, LaunchState>) -> Vec<ProjectGrant> {
+    state.project_grants()
+}
+
+#[tauri::command]
+pub fn pending_open_request(state: tauri::State<'_, LaunchState>) -> Option<LaunchRequest> {
+    state.pending()
+}
+
+#[tauri::command]
+pub fn remove_project_grant(
+    state: tauri::State<'_, LaunchState>,
+    project_id: String,
+) -> Result<ProjectGrant, String> {
+    state.remove_project(&project_id)
+}
+
 /// Turn the first local file in a native open event into a workbench request.
-pub fn opened_request(urls: &[tauri::Url]) -> Option<LaunchRequest> {
+pub fn opened_request(urls: &[tauri::Url]) -> Option<NativeOpenRequest> {
     let path = urls.iter().find_map(|url| url.to_file_path().ok())?;
-    Some(LaunchRequest {
+    Some(NativeOpenRequest {
         path: Some(path.to_string_lossy().into_owned()),
     })
 }
 
 /// Pure so it can be tested without a process.
-fn parse_args(args: &[String], cwd: &Path) -> LaunchRequest {
+fn parse_args(args: &[String], cwd: &Path) -> NativeOpenRequest {
     // macOS hands Finder launches a `-psn_0_12345` process-serial argument.
     let mut positional = args.iter().filter(|a| !a.starts_with('-'));
 
     let Some(first) = positional.next() else {
-        return LaunchRequest { path: None };
+        return NativeOpenRequest { path: None };
     };
 
-    LaunchRequest {
+    NativeOpenRequest {
         path: Some(absolutize(first, cwd)),
     }
 }
@@ -176,6 +304,30 @@ pub fn scope_for(path: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct Scratch(PathBuf);
+
+    impl Scratch {
+        fn new(name: &str) -> Self {
+            let stamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let path = std::env::temp_dir().join(format!("zd-launch-{name}-{stamp}"));
+            std::fs::create_dir_all(&path).unwrap();
+            Self(path)
+        }
+
+        fn join(&self, name: &str) -> PathBuf {
+            self.0.join(name)
+        }
+    }
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
 
     fn args(raw: &[&str]) -> Vec<String> {
         raw.iter().map(|s| s.to_string()).collect()
@@ -284,13 +436,25 @@ mod tests {
 
     #[test]
     fn launch_json_has_no_surface_selector() {
-        let request = parse_args(&args(&["plan.md"]), &cwd());
+        let scratch = Scratch::new("json");
+        let file = scratch.join("plan.md");
+        std::fs::write(&file, "# Plan\n").unwrap();
+        let request = LaunchState::new(NativeOpenRequest {
+            path: Some(file.to_string_lossy().into_owned()),
+        })
+        .current();
         let json = serde_json::to_value(request).unwrap();
 
         assert_eq!(
-            json.get("path").and_then(|path| path.as_str()),
-            Some("/work/notes/plan.md")
+            json.get("relativePath").and_then(|path| path.as_str()),
+            Some("plan.md")
         );
+        assert!(json
+            .get("project")
+            .and_then(|project| project.get("id"))
+            .is_some());
+        assert!(json.get("worktreeId").and_then(|id| id.as_str()).is_some());
+        assert!(json.get("path").is_none());
         assert!(json.get("miniapp").is_none());
     }
 
@@ -302,20 +466,57 @@ mod tests {
     }
 
     #[test]
-    fn a_queued_open_does_not_replace_the_launch_until_it_is_accepted() {
-        let current = LaunchRequest {
-            path: Some("/work/notes/old.md".to_string()),
-        };
-        let state = LaunchState::new(current.clone());
-        let next = LaunchRequest {
-            path: Some("/work/notes/new.md".to_string()),
-        };
+    fn a_queued_open_keeps_both_grants_and_does_not_activate_until_accepted() {
+        let scratch = Scratch::new("queue");
+        let alpha = scratch.join("alpha");
+        let beta = scratch.join("beta");
+        std::fs::create_dir_all(&alpha).unwrap();
+        std::fs::create_dir_all(&beta).unwrap();
+        let old = alpha.join("old.md");
+        let new = beta.join("new.md");
+        std::fs::write(&old, "old").unwrap();
+        std::fs::write(&new, "new").unwrap();
+        let state = LaunchState::new(NativeOpenRequest {
+            path: Some(old.to_string_lossy().into_owned()),
+        });
+        let current = state.current();
 
-        state.queue(next.clone());
+        state.queue(NativeOpenRequest {
+            path: Some(new.to_string_lossy().into_owned()),
+        });
 
         assert_eq!(state.current(), current);
-        assert_eq!(state.accept_pending(), Some(next.clone()));
-        assert_eq!(state.current(), next);
+        assert_eq!(state.project_grants().len(), 2);
+        assert_eq!(
+            state.pending().and_then(|request| request.relative_path),
+            Some("new.md".to_string())
+        );
+        let accepted = state.accept_pending().unwrap();
+        assert_ne!(
+            current.project.as_ref().map(|project| &project.id),
+            accepted.project.as_ref().map(|project| &project.id),
+        );
+        assert_eq!(state.current(), accepted);
         assert_eq!(state.accept_pending(), None);
+    }
+
+    #[test]
+    fn a_missing_parent_becomes_a_recoverable_launch_problem() {
+        let scratch = Scratch::new("missing-parent");
+        let state = LaunchState::new(NativeOpenRequest {
+            path: Some(
+                scratch
+                    .join("missing/plan.md")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
+        });
+
+        let request = state.current();
+        assert!(request.project.is_none());
+        assert!(request
+            .problem
+            .as_deref()
+            .is_some_and(|problem| problem.contains("missing")));
     }
 }

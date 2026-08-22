@@ -3,10 +3,39 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createWorkbenchStateOwner,
   defaultWorkbenchState,
+  fileStateId,
   parseWorkbenchState,
+  workbenchStateFromGrants,
   type WorkbenchContext,
   type WorkbenchState,
 } from "@/workbench/state";
+import type { FileResource, LaunchRequest, ProjectGrant } from "@/workbench/resources";
+
+function grant(id: string, root: string): ProjectGrant {
+  return {
+    id,
+    name: id,
+    root,
+    availability: "available",
+    worktrees: [
+      {
+        id: `${id}-root`,
+        name: "main",
+        root,
+        availability: "available",
+      },
+    ],
+  };
+}
+
+function launchFor(project: ProjectGrant, relativePath: string | null): LaunchRequest {
+  return {
+    project,
+    worktreeId: project.worktrees[0]!.id,
+    relativePath,
+    problem: null,
+  };
+}
 
 function populatedState(): WorkbenchState {
   return {
@@ -107,6 +136,35 @@ describe("the versioned workbench state", () => {
     const state = populatedState();
     expect(parseWorkbenchState(JSON.parse(JSON.stringify(state)))).toEqual(state);
   });
+
+  it("seeds every native grant and the launched file into one active snapshot", () => {
+    const alpha = grant("project-alpha", "/work/alpha");
+    const beta = grant("project-beta", "/work/beta");
+
+    const state = workbenchStateFromGrants(
+      [alpha, beta],
+      launchFor(beta, "src/main.ts"),
+    );
+
+    expect(state.projects.map(({ id }) => id)).toEqual(["project-alpha", "project-beta"]);
+    expect(state.worktrees.map(({ id }) => id)).toEqual([
+      "project-alpha-root",
+      "project-beta-root",
+    ]);
+    expect(state.openFiles).toEqual([
+      expect.objectContaining({
+        projectId: "project-beta",
+        worktreeId: "project-beta-root",
+        relativePath: "src/main.ts",
+      }),
+    ]);
+    expect(state.active).toEqual({
+      projectId: "project-beta",
+      worktreeId: "project-beta-root",
+      threadId: null,
+      fileId: state.openFiles[0]!.id,
+    });
+  });
 });
 
 describe("atomic workbench context transitions", () => {
@@ -174,6 +232,57 @@ describe("atomic workbench context transitions", () => {
       reason: expect.stringContaining("terminal lifecycle unavailable"),
     });
     expect(owner.snapshot()).toEqual(before);
+  });
+
+  it("adds a native launch grant and activates its file in one publication", async () => {
+    const alpha = grant("project-alpha", "/work/alpha");
+    const beta = grant("project-beta", "/work/beta");
+    const owner = createWorkbenchStateOwner(
+      workbenchStateFromGrants([alpha], launchFor(alpha, "README.md")),
+    );
+    const seen = vi.fn();
+    owner.subscribe(seen);
+
+    const result = await owner.applyLaunch(launchFor(beta, "src/main.ts"), [alpha, beta]);
+
+    expect(result).toEqual({ status: "committed" });
+    expect(seen).toHaveBeenCalledOnce();
+    expect(owner.snapshot()).toMatchObject({
+      projects: [{ id: "project-alpha" }, { id: "project-beta" }],
+      active: {
+        projectId: "project-beta",
+        worktreeId: "project-beta-root",
+        fileId: fileStateId({
+          projectId: "project-beta",
+          worktreeId: "project-beta-root",
+          relativePath: "src/main.ts",
+        }),
+      },
+    });
+  });
+
+  it("routes file activation through guards before changing or publishing state", async () => {
+    const alpha = grant("project-alpha", "/work/alpha");
+    const owner = createWorkbenchStateOwner(
+      workbenchStateFromGrants([alpha], launchFor(alpha, "README.md")),
+    );
+    const seen = vi.fn();
+    owner.subscribe(seen);
+    owner.registerTransitionGuard({
+      id: "dirty-buffer",
+      prepare: () => ({ status: "refused", reason: "README.md has unsaved work" }),
+    });
+    const target: FileResource = {
+      projectId: alpha.id,
+      worktreeId: alpha.worktrees[0]!.id,
+      relativePath: "next.md",
+    };
+
+    const result = await owner.activateFile(target);
+
+    expect(result).toEqual({ status: "refused", reason: "README.md has unsaved work" });
+    expect(owner.snapshot().active.fileId).not.toBe(fileStateId(target));
+    expect(seen).not.toHaveBeenCalled();
   });
 });
 

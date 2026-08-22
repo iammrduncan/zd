@@ -5,7 +5,9 @@ import { EditorView } from "@codemirror/view";
 import { mountCurrentWorkspace } from "@/miniapps/md";
 import type { Platform } from "@/platform";
 import { attachShortcuts, clearCommands } from "@/suite/shortcuts";
-import type { WorkbenchContentContext } from "@/workbench/runtime";
+import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
+import type { ProjectGrant } from "@/workbench/resources";
+import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";
 
 const MOD = /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "metaKey" : "ctrlKey";
 
@@ -28,14 +30,33 @@ describe("quitting with unsaved work", () => {
     detachShortcuts();
   });
 
-  function context(): WorkbenchContentContext {
-    const path = "/w/plan.md";
+  function context(): WorkbenchRuntimeContext {
+    const project: ProjectGrant = {
+      id: "project-w",
+      name: "w",
+      root: "/w",
+      availability: "available",
+      worktrees: [
+        { id: "worktree-w", name: "w", root: "/w", availability: "available" },
+      ],
+    };
+    const launch = {
+      project,
+      worktreeId: "worktree-w",
+      relativePath: "plan.md",
+      problem: null,
+    };
     const platform: Platform = {
       kind: "browser",
-      launchRequest: async () => ({ path }),
+      launchRequest: async () => launch,
       onOpenRequested: () => () => {},
+      pendingOpenRequest: async () => null,
       acceptOpenRequest: async () => null,
-      workspaceFiles: async () => null,
+      projectGrants: async () => [project],
+      removeProjectGrant: async () => project,
+      workspaceFiles: async () => {
+        throw new Error("no listing");
+      },
       readTextFile: async () => "# Plan",
       writeTextFile: async () => {},
       fileStamp: async () => null,
@@ -50,7 +71,11 @@ describe("quitting with unsaved work", () => {
       },
       openExternal: async () => {},
     };
-    return { launch: { path }, platform };
+    return {
+      launch,
+      platform,
+      state: createWorkbenchStateOwner(workbenchStateFromGrants([project], launch)),
+    };
   }
 
   async function mountDocument() {
