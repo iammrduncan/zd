@@ -7,11 +7,12 @@ argument-hint: "[session id like 1.3, or task text, or empty for the next open t
 
 One session = **one goal, one commit, 30–60 minutes.** Not a sprint. Not "and while I'm here".
 
-Current task list: @docs/_internal/objectives/todo.txt
-Feedback inbox: @docs/_internal/objectives/FEEDBACK.md
+Current task list: @docs/planning/objectives/todo.txt
+Feedback inbox: @docs/planning/objectives/FEEDBACK.md
 
-The product spec is `docs/_internal/objectives/vision.md`. Do not read all of it — every task
-carries a `vis:N.N` tag naming the exact section it implements. Read that section.
+The product contract is `docs/VISION.md`, visual behavior is in `docs/DESIGN.md`, and active
+cross-objective sequencing is in `docs/planning/goals/`. Read the smallest relevant sections and
+follow accepted ADRs for implementation boundaries.
 
 Requested: **$ARGUMENTS** (empty means "the next open task").
 
@@ -19,7 +20,7 @@ Requested: **$ARGUMENTS** (empty means "the next open task").
 
 ## 1. Triage the inbox first
 
-**Only the lines below the `---` in `docs/_internal/objectives/FEEDBACK.md` are feedback** — everything above it is the
+**Only the lines below the `---` in `docs/planning/objectives/FEEDBACK.md` are feedback** — everything above it is the
 file's own instructions. If there is nothing below the rule, skip straight to step 2.
 
 Otherwise triage before picking up new work. Real usage outranks the plan.
@@ -30,13 +31,13 @@ Otherwise triage before picking up new work. Real usage outranks the plan.
   the band for its own phase.
 - Tag them `+fb fb:<today>` so feedback-driven work is distinguishable from planned work.
 - Attach `@ctx`, `ref:F##`, and `vis:N.N` tags where you can tell.
-- Then append the **raw, unedited lines** to `docs/_internal/objectives/feedback-archive.md` under a `## <today>`
-  heading, and reset `docs/_internal/objectives/FEEDBACK.md` to just its header and the `---`.
+- Then append the **raw, unedited lines** to `docs/planning/objectives/feedback-archive.md` under a `## <today>`
+  heading, and reset `docs/planning/objectives/FEEDBACK.md` to just its header and the `---`.
 
 Preserve the user's own words in the archive. Do not "clean up" their phrasing — the raw
 complaint is the evidence, your task line is the interpretation.
 
-Then do the same for `docs/_internal/objectives/agent-findings.md`, the agent's own queue, tagging those `+found
+Then do the same for `docs/planning/objectives/agent-findings.md`, the agent's own queue, tagging those `+found
 found:<today>` instead. Human feedback is triaged first and outranks it.
 
 Commit the triage on its own: `Triage feedback into tasks`.
@@ -89,22 +90,20 @@ in todo.txt first and take the first half.
 Use TaskCreate to lay out the steps, and keep it updated as you go. This is the project
 convention and it's also how the user follows along.
 
-Read the `vis:N.N` section of the vision. If the task has a `ref:F##`, that's a defect the first
-prototype actually shipped — read what went wrong in `docs/_internal/objectives/goals/completed/initial-prototype/feedback.md`
-before you rebuild it.
+Read the task's current goal, vision, design, and ADR references. If it carries a historical
+`ref:F##`, follow its linked evidence; do not reconstruct a missing report from memory.
 
 ## 4. Do the work
 
 - **Bug fixes are red-first.** Write the failing test, run it, watch it fail, then fix it. A fix
   without a test that failed first is not done.
-- When you are working out *what is happening* rather than building, read
-  `docs/_internal/objectives/way-of-working/diagnosis.md` first. Four rules, each one paid for: measure the round trip,
-  distrust a harness that supplies what you are testing, file a suspect as a question, and read
-  the file once a bisect has named it.
+- When you are working out *what is happening* rather than building, follow the diagnosis and
+  evidence rules in `docs/GOOD_ENGINEERING_H.md`: measure the actual boundary, distrust a harness
+  that supplies what it claims to test, and keep unproven causes labeled as hypotheses.
 - Prefer CSS over JavaScript for anything layout, type, or motion. The accepted boundary is in
   `docs/adr/suite/0001-use-tauri-with-portable-web-frontend_H.md`.
-- Mini apps consume design tokens. A hardcoded hex, font family, or px size in
-  `packages/app/src/miniapps/**` is a bug, not a shortcut.
+- Workbench features consume semantic design tokens. A local hardcoded color or font family in
+  `packages/app/src/**` is a bug, not a shortcut.
 - Only `packages/app/src/platform.ts` imports `@tauri-apps/api`.
 - 500 lines is a warning, not a wall — when a file trips it, split at the nearest seam **in this
   session**, before committing.
@@ -176,12 +175,12 @@ These repository rules exist because ignoring them previously made work expensiv
 recover:
 
 - **No subagent fanout.** Zero, or one if a search is genuinely wide. Not five.
-- **New problems you notice go in `docs/_internal/objectives/agent-findings.md`, not into this session.** The only
+- **New problems you notice go in `docs/planning/objectives/agent-findings.md`, not into this session.** The only
   exceptions are data loss, a crash, or a security hole. Scope that grows mid-session never
-  converges. **Never write to `docs/_internal/objectives/FEEDBACK.md`** — that inbox is the human's, and the value of
-  `docs/_internal/objectives/feedback-archive.md` as evidence depends on it holding only their words.
+  converges. **Never write to `docs/planning/objectives/FEEDBACK.md`** — that inbox is the human's, and the value of
+  `docs/planning/objectives/feedback-archive.md` as evidence depends on it holding only their words.
 - **Never run this under a loop with no terminal condition.** `/loop 60s /session until you reach
-  the next checkpoint` is the intended way to work — that condition is a line in `docs/_internal/objectives/todo.txt`
+  the next checkpoint` is the intended way to work — that condition is a line in `docs/planning/objectives/todo.txt`
   and you will hit it. `/goal`, or any loop that runs until "done" or "perfect", is the exact
   failure mode this workflow exists to prevent. Sessions are meant to end, and so are runs of them.
 - **Leave the 60-second gap between sessions.** It starts when a session finishes and the next one

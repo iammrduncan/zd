@@ -70,7 +70,7 @@ async function documentSource(ctx: SuiteContext): Promise<{ text: string } | { p
  *   editor/    CodeMirror, notation, focus, saving     (sessions 3.1–3.5)
  *   workspace/ sidebar, quick open, recents, git       (sessions 2.1–2.4, 4.5)
  *
- * See docs/_internal/objectives/vision.md.
+ * See docs/VISION.md.
  */
 const documentApp = {
   async mount(

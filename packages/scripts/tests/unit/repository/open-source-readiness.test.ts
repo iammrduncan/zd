@@ -24,7 +24,7 @@ describe("the public repository boundary", () => {
   });
 
   it("does not publish empty planning documents or the retired report stub", () => {
-    const goals = resolve(ROOT, "docs/objectives");
+    const goals = resolve(ROOT, "docs/planning/objectives");
     const emptyMarkdown = filesUnder(goals)
       .filter((path) => path.endsWith(".md") && statSync(path).size === 0)
       .map((path) => relative(ROOT, path));

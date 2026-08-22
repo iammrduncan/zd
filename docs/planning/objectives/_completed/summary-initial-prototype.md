@@ -37,6 +37,6 @@ keyboard, motion, packaging, and performance claims need red-first coverage at t
 boundary plus fresh, hash-bound native evidence and human review. The prototype was therefore
 stopped honestly rather than relabeled complete.
 
-Current direction lives in the current design contract, the accepted [ADRs](../../adr/README.md),
+Current direction lives in the current design contract, the accepted [ADRs](../../../adr/README.md),
 and the active [wrap-up goals](../wrap-up/README.md). The original goal, raw thoughts, F01–F18
 ledger, and detailed remaining-gap audit remain available in repository history.

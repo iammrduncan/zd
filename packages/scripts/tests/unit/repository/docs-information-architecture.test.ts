@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -6,7 +6,16 @@ import { describe, expect, it } from "vitest";
 import { getPublicDocs } from "../../../../website/lib/docs";
 
 const ROOT = resolve(process.cwd());
-const DOC_AREAS = ["adr", "zsip", "user-facing-docs", "objectives", "objectives/_internal"];
+const DOC_AREAS = [
+  "adr",
+  "zsip",
+  "user-facing-docs",
+  "planning",
+  "planning/goals",
+  "planning/objectives",
+  "planning/objectives/_internal",
+  "planning/ideas",
+];
 const PUBLIC_PAGES = [
   "README.md",
   "docs/README.md",
@@ -19,6 +28,19 @@ const PUBLIC_PAGES = [
   "docs/user-facing-docs/reference/cli.md",
   "docs/user-facing-docs/explanation/architecture.md",
 ];
+const MAINTAINED_CONTEXT_ROOTS = [
+  ".agents/skills",
+  ".claude/commands",
+  "packages/scripts",
+  "packages/app/src",
+];
+
+function filesUnder(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    return entry.isDirectory() ? filesUnder(path) : [path];
+  });
+}
 
 function page(path: string) {
   return readFileSync(resolve(ROOT, path), "utf8");
@@ -81,8 +103,27 @@ describe("the public documentation map", () => {
     expect(hub).toContain("adr/README.md");
     expect(hub).toContain("zsip/README.md");
     expect(hub).toContain("user-facing-docs/README.md");
-    expect(hub).toContain("objectives/_internal/releasing.md");
-    expect(hub).toContain("objectives/");
+    expect(hub).toContain("planning/README.md");
+    expect(hub).toContain("planning/objectives/_internal/releasing.md");
+    expect(hub).toContain("planning/objectives/");
+  });
+
+  it("keeps maintained workflow consumers on the sole planning objective root", () => {
+    const offenders = MAINTAINED_CONTEXT_ROOTS.flatMap((root) => filesUnder(resolve(ROOT, root)))
+      .filter((path) => /docs\/(?:_internal\/)?objectives(?:\/|$)/.test(readFileSync(path, "utf8")))
+      .map((path) => path.slice(ROOT.length + 1));
+
+    expect(offenders).toEqual([]);
+    expect(existsSync(resolve(ROOT, "docs/planning/objectives/FEEDBACK.md"))).toBe(true);
+    expect(existsSync(resolve(ROOT, "docs/planning/objectives/agent-findings.md"))).toBe(true);
+  });
+
+  it("retires the old surface-extension contributor instructions", () => {
+    const guide = page("packages/app/src/miniapps/README.md");
+
+    expect(guide).toContain("migration input, not an extension point");
+    expect(guide).toContain("goal-reorganize.md");
+    expect(guide).not.toContain("## Adding one");
   });
 
   it("gives user documentation one entry point for every Diátaxis purpose", () => {
