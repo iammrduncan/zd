@@ -103,7 +103,13 @@ function focusDeleteButton(host: ParentNode, commentId?: string): boolean {
  * Markdown files remain untouched. The ledger persists in the webview and every
  * accepted comment regenerates one plain-text handoff beside the reviewed files.
  */
-export function mountReview({ host, launcherHost, root, rootResource, platform }: ReviewOptions): Review {
+export function mountReview({
+  host,
+  launcherHost,
+  root,
+  rootResource,
+  platform,
+}: ReviewOptions): Review {
   let comments = read(root);
   let pending: { file: WorkspaceFile; selection: ReviewSelection } | null = null;
   let feedbackView: HTMLElement | null = null;
