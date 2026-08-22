@@ -6,6 +6,27 @@ Execute the pivot from `zd md`/Zen Suite to one `zd` agent workbench without let
 create competing state, platform authority, themes, shortcuts, or lifecycle models. Each feature
 goal remains independently verifiable; integration crosses explicit sequential gates.
 
+## Visual Reference Contract
+
+Use these assets as shared execution references:
+
+- [Approved light overlap workbench](assets/workbench-light-overlap-v2.png) defines the single-pane
+  composition: project-scoped Threads on the left, the active file or thread in the centre, and the
+  compact Files/Changes region on the right.
+- [Approved light side-by-side workbench](assets/workbench-light-side-by-side-v2.png) defines the
+  paired composition in which the active thread and selected file share the centre region.
+- [Current reader screenshot](../../../user-facing-docs/assets/zd-reader.jpeg) and
+  [current comments screenshot](../../../user-facing-docs/assets/zd-comments.png) record the actual
+  editor typography, canvas, focus treatment, spacing, and restrained visual character that the
+  workbench must preserve.
+- [Current social card](../../../user-facing-docs/assets/zd-social-card.png) records public imagery
+  that the Documentation Goal must replace or regenerate from the implemented workbench.
+
+The goal acceptance criteria and the successor `VISION.md`/`DESIGN.md` remain authoritative. Current
+screenshots are evidence for retained editor behavior and appearance. The approved concepts are
+directional references for workbench composition, region placement, density, hierarchy, and light
+theme continuity; their sample copy and exact pixels are not implementation requirements.
+
 ## Goal Index
 
 | ID | Goal | Primary result | Prerequisites |

@@ -5,6 +5,17 @@
 Threads organize project-scoped terminal and future agent sessions, show where attention is needed,
 and switch the complete workbench to the thread's project/worktree without losing inactive work.
 
+## Visual References
+
+- [Approved overlap workbench](assets/workbench-light-overlap-v2.png) defines the compact left-side
+  project/thread hierarchy and the state in which a selected thread owns the centre surface.
+- [Approved side-by-side workbench](assets/workbench-light-side-by-side-v2.png) defines the state in
+  which the active thread remains beside the selected file.
+
+The project and thread names, lifecycle copy, and colours in the concepts are illustrative; this
+goal owns their real state and accessible presentation. Apply the shared Visual Reference Contract
+in `goal.md`.
+
 ## Acceptance Criteria
 
 1. A thread has a stable ID, project ID, optional worktree context, type, name, order, lifecycle,

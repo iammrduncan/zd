@@ -5,6 +5,18 @@
 `zd` provides fast, bounded native terminal sessions that can run ordinary shells and supported
 agent CLIs without crashes, runaway background work, or unbounded memory growth.
 
+## Visual References
+
+- [Approved side-by-side workbench](assets/workbench-light-side-by-side-v2.png) shows the intended
+  relationship between an active terminal-backed thread and the selected file.
+- [Approved overlap workbench](assets/workbench-light-overlap-v2.png) shows the shell state in which
+  selecting a terminal-backed thread replaces the centre file surface instead of adding a third
+  persistent region.
+
+These concepts define composition only; terminal rendering, input, accessibility, scrollback, and
+process behavior remain governed by this goal. Apply the shared Visual Reference Contract in
+`goal.md`.
+
 ## Acceptance Criteria
 
 1. A platform spike proves one pseudoterminal session can start, display output, accept input,

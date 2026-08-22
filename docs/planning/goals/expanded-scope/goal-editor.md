@@ -6,6 +6,20 @@ CodeMirror is the one editor engine for Markdown and code. Markdown keeps the cu
 directly editable reading experience; other supported text files receive a restrained code
 presentation with syntax highlighting and complete current-file find/replace.
 
+## Visual References
+
+- [Current reader](../../../user-facing-docs/assets/zd-reader.jpeg) and
+  [current comments view](../../../user-facing-docs/assets/zd-comments.png) are the actual baseline
+  for retained Markdown typography, rendered editing, focus treatment, measure, and light-theme
+  behavior.
+- [Approved overlap workbench](assets/workbench-light-overlap-v2.png) shows the editor owning the
+  centre surface by itself.
+- [Approved side-by-side workbench](assets/workbench-light-side-by-side-v2.png) shows the same editor
+  reflowed beside a thread without becoming a conventional IDE pane.
+
+The current screenshots govern retained editor character; the concepts govern workbench placement.
+Apply the shared Visual Reference Contract in `goal.md`.
+
 ## Decision
 
 Keep CodeMirror. It is faster and smaller than Monaco for this workbench, already supports the
