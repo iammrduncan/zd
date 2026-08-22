@@ -155,6 +155,7 @@ describe("root workbench commands", () => {
     expect(byId.get("file.find")?.chord).toEqual({ key: "f", mod: true });
     expect(byId.get("focus.toggle")?.chord).toEqual({ key: "f", mod: true, shift: true });
     expect(byId.get("thread.focus")?.chord).toEqual({ key: "j", mod: true });
+    expect(byId.get("files.filter")?.chord).toEqual({ key: "p", mod: true });
     expect(byId.get("command.list")?.chord).toEqual({ key: "p", mod: true, shift: true });
     expect(byId.get("window.summon")?.chord).toEqual({ key: " ", mod: true, shift: true });
     expect(byId.get("window.summon")?.scope).toBe("global");
