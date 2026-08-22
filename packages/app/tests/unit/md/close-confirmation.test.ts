@@ -7,7 +7,7 @@ import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { unavailableTerminalAdapter } from "@/terminal";
 
 import { mountCurrentWorkspace } from "@/miniapps/md";
-import { unavailableThreadWorktree, type Platform } from "@/platform";
+import { unavailableAttentionPlatform, unavailableThreadWorktree, type Platform } from "@/platform";
 import { attachShortcuts, clearCommands } from "@/workbench/shortcuts";
 import type { WorkbenchRuntimeContext } from "@/workbench/runtime";
 import type { ProjectGrant } from "@/workbench/resources";
@@ -49,6 +49,7 @@ describe("quitting with unsaved work", () => {
       problem: null,
     };
     const platform: Platform = {
+      ...unavailableAttentionPlatform,
       kind: "browser",
       launchRequest: async () => launch,
       onOpenRequested: () => () => {},

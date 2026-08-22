@@ -4,6 +4,8 @@ const invoke = vi.hoisted(() => vi.fn());
 const genericListen = vi.hoisted(() => vi.fn(async () => vi.fn()));
 const nativeWindow = vi.hoisted(() => ({
   onCloseRequested: vi.fn(),
+  isFocused: vi.fn(async () => false),
+  onFocusChanged: vi.fn(async () => vi.fn()),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
@@ -20,6 +22,10 @@ describe("the Tauri window boundary", () => {
     invoke.mockReset();
     genericListen.mockClear();
     nativeWindow.onCloseRequested.mockReset();
+    nativeWindow.isFocused.mockReset();
+    nativeWindow.isFocused.mockResolvedValue(false);
+    nativeWindow.onFocusChanged.mockReset();
+    nativeWindow.onFocusChanged.mockResolvedValue(vi.fn());
     forgetPreferences();
     window.localStorage.clear();
     vi.unstubAllGlobals();
@@ -279,6 +285,99 @@ describe("the Tauri window boundary", () => {
       ["reveal_diagnostics"],
       ["disable_diagnostics"],
     ]);
+  });
+
+  it("keeps thread notifications, actions, sound, summon, and focus behind closed boundaries", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    const request = {
+      schemaVersion: 1 as const,
+      notificationId: "attention:thread-alpha:1",
+      eventId: "thread-alpha:1",
+      projectId: "project-alpha",
+      worktreeId: "worktree-alpha",
+      threadId: "thread-alpha",
+      title: "zd" as const,
+      body: "Workbench · Review output · Codex",
+    };
+    const queued = {
+      schemaVersion: 1 as const,
+      notificationId: request.notificationId,
+      action: "view" as const,
+      projectId: request.projectId,
+      worktreeId: request.worktreeId,
+      threadId: request.threadId,
+    };
+    invoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "notification_permission":
+        case "notification_request_permission":
+          return "granted";
+        case "show_thread_notification":
+          return { status: "presented", problem: null };
+        case "pending_notification_actions":
+          return [queued];
+        case "play_completion_sound":
+          return { status: "played", problem: null };
+        case "show_workbench":
+          return "ordinary";
+        default:
+          return undefined;
+      }
+    });
+    nativeWindow.isFocused.mockResolvedValue(true);
+    const platform = detectPlatform();
+    const action = vi.fn();
+    const stop = platform.notifications.onAction(action);
+
+    await expect(platform.notifications.permission()).resolves.toBe("granted");
+    await expect(platform.notifications.requestPermission()).resolves.toBe("granted");
+    await expect(platform.notifications.show(request)).resolves.toEqual({
+      status: "presented",
+      problem: null,
+    });
+    await expect(
+      platform.notifications.playSound({ sound: "subtle", volume: 0.4 }),
+    ).resolves.toEqual({ status: "played", problem: null });
+    await expect(platform.showWorkbench()).resolves.toBe("ordinary");
+    await expect(platform.isWindowFocused()).resolves.toBe(true);
+    await vi.waitFor(() => expect(action).toHaveBeenCalledWith(queued));
+
+    expect(invoke).toHaveBeenCalledWith("show_thread_notification", { request });
+    expect(invoke).toHaveBeenCalledWith("play_completion_sound", {
+      request: { sound: "subtle", volume: 0.4 },
+    });
+    expect(invoke).toHaveBeenCalledWith("pending_notification_actions");
+    expect(request).not.toHaveProperty("prompt");
+    expect(request).not.toHaveProperty("output");
+    expect(request).not.toHaveProperty("path");
+    stop();
+  });
+
+  it("reports notification presentation as unsupported in the browser shell", async () => {
+    const platform = detectPlatform();
+    const request = {
+      schemaVersion: 1 as const,
+      notificationId: "attention:thread-alpha:1",
+      eventId: "thread-alpha:1",
+      projectId: "project-alpha",
+      worktreeId: "worktree-alpha",
+      threadId: "thread-alpha",
+      title: "zd" as const,
+      body: "Workbench · Review output · Codex",
+    };
+
+    await expect(platform.notifications.permission()).resolves.toBe("unsupported");
+    await expect(platform.notifications.requestPermission()).resolves.toBe("unsupported");
+    await expect(platform.notifications.show(request)).resolves.toMatchObject({
+      status: "unsupported",
+    });
+    await expect(
+      platform.notifications.playSound({ sound: "subtle", volume: 0.5 }),
+    ).resolves.toMatchObject({ status: "unsupported" });
+    expect(invoke).not.toHaveBeenCalled();
   });
 
   it("keeps diagnostics inert in the browser shell", async () => {

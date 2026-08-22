@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { unavailableThreadWorktree, type Platform } from "@/platform";
+import { unavailableAttentionPlatform, unavailableThreadWorktree, type Platform } from "@/platform";
 import { unavailableFileTreeAdapter } from "@/files";
 import { unavailableGitAdapter } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
@@ -61,6 +61,7 @@ function context(
   return {
     launch: request,
     platform: {
+      ...unavailableAttentionPlatform,
       kind: "browser",
       launchRequest: async () => launch(path),
       onOpenRequested: () => () => {},

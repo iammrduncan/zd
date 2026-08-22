@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { unavailableThreadWorktree, type Platform, type WorkspaceListing } from "@/platform";
+import {
+  unavailableAttentionPlatform,
+  unavailableThreadWorktree,
+  type Platform,
+  type WorkspaceListing,
+} from "@/platform";
 import { unavailableFileTreeAdapter } from "@/files";
 import { unavailableGitAdapter } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
@@ -60,6 +65,7 @@ function context(path: string, listing: WorkspaceListing): WorkbenchRuntimeConte
   return {
     launch: request,
     platform: {
+      ...unavailableAttentionPlatform,
       kind: "browser",
       launchRequest: async () => request,
       onOpenRequested: () => () => {},

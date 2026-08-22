@@ -1,6 +1,6 @@
 import "@/design/index.css";
 
-import { unavailableThreadWorktree, type Platform } from "@/platform";
+import { unavailableAttentionPlatform, unavailableThreadWorktree, type Platform } from "@/platform";
 import { unavailableFileTreeAdapter } from "@/files";
 import { unavailableGitAdapter } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
@@ -39,6 +39,7 @@ const documents = new Map([
 ]);
 
 const platform: Platform = {
+  ...unavailableAttentionPlatform,
   kind: "browser",
   launchRequest: async () => ({
     project,
