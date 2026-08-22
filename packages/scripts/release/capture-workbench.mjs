@@ -1,6 +1,9 @@
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import console from "node:console";
 import { dirname, resolve } from "node:path";
+import process from "node:process";
+import { setTimeout } from "node:timers";
+import { fileURLToPath } from "node:url";
 
 import { chromium } from "@playwright/test";
 
@@ -13,7 +16,7 @@ async function waitForServer() {
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(`${BASE_URL}/dev/workbench.html`);
+      const response = await globalThis.fetch(`${BASE_URL}/dev/workbench.html`);
       if (response.ok) return;
     } catch {
       // The local server is still starting.
@@ -37,7 +40,7 @@ async function createThread(page, projectId, name, agent) {
 async function prepareWorkbench(page) {
   await page.goto(`${BASE_URL}/dev/workbench.html`, { waitUntil: "networkidle" });
   await page.locator('html[data-workbench-ready="true"]').waitFor();
-  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => globalThis.document.fonts.ready);
 
   await createThread(page, "project-zd", "Build", "codex");
   await createThread(page, "project-zd", "Review", "shell");
@@ -53,7 +56,7 @@ async function prepareWorkbench(page) {
   if ((await src.getAttribute("aria-expanded")) !== "true") await src.click();
   await page.locator('[data-file-path="src/main.ts"]').click();
   await page.evaluate(() => {
-    window.workbenchDocumentationFixture.setCentreMode("overlap");
+    globalThis.workbenchDocumentationFixture.setCentreMode("overlap");
   });
   await page.locator(".cm-content").waitFor();
   await page.addStyleTag({
@@ -86,13 +89,13 @@ try {
   await prepareWorkbench(page);
 
   await page.evaluate(() => {
-    window.workbenchDocumentationFixture.setCentreMode("overlap");
+    globalThis.workbenchDocumentationFixture.setCentreMode("overlap");
   });
   await page.locator('[data-centre-surface="file"]').waitFor();
   await page.screenshot({ path: OVERLAP, animations: "disabled" });
 
   await page.evaluate(() => {
-    window.workbenchDocumentationFixture.setCentreMode("side-by-side");
+    globalThis.workbenchDocumentationFixture.setCentreMode("side-by-side");
   });
   await page.locator('[data-centre-surface="thread"]').waitFor();
   await page.screenshot({ path: SIDE_BY_SIDE, animations: "disabled" });
