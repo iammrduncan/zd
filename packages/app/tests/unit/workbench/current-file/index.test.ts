@@ -125,6 +125,10 @@ describe("the root current-file owner", () => {
     const unmount = await mountCurrentFile(host, fixture.runtime);
 
     expect(fixture.readBoundedFile).toHaveBeenCalledExactlyOnceWith(resource("src/main.ts"));
+    expect(host.querySelector(".current-file-path")?.textContent).toBe("src/main.ts");
+    expect(
+      host.querySelector<HTMLButtonElement>('[aria-label="Close src/main.ts"]'),
+    ).not.toBeNull();
     expect(host.querySelector(".md-editor")?.getAttribute("data-language")).toBe("code");
     expect(host.querySelector(".md-editor")?.getAttribute("data-focus-mode")).toBe("false");
     expect(host.querySelector(".cm-lineNumbers")).not.toBeNull();
@@ -140,6 +144,37 @@ describe("the root current-file owner", () => {
     expect(host.querySelector(".md-editor")?.getAttribute("data-focus-mode")).toBe("true");
     unmount();
     expect(host.children).toHaveLength(0);
+    host.remove();
+  });
+
+  it("discards unsaved edits from the file header and can close the current file", async () => {
+    const fixture = context({
+      status: "text",
+      text: "const value = 1;",
+      byteLength: 16,
+      writable: true,
+    });
+    const host = document.createElement("div");
+    document.body.append(host);
+    const unmount = await mountCurrentFile(host, fixture.runtime);
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".md-editor")!)!;
+    const discard = host.querySelector<HTMLButtonElement>(
+      '[aria-label="Discard edits to src/main.ts"]',
+    )!;
+
+    expect(discard.hidden).toBe(true);
+    view.dispatch({ changes: { from: view.state.doc.length, insert: "\nconst mine = 2;" } });
+    await vi.waitFor(() => expect(discard.hidden).toBe(false));
+    discard.click();
+
+    expect(view.state.doc.toString()).toBe("const value = 1;");
+    expect(discard.hidden).toBe(true);
+    expect(fixture.writeTextFile).not.toHaveBeenCalled();
+
+    host.querySelector<HTMLButtonElement>('[aria-label="Close src/main.ts"]')!.click();
+    await vi.waitFor(() => expect(fixture.runtime.state.snapshot().active.fileId).toBeNull());
+    expect(host.textContent).toContain("No file selected.");
+    unmount();
     host.remove();
   });
 

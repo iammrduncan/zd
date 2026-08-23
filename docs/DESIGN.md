@@ -468,7 +468,9 @@ metadata. Diff navigation never marks the live file dirty.
 ### Shared surface
 
 Markdown and code use one CodeMirror owner and one uninterrupted `surface.canvas`. A file does not
-sit on a card and does not receive a tab strip, breadcrumb, or editor toolbar.
+sit on a card and does not receive a tab strip, breadcrumb, or editor toolbar. One quiet subchrome
+row identifies the current relative path and owns the explicit Discard and Close actions. It is
+file identity and lifecycle control, not a second navigation surface.
 
 The editor opens without a caret. First pointer or keyboard intent places one. Selection, caret,
 undo, save truth, Find, Focus, and viewport restoration derive from one document state.

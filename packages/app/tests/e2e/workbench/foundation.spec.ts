@@ -264,6 +264,26 @@ test("a dirty file survives context switches and is bold in the Files tree", asy
   await expect(page.locator(".current-file .cm-content")).toContainText("const unsaved = true;");
 });
 
+test("the file subchrome identifies, discards, and closes the current file", async ({ page }) => {
+  await page.locator('[data-project-id="project-zd"] .zd-project-row').click();
+  await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
+  await expect(page.locator(".current-file-path")).toHaveText("README.md");
+  const content = page.locator(".current-file .cm-content");
+  await content.click();
+  await content.press("End");
+  await content.pressSequentially("\nthrowaway");
+
+  const discard = page.getByRole("button", { name: "Discard edits to README.md" });
+  await expect(discard).toBeVisible();
+  await discard.click();
+  await expect(content).not.toContainText("throwaway");
+  await expect(discard).toBeHidden();
+
+  await page.getByRole("button", { name: "Close README.md" }).click();
+  await expect(page.locator(".current-file-path")).toHaveText("src/main.ts");
+  await expect(page.getByRole("button", { name: "Close README.md" })).toHaveCount(0);
+});
+
 test("a file context menu copies relative and full paths", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   const row = page.getByRole("treeitem", { name: "README.md, Markdown file, modified" });
