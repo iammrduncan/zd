@@ -7,6 +7,7 @@ export interface FileTreeScope {
 }
 
 export type FileTreeEntryKind = "directory" | "file" | "symlink";
+export type FilePathPresentation = "relative" | "full";
 
 export type FileCategory =
   "directory" | "markdown" | "code" | "config" | "data" | "image" | "text" | "binary" | "unknown";
@@ -102,6 +103,7 @@ export const unavailableFileTreeAdapter: FileTreeAdapter = {
 /** Root-owned context transition. The Files feature never sets active file state itself. */
 export interface FileTreeActions {
   activateFile(resource: FileResource): Promise<TransitionResult>;
+  copyPath?(resource: FileResource, presentation: FilePathPresentation): Promise<void>;
 }
 
 export type FileTreeRefreshReason = "activate" | "disk" | "focus" | "manual";

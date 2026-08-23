@@ -214,6 +214,34 @@
   font-weight: var(--type-h6-weight);
 }
 
+.zd-file-tree-menu {
+  position: fixed;
+  z-index: 2;
+  display: grid;
+  min-inline-size: calc(var(--space-4) * 5);
+  padding-block: var(--space-1);
+  border: var(--hairline) solid var(--line-quiet);
+  background: var(--surface-transient);
+}
+
+.zd-file-tree-menu-action {
+  appearance: none;
+  min-block-size: var(--space-4);
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  text-align: start;
+}
+
+.zd-file-tree-menu-action:is(:hover, :focus-visible) {
+  outline: 0;
+  background: var(--surface-selection);
+  color: var(--text-primary);
+}
+
 .zd-file-tree-status,
 .zd-file-tree-notice {
   margin: 0;

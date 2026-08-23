@@ -120,6 +120,7 @@ function createRow(
   button.setAttribute("aria-label", fileTreeEntryLabel(row.entry, dirty));
   button.setAttribute("aria-description", row.entry.relativePath);
   button.setAttribute("aria-selected", String(snapshot.selectedPath === row.entry.relativePath));
+  if (row.entry.kind !== "directory") button.setAttribute("aria-haspopup", "menu");
   if (snapshot.activePath === row.entry.relativePath) button.setAttribute("aria-current", "page");
   if (row.entry.kind === "directory" && row.hasChildren) {
     button.setAttribute("aria-expanded", String(row.expanded));
@@ -199,6 +200,77 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
   let current = controller.snapshot();
   let rows = controller.rows();
   let active = true;
+  let fileMenu: HTMLElement | null = null;
+  let fileMenuPath: string | null = null;
+  const fileRow = (path: string): HTMLElement | undefined =>
+    [...ui.layer.querySelectorAll<HTMLElement>("[data-file-path]")].find(
+      (candidate) => candidate.dataset.filePath === path,
+    );
+
+  const dismissFileMenu = (restoreFocus = false): void => {
+    const path = fileMenuPath;
+    fileMenu?.remove();
+    fileMenu = null;
+    fileMenuPath = null;
+    document.removeEventListener("pointerdown", dismissFileMenuFromPointer);
+    document.removeEventListener("keydown", dismissFileMenuFromKeyboard);
+    if (!restoreFocus || !path) return;
+    fileRow(path)?.focus();
+  };
+
+  function dismissFileMenuFromPointer(event: PointerEvent): void {
+    if (fileMenu?.contains(event.target as Node)) return;
+    dismissFileMenu();
+  }
+
+  function dismissFileMenuFromKeyboard(event: KeyboardEvent): void {
+    if (event.key !== "Escape" || !fileMenu) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dismissFileMenu(true);
+  }
+
+  const openFileMenu = (
+    path: string,
+    name: string,
+    inlineStart: number,
+    blockStart: number,
+  ): void => {
+    dismissFileMenu();
+    controller.select(path);
+
+    const menu = document.createElement("div");
+    menu.className = "zd-file-tree-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", `${name} file actions`);
+
+    for (const [presentation, label] of [
+      ["relative", "Copy Relative Path"],
+      ["full", "Copy Full Path"],
+    ] as const) {
+      const action = document.createElement("button");
+      action.type = "button";
+      action.className = "zd-file-tree-menu-action";
+      action.dataset.copyPath = presentation;
+      action.setAttribute("role", "menuitem");
+      action.textContent = label;
+      action.addEventListener("click", () => {
+        dismissFileMenu(true);
+        void controller.copyPath(path, presentation);
+      });
+      menu.append(action);
+    }
+    ui.root.append(menu);
+
+    const bounds = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(0, Math.min(inlineStart, window.innerWidth - bounds.width))}px`;
+    menu.style.top = `${Math.max(0, Math.min(blockStart, window.innerHeight - bounds.height))}px`;
+    fileMenu = menu;
+    fileMenuPath = path;
+    document.addEventListener("pointerdown", dismissFileMenuFromPointer);
+    document.addEventListener("keydown", dismissFileMenuFromKeyboard);
+    menu.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  };
 
   const renderRows = (): void => {
     if (!active) return;
@@ -258,13 +330,40 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
   });
   ui.filterClose.addEventListener("click", dismissFilter);
   ui.viewport.addEventListener("scroll", () => {
+    dismissFileMenu();
     controller.setScroll({ top: ui.viewport.scrollTop, left: ui.viewport.scrollLeft });
     renderRows();
+  });
+  ui.viewport.addEventListener("contextmenu", (event) => {
+    const target = (event.target as HTMLElement).closest<HTMLElement>("[data-file-path]");
+    if (!target || target.dataset.fileKind === "directory") return;
+    event.preventDefault();
+    openFileMenu(
+      target.dataset.filePath!,
+      target.querySelector<HTMLElement>(".zd-file-tree-name")?.textContent ??
+        target.dataset.filePath!,
+      event.clientX,
+      event.clientY,
+    );
   });
   ui.viewport.addEventListener("keydown", (event) => {
     const eventPath = (event.target as HTMLElement).dataset.filePath ?? null;
     if (eventPath && controller.snapshot().selectedPath !== eventPath) controller.select(eventPath);
     const selected = eventPath ?? controller.snapshot().selectedPath;
+    if (selected && (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey))) {
+      const target = fileRow(selected);
+      if (target && target.dataset.fileKind !== "directory") {
+        event.preventDefault();
+        const bounds = target.getBoundingClientRect();
+        openFileMenu(
+          selected,
+          target.querySelector<HTMLElement>(".zd-file-tree-name")?.textContent ?? selected,
+          bounds.left,
+          bounds.bottom,
+        );
+      }
+      return;
+    }
     let next: string | null = selected;
     switch (event.key) {
       case "ArrowDown":
@@ -302,6 +401,7 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
   return () => {
     if (!active) return;
     active = false;
+    dismissFileMenu();
     unsubscribe();
     window.removeEventListener("resize", renderRows);
     ui.root.remove();

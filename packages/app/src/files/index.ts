@@ -11,6 +11,7 @@ export { mountFileTree } from "./view";
 export type {
   FileCategory,
   FileGitState,
+  FilePathPresentation,
   FileTreeActions,
   FileTreeAdapter,
   FileTreeEntry,

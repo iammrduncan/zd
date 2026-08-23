@@ -252,6 +252,34 @@ describe("the root Files and Git coordinator", () => {
     detach();
   });
 
+  it("copies relative and full paths using the active approved worktree root", async () => {
+    const owner = createWorkbenchStateOwner(workbenchStateFromGrants([alpha], launch(alpha)));
+    const copyText = vi.fn(async () => {});
+    const runtime = createWorkbenchFilesRuntime(
+      owner,
+      { snapshot: vi.fn(async () => treeResult(alpha)), watch: () => () => {} },
+      gitAdapter(async () => gitResult(alpha, "modified")),
+      createUnavailableInstrumentationClient(),
+      undefined,
+      copyText,
+    );
+    const detach = runtime.attach();
+    await vi.waitFor(() => expect(runtime.controller.snapshot().state).toBe("ready"));
+
+    await runtime.controller.copyPath("README.md", "relative");
+    expect(copyText).toHaveBeenLastCalledWith("README.md");
+    expect(runtime.controller.snapshot().notice).toBe("Copied relative path.");
+
+    await runtime.controller.copyPath("README.md", "full");
+    expect(copyText).toHaveBeenLastCalledWith("/work/alpha/README.md");
+    expect(runtime.controller.snapshot().notice).toBe("Copied full path.");
+
+    copyText.mockRejectedValueOnce(new Error("Clipboard permission was denied."));
+    await runtime.controller.copyPath("README.md", "relative");
+    expect(runtime.controller.snapshot().notice).toBe("Clipboard permission was denied.");
+    detach();
+  });
+
   it("refreshes on bounded disk and focus signals without polling", async () => {
     const owner = createWorkbenchStateOwner(workbenchStateFromGrants([alpha], launch(alpha)));
     let fileAdded = false;
