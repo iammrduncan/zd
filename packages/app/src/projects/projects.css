@@ -100,7 +100,7 @@
 
 .zd-project-row[aria-current="true"] {
   border-inline-start-color: var(--line-focus);
-  background: var(--surface-selection);
+  background: color-mix(in srgb, var(--surface-selection), var(--text-primary) 8%);
   color: var(--text-primary);
 }
 
