@@ -46,9 +46,11 @@ accept an executable, argument list, environment, or arbitrary path from the fro
 
 ## Switch, rename, or reorder threads
 
-Choose a thread row to activate the complete project/worktree/thread context. A thread row shows
-its type, lifecycle, worktree, and attention state. Rename and reorder actions preserve its stable
-identity and terminal session.
+Choose a thread row to activate the complete project/worktree/thread context. Secondary-click a
+thread (or press the keyboard Context Menu key) to choose whether every row's second line shows the
+running app/status, current approved directory, or branch/worktree. The choice is remembered.
+Attention remains available in the row's state and accessible label. Rename and reorder actions
+preserve its stable identity and terminal session.
 
 Closing a live thread asks you to terminate its process first. Removing a thread never deletes its
 Git worktree or branch. If the project, worktree, or terminal process is missing, the row stays

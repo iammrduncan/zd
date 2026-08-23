@@ -19,6 +19,7 @@ export type ThreadType = TerminalThreadType;
 export interface ThreadWorktreeContext {
   readonly id: string;
   readonly label: string;
+  readonly root: string;
   readonly kind: "project-root" | "worktree";
   readonly availability: ProjectAvailability;
 }

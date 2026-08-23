@@ -18,6 +18,7 @@ function record(id: string, order = 0): ThreadRecord {
     worktree: {
       id: "project-alpha-root",
       label: "project root",
+      root: "/workspace/alpha",
       kind: "project-root",
       availability: "available",
     },

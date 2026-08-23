@@ -92,6 +92,7 @@ function threadsNavigationMount(
           workspaces: project.worktrees.map((worktree) => ({
             id: worktree.id,
             label: worktree.name,
+            root: worktree.root,
             kind: worktree.root === project.root ? "project-root" : "worktree",
             availability: worktree.availability,
           })),

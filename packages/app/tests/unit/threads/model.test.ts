@@ -17,6 +17,7 @@ function thread(overrides: Partial<ThreadRecord> = {}): ThreadRecord {
     worktree: {
       id: "worktree-alpha",
       label: "feature/threads",
+      root: "/workspace/feature-threads",
       kind: "worktree",
       availability: "available",
     },

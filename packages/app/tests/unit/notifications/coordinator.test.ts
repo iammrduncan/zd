@@ -29,6 +29,7 @@ function thread(overrides: Partial<ThreadRecord> = {}): ThreadRecord {
     worktree: {
       id: "worktree-alpha",
       label: "main",
+      root: "/workspace/alpha",
       kind: "project-root",
       availability: "available",
     },

@@ -70,6 +70,7 @@ export function threadRecordFromState(
     worktree: {
       id: thread.worktreeId,
       label: worktree?.name ?? thread.worktreeId,
+      root: worktree?.root ?? thread.worktreeId,
       kind: project && worktree?.root === project.root ? "project-root" : "worktree",
       availability: worktree?.availability ?? "missing",
     },

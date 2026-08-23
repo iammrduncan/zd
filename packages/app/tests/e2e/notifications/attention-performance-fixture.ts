@@ -27,6 +27,7 @@ const snapshot: ThreadWorkbenchSnapshot = {
       worktree: {
         id: "performance-worktree",
         label: "main",
+        root: "/workspace/performance",
         kind: "project-root",
         availability: "available",
       },

@@ -38,6 +38,7 @@ const snapshot: ThreadWorkbenchSnapshot = {
       worktree: {
         id: thread.worktreeId,
         label: "main",
+        root: "/work",
         kind: "project-root",
         availability: "available",
       },
