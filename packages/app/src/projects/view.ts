@@ -11,6 +11,7 @@ export interface ProjectListOptions {
   readonly renderChildren?: (
     project: ProjectListItem,
     host: HTMLElement,
+    actionHost: HTMLElement,
   ) => void | ProjectChildUnmount;
 }
 
@@ -114,6 +115,9 @@ export function mountProjectList(
       const projectHeading = document.createElement("div");
       projectHeading.className = "zd-project-heading";
 
+      const projectActions = document.createElement("div");
+      projectActions.className = "zd-project-actions";
+
       const row = document.createElement("button");
       row.type = "button";
       row.className = "zd-project-row";
@@ -172,7 +176,7 @@ export function mountProjectList(
       remove.addEventListener("click", () => {
         void perform(() => controller.removeProject(project.id));
       });
-      projectHeading.append(row, remove);
+      projectHeading.append(row, projectActions, remove);
       group.append(projectHeading);
 
       if (project.recovery) {
@@ -201,7 +205,7 @@ export function mountProjectList(
       children.setAttribute("role", "group");
       children.setAttribute("aria-label", `${project.name} threads`);
       group.append(children);
-      const cleanup = options.renderChildren?.(project, children);
+      const cleanup = options.renderChildren?.(project, children, projectActions);
       if (cleanup) childCleanups.push(cleanup);
 
       list.append(group);

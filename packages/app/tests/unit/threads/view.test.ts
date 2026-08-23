@@ -207,7 +207,7 @@ describe("the Threads region", () => {
     expect(host.children).toHaveLength(0);
   });
 
-  it("creates, renames, closes, and removes threads through explicit compact controls", async () => {
+  it("creates a project-root terminal immediately with an automatic name", async () => {
     const workbench = adapter();
     const host = document.createElement("div");
     mountProjectThreads(host, new ThreadsController(workbench), "alpha", {
@@ -219,40 +219,29 @@ describe("the Threads region", () => {
           kind: "project-root",
           availability: "available",
         },
-        {
-          id: "alpha-review",
-          label: "feature/review",
-          kind: "worktree",
-          availability: "available",
-        },
       ],
     });
 
-    host.querySelector<HTMLButtonElement>("[data-thread-create-toggle]")!.click();
-    const create = host.querySelector<HTMLFormElement>("[data-thread-create]")!;
-    const name = create.querySelector<HTMLInputElement>('[name="thread-name"]')!;
-    const agent = create.querySelector<HTMLSelectElement>('[name="thread-agent"]')!;
-    const workspace = create.querySelector<HTMLSelectElement>('[name="thread-workspace"]')!;
-    name.value = "Implement search";
-    agent.value = "codex";
-    workspace.value = "new-worktree";
-    workspace.dispatchEvent(new Event("change", { bubbles: true }));
-    create.querySelector<HTMLInputElement>('[name="worktree-name"]')!.value = "search";
-    create.querySelector<HTMLInputElement>('[name="worktree-branch"]')!.value = "feature/search";
-    create.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+    const create = host.querySelector<HTMLButtonElement>("[data-thread-create-toggle]")!;
+    create.click();
     await settle();
 
+    expect(host.querySelector("[data-thread-create]")).toBeNull();
     expect(workbench.createThread).toHaveBeenCalledExactlyOnceWith({
-      name: "Implement search",
-      type: { kind: "terminal", agent: "codex" },
+      name: "Terminal",
+      type: { kind: "terminal", agent: "shell" },
       workspace: {
-        kind: "new-worktree",
+        kind: "project-root",
         projectId: "alpha",
-        name: "search",
-        branch: "feature/search",
-        baseRevision: null,
+        worktreeId: "alpha-root",
       },
     });
+  });
+
+  it("renames, closes, and removes threads through separate compact controls", async () => {
+    const workbench = adapter();
+    const host = document.createElement("div");
+    mountProjectThreads(host, new ThreadsController(workbench), "alpha");
 
     host.querySelector<HTMLButtonElement>('[data-thread-rename="review"]')!.click();
     const rename = host.querySelector<HTMLFormElement>('[data-thread-rename-form="review"]')!;
@@ -288,8 +277,12 @@ describe("the Threads region", () => {
     expect(terminate).toHaveBeenCalledOnce();
   });
 
-  it("does not let hidden new-worktree requirements block a project-root thread", async () => {
-    const workbench = adapter();
+  it("increments automatic names without asking for another field", async () => {
+    const current = initialSnapshot();
+    const workbench = adapter({
+      ...current,
+      threads: [...current.threads, thread("terminal", "alpha", { name: "Terminal", order: 2 })],
+    });
     const host = document.createElement("div");
     mountProjectThreads(host, new ThreadsController(workbench), "alpha", {
       projectName: "Alpha",
@@ -303,13 +296,10 @@ describe("the Threads region", () => {
       ],
     });
     host.querySelector<HTMLButtonElement>("[data-thread-create-toggle]")!.click();
-    const form = host.querySelector<HTMLFormElement>("[data-thread-create]")!;
-    form.querySelector<HTMLInputElement>('[name="thread-name"]')!.value = "New shell";
-    form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
     await settle();
 
     expect(workbench.createThread).toHaveBeenCalledExactlyOnceWith({
-      name: "New shell",
+      name: "Terminal 2",
       type: { kind: "terminal", agent: "shell" },
       workspace: {
         kind: "project-root",

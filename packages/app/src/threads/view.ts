@@ -2,7 +2,7 @@ import "./threads.css";
 
 import { orderedProjectThreads } from "./model";
 import type { ThreadsController } from "./controller";
-import { createThreadCreator, type ProjectThreadsOptions } from "./create-view";
+import { createThreadAction, type ProjectThreadsOptions } from "./create-view";
 import { renderThreadActions } from "./row-actions";
 import type { ThreadProjectGroup, ThreadRecord, ThreadWorkbenchSnapshot } from "./types";
 import { performThreadAction } from "./view-actions";
@@ -265,8 +265,11 @@ function mountThreadView(
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
   status.hidden = true;
-  const creator = projectId ? createThreadCreator(controller, projectId, status, options) : null;
-  root.append(...(creator ? [creator] : []), list, status);
+  const createAction = projectId
+    ? createThreadAction(controller, projectId, status, options)
+    : null;
+  if (createAction) (options.actionHost ?? root).append(createAction);
+  root.append(list, status);
   host.append(root);
 
   const context = { root, list, status, controller, ...(projectId ? { projectId } : {}) };
@@ -275,6 +278,7 @@ function mountThreadView(
 
   return () => {
     unsubscribe();
+    createAction?.remove();
     root.remove();
   };
 }

@@ -47,9 +47,10 @@ function threadsNavigationMount(
       createProjectWorkbenchAdapter(context.state, context.platform, context.instrumentation),
     );
     const stopProjects = mountProjectList(host, projects, {
-      renderChildren: (project, children) =>
+      renderChildren: (project, children, actionHost) =>
         mountProjectThreads(children, threads, project.id, {
           projectName: project.name,
+          actionHost,
           workspaces: project.worktrees.map((worktree) => ({
             id: worktree.id,
             label: worktree.name,
