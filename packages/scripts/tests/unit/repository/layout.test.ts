@@ -133,6 +133,17 @@ describe("package ownership", () => {
     });
   });
 
+  it("preserves the invoking directory for ordinary Tauri development launches", () => {
+    const rootPackage = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    const cwdPreservingLaunch =
+      'ZD_CWD="$INIT_CWD" tauri dev --config packages/tauri/tauri.conf.json -- --';
+
+    expect(rootPackage.scripts.app).toBe(cwdPreservingLaunch);
+    expect(rootPackage.scripts["app:open"]).toBe(cwdPreservingLaunch);
+  });
+
   it("keeps the desktop runtime network-closed by default", () => {
     const config = JSON.parse(
       readFileSync(resolve(ROOT, "packages/tauri/tauri.conf.json"), "utf8"),
