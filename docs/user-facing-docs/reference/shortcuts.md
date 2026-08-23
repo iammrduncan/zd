@@ -9,6 +9,7 @@ the current context.
 | Find in the current file or terminal | `Cmd+F` | `Ctrl+F` |
 | Toggle Focus Mode | `Cmd+Shift+F` | `Ctrl+Shift+F` |
 | Filter the active file tree | `Cmd+P` | `Ctrl+P` |
+| Show or hide Files and Changes | `Cmd+Shift+B` | `Ctrl+Shift+B` |
 | Open the searchable Command List | `Cmd+Shift+P` | `Ctrl+Shift+P` |
 | Open or close Settings | `Cmd+,` | `Ctrl+,` |
 | Activate project 1 through 9 | `Cmd+1` … `Cmd+9` | `Ctrl+1` … `Ctrl+9` |

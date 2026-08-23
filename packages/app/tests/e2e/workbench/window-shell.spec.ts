@@ -121,6 +121,21 @@ test("manually collapses Projects to icons and restores its saved width", async 
   await expect(projects.locator(".zd-thread-labels:visible")).toHaveCount(1);
 });
 
+test("hides and restores Files and Changes from a persistent text action", async ({ page }) => {
+  await page.setViewportSize({ width: 1300, height: 800 });
+  await page.goto("/dev/workbench.html");
+  const shell = page.locator(".zd-workbench");
+  const files = page.locator('[data-region="files"]');
+
+  await page.getByRole("button", { name: "Hide Files and Changes" }).click();
+  await expect(shell).toHaveAttribute("data-files-visibility", "hidden");
+  await expect(files).toBeHidden();
+
+  await page.getByRole("button", { name: "Show Files and Changes" }).click();
+  await expect(shell).toHaveAttribute("data-files-visibility", "visible");
+  await expect(files).toHaveCSS("width", "280px");
+});
+
 test("applies responsive regions in the specified suppression order", async ({ page }) => {
   await page.setViewportSize({ width: 1260, height: 800 });
   await page.goto("/");

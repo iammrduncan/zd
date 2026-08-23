@@ -9,6 +9,7 @@ import type { WorkbenchMount, WorkbenchRuntimeContext } from "@/workbench/runtim
 import { fitNavigationWidths, mountWorkbenchShell } from "@/workbench/shell";
 import { createWorkbenchStateOwner } from "@/workbench/state";
 import { homeLaunch } from "@/workbench/resources";
+import { runCommandTarget } from "@/workbench/shortcuts";
 
 function context(): WorkbenchRuntimeContext {
   const platform: Platform = {
@@ -179,6 +180,20 @@ describe("the root workbench shell", () => {
 
     expect(runtime.state.snapshot().regions.files.tab).toBe("changes");
     expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual(["false", "true"]);
+  });
+
+  it("keeps a semantic visibility target available after Files and Changes is hidden", async () => {
+    const runtime = context();
+    const host = document.createElement("div");
+    const unmount = await mountWorkbenchShell(host, runtime, () => () => {});
+
+    expect(runCommandTarget("files.toggleVisibility")).toBe(true);
+    expect(runtime.state.snapshot().regions.files.visibility).toBe("hidden");
+    expect(host.querySelector("[data-files-visibility-toggle]")?.textContent).toBe("Show Files");
+
+    expect(runCommandTarget("files.toggleVisibility")).toBe(true);
+    expect(runtime.state.snapshot().regions.files.visibility).toBe("visible");
+    unmount();
   });
 
   it("projects one geometry snapshot into attributes and CSS variables", async () => {
