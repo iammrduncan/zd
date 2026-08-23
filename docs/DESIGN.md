@@ -411,8 +411,9 @@ the row's accessible name and contextual description. A selected conflicted/dele
 its condition in the content surface.
 
 Filter is a focused text row that appears only when summoned. It narrows the current hierarchy by
-name, path, or supported category and states result count quietly. Clearing restores the existing
-expansion, selection, and scroll. It is not workspace content search.
+name, path, or supported category and states result count quietly. Its visible close action and
+`Escape` both dismiss the row and restore the existing expansion, selection, scroll, and tree focus.
+It is not workspace content search.
 
 Loading, empty, denied, missing, non-directory, watcher failure, and non-repository conditions are
 honest text rows. Updates never collapse unrelated directories or move the active file.

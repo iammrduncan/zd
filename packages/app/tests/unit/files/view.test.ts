@@ -156,6 +156,18 @@ describe("Files tree view", () => {
     });
   });
 
+  it("provides a visible action that closes the summoned filter", async () => {
+    const fixture = await mounted([entry("main.ts"), entry("notes.md")]);
+    fixture.controller.summonFilter();
+
+    const close = fixture.host.querySelector<HTMLButtonElement>("[data-file-filter-close]");
+    expect(close?.getAttribute("aria-label")).toBe("Close file filter");
+    close!.click();
+
+    expect(fixture.controller.snapshot().filterOpen).toBe(false);
+    expect(fixture.host.querySelector<HTMLElement>(".zd-file-tree-filter")?.hidden).toBe(true);
+  });
+
   it("virtualizes a large logical tree and retains controller state across remount", async () => {
     const entries = Array.from({ length: 10_000 }, (_, index) =>
       entry(`file-${index.toString().padStart(5, "0")}.txt`),
