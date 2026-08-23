@@ -361,6 +361,10 @@ Threads is a project/thread hierarchy, not a dashboard.
 - Hover uses a reduced selection wash and never changes metrics.
 - Project and thread order is stable while status updates arrive.
 
+Worktree labels are live native Git identity, not launch-time display strings. A checkout updates
+the project hierarchy, thread supporting text, and terminal metadata from the refreshed approved
+grant when Git HEAD changes; the webview never derives a branch name from a path or shell output.
+
 Full-width mode shows complete labels and no redundant project monogram. Collapsed mode shows
 project monograms plus labelled terminal/agent icons with state dots and accessible names; hover or
 keyboard focus reveals the text label without expanding the whole region. Hidden mode removes the

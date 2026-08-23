@@ -179,7 +179,16 @@ impl GrantStore {
         ))
     }
 
-    pub fn projects(&self) -> Vec<ProjectGrant> {
+    pub fn projects(&mut self) -> Vec<ProjectGrant> {
+        for worktree in self
+            .projects
+            .iter_mut()
+            .flat_map(|project| &mut project.worktrees)
+        {
+            if availability(&worktree.root) == GrantAvailability::Available {
+                worktree.name = worktree_label(&worktree.root);
+            }
+        }
         self.projects.iter().map(describe_project).collect()
     }
 
@@ -379,6 +388,7 @@ fn resolve_relative(root: &Path, requested: &str) -> Result<PathBuf, String> {
 mod tests {
     use super::{GrantAvailability, GrantStore, ResourceRef};
     use std::path::PathBuf;
+    use std::process::Command;
 
     struct Scratch(PathBuf);
 
@@ -410,6 +420,16 @@ mod tests {
             worktree_id: worktree_id.to_string(),
             relative_path: relative_path.to_string(),
         }
+    }
+
+    fn git(root: &std::path::Path, arguments: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(arguments)
+            .status()
+            .expect("run git");
+        assert!(status.success(), "git {arguments:?} failed");
     }
 
     #[test]
@@ -457,6 +477,26 @@ mod tests {
 
         assert_eq!(first, second);
         assert_eq!(grants.projects().len(), 1);
+    }
+
+    #[test]
+    fn project_descriptions_refresh_the_live_worktree_branch() {
+        let project = Scratch::new("live-branch");
+        git(&project.0, &["init", "--quiet"]);
+        git(
+            &project.0,
+            &["symbolic-ref", "HEAD", "refs/heads/feature/first"],
+        );
+        let mut grants = GrantStore::default();
+        let approved = grants.approve_project(&project.0).unwrap();
+        assert_eq!(approved.project.worktrees[0].name, "feature/first");
+
+        git(
+            &project.0,
+            &["symbolic-ref", "HEAD", "refs/heads/feature/live"],
+        );
+
+        assert_eq!(grants.projects()[0].worktrees[0].name, "feature/live");
     }
 
     #[test]

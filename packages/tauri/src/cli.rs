@@ -98,11 +98,8 @@ impl LaunchState {
     }
 
     pub fn project_grants(&self) -> Vec<ProjectGrant> {
-        self.0
-            .lock()
-            .expect("launch state was poisoned")
-            .grants
-            .projects()
+        let mut session = self.0.lock().expect("launch state was poisoned");
+        session.grants.projects()
     }
 
     pub fn approve_project(&self, root: &Path) -> Result<ProjectGrant, String> {

@@ -247,6 +247,8 @@ export async function mountWorkbenchFeatures(
     context.platform.git,
     context.instrumentation,
     drafts,
+    undefined,
+    () => context.platform.projectGrants(),
   );
   const stopFilesRuntime = files.attach();
   const changes = createWorkbenchChangesRuntime(
