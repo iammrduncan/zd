@@ -18,6 +18,7 @@ import type { Unmount, WorkbenchMount, WorkbenchRuntimeContext } from "./runtime
 import { mountWorkbenchShell } from "./shell";
 import { registerCommandTarget } from "./shortcuts";
 import { mountWorkbenchSettings } from "./settings";
+import { FileDraftStore } from "./current-file/drafts";
 import { createRootThreadsAdapter, type RootThreadsAdapter } from "./threads";
 
 function recordThreadAction(
@@ -238,11 +239,13 @@ export async function mountWorkbenchFeatures(
     context.instrumentation,
   );
   const stopAttention = attention.attach();
+  const drafts = new FileDraftStore();
   const files = createWorkbenchFilesRuntime(
     context.state,
     context.platform.fileTree,
     context.platform.git,
     context.instrumentation,
+    drafts,
   );
   const stopFilesRuntime = files.attach();
   const changes = createWorkbenchChangesRuntime(
@@ -260,7 +263,7 @@ export async function mountWorkbenchFeatures(
       thread: (threadHost, threadContext) =>
         mountActiveThread(threadHost, threadContext, threadsAdapter),
       file: (fileHost, fileContext) =>
-        mountCurrentFileWithChanges(fileHost, fileContext, changes.controller),
+        mountCurrentFileWithChanges(fileHost, fileContext, changes.controller, drafts),
       files: (filesHost) => mountFileTree(filesHost, files.controller),
       changes: (changesHost) => mountChanges(changesHost, changes.controller),
     });

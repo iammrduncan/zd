@@ -32,7 +32,8 @@ The first positional argument is the launch path. There is no product or surface
 
 Opening `zd.app` from Finder, Spotlight, or the Dock opens the same root workbench without selecting
 a file. Opening an associated `.md` or `.markdown` file queues that file for the running app. A
-dirty current file must allow the switch before the active context changes.
+recoverable draft keeps unsaved text and does not block the switch. Returning to the previous file
+restores that text.
 
 Ordinary activation reuses the one root window. The global shortcut presents that same window as
 quick access; repeated summon, Escape, or focus loss hides it without closing projects, files, or

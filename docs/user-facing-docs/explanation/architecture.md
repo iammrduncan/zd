@@ -11,8 +11,9 @@ presentation, and theme selection. Projects, Threads, Files, Changes, the editor
 observe that state and request guarded transitions from it.
 
 This is why choosing a thread can restore its project, worktree, file, and terminal together.
-Features do not stitch a context switch together with independent setters, and a dirty file or live
-process can refuse an unsafe transition.
+Features do not stitch a context switch together with independent setters. A pending native write
+or live process can still refuse an unsafe transition, while unsaved file text remains a local,
+recoverable draft and does not block navigation.
 
 ## Narrow native authority
 
@@ -31,6 +32,11 @@ CodeMirror owns the current Markdown or code buffer, language selection, Find/Re
 undo history, and dirty state. Markdown decorations shape the editable source as a reading surface;
 code files use a compact code presentation. Git comparisons create separate read-only buffers with
 explicit revision identities, so they cannot overwrite the live document.
+
+Each unsaved editable file is stored under its approved project, worktree, and relative path.
+Returning to that file restores the draft, including after `zd` relaunches. Saving the file clears
+the draft. The Files tree bolds its name and includes `unsaved` in its accessible label while the
+draft exists.
 
 ## Local and opt-in behavior
 

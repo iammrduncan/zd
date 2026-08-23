@@ -439,6 +439,12 @@ sit on a card and does not receive a tab strip, breadcrumb, or editor toolbar.
 The editor opens without a caret. First pointer or keyboard intent places one. Selection, caret,
 undo, save truth, Find, Focus, and viewport restoration derive from one document state.
 
+Unsaved editable text is kept as a recoverable draft under the approved project, worktree, and
+relative-file identity. A file, thread, or project switch is never refused solely because the
+current file is dirty. Returning to the file, including after relaunch, restores the draft against
+its disk baseline; a successful save clears it. The Files row uses a real bold face and the word
+`unsaved` in its accessible name while a draft exists. This recovery state does not introduce tabs.
+
 ### Markdown
 
 Markdown is rendered prose, selectable, and directly editable.

@@ -119,9 +119,8 @@ describe("clipboard images in the current file", () => {
         "Feedback\n![Screenshot](../screenshots/screenshot-1.png)",
       ),
     );
-    expect(await current.runtime.state.activateFile(resource("src/other.ts"))).toMatchObject({
-      status: "refused",
-      reason: expect.stringContaining("unsaved"),
+    expect(await current.runtime.state.activateFile(resource("src/other.ts"))).toEqual({
+      status: "committed",
     });
 
     current.unmount();

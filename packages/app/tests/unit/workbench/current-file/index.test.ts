@@ -143,7 +143,7 @@ describe("the root current-file owner", () => {
     host.remove();
   });
 
-  it("saves the current text and refuses a dirty file transition", async () => {
+  it("switches files without losing the dirty buffer and restores it on return", async () => {
     const fixture = context({
       status: "text",
       text: "const value = 1;",
@@ -155,31 +155,22 @@ describe("the root current-file owner", () => {
     const unmount = await mountCurrentFile(host, fixture.runtime);
     const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".md-editor")!)!;
     view.dispatch({ changes: { from: view.state.doc.length, insert: "\nconst next = 2;" } });
+    await Promise.resolve();
 
     const transition = await fixture.runtime.state.activateFile(resource("src/other.ts"));
-    expect(transition).toMatchObject({
-      status: "refused",
-      reason: expect.stringContaining("unsaved"),
-      presentation: "owner",
-      recovery: { label: "Save current file" },
-    });
-    expect(fixture.readBoundedFile).toHaveBeenCalledOnce();
+    expect(transition).toEqual({ status: "committed" });
+    await vi.waitFor(() => expect(fixture.readBoundedFile).toHaveBeenCalledTimes(2));
+    expect(host.querySelector(".current-file-notice")?.textContent).not.toContain("unsaved work");
 
-    const notice = host.querySelector<HTMLElement>(".current-file-notice")!;
-    expect(notice.hidden).toBe(false);
-    expect(notice.textContent).toContain("The current file has unsaved work");
-    notice.querySelector<HTMLButtonElement>("button")!.click();
-
+    await fixture.runtime.state.activateFile(resource("src/main.ts"));
     await vi.waitFor(() =>
-      expect(fixture.writeTextFile).toHaveBeenCalledWith(
-        resource("src/main.ts"),
-        "const value = 1;\nconst next = 2;",
-      ),
+      expect(
+        EditorView.findFromDOM(
+          host.querySelector<HTMLElement>(".md-editor")!,
+        )?.state.doc.toString(),
+      ).toContain("const next = 2;"),
     );
-    expect(notice.hidden).toBe(true);
-
-    fixture.requestClose();
-    await vi.waitFor(() => expect(fixture.closeWindow).toHaveBeenCalledOnce());
+    expect(fixture.writeTextFile).not.toHaveBeenCalled();
     unmount();
     host.remove();
   });
@@ -267,9 +258,8 @@ describe("the root current-file owner", () => {
       );
     });
     expect(view.state.doc.toString()).toContain("const mine = 2;");
-    expect(await fixture.runtime.state.activateFile(resource("src/other.ts"))).toMatchObject({
-      status: "refused",
-      reason: expect.stringContaining("unsaved"),
+    expect(await fixture.runtime.state.activateFile(resource("src/other.ts"))).toEqual({
+      status: "committed",
     });
 
     unmount();
@@ -347,7 +337,7 @@ describe("the root current-file owner", () => {
     unmount();
   });
 
-  it("keeps the dirty-file guard but yields editor commands while its surface is inactive", async () => {
+  it("keeps a dirty draft while yielding editor commands when its surface is inactive", async () => {
     const fixture = context({
       status: "text",
       text: "const value = 1;",
@@ -374,9 +364,8 @@ describe("the root current-file owner", () => {
         .find(({ id }) => id === "document.save")
         ?.run(),
     ).toBe(false);
-    expect(await fixture.runtime.state.activateFile(resource("src/other.ts"))).toMatchObject({
-      status: "refused",
-      reason: expect.stringContaining("unsaved"),
+    expect(await fixture.runtime.state.activateFile(resource("src/other.ts"))).toEqual({
+      status: "committed",
     });
 
     active = true;

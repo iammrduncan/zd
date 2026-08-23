@@ -89,6 +89,7 @@ export class FileTreeController {
   readonly #listeners = new Set<(snapshot: FileTreeViewSnapshot) => void>();
   readonly #gitStates = new Map<string, ReadonlyMap<string, FileGitState>>();
   #current: ScopeMemory | null = null;
+  #dirtyPaths: ReadonlySet<string> = new Set();
 
   constructor(
     readonly adapter: FileTreeAdapter,
@@ -107,6 +108,7 @@ export class FileTreeController {
         expandedPaths: new Set(),
         selectedPath: null,
         activePath: null,
+        dirtyPaths: new Set(),
         filterOpen: false,
         filterQuery: "",
         scroll: { top: 0, left: 0 },
@@ -125,6 +127,7 @@ export class FileTreeController {
       expandedPaths: new Set(memory.expandedPaths),
       selectedPath: memory.selectedPath,
       activePath: memory.activePath,
+      dirtyPaths: new Set(this.#dirtyPaths),
       filterOpen: memory.filterOpen,
       filterQuery: memory.filterQuery,
       scroll: { ...memory.scroll },
@@ -161,6 +164,7 @@ export class FileTreeController {
 
   deactivate(): void {
     this.#current = null;
+    this.#dirtyPaths = new Set();
     this.#publish();
   }
 
@@ -168,6 +172,17 @@ export class FileTreeController {
     const memory = this.#current;
     if (!memory) return;
     memory.activePath = path;
+    this.#publish();
+  }
+
+  setDirtyPaths(paths: ReadonlySet<string>): void {
+    if (
+      paths.size === this.#dirtyPaths.size &&
+      [...paths].every((path) => this.#dirtyPaths.has(path))
+    ) {
+      return;
+    }
+    this.#dirtyPaths = new Set(paths);
     this.#publish();
   }
 

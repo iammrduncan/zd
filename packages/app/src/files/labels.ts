@@ -43,9 +43,10 @@ export function categoryIconClass(category: FileCategory): string {
   return ICON_CLASSES[category];
 }
 
-export function fileTreeEntryLabel(entry: FileTreeEntry): string {
+export function fileTreeEntryLabel(entry: FileTreeEntry, dirty = false): string {
   const parts = [entry.name, CATEGORY_LABELS[entry.category]];
   if (entry.gitState) parts.push(GIT_LABELS[entry.gitState]);
+  if (dirty) parts.push("unsaved");
   return parts.join(", ");
 }
 

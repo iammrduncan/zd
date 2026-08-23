@@ -3,6 +3,7 @@ import type { GitAdapter, GitScope } from "@/git";
 import type { InstrumentationClient } from "@/instrumentation";
 
 import { mountCurrentFile } from "./current-file";
+import type { FileDraftStore } from "./current-file/drafts";
 import type { Unmount, WorkbenchRuntimeContext } from "./runtime";
 import type { WorkbenchState, WorkbenchStateOwner } from "./state";
 import "./changes.css";
@@ -87,6 +88,7 @@ export async function mountCurrentFileWithChanges(
   host: HTMLElement,
   context: WorkbenchRuntimeContext,
   controller: ChangesController,
+  drafts?: FileDraftStore,
 ): Promise<Unmount> {
   const root = document.createElement("div");
   root.className = "zd-file-context current-file";
@@ -111,7 +113,10 @@ export async function mountCurrentFileWithChanges(
   reflect();
   let stopLive: Unmount;
   try {
-    stopLive = await mountCurrentFile(live, context, { isActive: () => !comparisonActive });
+    stopLive = await mountCurrentFile(live, context, {
+      isActive: () => !comparisonActive,
+      drafts,
+    });
   } catch (cause) {
     stopChanges();
     root.remove();

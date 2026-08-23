@@ -101,6 +101,15 @@ describe("Files tree view", () => {
     ).toBe("");
   });
 
+  it("bolds recoverable unsaved files and names their state", async () => {
+    const fixture = await mounted([entry("notes.md")]);
+    fixture.controller.setDirtyPaths(new Set(["notes.md"]));
+    const notes = fixture.host.querySelector<HTMLElement>('[data-file-path="notes.md"]')!;
+
+    expect(notes.dataset.dirty).toBe("true");
+    expect(notes.getAttribute("aria-label")).toContain("unsaved");
+  });
+
   it("uses one keyboard path for expansion, navigation, and root-owned activation", async () => {
     const fixture = await mounted([
       entry("src", "directory"),
