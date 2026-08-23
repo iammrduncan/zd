@@ -23,7 +23,7 @@ function thread(
     projectId,
     worktree: {
       id: `${projectId}-root`,
-      label: "project root",
+      label: "main",
       root: `/workspace/${projectId}`,
       kind: "project-root",
       availability: "available",
@@ -230,6 +230,21 @@ describe("the Threads region", () => {
         ?.textContent,
     ).toBe("/workspace/alpha-review");
     expect(host.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("shows the actual root worktree label instead of inventing project root", () => {
+    const workbench = adapter();
+    const host = document.createElement("aside");
+    document.body.append(host);
+    mountThreadsRegion(host, new ThreadsController(workbench));
+    const shell = host.querySelector<HTMLButtonElement>('[data-thread-id="shell"]')!;
+
+    shell.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    host.querySelector<HTMLButtonElement>('[data-thread-secondary-line="worktree"]')!.click();
+
+    expect(
+      host.querySelector<HTMLElement>('[data-thread-id="shell"] .zd-thread-secondary')?.textContent,
+    ).toBe("main");
   });
 
   it("does not repeat a refusal already presented by its owning surface", async () => {

@@ -50,7 +50,7 @@ function secondaryLine(thread: ThreadRecord, line = threadSecondaryLine()): stri
     case "directory":
       return thread.worktree.root;
     case "worktree":
-      return thread.worktree.kind === "project-root" ? "project root" : thread.worktree.label;
+      return thread.worktree.label;
   }
 }
 
