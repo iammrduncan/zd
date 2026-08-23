@@ -52,6 +52,11 @@
  */
 .zd-reference-row {
   grid-template-columns: minmax(6.5rem, var(--transient-key-column)) minmax(0, 1fr) auto;
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-navigation-size);
+  font-style: var(--type-navigation-style);
+  font-weight: var(--type-navigation-weight);
+  line-height: var(--type-navigation-line);
 }
 
 /* Key notation is compact, aligned, and quiet. */
@@ -65,6 +70,10 @@
 
 .zd-reference-chord .zd-shortcut-setting-binding {
   color: inherit;
+  font: inherit;
+}
+
+.zd-reference .zd-shortcut-setting-managed {
   font: inherit;
 }
 
