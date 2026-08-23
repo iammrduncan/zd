@@ -1,7 +1,6 @@
 # Rule: Work on each feedback item until resolved. Once resolved move it to below the Feedback Addressed Line. Mark it with "\" while feedback is in progress. One line per feedback item in this file.
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
-screenshots folder cannot be expanded... ![Screenshot](../screenshots/screenshot-1787463504862781000.png)
 file icons are not real icons... should find icon library for editor themes to use: ![Screenshot](../screenshots/screenshot-1787463545522202000.png)
 unable to change files if current file is unsaved... maybe we should introduce tabs? ![Screenshot](../screenshots/screenshot-1787463576303470000.png) or something...  Actually i think bolding unsaved files would be good. unsaved files are stored in app state and recoverable if app is killed oer something. Should not prevent change files or other stuff.
 command list doesn't open anything...
@@ -17,6 +16,7 @@ no way to close filter files input after opening it.
 we need a dark theme and a theme slector in the command pallete (Which we need command pallete to actually work (the cmd+shift+p thing)).
 right click file should allow me to copy relative path or full path to clipboard.
 === Feedback Addressed ===
+screenshots folder cannot be expanded... ![Screenshot](../screenshots/screenshot-1787463504862781000.png)
 project highlight is same as thread highlight. confusing... ![Screenshot](../screenshots/screenshot-1787463485402011000.png)
 rename should probably be inline, but instead starts a new save/cancel form.. bad UX ![Screenshot](../screenshots/screenshot-1787463470884995000.png)
 seems we need a general "context" setter function that sets the current view context based on all the variables here and whether it was a hotkey or clicking a thread or clicking a project etc... and it knows current threads contexts, worktrees, open files, etc and can restore those states etc... maybe?

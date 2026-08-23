@@ -345,7 +345,11 @@ fn scan_tree(root: &Path, limits: TreeLimits) -> std::io::Result<Scan> {
 
     let mut ignored_truncated = false;
     if !truncated && limits.max_ignored_entries > 0 {
-        'directories: for directory in included_directories {
+        let mut directory_index = 0;
+        let mut ignored_count = 0;
+        'directories: while directory_index < included_directories.len() {
+            let directory = included_directories[directory_index].clone();
+            directory_index += 1;
             let depth = directory
                 .strip_prefix(root)
                 .map_or(0, |relative| relative.components().count());
@@ -371,14 +375,18 @@ fn scan_tree(root: &Path, limits: TreeLimits) -> std::io::Result<Scan> {
                 if included.contains(&path) || child.file_name() == ".git" {
                     continue;
                 }
-                let ignored_count = entries.iter().filter(|entry| entry.ignored).count();
                 if ignored_count == limits.max_ignored_entries {
                     ignored_truncated = true;
                     break 'directories;
                 }
                 let entry = tree_entry(root, &path, true)?;
                 hash_entry(&mut hasher, &entry, &path);
+                if entry.kind == FileTreeEntryKind::Directory {
+                    included_directories.push(path.clone());
+                }
+                included.insert(path);
                 entries.push(entry);
+                ignored_count += 1;
             }
         }
     }
