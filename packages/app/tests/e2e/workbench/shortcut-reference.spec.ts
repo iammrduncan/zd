@@ -82,12 +82,16 @@ test("the key and action columns use compact dense rows", async ({ page }) => {
     list.map((row) => {
       const chord = row.querySelector<HTMLElement>(".zd-reference-chord")!;
       const description = row.querySelector<HTMLElement>(".zd-reference-description")!;
+      const action = row.querySelector<HTMLElement>(
+        ".zd-shortcut-setting-reset, .zd-shortcut-setting-managed",
+      )!;
       const chordBox = chord.getBoundingClientRect();
       const descriptionBox = description.getBoundingClientRect();
       return {
         height: row.getBoundingClientRect().height,
         chordSize: Number.parseFloat(getComputedStyle(chord).fontSize),
         descriptionSize: Number.parseFloat(getComputedStyle(description).fontSize),
+        actionSize: Number.parseFloat(getComputedStyle(action).fontSize),
         columnGap: descriptionBox.left - chordBox.right,
       };
     }),
@@ -97,6 +101,15 @@ test("the key and action columns use compact dense rows", async ({ page }) => {
   expect(Math.max(...rows.map(({ height }) => height))).toBeLessThanOrEqual(24);
   expect(Math.max(...rows.map(({ chordSize }) => chordSize))).toBeLessThanOrEqual(13);
   expect(Math.max(...rows.map(({ descriptionSize }) => descriptionSize))).toBeLessThanOrEqual(13);
+  expect(
+    new Set(
+      rows.flatMap(({ chordSize, descriptionSize, actionSize }) => [
+        chordSize,
+        descriptionSize,
+        actionSize,
+      ]),
+    ).size,
+  ).toBe(1);
   expect(Math.min(...rows.map(({ columnGap }) => columnGap))).toBeGreaterThanOrEqual(8);
 });
 
