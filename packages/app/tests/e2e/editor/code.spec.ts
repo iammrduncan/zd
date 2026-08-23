@@ -145,6 +145,40 @@ test("a code file opens as a top-anchored IDE plane with line numbers", async ({
   expect(sameColour(geometry.gutterColour, geometry.muted)).toBe(true);
 });
 
+test("the current code line is highlighted across the source and gutter", async ({ page }) => {
+  await open(page, CODE);
+
+  const caret = await page.evaluate(() => window.zdEditor!.text().indexOf("const retries = 3"));
+  expect(caret).toBeGreaterThanOrEqual(0);
+  await page.evaluate((at) => window.zdEditor!.setCaret(at), caret);
+
+  const activeLine = page.locator(".cm-activeLine");
+  const activeGutter = page.locator(".cm-activeLineGutter");
+  await expect(activeLine).toHaveCount(1);
+  await expect(activeLine).toContainText("const retries = 3");
+  await expect(activeGutter).toHaveCount(1);
+
+  const colours = await page.evaluate(() => {
+    const line = document.querySelector<HTMLElement>(".cm-activeLine")!;
+    const gutter = document.querySelector<HTMLElement>(".cm-activeLineGutter")!;
+    const probe = document.createElement("span");
+    probe.style.background = "var(--surface-selection)";
+    document.body.append(probe);
+    const selection = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return {
+      line: getComputedStyle(line).backgroundColor,
+      gutter: getComputedStyle(gutter).backgroundColor,
+      selection,
+    };
+  });
+
+  expect(sameColour(colours.line, colours.selection), "the source uses another wash").toBe(true);
+  expect(sameColour(colours.gutter, colours.selection), "the gutter loses the current row").toBe(
+    true,
+  );
+});
+
 test("a markdown file still takes the prose family", async ({ page }) => {
   await open(page, MARKDOWN);
 
