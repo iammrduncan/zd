@@ -32,6 +32,7 @@ export type {
   TransitionResult,
   WindowPresentation,
   WorkbenchContext,
+  WorkbenchContextIntent,
   WorkbenchFocus,
   WorkbenchRegions,
   WorkbenchState,

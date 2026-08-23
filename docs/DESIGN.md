@@ -80,6 +80,12 @@ Changing project, worktree, thread, file, theme, region mode, Git revision, or q
 must not make unrelated content jump or briefly show mixed context. Views request transitions from
 the workbench owner and render the resulting snapshot.
 
+The owner exposes one source-neutral context activation boundary with exact, project, thread, and
+file intents. A click, keyboard shortcut, completion notification, or restored session maps to one
+of those intents; the input source does not create different state semantics. The owner resolves the
+remembered project/worktree/thread/file tuple, validates its ownership, runs transition guards, and
+publishes the complete context once.
+
 ### Local-first is behavioral
 
 There are no cloud badges, account avatars, telemetry prompts, or ambient sync states. Remote image

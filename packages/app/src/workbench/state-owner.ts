@@ -25,6 +25,7 @@ import {
   type TransitionResult,
   type WindowPresentation,
   type WorkbenchContext,
+  type WorkbenchContextIntent,
   type WorkbenchRegions,
   type WorkbenchState,
 } from "./state-core";
@@ -101,16 +102,26 @@ export class WorkbenchStateOwner {
     };
   }
 
-  activateContext(target: WorkbenchContext): Promise<TransitionResult> {
-    return this.#enqueue(() => this.#activateContext(target));
+  /** Resolve every UI activation source through one serialized, guarded context boundary. */
+  activateContext(intent: WorkbenchContextIntent): Promise<TransitionResult> {
+    return this.#enqueue(() => this.#activateContext(intent));
   }
 
-  async #activateContext(target: WorkbenchContext): Promise<TransitionResult> {
-    return this.#commitTransition(this.#state, target);
+  async #activateContext(intent: WorkbenchContextIntent): Promise<TransitionResult> {
+    switch (intent.kind) {
+      case "exact":
+        return this.#commitTransition(this.#state, intent.context);
+      case "project":
+        return this.#activateProject(intent.projectId);
+      case "thread":
+        return this.#activateThread(intent.threadId);
+      case "file":
+        return this.#activateFile(intent.resource);
+    }
   }
 
   activateProject(projectId: string): Promise<TransitionResult> {
-    return this.#enqueue(() => this.#activateProject(projectId));
+    return this.activateContext({ kind: "project", projectId });
   }
 
   async #activateProject(projectId: string): Promise<TransitionResult> {
@@ -141,7 +152,7 @@ export class WorkbenchStateOwner {
   }
 
   activateThread(threadId: string): Promise<TransitionResult> {
-    return this.#enqueue(() => this.#activateThread(threadId));
+    return this.activateContext({ kind: "thread", threadId });
   }
 
   async #activateThread(threadId: string): Promise<TransitionResult> {
@@ -353,7 +364,7 @@ export class WorkbenchStateOwner {
   }
 
   activateFile(resource: FileResource): Promise<TransitionResult> {
-    return this.#enqueue(() => this.#activateFile(resource));
+    return this.activateContext({ kind: "file", resource });
   }
 
   async #activateFile(resource: FileResource): Promise<TransitionResult> {

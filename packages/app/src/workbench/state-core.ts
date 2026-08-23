@@ -90,6 +90,13 @@ export interface WorkbenchContext {
   readonly fileId: string | null;
 }
 
+/** Source-neutral request resolved by the root into one complete active context. */
+export type WorkbenchContextIntent =
+  | { readonly kind: "exact"; readonly context: WorkbenchContext }
+  | { readonly kind: "project"; readonly projectId: string }
+  | { readonly kind: "thread"; readonly threadId: string }
+  | { readonly kind: "file"; readonly resource: FileResource };
+
 export interface WorkbenchRegions {
   readonly threads: { readonly visibility: ThreadsVisibility; readonly width: number };
   readonly files: {

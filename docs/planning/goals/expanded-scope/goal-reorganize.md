@@ -79,6 +79,8 @@ Apply the authority and interpretation rules in the execution plan's Visual Refe
   calls use those identities instead of accepting arbitrary paths or processes.
 - Project, thread, worktree, and file activation publish as one guarded context transaction, while
   dirty-file, live-process, and missing-resource paths can refuse or recover explicitly.
+- Exact restore, project, thread, and file intents share one serialized root activation API; clicks,
+  shortcuts, and notifications do not maintain alternate context-setting paths.
 - Unit, browser, and Rust coverage exercise state migration, launch/open requests, shell geometry,
   shortcut dispatch, global window behavior, configuration fallback, safe close, and grant scope.
 - The former boot path is retained only as clearly labelled Markdown compatibility code behind the
