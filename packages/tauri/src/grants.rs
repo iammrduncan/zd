@@ -6,8 +6,14 @@
 //! worktree flows.
 
 use std::path::{Component, Path, PathBuf};
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
+
+use crate::git_process::run_git;
+
+const BRANCH_LABEL_LIMIT: usize = 4 * 1024;
+const BRANCH_LABEL_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -110,6 +116,7 @@ impl GrantStore {
         }
 
         let name = display_name(&root);
+        let worktree_name = worktree_label(&root);
         let project_id = self.identity("project");
         let worktree_id = self.identity("worktree");
         self.projects.push(ProjectRecord {
@@ -118,7 +125,7 @@ impl GrantStore {
             root: root.clone(),
             worktrees: vec![WorktreeRecord {
                 id: worktree_id.clone(),
-                name,
+                name: worktree_name,
                 root,
             }],
         });
@@ -161,7 +168,7 @@ impl GrantStore {
             .ok_or_else(|| format!("unknown project grant {project_id}"))?;
         project.worktrees.push(WorktreeRecord {
             id,
-            name: display_name(&root),
+            name: worktree_label(&root),
             root,
         });
         Ok(describe_worktree(
@@ -216,7 +223,7 @@ impl GrantStore {
             .worktrees
             .first_mut()
             .expect("every approved project has its root worktree");
-        root_worktree.name = name;
+        root_worktree.name = worktree_label(&root);
         root_worktree.root = root;
         Ok(describe_project(project))
     }
@@ -278,6 +285,20 @@ fn display_name(root: &Path) -> String {
         .filter(|name| !name.is_empty())
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_else(|| root.to_string_lossy().into_owned())
+}
+
+fn worktree_label(root: &Path) -> String {
+    let arguments = ["symbolic-ref", "--quiet", "--short", "HEAD"]
+        .into_iter()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    let branch = run_git(root, &arguments, BRANCH_LABEL_LIMIT, BRANCH_LABEL_TIMEOUT)
+        .ok()
+        .filter(|output| output.status.success() && !output.stdout_truncated)
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .map(|output| output.trim().to_string())
+        .filter(|output| !output.is_empty());
+    branch.unwrap_or_else(|| display_name(root))
 }
 
 fn availability(root: &Path) -> GrantAvailability {

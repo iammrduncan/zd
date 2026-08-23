@@ -4,6 +4,8 @@
 mod cli;
 #[path = "../src/file_tree.rs"]
 mod file_tree;
+#[path = "../src/git/process.rs"]
+mod git_process;
 #[path = "../src/grants.rs"]
 mod grants;
 

@@ -99,6 +99,17 @@ fn created(result: CreateThreadWorktreeResult) -> grants::WorktreeGrant {
     }
 }
 
+#[test]
+fn root_worktree_uses_the_checked_out_branch_as_its_label() {
+    let repository = RepositoryFixture::new("root-label");
+    repository.git(&["checkout", "-b", "feat/global-use"]);
+
+    let (launch, _) = approved(&repository);
+    let grant = launch.current().project.expect("approved project");
+
+    assert_eq!(grant.worktrees[0].name, "feat/global-use");
+}
+
 fn refused(result: CreateThreadWorktreeResult) -> WorktreeRefusalKind {
     match result {
         CreateThreadWorktreeResult::Refused { kind, .. } => kind,
@@ -146,7 +157,7 @@ fn creation_derives_a_sibling_path_and_adds_one_project_scoped_grant() {
         .canonicalize()
         .unwrap();
     assert_eq!(Path::new(&worktree.root), expected);
-    assert_eq!(worktree.name, "project-review");
+    assert_eq!(worktree.name, "feature/review");
     assert_eq!(
         Command::new("git")
             .args(["branch", "--show-current"])
