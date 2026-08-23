@@ -42,6 +42,7 @@ test("a file-tree selection takes the overlap centre back from an active thread"
 }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.locator('[data-project-id="project-zd"] .zd-project-heading').hover();
   await page.getByRole("button", { name: "New terminal in zd" }).click();
   const threadSurface = page.locator('[data-centre-surface="thread"]');
   const fileSurface = page.locator('[data-centre-surface="file"]');

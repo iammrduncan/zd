@@ -173,6 +173,7 @@ async function mountFixture(page: Page): Promise<void> {
         createThread.dataset.threadCreate = project.id;
         createThread.setAttribute("aria-label", `New terminal in ${project.name}`);
         createThread.textContent = "+";
+        createThread.addEventListener("click", () => calls.push(`create:${project.id}`));
         actionHost.append(createThread);
       },
     });
@@ -238,6 +239,7 @@ test("new-thread stays contextual and project close lives in the right-click men
   await betaHeading.hover();
   await expect(contextualActions).toHaveCSS("opacity", "1");
   await expect(createThread).toBeVisible();
+  await createThread.click();
   await page.mouse.move(800, 400);
   await createThread.focus();
   await expect(contextualActions).toHaveCSS("opacity", "1");
@@ -251,7 +253,7 @@ test("new-thread stays contextual and project close lives in the right-click men
 
   await expect
     .poll(() => page.evaluate(() => window.projectFixture.calls))
-    .toEqual(["choose", "accept:delta", "remove:beta"]);
+    .toEqual(["create:beta", "choose", "accept:delta", "remove:beta"]);
   await expect(page.locator('[data-project-id="beta"]')).toHaveCount(1);
   await expect(page.locator('[data-project-id="delta"]')).toHaveCount(0);
 });

@@ -91,6 +91,7 @@
 
 .zd-project-row[aria-current="true"] {
   border-inline-start-color: var(--line-focus);
+  background: var(--surface-selection);
   color: var(--text-primary);
 }
 
