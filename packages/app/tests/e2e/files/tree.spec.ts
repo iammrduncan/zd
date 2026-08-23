@@ -170,6 +170,21 @@ test("keyboard disclosure reaches nested files and activates through one root ac
   await expect(main.locator(".zd-file-tree-guides > span")).toHaveCount(1);
 });
 
+test("selecting a folder keeps it open until disclosure is deliberate", async ({ page }) => {
+  await mountFixture(page);
+  const src = page.locator('[data-file-path="src"]');
+
+  await src.locator(".zd-file-tree-disclosure").click();
+  await expect(src).toHaveAttribute("aria-expanded", "true");
+
+  await src.locator(".zd-file-tree-name").click();
+  await expect(src).toHaveAttribute("aria-expanded", "true");
+  await expect(src).toHaveAttribute("aria-selected", "true");
+
+  await src.locator(".zd-file-tree-disclosure").click();
+  await expect(src).toHaveAttribute("aria-expanded", "false");
+});
+
 test("filtering by category restores selection and both scroll axes when cleared", async ({
   page,
 }) => {
@@ -197,7 +212,7 @@ test("filtering by category restores selection and both scroll axes when cleared
 test("bounded disk refresh preserves expansion, selection, and active file", async ({ page }) => {
   await mountFixture(page);
   const src = page.locator('[data-file-path="src"]');
-  await src.click();
+  await src.locator(".zd-file-tree-disclosure").click();
   await page.evaluate(() => window.fileTreeFixture.controller.select("src/main.ts"));
   await page.evaluate(() => window.fileTreeFixture.replaceOnDisk());
 

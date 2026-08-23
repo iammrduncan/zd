@@ -186,6 +186,29 @@ describe("Files tree view", () => {
     });
   });
 
+  it("keeps folders open when their row is selected and collapses only from disclosure intent", async () => {
+    const fixture = await mounted([
+      entry("src", "directory"),
+      entry("src/main.ts"),
+      entry("notes.md"),
+    ]);
+    fixture.controller.expand("src");
+    const src = fixture.host.querySelector<HTMLElement>('[data-file-path="src"]')!;
+
+    src.querySelector<HTMLElement>(".zd-file-tree-name")!.click();
+
+    expect(fixture.controller.snapshot().selectedPath).toBe("src");
+    expect(fixture.controller.snapshot().expandedPaths.has("src")).toBe(true);
+    expect(fixture.host.querySelector('[data-file-path="src/main.ts"]')).not.toBeNull();
+
+    fixture.host
+      .querySelector<HTMLElement>('[data-file-path="src"] .zd-file-tree-disclosure')!
+      .click();
+
+    expect(fixture.controller.snapshot().expandedPaths.has("src")).toBe(false);
+    expect(fixture.host.querySelector('[data-file-path="src/main.ts"]')).toBeNull();
+  });
+
   it("shows filter only when summoned and Escape restores navigation state", async () => {
     const fixture = await mounted([entry("main.ts"), entry("notes.md")]);
     const filter = fixture.host.querySelector<HTMLElement>(".zd-file-tree-filter")!;

@@ -1,9 +1,9 @@
 # Rule: Work on each feedback item until resolved. Once resolved move it to below the Feedback Addressed Line. Mark it with "\" while feedback is in progress. One line per feedback item in this file.
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
-I keep noticing files all collapse their folders sometimes, without me meaning to do that. Can we keep it from doing that?
 When I click a thread it goes to that thread, if I click it again it should hide the thread just like cmd+j does and bring up current or last opened file.
 === Feedback Addressed ===
+I keep noticing files all collapse their folders sometimes, without me meaning to do that. Can we keep it from doing that?
 Have settings on right click of thread show config of what to show for the second line (app running, current directory, current branch/worktree) ![Screenshot](../screenshots/screenshot-1787501632822629000.png)
 Icon and thread title don't line up... ![Screenshot](../screenshots/screenshot-1787501573533253000.png)
 Why is "Z" showing up on the projects page. It should only show up when we collapse the projects. ![Screenshot](../screenshots/screenshot-1787501516230696000.png)

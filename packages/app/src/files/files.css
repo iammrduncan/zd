@@ -190,6 +190,7 @@
   flex: 0 0 var(--zd-file-tree-indent);
   color: var(--text-muted);
   font-size: 0.82em;
+  pointer-events: auto;
   text-align: center;
 }
 
