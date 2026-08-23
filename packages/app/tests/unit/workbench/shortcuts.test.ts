@@ -5,6 +5,7 @@ import {
   clearCommands,
   commands,
   dispatch,
+  executeCommand,
   register,
   registerCommandObserver,
   releaseHeld,
@@ -296,6 +297,14 @@ describe("a held command", () => {
     expect(release).not.toHaveBeenCalled();
 
     releaseHeld(key({ key: "v", metaKey: true }));
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("completes immediately when a pointer invokes the registry entry", () => {
+    const release = vi.fn();
+    register(held(release));
+
+    expect(executeCommand(commands()[0]!)).toBe(true);
     expect(release).toHaveBeenCalledOnce();
   });
 

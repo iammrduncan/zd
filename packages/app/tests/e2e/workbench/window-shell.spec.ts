@@ -230,3 +230,18 @@ test("the thin top chrome reserves a native window drag region", async ({ page }
   );
   expect(receivesPointer).toBe(true);
 });
+
+test("the top chrome exposes compact Settings and hotkey actions", async ({ page }) => {
+  await page.goto("/");
+  const chrome = page.locator(".zd-window-drag-region");
+
+  await expect(chrome.getByRole("button", { name: "Settings" })).toHaveText("[s]");
+  await expect(chrome.getByRole("button", { name: "Keyboard shortcuts" })).toHaveText("[h]");
+
+  await chrome.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await chrome.getByRole("button", { name: "Keyboard shortcuts" }).click();
+  await expect(page.getByRole("dialog", { name: "Shortcut Reference" })).toBeVisible();
+});

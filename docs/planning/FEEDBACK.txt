@@ -1,7 +1,6 @@
 # Rule: Work on each feedback item until resolved. Once resolved move it to below the Feedback Addressed Line. Mark it with "\" while feedback is in progress. One line per feedback item in this file.
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
-we should show in our top chrome handle small [s][h] buttons for settings and hotkeys. I kindof like the bracket button there.
 on thread icon stuff is overlapping titles. ![Screenshot](../screenshots/screenshot-1787463911083092000.png)
 its not clear this less than sign actually collapses the projects pane... ![Screenshot](../screenshots/screenshot-1787463955949593000.png)
 unable to hide/collapse files/changes pane.
@@ -9,6 +8,7 @@ no way to close filter files input after opening it.
 we need a dark theme and a theme slector in the command pallete (Which we need command pallete to actually work (the cmd+shift+p thing)).
 right click file should allow me to copy relative path or full path to clipboard.
 === Feedback Addressed ===
+we should show in our top chrome handle small [s][h] buttons for settings and hotkeys. I kindof like the bracket button there.
 we should allow in settings the editing of hotkeys.
 cmd+, opens settings. pressing it again does not close it.
 when picking sounds it should play it when I change it. ![Screenshot](../screenshots/screenshot-1787463814772534000.png)

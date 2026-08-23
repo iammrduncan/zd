@@ -57,7 +57,7 @@ Press `Cmd+,` on macOS or `Ctrl+,` elsewhere to open **Settings**. Desktop compl
 and sounds are both off by default. Native notifications and completion sounds are currently
 available on macOS; other platforms show the controls as unavailable. When sound is on, changing a
 per-agent sound plays the new choice once at the selected volume. Press the Settings shortcut again
-to close the sheet.
+to close the sheet. The `[s]` action in the top drag strip opens the same Settings sheet.
 
 When enabled, one supported-agent transition from busy to waiting may show one notification. **View**
 returns to the ordinary workbench and activates that exact thread. Notification text contains only
