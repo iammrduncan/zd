@@ -73,12 +73,12 @@ export function mountWorkbenchSettings(
     return true;
   };
 
-  const stopOpenCommand = registerCommandTarget({
-    id: "workbench.settings.open",
+  const stopToggleCommand = registerCommandTarget({
+    id: "workbench.settings.toggle",
     commandId: "settings.open",
     priority: 100,
-    available: () => plane === null,
-    run: open,
+    available: () => true,
+    run: () => (plane ? close() : open()),
   });
   const stopDismissCommand = registerCommandTarget({
     id: "workbench.settings.dismiss",
@@ -91,6 +91,6 @@ export function mountWorkbenchSettings(
   return () => {
     close();
     stopDismissCommand();
-    stopOpenCommand();
+    stopToggleCommand();
   };
 }

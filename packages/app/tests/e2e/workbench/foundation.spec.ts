@@ -233,6 +233,9 @@ test("transient Settings controls local diagnostics without crowding Threads", a
 
   await settings.getByRole("button", { name: "Reveal logs" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-diagnostics-revealed", "true");
+
+  await page.keyboard.press(`${primary}+,`);
+  await expect(page.locator("[data-workbench-settings]")).toHaveCount(0);
 });
 
 test("the command list opens from its shortcut and executes a filtered command", async ({
@@ -247,7 +250,7 @@ test("the command list opens from its shortcut and executes a filtered command",
   const query = commandList.getByRole("textbox", { name: "Filter commands" });
   await expect(query).toBeFocused();
   await query.fill("settings");
-  await commandList.getByRole("option", { name: /Open Settings/u }).click();
+  await commandList.getByRole("option", { name: /Settings/u }).click();
 
   await expect(commandList).toBeHidden();
   await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();

@@ -119,7 +119,7 @@ export function attachWorkbenchCommands(
     register({
       id: "settings.open",
       chord: { key: ",", mod: true },
-      description: "Open Settings",
+      description: "Open or close Settings",
       available: () => commandTargetAvailable("settings.open"),
       run: () => runCommandTarget("settings.open"),
     }),
