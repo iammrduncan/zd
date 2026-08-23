@@ -155,6 +155,21 @@
   padding-inline: var(--space-2);
 }
 
+/*
+ * A conventional code plane keeps the caret's row visible across source and
+ * line-number gutter. CodeMirror owns which row is current; the stylesheet only
+ * maps that state to the shared selection plane, so moving the selection cannot
+ * leave a stale copy behind. Markdown deliberately never receives these classes.
+ */
+.md-editor[data-language="code"] .cm-activeLine,
+.md-editor[data-language="code"] .cm-activeLineGutter {
+  background: var(--surface-selection);
+}
+
+.md-editor[data-language="code"] .cm-activeLineGutter {
+  color: var(--text-primary);
+}
+
 /* The base theme insets every line by 2px, which dents the measure. */
 .md-editor[data-language="markdown"] .cm-line {
   padding: 0;

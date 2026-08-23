@@ -1,6 +1,12 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { Compartment, EditorState, Text } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers } from "@codemirror/view";
+import {
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  keymap,
+  lineNumbers,
+} from "@codemirror/view";
 
 import { createEditorFind, editorFindExtension, type EditorFind } from "@/editor/find";
 
@@ -227,8 +233,9 @@ export interface EditorOptions {
  *
  * Vision §6: "This is not a second mode — §4 is the surface, and this is what it
  * does when a caret is in it." Markdown brings no editor chrome. Code receives
- * the one conventional aid that depends on document structure: line numbers.
- * Neither surface adds a fold gutter, active-line wash, or second scroller.
+ * the conventional aids that depend on source structure: line numbers and one
+ * current-line wash. Markdown adds neither, and no surface adds a fold gutter or
+ * second scroller.
  * Appearance lives in styles/editor.css, because it is type and colour, and type
  * and colour in this project are shared semantic tokens — never values compiled
  * into a script.
@@ -311,7 +318,9 @@ export function createEditor(
         rawModeState(),
         EditorState.readOnly.of(readOnly),
         EditorView.editable.of(!readOnly),
-        language.markdown ? [] : lineNumbers(),
+        language.markdown
+          ? []
+          : [lineNumbers(), highlightActiveLine(), highlightActiveLineGutter()],
         history(),
         editorFindExtension(),
         EditorView.updateListener.of((update) => {
