@@ -568,7 +568,10 @@ Command List and Quick Open use:
 - one quiet empty/error line.
 
 Command List is `Cmd+Shift+P` / `Ctrl+Shift+P`. Every result comes from the production command
-registry and displays the platform-correct binding from that same entry.
+registry and displays the platform-correct binding from that same entry. Palette-only commands have
+no invented default chord and remain assignable in Settings. Search treats whitespace-separated
+query words independently, so intent such as `theme dark` matches the displayed `Theme: Dark`
+command.
 
 The Shortcut Reference is a fixed two-column view of the same registry. It never becomes a second
 hand-maintained shortcut inventory.

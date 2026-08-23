@@ -14,6 +14,8 @@ import {
   setShortcutBinding,
   setWordWrap,
   shortcutBindings,
+  setThemePreference,
+  themePreference,
   wordWrap,
 } from "@/workbench/preferences";
 
@@ -97,6 +99,17 @@ describe("shortcut bindings", () => {
     forgetPreferences();
 
     expect(shortcutBindings()).toEqual({});
+  });
+});
+
+describe("theme selection", () => {
+  it("defaults to following the system and persists a validated selection", () => {
+    expect(themePreference()).toEqual({ selected: "system", lastValid: "current-light" });
+
+    setThemePreference({ selected: "dark", lastValid: "dark" });
+    forgetPreferences();
+
+    expect(themePreference()).toEqual({ selected: "dark", lastValid: "dark" });
   });
 });
 

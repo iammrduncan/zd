@@ -9,8 +9,10 @@ import { attachWorkbenchCommands } from "./commands";
 import { mountCommandList } from "./command-list";
 import { restoreShortcutBindings } from "./shortcut-settings";
 import { mountWindowChrome } from "./chrome";
+import { registerThemeCommands } from "./theme-commands";
 import { attachWorkbenchDiagnostics } from "./diagnostics";
 import { diagnosticsEnabled, setDiagnosticsEnabled } from "./preferences";
+import { setThemePreference, themePreference } from "./preferences";
 import { mountWorkbenchFeatures } from "./features";
 import { attachOpenRequests } from "./open-requests";
 import type { Unmount, WorkbenchMount } from "./runtime";
@@ -85,7 +87,8 @@ export async function bootWorkbench(
       .then((files) => ({ files, problem: null }))
       .catch((cause: unknown) => ({ files: [], problem: reasonFor(cause) })),
   ]);
-  const state = createWorkbenchStateOwner(workbenchStateFromGrants(grants, launch));
+  const initialState = workbenchStateFromGrants(grants, launch);
+  const state = createWorkbenchStateOwner({ ...initialState, theme: themePreference() });
   const detachDiagnostics = attachWorkbenchDiagnostics(state, instrumentation);
   const catalog = loadThemeCatalog(themeFiles.files);
   const localNotices = catalog.notices.map(({ source, problem }) => `Theme ${source}: ${problem}`);
@@ -96,7 +99,10 @@ export async function bootWorkbench(
   const theme = new ThemeController(document.documentElement, catalog, {
     ...state.snapshot().theme,
     onNotice: ({ source, problem }) => localNotices.push(`Theme ${source}: ${problem}`),
-    onChange: ({ selected, lastValid }) => state.setThemeSelection(selected, lastValid),
+    onChange: ({ selected, lastValid }) => {
+      state.setThemeSelection(selected, lastValid);
+      setThemePreference({ selected, lastValid });
+    },
   });
   const detachThemeState = state.subscribe(({ theme: selection }) => {
     const applied = theme.snapshot();
@@ -109,6 +115,9 @@ export async function bootWorkbench(
   });
   const runtime = { launch, platform, state, instrumentation };
   const rootCommands = attachWorkbenchCommands(host, runtime);
+  const detachThemeCommands = registerThemeCommands(catalog, (selected) => {
+    theme.setSelection(selected);
+  });
   const detachCommandList = mountCommandList(host);
   const detachReference = registerReference(host);
   const detachChrome = mountWindowChrome();
@@ -121,6 +130,7 @@ export async function bootWorkbench(
     await instrumentation.disable();
     detachDiagnostics();
     rootCommands.detach();
+    detachThemeCommands();
     detachCommandList();
     detachThemeSelectionOwner();
     detachThemeState();
@@ -147,6 +157,7 @@ export async function bootWorkbench(
     detachChrome();
     detachCommandList();
     rootCommands.detach();
+    detachThemeCommands();
     detachShortcuts();
     detachOpenRequests();
     unmount();

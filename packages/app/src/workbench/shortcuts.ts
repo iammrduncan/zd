@@ -32,7 +32,8 @@ export interface Chord {
 export interface Command {
   /** Stable dotted name, e.g. `document.save`. Not shown to anyone. */
   readonly id: string;
-  readonly chord: Chord;
+  /** Absent for command-list-only actions until the user assigns a binding. */
+  readonly chord?: Chord;
   /** Global bindings are displayed here but dispatched by the native registrar. */
   readonly scope?: "window" | "global";
   /** Prose for the Reference. What it does, not which key does it. */
@@ -123,7 +124,7 @@ function chordKey(chord: Chord): string {
   return [...parts.filter(Boolean), chord.key.toLowerCase()].join("+");
 }
 
-function effectiveChord(command: Command): Chord {
+function effectiveChord(command: Command): Chord | undefined {
   return bindingOverrides.get(command.id) ?? command.chord;
 }
 
@@ -140,15 +141,19 @@ function effectiveChord(command: Command): Chord {
  * make the second mount of any feature a crash.
  */
 export function register(command: Command): () => void {
-  const taken = [...registered.values()].find(
-    (existing) =>
-      existing.id !== command.id &&
-      chordKey(effectiveChord(existing)) === chordKey(effectiveChord(command)),
-  );
+  const desired = effectiveChord(command);
+  const taken = desired
+    ? [...registered.values()].find((existing) => {
+        const existingChord = effectiveChord(existing);
+        return (
+          existing.id !== command.id &&
+          existingChord !== undefined &&
+          chordKey(existingChord) === chordKey(desired)
+        );
+      })
+    : undefined;
   if (taken) {
-    throw new Error(
-      `${command.id} wants ${chordKey(effectiveChord(command))}, which ${taken.id} already has`,
-    );
+    throw new Error(`${command.id} wants ${chordKey(desired!)}, which ${taken.id} already has`);
   }
 
   registered.set(command.id, command);
@@ -180,10 +185,14 @@ export function setCommandChord(commandId: string, chord: Chord): CommandBinding
       problem: "Global shortcuts are managed by the operating system.",
     };
   }
-  const conflict = [...registered.values()].find(
-    (candidate) =>
-      candidate.id !== commandId && chordKey(effectiveChord(candidate)) === chordKey(chord),
-  );
+  const conflict = [...registered.values()].find((candidate) => {
+    const candidateChord = effectiveChord(candidate);
+    return (
+      candidate.id !== commandId &&
+      candidateChord !== undefined &&
+      chordKey(candidateChord) === chordKey(chord)
+    );
+  });
   if (conflict) {
     return {
       updated: false,
@@ -199,10 +208,19 @@ export function setCommandChord(commandId: string, chord: Chord): CommandBinding
 export function resetCommandChord(commandId: string): CommandBindingResult {
   const command = registered.get(commandId);
   if (!command) return { updated: false, problem: "That command is no longer available." };
-  const conflict = [...registered.values()].find(
-    (candidate) =>
-      candidate.id !== commandId && chordKey(effectiveChord(candidate)) === chordKey(command.chord),
-  );
+  if (!command.chord) {
+    bindingOverrides.delete(commandId);
+    holding.delete(commandId);
+    return { updated: true };
+  }
+  const conflict = [...registered.values()].find((candidate) => {
+    const candidateChord = effectiveChord(candidate);
+    return (
+      candidate.id !== commandId &&
+      candidateChord !== undefined &&
+      chordKey(candidateChord) === chordKey(command.chord!)
+    );
+  });
   if (conflict) {
     return {
       updated: false,
@@ -346,6 +364,7 @@ export function dispatch(event: KeyboardEvent): boolean {
   for (const command of registered.values()) {
     if (command.scope === "global") continue;
     const chord = effectiveChord(command);
+    if (!chord) continue;
     if (!matches(chord, event, platform)) continue;
     if (!executeCommand(command, true)) return false;
     // Only a command that actually ran is holding. One that declined has nothing
@@ -359,7 +378,7 @@ export function dispatch(event: KeyboardEvent): boolean {
 }
 
 /** Held commands waiting for their keys to come up, by id. */
-const holding = new Map<string, Command>();
+const holding = new Map<string, Command & { readonly chord: Chord }>();
 
 /** The keys the browser reports as modifiers going up. */
 const MODIFIERS = new Set(["Meta", "Control", "Shift", "Alt"]);

@@ -71,6 +71,17 @@ describe("the registry", () => {
     expect(commands().map((c) => c.id)).toEqual(["document.save"]);
   });
 
+  it("lists command-palette actions without inventing a keyboard chord", () => {
+    const run = vi.fn(() => true);
+    register({ id: "theme.select.dark", description: "Theme: Dark", run });
+
+    const command = commands()[0]!;
+    expect(command.chord).toBeUndefined();
+    expect(executeCommand(command)).toBe(true);
+    expect(dispatch(key({ key: "d", metaKey: true }))).toBe(false);
+    expect(run).toHaveBeenCalledOnce();
+  });
+
   it("gives back a way to remove a command again", () => {
     const remove = register(save());
     remove();

@@ -59,7 +59,7 @@ function row(command: Command): HTMLElement {
   const chord = document.createElement("kbd");
   chord.className = "zd-reference-chord";
   chord.setAttribute("role", "cell");
-  chord.textContent = chordLabel(command.chord);
+  chord.textContent = command.chord ? chordLabel(command.chord) : "Unassigned";
 
   const description = document.createElement("span");
   description.className = "zd-reference-description";

@@ -169,7 +169,7 @@ test("escape has one semantic owner", async ({ page }) => {
   const owners = await page.evaluate(() =>
     window
       .zdTest!.commands()
-      .filter((command) => command.chord.key === "Escape")
+      .filter((command) => command.chord?.key === "Escape")
       .map((command) => command.id),
   );
   expect(owners).toEqual(["workbench.escape"]);

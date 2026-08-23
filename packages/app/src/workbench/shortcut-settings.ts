@@ -47,15 +47,16 @@ export function mountShortcutSettings(host: HTMLElement): Unmount {
       const controls = document.createElement("span");
       controls.className = "zd-shortcut-setting-controls";
       const binding = document.createElement("button");
+      const currentBinding = command.chord ? chordLabel(command.chord) : "Unassigned";
       binding.type = "button";
       binding.className = "zd-shortcut-setting-binding";
-      binding.textContent = chordLabel(command.chord);
+      binding.textContent = currentBinding;
       binding.disabled = command.scope === "global";
       binding.setAttribute(
         "aria-label",
         command.scope === "global"
-          ? `${command.description}; ${chordLabel(command.chord)}; managed by the operating system`
-          : `Change shortcut for ${command.description}; current ${chordLabel(command.chord)}`,
+          ? `${command.description}; ${currentBinding}; managed by the operating system`
+          : `Change shortcut for ${command.description}; current ${currentBinding}`,
       );
       binding.addEventListener("click", () => {
         binding.dataset.shortcutRecorder = "true";
@@ -68,7 +69,7 @@ export function mountShortcutSettings(host: HTMLElement): Unmount {
         event.stopPropagation();
         if (event.key === "Escape") {
           delete binding.dataset.shortcutRecorder;
-          binding.textContent = chordLabel(command.chord);
+          binding.textContent = currentBinding;
           status.textContent = "Shortcut change cancelled.";
           return;
         }
