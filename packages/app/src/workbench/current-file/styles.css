@@ -1,6 +1,8 @@
 /* Current-file lifecycle presentation, including local notices and close confirmation. */
 .current-file {
   position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -8,7 +10,58 @@
   overflow: hidden;
 }
 
+.current-file-header {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+  min-block-size: 32px;
+  padding-inline: var(--space-3) var(--space-2);
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  color: var(--text-secondary);
+  background: var(--surface-sidebar);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+}
+
+.current-file-path {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.current-file-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.current-file-actions button {
+  min-block-size: 24px;
+  padding: 0 var(--space-1);
+  border: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.current-file-actions button:is(:hover, :focus-visible) {
+  color: var(--text-primary);
+  outline: var(--hairline) solid var(--line-focus);
+  outline-offset: calc(var(--hairline) * -1);
+}
+
+.current-file-content {
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
 .current-file > .zd-region-empty {
+  grid-row: 1 / -1;
   display: grid;
   place-items: center;
   width: 100%;

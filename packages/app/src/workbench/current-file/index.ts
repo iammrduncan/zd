@@ -55,6 +55,7 @@ export async function mountCurrentFile(
   let reconciliation = 0;
   let currentResource: FileResource | null = null;
   let known: FileStamp | null = null;
+  let currentSavedText: string | null = null;
   let pendingImageSaves = 0;
   let notice: HTMLParagraphElement | null = null;
   const surface = document.createElement("div");
@@ -106,6 +107,45 @@ export async function mountCurrentFile(
     mounted = null;
     surface.replaceChildren();
     const buffer = editorBufferFromRead(resource.relativePath, read);
+    currentSavedText = savedText ?? buffer.content;
+    const header = document.createElement("header");
+    header.className = "current-file-header";
+    const path = document.createElement("span");
+    path.className = "current-file-path";
+    path.textContent = resource.relativePath;
+    path.title = resource.relativePath;
+    const actions = document.createElement("div");
+    actions.className = "current-file-actions";
+    const discard = document.createElement("button");
+    discard.type = "button";
+    discard.hidden = true;
+    discard.textContent = "Discard";
+    discard.setAttribute("aria-label", `Discard edits to ${resource.relativePath}`);
+    discard.addEventListener("click", () => {
+      if (openedGeneration !== generation || currentSavedText === null || !mounted?.editor) return;
+      drafts.clear(resource);
+      mounted.editor.setText(currentSavedText);
+      discard.hidden = true;
+      clearNotice();
+      mounted.focus();
+    });
+    const close = document.createElement("button");
+    close.type = "button";
+    close.textContent = "Close";
+    close.setAttribute("aria-label", `Close ${resource.relativePath}`);
+    close.addEventListener("click", () => {
+      if (openedGeneration !== generation) return;
+      if (pendingImageSaves > 0) {
+        showNotice("Wait for the pasted screenshot to finish saving before closing.", "warning");
+        return;
+      }
+      context.state.removeFilePath(resource);
+    });
+    actions.append(discard, close);
+    header.append(path, actions);
+    const content = document.createElement("div");
+    content.className = "current-file-content";
+    surface.append(header, content);
     const diagnosticContext = {
       projectId: resource.projectId,
       worktreeId: resource.worktreeId,
@@ -113,7 +153,7 @@ export async function mountCurrentFile(
     };
     const acceptsPastedImages =
       buffer.editable && (buffer.language.markdown || buffer.language.id === "plain-text");
-    mounted = mountEditorBuffer(surface, buffer, {
+    mounted = mountEditorBuffer(content, buffer, {
       wrap: wordWrap(),
       onSave: async (text) => {
         const save = context.instrumentation.startSpan("file.save", diagnosticContext);
@@ -133,6 +173,7 @@ export async function mountCurrentFile(
         try {
           await context.platform.writeTextFile(resource, text);
           known = await context.platform.fileStamp(resource).catch(() => null);
+          currentSavedText = text;
           drafts.clear(resource);
           clearNotice();
           await save?.end("ok");
@@ -147,6 +188,7 @@ export async function mountCurrentFile(
       onTextChange: (text, dirty) => {
         if (dirty) drafts.save(resource, text);
         else drafts.clear(resource);
+        discard.hidden = !dirty;
       },
       ...(acceptsPastedImages
         ? {
@@ -199,6 +241,7 @@ export async function mountCurrentFile(
       currentResource = null;
       known = null;
       notice = null;
+      currentSavedText = null;
       surface.replaceChildren();
       emptyFile(surface);
       return;
@@ -414,6 +457,7 @@ export async function mountCurrentFile(
         mounted.buffer.editable === read.writable
       ) {
         editor.setText(read.text);
+        currentSavedText = read.text;
       } else {
         render(resource, read, expectedGeneration, false);
       }
