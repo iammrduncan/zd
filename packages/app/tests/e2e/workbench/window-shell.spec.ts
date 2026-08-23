@@ -137,8 +137,29 @@ test("hides and restores Files and Changes from the top chrome", async ({ page }
   await page.goto("/dev/workbench.html");
   const shell = page.locator(".zd-workbench");
   const files = page.locator('[data-region="files"]');
+  const lastFile = files.locator('[data-file-path="rust-toolchain.toml"]');
 
   const chrome = page.getByRole("toolbar", { name: "Window controls" });
+  for (const path of [
+    ".github",
+    ".github/workflows",
+    "docs",
+    "docs/screenshots",
+    "docs/user-facing-docs",
+    "packages",
+    "packages/app",
+    "packages/app/src",
+    "src",
+    "src/design",
+    "src/editor",
+    "src/files",
+    "src/git",
+    "src/threads",
+    "src/workbench",
+  ]) {
+    await files.locator(`[data-file-path="${path}"]`).click();
+  }
+  await expect(lastFile).toBeVisible();
   await expect(page.locator("[data-files-visibility-toggle]")).toHaveCount(0);
   await chrome.getByRole("button", { name: "Show or hide Files and Changes" }).click();
   await expect(shell).toHaveAttribute("data-files-visibility", "hidden");
@@ -147,6 +168,7 @@ test("hides and restores Files and Changes from the top chrome", async ({ page }
   await chrome.getByRole("button", { name: "Show or hide Files and Changes" }).click();
   await expect(shell).toHaveAttribute("data-files-visibility", "visible");
   await expect(files).toHaveCSS("width", "280px");
+  await expect(lastFile).toBeVisible();
 });
 
 test("applies responsive regions in the specified suppression order", async ({ page }) => {

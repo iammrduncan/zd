@@ -3,9 +3,9 @@
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
 there is no right click context menu for filetree... there should be...![Screenshot](../screenshots/screenshot-1787507236542125000.png) currently we get the system right click. I expect right click on files and folders to offer typical things like "new folder", "new file", "copy full path", "copy relative path", "rename", "delete", etc. File tree in general should allow many file operations in it just like any other ide/editor.
-File tree sometimes doesn't show all files... click mhide file panel then click show, and it many of the files are gone... Click a file and they show back up. Before: ![Screenshot](../screenshots/screenshot-1787507457655360000.png), After: ![Screenshot](../screenshots/screenshot-1787507488085537000.png) 
 What is difference from close/remove thread? ![Screenshot](../screenshots/screenshot-1787507542075062000.png) I would only expect a single action that kills that thread/terminal if that is removed... not two...
 === Feedback Addressed ===
+File tree sometimes doesn't show all files... click mhide file panel then click show, and it many of the files are gone... Click a file and they show back up. Before: ![Screenshot](../screenshots/screenshot-1787507457655360000.png), After: ![Screenshot](../screenshots/screenshot-1787507488085537000.png)
 hotkey list should be a nice formatted condensed/compact table... and allow editing of hotkeys. ![Screenshot](../screenshots/screenshot-1787507187754572000.png)
 Do a UX review... Use a subagent focused on application experience who is an expert in IDEs and Writing applications. Identify issues and write them into docs/planning/goals/ux-review/goal.md
 when selecting a folder it does not open the folder... see screenshot: ![Screenshot](../screenshots/screenshot-1787507072574307000.png)... I expect it to expand folder if I select it and collapse it if I select it again.
