@@ -14,6 +14,7 @@
 .zd-project-list,
 .zd-project-group {
   display: grid;
+  align-content: start;
 }
 
 .zd-project-toolbar {
