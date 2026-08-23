@@ -197,11 +197,23 @@ class XtermEmulator implements TerminalEmulator {
 
   fit(): { columns: number; rows: number } | null {
     const dimensions = this.#fit.proposeDimensions();
-    if (!dimensions || dimensions.cols < 1 || dimensions.rows < 1) return null;
-    if (dimensions.cols !== this.#terminal.cols || dimensions.rows !== this.#terminal.rows) {
-      this.#terminal.resize(dimensions.cols, dimensions.rows);
+    if (
+      !dimensions ||
+      !Number.isFinite(dimensions.cols) ||
+      !Number.isFinite(dimensions.rows) ||
+      dimensions.cols < 1 ||
+      dimensions.rows < 1
+    ) {
+      return null;
     }
-    return { columns: dimensions.cols, rows: dimensions.rows };
+    // FitAddon dimensions are measurements and can be fractional in WebKit or
+    // emulated browser viewports; xterm's resize contract accepts integers only.
+    const columns = Math.max(1, Math.floor(dimensions.cols));
+    const rows = Math.max(1, Math.floor(dimensions.rows));
+    if (columns !== this.#terminal.cols || rows !== this.#terminal.rows) {
+      this.#terminal.resize(columns, rows);
+    }
+    return { columns, rows };
   }
 
   hasSelection(): boolean {

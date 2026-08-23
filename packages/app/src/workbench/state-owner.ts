@@ -11,6 +11,7 @@ import {
   launchFile,
   sameContext,
   stateWithGrants,
+  stateWithFocus,
   uniqueGrants,
   type ContextTransition,
   type OpenFileState,
@@ -133,15 +134,8 @@ export class WorkbenchStateOwner {
     if (nameProblem) return { status: "refused", reason: nameProblem };
 
     const candidate: WorkbenchState = {
-      ...this.#state,
+      ...stateWithFocus(this.#state, "thread"),
       threads: [...this.#state.threads, { ...thread }],
-      regions: {
-        ...this.#state.regions,
-        threads: { ...this.#state.regions.threads },
-        files: { ...this.#state.regions.files },
-        centre: { ...this.#state.regions.centre },
-        focus: "thread",
-      },
     };
     return this.#commitTransition(candidate, this.#contextForThread(candidate, thread));
   }
@@ -155,16 +149,7 @@ export class WorkbenchStateOwner {
     if (!thread) return { status: "refused", reason: `Unknown thread ${threadId}` };
     const problem = this.#threadScopeProblem(thread);
     if (problem) return { status: "refused", reason: problem };
-    const candidate: WorkbenchState = {
-      ...this.#state,
-      regions: {
-        ...this.#state.regions,
-        threads: { ...this.#state.regions.threads },
-        files: { ...this.#state.regions.files },
-        centre: { ...this.#state.regions.centre },
-        focus: "thread",
-      },
-    };
+    const candidate = stateWithFocus(this.#state, "thread");
     return this.#commitTransition(candidate, this.#contextForThread(candidate, thread));
   }
 
@@ -373,11 +358,15 @@ export class WorkbenchStateOwner {
 
   async #activateFile(resource: FileResource): Promise<TransitionResult> {
     const id = fileStateId(resource);
-    if (this.#state.active.fileId === id) return { status: "committed" };
+    const fileFocused = stateWithFocus(this.#state, "file");
+    if (this.#state.active.fileId === id) {
+      if (this.#state.regions.focus !== "file") this.#publish(fileFocused);
+      return { status: "committed" };
+    }
     const file: OpenFileState = { id, ...resource, bufferId: bufferStateId(resource) };
     let candidate = this.#state.openFiles.some((open) => open.id === id)
-      ? this.#state
-      : { ...this.#state, openFiles: [...this.#state.openFiles, file] };
+      ? fileFocused
+      : { ...fileFocused, openFiles: [...this.#state.openFiles, file] };
     const sameWorkspace =
       this.#state.active.projectId === resource.projectId &&
       this.#state.active.worktreeId === resource.worktreeId;

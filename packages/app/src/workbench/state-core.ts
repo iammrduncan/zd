@@ -174,6 +174,19 @@ export function defaultWorkbenchState(): WorkbenchState {
   };
 }
 
+export function stateWithFocus(state: WorkbenchState, focus: WorkbenchFocus): WorkbenchState {
+  return {
+    ...state,
+    regions: {
+      ...state.regions,
+      threads: { ...state.regions.threads },
+      files: { ...state.regions.files },
+      centre: { ...state.regions.centre },
+      focus,
+    },
+  };
+}
+
 export function fileStateId(resource: FileResource): string {
   return `file:${resource.projectId}\0${resource.worktreeId}\0${resource.relativePath}`;
 }

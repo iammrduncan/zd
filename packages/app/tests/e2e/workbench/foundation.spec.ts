@@ -37,6 +37,26 @@ test("the root file surface owns editing, Find, save, and explicit Focus Mode", 
     .toContain("export const saved = true;");
 });
 
+test("a file-tree selection takes the overlap centre back from an active thread", async ({
+  page,
+}) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.getByRole("button", { name: "New terminal in zd" }).click();
+  const threadSurface = page.locator('[data-centre-surface="thread"]');
+  const fileSurface = page.locator('[data-centre-surface="file"]');
+  await expect(threadSurface).toBeVisible();
+  await expect(fileSurface).toBeHidden();
+
+  await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
+
+  await expect(fileSurface).toBeVisible();
+  await expect(threadSurface).toBeHidden();
+  await expect(fileSurface.locator(".cm-content")).toContainText("# README.md");
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  expect(pageErrors).toEqual([]);
+});
+
 test("transient Settings controls local diagnostics without crowding Threads", async ({ page }) => {
   const threads = page.locator('[data-region="threads"]');
 
