@@ -47,6 +47,8 @@ configuration files use the same editor with a filename-derived language mode.
 
 Choose **Changes** on the right. Select `notes.md` in the working-tree list to open its read-only
 before-and-after buffers. Your live editor buffer is not replaced or marked dirty by the diff.
+Use **Hide Files** at the upper-right edge when you want the centre to take the full width; the
+action remains available as **Show Files**.
 
 You have completed the core loop: project, thread, file, and Git state stayed in one workbench. See
 [Manage projects and threads](../how-to/manage-projects-and-threads.md) to add another repository or

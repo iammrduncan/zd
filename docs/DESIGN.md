@@ -377,6 +377,11 @@ thread is quiet but unmistakable; it does not pulse, bounce, or animate.
 shown with primary text and a 2 px `line.focus` underline. The inactive word uses secondary text.
 The tab change is immediate and preserves independent state.
 
+A persistent `Hide Files` text action removes the complete Files/Changes plane without discarding
+its tab, width, expansion, selection, filter, or scroll state. The same edge action becomes
+`Show Files` while hidden. The command is also available from the Command List and
+`Cmd+Shift+B` / `Ctrl+Shift+B`.
+
 ### Files tree
 
 The tree is deliberately dense, in the manner of Zed:
