@@ -131,8 +131,8 @@ describe("the repository documentation map", () => {
     const planning = page("docs/planning/README.md");
 
     expect(planning).toContain("goals/expanded-scope/goal.md");
-    expect(planning).toContain("objectives/wrap-up/README.md");
-    expect(planning).toContain("objectives/mini-apps/README.md");
+    expect(planning).toContain("objectives/_completed/summary-wrap-up.md");
+    expect(planning).toContain("objectives/_completed/summary-mini-apps.md");
     expect(planning).toContain("must not be used as execution queues");
   });
 

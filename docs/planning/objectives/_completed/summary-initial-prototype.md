@@ -38,5 +38,6 @@ boundary plus fresh, hash-bound native evidence and human review. The prototype 
 stopped honestly rather than relabeled complete.
 
 Current direction lives in the current design contract, the accepted [ADRs](../../../adr/README.md),
-and the active [wrap-up goals](../wrap-up/README.md). The original goal, raw thoughts, F01–F18
+and the [one-workbench execution plan](../../goals/expanded-scope/goal.md). The superseded wrap-up
+goals are summarized in [summary-wrap-up.md](summary-wrap-up.md). The original goal, raw thoughts, F01–F18
 ledger, and detailed remaining-gap audit remain available in repository history.
