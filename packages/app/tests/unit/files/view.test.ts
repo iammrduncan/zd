@@ -186,7 +186,7 @@ describe("Files tree view", () => {
     });
   });
 
-  it("keeps folders open when their row is selected and collapses only from disclosure intent", async () => {
+  it("toggles a folder whenever its row is selected", async () => {
     const fixture = await mounted([
       entry("src", "directory"),
       entry("src/main.ts"),
@@ -198,15 +198,13 @@ describe("Files tree view", () => {
     src.querySelector<HTMLElement>(".zd-file-tree-name")!.click();
 
     expect(fixture.controller.snapshot().selectedPath).toBe("src");
-    expect(fixture.controller.snapshot().expandedPaths.has("src")).toBe(true);
-    expect(fixture.host.querySelector('[data-file-path="src/main.ts"]')).not.toBeNull();
-
-    fixture.host
-      .querySelector<HTMLElement>('[data-file-path="src"] .zd-file-tree-disclosure')!
-      .click();
-
     expect(fixture.controller.snapshot().expandedPaths.has("src")).toBe(false);
     expect(fixture.host.querySelector('[data-file-path="src/main.ts"]')).toBeNull();
+
+    fixture.host.querySelector<HTMLElement>('[data-file-path="src"] .zd-file-tree-name')!.click();
+
+    expect(fixture.controller.snapshot().expandedPaths.has("src")).toBe(true);
+    expect(fixture.host.querySelector('[data-file-path="src/main.ts"]')).not.toBeNull();
   });
 
   it("shows filter only when summoned and Escape restores navigation state", async () => {
