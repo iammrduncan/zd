@@ -63,7 +63,8 @@ Text actions retain generous invisible hit areas, accessible names, and complete
 ### Chrome stays quiet
 
 The native traffic-light or caption controls may remain where the operating system requires them.
-The application draws no replacement titlebar, branded header, persistent status bar, footer,
+The application reserves one blank, hairline-separated top drag strip when the web surface needs a
+reliable native grab area. It draws no title text, branded header, persistent status bar, footer,
 decorative scrollbar, breadcrumb strip, minimap, or control ribbon.
 
 Files/Changes is one sanctioned text-tab pair. It uses words and a hairline, not boxed tabs.
@@ -260,8 +261,9 @@ content. Side by side narrows the reading measure only to its minimum before cha
 
 ## 8. Window and quick access
 
-One process owns one root workbench window. The content plane extends behind the native titlebar
-where supported. The application paints no title text or substitute caption.
+One process owns one root workbench window. Native content may extend behind the operating-system
+titlebar where supported; the web surface begins below its one blank drag strip. The application
+paints no title text or substitute caption.
 
 Ordinary window behavior:
 

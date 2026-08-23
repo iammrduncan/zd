@@ -126,28 +126,28 @@ test("responsive overlap keeps the focused centre surface and releases hidden fo
   page,
 }) => {
   await page.setViewportSize({ width: 1300, height: 800 });
-  await page.goto("/");
+  await page.goto("/dev/workbench.html");
+  await expect(page.locator('html[data-workbench-ready="true"]')).toBeAttached();
 
   const shell = page.locator(".zd-workbench");
   const files = page.locator('[data-region="files"]');
   const fileSurface = page.locator('[data-centre-surface="file"]');
   const threadSurface = page.locator('[data-centre-surface="thread"]');
 
-  await shell.evaluate((element) => {
-    element.setAttribute("data-centre-mode", "side-by-side");
-    element.setAttribute("data-focus-region", "thread");
-    for (const surface of element.querySelectorAll<HTMLElement>("[data-centre-surface]")) {
-      surface.hidden = false;
-    }
+  await page.evaluate(() => {
+    window.workbenchDocumentationFixture.setCentreMode("side-by-side");
   });
   await expect(fileSurface).toBeVisible();
   await expect(threadSurface).toBeVisible();
 
+  await page.locator('[data-project-id="project-zd"] .zd-project-heading').hover();
+  await page.getByRole("button", { name: "New terminal in zd" }).click();
   await page.setViewportSize({ width: 1150, height: 800 });
   await expect(threadSurface).toBeVisible();
   await expect(fileSurface).toBeHidden();
 
-  await shell.evaluate((element) => element.setAttribute("data-focus-region", "file"));
+  await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
+  await expect(shell).toHaveAttribute("data-focus-region", "file");
   await expect(threadSurface).toBeHidden();
   await expect(fileSurface).toBeVisible();
 
@@ -159,20 +159,32 @@ test("responsive overlap keeps the focused centre surface and releases hidden fo
     .toBeNull();
 });
 
-test("the empty top inset is a native window drag region", async ({ page }) => {
+test("the thin top chrome reserves a native window drag region", async ({ page }) => {
   await page.goto("/");
 
   const region = page.locator("[data-tauri-drag-region]");
+  const shell = page.locator(".zd-workbench");
   await expect(region).toHaveCount(1);
 
   const box = await region.boundingBox();
+  const shellBox = await shell.boundingBox();
   const viewport = page.viewportSize();
   expect(box).not.toBeNull();
+  expect(shellBox).not.toBeNull();
   expect(viewport).not.toBeNull();
   expect(box!.x).toBe(0);
   expect(box!.y).toBe(0);
   expect(box!.width).toBe(viewport!.width);
   expect(box!.height).toBeGreaterThanOrEqual(24);
+  expect(shellBox!.y).toBe(box!.height);
+  expect(shellBox!.height).toBe(viewport!.height - box!.height);
+
+  const chrome = await region.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { background: style.backgroundColor, border: style.borderBottomWidth };
+  });
+  expect(chrome.background).not.toBe("rgba(0, 0, 0, 0)");
+  expect(chrome.border).toBe("1px");
 
   const receivesPointer = await page.evaluate(
     ({ x, y }) => {
