@@ -189,6 +189,7 @@ describe("the terminal thread surface", () => {
       "Review terminal input",
     );
     expect(host.querySelector("script")).toBeNull();
+    expect(emulator.refreshTheme).toHaveBeenCalledWith(surface.viewportElement);
     surface.focus();
     expect(document.activeElement).toBe(host.querySelector("textarea"));
   });
