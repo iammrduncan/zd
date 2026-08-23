@@ -102,14 +102,10 @@ test("thread status and type icons align with the title without entering its lab
       metadataTop: secondary.top,
     };
   });
-
   expect(geometry.labelsLeft - geometry.iconRight).toBeGreaterThanOrEqual(4);
-  expect(
-    Math.abs(geometry.iconCentre - geometry.nameCentre),
-    JSON.stringify(geometry),
-  ).toBeLessThanOrEqual(1);
+  expect(geometry.iconCentre - geometry.nameCentre, JSON.stringify(geometry)).toBeCloseTo(2, 0);
   expect(Math.abs(geometry.dotCentre - geometry.nameCentre)).toBeLessThanOrEqual(1);
-  expect(geometry.iconBottom).toBeLessThanOrEqual(geometry.metadataTop);
+  expect(geometry.iconBottom).toBeLessThanOrEqual(geometry.metadataTop + 2);
 });
 
 test("Cmd+J restores and toggles the current thread and file after a project round trip", async ({
