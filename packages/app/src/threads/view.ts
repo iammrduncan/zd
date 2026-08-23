@@ -1,4 +1,5 @@
 import "./threads.css";
+import "@vscode/codicons/dist/codicon.css";
 
 import { orderedProjectThreads } from "./model";
 import type { ThreadsController } from "./controller";
@@ -132,7 +133,7 @@ function renderThreadRows(
 
     const dot = textSpan("zd-thread-state-dot", "");
     dot.setAttribute("aria-hidden", "true");
-    const icon = textSpan("zd-thread-type-icon", ">_");
+    const icon = textSpan("zd-thread-type-icon codicon codicon-terminal", "");
     icon.setAttribute("aria-hidden", "true");
     const labels = document.createElement("span");
     labels.className = "zd-thread-labels";
