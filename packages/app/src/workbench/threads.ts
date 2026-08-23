@@ -17,6 +17,7 @@ import {
   type ThreadWorkbenchSnapshot,
 } from "@/threads";
 import { ThreadScopeResolver, type ThreadScopePlatform } from "./thread-scope";
+import { boundedAutomaticName } from "./thread-name";
 import {
   defaultThreadId,
   inferredThreadRecovery,
@@ -64,6 +65,8 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
   readonly #createId: () => string;
   readonly #initialViewport: TerminalViewport;
   readonly #instrumentation?: InstrumentationClient;
+  readonly #automaticNames = new Map<string, string>();
+  readonly #automaticNameTails = new Map<string, Promise<TransitionResult>>();
   readonly #lifecycleTails = new Map<string, Promise<TransitionResult>>();
   readonly #sessions = new Map<string, TerminalThreadSession>();
   readonly #scopes: ThreadScopeResolver;
@@ -143,9 +146,11 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
       fileId,
     };
     const terminal = this.#createSession(durable, 0);
+    this.#automaticNames.set(id, durable.name);
     this.#sessions.set(id, terminal);
     const added = await this.owner.addThread(durable);
     if (added.status === "refused") {
+      this.#automaticNames.delete(id);
       this.#sessions.delete(id);
       return added;
     }
@@ -161,8 +166,29 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     }
   }
 
-  renameThread(threadId: string, name: string): Promise<TransitionResult> {
-    return this.owner.renameThread(threadId, name);
+  async renameThread(threadId: string, name: string): Promise<TransitionResult> {
+    const wasAutomatic = this.#automaticNames.has(threadId);
+    this.#automaticNames.delete(threadId);
+    await (this.#automaticNameTails.get(threadId) ?? Promise.resolve());
+    this.#automaticNames.delete(threadId);
+    const result = await this.owner.renameThread(threadId, name);
+    if (result.status === "refused" && wasAutomatic) {
+      const current = this.owner.snapshot().threads.find(({ id }) => id === threadId);
+      if (current) this.#automaticNames.set(threadId, current.name);
+    }
+    return result;
+  }
+
+  updateAutomaticName(threadId: string, title: string): Promise<TransitionResult> {
+    const previous =
+      this.#automaticNameTails.get(threadId) ??
+      Promise.resolve<TransitionResult>({ status: "committed" });
+    const work = previous.then(() => this.#applyAutomaticName(threadId, title));
+    this.#automaticNameTails.set(
+      threadId,
+      work.catch((cause) => refused(cause)),
+    );
+    return work;
   }
 
   reorderThreads(
@@ -223,7 +249,12 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
       }
     }
     this.#sessions.delete(threadId);
-    return this.owner.removeThread(threadId);
+    const result = await this.owner.removeThread(threadId);
+    if (result.status === "committed") {
+      this.#automaticNames.delete(threadId);
+      this.#automaticNameTails.delete(threadId);
+    }
+    return result;
   }
 
   async recoverThread(threadId: string): Promise<TransitionResult> {
@@ -294,6 +325,8 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     this.#stopProjectRemovalGuard();
     const sessions = [...this.#sessions.values()];
     this.#sessions.clear();
+    this.#automaticNames.clear();
+    this.#automaticNameTails.clear();
     await Promise.all(
       sessions.map(async (terminal) => {
         try {
@@ -319,6 +352,21 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
       .refresh()
       .then(() => terminal.pollExit())
       .catch(() => undefined);
+  }
+
+  async #applyAutomaticName(threadId: string, title: string): Promise<TransitionResult> {
+    if (!this.#automaticNames.has(threadId)) return { status: "committed" };
+    const name = boundedAutomaticName(title);
+    if (!name) return { status: "committed" };
+    const thread = this.owner.snapshot().threads.find(({ id }) => id === threadId);
+    if (!thread) {
+      this.#automaticNames.delete(threadId);
+      return { status: "refused", reason: `Unknown thread ${threadId}` };
+    }
+    if (thread.name === name) return { status: "committed" };
+    const result = await this.owner.renameThread(threadId, name);
+    if (result.status === "committed") this.#automaticNames.set(threadId, name);
+    return result;
   }
 
   #prepareProjectRemoval(projectId: string): TransitionDecision {

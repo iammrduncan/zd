@@ -147,6 +147,7 @@ export function headlessEmulator(): TerminalEmulator {
     onData: () => () => undefined,
     onBinary: () => () => undefined,
     onSearchResults: () => () => undefined,
+    onTitleChange: () => () => undefined,
     attachCustomKeyEventHandler: () => undefined,
     setLabel: (label) => host?.querySelector("textarea")?.setAttribute("aria-label", label),
     focus: () => host?.querySelector("textarea")?.focus(),
