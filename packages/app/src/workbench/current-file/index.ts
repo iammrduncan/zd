@@ -400,6 +400,10 @@ export async function mountCurrentFile(
     })();
   };
   window.addEventListener("focus", onFocus);
+  const focusCurrentFile = () => {
+    mounted?.focus();
+  };
+  host.addEventListener("focus", focusCurrentFile);
 
   await open(activeResource(context.state.snapshot()));
 
@@ -408,6 +412,7 @@ export async function mountCurrentFile(
     active = false;
     generation += 1;
     reconciliation += 1;
+    host.removeEventListener("focus", focusCurrentFile);
     window.removeEventListener("focus", onFocus);
     stopClose();
     confirmation.dismiss();

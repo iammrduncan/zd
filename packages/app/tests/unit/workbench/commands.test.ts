@@ -154,7 +154,7 @@ describe("root workbench commands", () => {
 
     expect(byId.get("file.find")?.chord).toEqual({ key: "f", mod: true });
     expect(byId.get("focus.toggle")?.chord).toEqual({ key: "f", mod: true, shift: true });
-    expect(byId.get("thread.focus")?.chord).toEqual({ key: "j", mod: true });
+    expect(byId.get("centre.toggle")?.chord).toEqual({ key: "j", mod: true });
     expect(byId.get("files.filter")?.chord).toEqual({ key: "p", mod: true });
     expect(byId.get("command.list")?.chord).toEqual({ key: "p", mod: true, shift: true });
     expect(byId.get("settings.open")?.chord).toEqual({ key: ",", mod: true });
@@ -254,9 +254,15 @@ describe("root workbench commands", () => {
     removeEditor();
   });
 
-  it("restores the previous focus target when terminal focus is dismissed", async () => {
+  it("toggles the restored project context between its current thread and file", async () => {
     const native = setupPlatform();
     const runtime = context(native.platform);
+    await runtime.state.activateFile({
+      projectId: "project-one",
+      worktreeId: "worktree-one",
+      relativePath: "README.md",
+    });
+    const fileId = runtime.state.snapshot().active.fileId;
     await runtime.state.addThread({
       id: "thread-focus",
       projectId: "project-one",
@@ -273,8 +279,39 @@ describe("root workbench commands", () => {
       backingId: "terminal:thread-focus",
       backingAvailability: "ready",
       recovery: null,
-      fileId: null,
+      fileId,
     });
+    await runtime.state.activateFile({
+      projectId: "project-two",
+      worktreeId: "worktree-two",
+      relativePath: "notes.md",
+    });
+    await runtime.state.addThread({
+      id: "thread-other",
+      projectId: "project-two",
+      worktreeId: "worktree-two",
+      name: "Other",
+      order: 0,
+      type: "terminal",
+      agent: "shell",
+      lifecycle: "idle",
+      lifecycleSource: "process",
+      lifecycleRevision: 1,
+      attentionUnread: false,
+      attentionVersion: 0,
+      backingId: "terminal:thread-other",
+      backingAvailability: "ready",
+      recovery: null,
+      fileId: runtime.state.snapshot().active.fileId,
+    });
+    await runtime.state.activateProject("project-one");
+    expect(runtime.state.snapshot().active).toMatchObject({
+      projectId: "project-one",
+      threadId: "thread-focus",
+      fileId,
+    });
+    expect(runtime.state.snapshot().regions.focus).toBe("thread");
+
     const host = document.createElement("div");
     const file = document.createElement("button");
     file.dataset.centreSurface = "file";
@@ -283,23 +320,28 @@ describe("root workbench commands", () => {
     thread.tabIndex = -1;
     host.append(file, thread);
     document.body.append(host);
-    file.focus();
     const attached = attachWorkbenchCommands(host, runtime);
     await attached.ready;
 
     expect(
       commands()
-        .find(({ id }) => id === "thread.focus")
-        ?.run(),
-    ).toBe(true);
-    expect(document.activeElement).toBe(thread);
-    expect(
-      commands()
-        .find(({ id }) => id === "workbench.escape")
+        .find(({ id }) => id === "centre.toggle")
         ?.run(),
     ).toBe(true);
     expect(document.activeElement).toBe(file);
     expect(runtime.state.snapshot().regions.focus).toBe("file");
+    expect(runtime.state.snapshot().active).toMatchObject({
+      threadId: "thread-focus",
+      fileId,
+    });
+
+    expect(
+      commands()
+        .find(({ id }) => id === "centre.toggle")
+        ?.run(),
+    ).toBe(true);
+    expect(document.activeElement).toBe(thread);
+    expect(runtime.state.snapshot().regions.focus).toBe("thread");
 
     attached.detach();
   });

@@ -1,10 +1,10 @@
 # Rule: Work on each feedback item until resolved. Once resolved move it to below the Feedback Addressed Line. Mark it with "\" while feedback is in progress. One line per feedback item in this file.
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
-cmd+j should really swap between the current thread/terminal and the current focused file. So if I swithc projects and come back I can get back to the already open file easily.
 thread/project pane should be collapsable to icons only.
 seems we need a general "context" setter function that sets the current view context based on all the variables here and whether it was a hotkey or clicking a thread or clicking a project etc... and it knows current threads contexts, worktrees, open files, etc and can restore those states etc... maybe?
 === Feedback Addressed ===
+cmd+j should really swap between the current thread/terminal and the current focused file. So if I swithc projects and come back I can get back to the already open file easily.
 files added to folder don't automatically show up in filetree. you can see in this screenshot I have pasted 2 screenshots but only one shows up on the file tree... ![Screenshot](../screenshots/screenshot-1787455512210124000.png). Only if I change the focus away and come back to the app does it show up.
 thread/project panel has weird bug around current file has unsaved work? ![Screenshot](../screenshots/screenshot-1787455459859109000.png)
 We should have project headers be darker background always so we can see at a glance what projects are open or not. ![Screenshot](../screenshots/screenshot-1787455389990233000.png)

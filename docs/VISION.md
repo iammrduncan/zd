@@ -279,7 +279,7 @@ Default application bindings are:
 | Current-file Find | `Cmd+F` | `Ctrl+F` |
 | Focus Mode | `Cmd+Shift+F` | `Ctrl+Shift+F` |
 | Activate project 1…9 | `Cmd+1`…`Cmd+9` | `Ctrl+1`…`Ctrl+9` |
-| Focus terminal/thread | `Cmd+J` | `Ctrl+J` |
+| Switch between the current thread and file | `Cmd+J` | `Ctrl+J` |
 | Command List | `Cmd+Shift+P` | `Ctrl+Shift+P` |
 | Global summon | `Cmd+Shift+Space` | `Ctrl+Shift+Space` |
 

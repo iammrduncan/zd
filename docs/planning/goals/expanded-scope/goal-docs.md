@@ -42,7 +42,7 @@ in `goal.md`.
    current application identity, settings, and upgrade path.
 6. The shared command registry owns these defaults on macOS / Windows: Focus
    `Cmd+Shift+F` / `Ctrl+Shift+F`; current-file Find `Cmd+F` / `Ctrl+F`; projects
-   `Cmd+1`…`Cmd+9` / `Ctrl+1`…`Ctrl+9`; terminal/thread focus `Cmd+J` / `Ctrl+J`; command list
+   `Cmd+1`…`Cmd+9` / `Ctrl+1`…`Ctrl+9`; current thread/file switch `Cmd+J` / `Ctrl+J`; command list
    `Cmd+Shift+P` / `Ctrl+Shift+P`; global summon `Cmd+Shift+Space` / `Ctrl+Shift+Space`.
 7. `docs/planning/` is the sole active planning root. `docs/planning/objectives/` owns objective and
    session-loop state; `docs/planning/goals/` owns active cross-objective execution plans; and
