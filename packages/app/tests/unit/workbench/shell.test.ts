@@ -155,7 +155,7 @@ describe("the root workbench shell", () => {
       ),
     ).toEqual(["threads", "centre", "files"]);
     expect(shell.querySelector('[data-region="threads"]')?.getAttribute("aria-label")).toBe(
-      "Threads",
+      "Projects",
     );
     expect(shell.querySelector('[data-region="files"]')?.getAttribute("aria-label")).toBe(
       "Files and Changes",

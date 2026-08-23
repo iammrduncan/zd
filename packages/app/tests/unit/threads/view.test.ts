@@ -120,6 +120,10 @@ describe("the Threads region", () => {
     const host = document.createElement("aside");
     mountThreadsRegion(host, new ThreadsController(adapter()));
 
+    expect(host.querySelector("h1")?.textContent).toBe("PROJECTS");
+    expect(host.querySelector('[role="tree"]')?.getAttribute("aria-label")).toBe(
+      "Projects and threads",
+    );
     expect(
       [...host.querySelectorAll<HTMLElement>("[data-thread-project]")].map(
         ({ dataset }) => dataset.threadProject,

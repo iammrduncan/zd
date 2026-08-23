@@ -252,14 +252,14 @@ function mountThreadView(
   if (!projectId) {
     const heading = document.createElement("h1");
     heading.className = "zd-thread-region-heading";
-    heading.textContent = "THREADS";
+    heading.textContent = "PROJECTS";
     root.append(heading);
   }
 
   const list = document.createElement("div");
   list.className = "zd-thread-list";
   list.setAttribute("role", "tree");
-  list.setAttribute("aria-label", projectId ? "Project threads" : "Threads by project");
+  list.setAttribute("aria-label", projectId ? "Project threads" : "Projects and threads");
   const status = document.createElement("p");
   status.className = "zd-thread-status";
   status.setAttribute("role", "status");

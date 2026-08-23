@@ -33,7 +33,7 @@ export function mountProjectList(
   toolbar.className = "zd-project-toolbar";
   const navigationHeading = document.createElement("h2");
   navigationHeading.className = "zd-project-region-heading";
-  navigationHeading.textContent = "THREADS";
+  navigationHeading.textContent = "PROJECTS";
   const addProject = document.createElement("button");
   addProject.type = "button";
   addProject.className = "zd-project-add";

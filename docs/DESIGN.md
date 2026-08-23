@@ -330,7 +330,7 @@ restoration. A hidden region cannot retain keyboard focus.
 
 Threads is a project/thread hierarchy, not a dashboard.
 
-- Region heading: `THREADS` in quiet navigation text.
+- Region heading: `PROJECTS` in quiet navigation text.
 - The heading and quiet `Open` project action share one header row; neither becomes a separate
   hierarchy level.
 - Project rows use a small disclosure chevron and slightly stronger text.
