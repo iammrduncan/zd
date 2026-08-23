@@ -2,8 +2,10 @@ import {
   editorBufferFromRead,
   mountEditorBuffer,
   type BoundedFileRead,
+  type ClipboardImage,
   type MountedEditorBuffer,
 } from "@/editor";
+import { screenshotLink } from "./clipboard-image";
 import { closeConfirmation } from "./close-confirmation";
 import { reconcile, saveWouldClobber } from "./reconcile";
 import type { FileStamp } from "@/platform";
@@ -49,6 +51,7 @@ export async function mountCurrentFile(
   let reconciliation = 0;
   let currentResource: FileResource | null = null;
   let known: FileStamp | null = null;
+  let pendingImageSaves = 0;
   let notice: HTMLParagraphElement | null = null;
   const surface = document.createElement("div");
   surface.className = "current-file";
@@ -82,6 +85,8 @@ export async function mountCurrentFile(
       worktreeId: resource.worktreeId,
       logicalPath: resource.relativePath,
     };
+    const acceptsPastedImages =
+      buffer.editable && (buffer.language.markdown || buffer.language.id === "plain-text");
     mounted = mountEditorBuffer(surface, buffer, {
       wrap: wordWrap(),
       onSave: async (text) => {
@@ -111,6 +116,38 @@ export async function mountCurrentFile(
           return false;
         }
       },
+      ...(acceptsPastedImages
+        ? {
+            onPasteImage: async (image: ClipboardImage) => {
+              pendingImageSaves += 1;
+              const paste = context.instrumentation.startSpan(
+                "file.paste-image",
+                diagnosticContext,
+              );
+              try {
+                const saved = await context.platform.saveClipboardImage({
+                  projectId: resource.projectId,
+                  worktreeId: resource.worktreeId,
+                  mediaType: image.mediaType,
+                  bytes: image.bytes,
+                });
+                clearNotice();
+                await paste?.end("ok");
+                return screenshotLink(resource.relativePath, saved.relativePath);
+              } catch (error) {
+                await paste?.end("failed");
+                throw error;
+              } finally {
+                pendingImageSaves -= 1;
+              }
+            },
+            onPasteImageProblem: () =>
+              showNotice(
+                "The screenshot could not be saved. The document was not changed.",
+                "warning",
+              ),
+          }
+        : {}),
     });
     notice = document.createElement("p");
     notice.className = "current-file-notice";
@@ -265,10 +302,15 @@ export async function mountCurrentFile(
 
   const stopGuard = context.state.registerTransitionGuard({
     id: "workbench.current-file",
-    prepare: ({ from, to }) =>
-      from.fileId !== to.fileId && currentEditor()?.isDirty()
+    prepare: ({ from, to }) => {
+      if (from.fileId === to.fileId) return { status: "ready" };
+      if (pendingImageSaves > 0) {
+        return { status: "refused", reason: "A pasted screenshot is still being saved" };
+      }
+      return currentEditor()?.isDirty()
         ? { status: "refused", reason: "The current file has unsaved work" }
-        : { status: "ready" },
+        : { status: "ready" };
+    },
   });
   let fileId = context.state.snapshot().active.fileId;
   const stopState = context.state.subscribe((state) => {
@@ -278,7 +320,9 @@ export async function mountCurrentFile(
   });
   const confirmation = closeConfirmation(host, () => void context.platform.closeWindow());
   const stopClose = context.platform.onCloseRequested(() => {
-    if (currentEditor()?.isDirty()) confirmation.show();
+    if (pendingImageSaves > 0) {
+      showNotice("Wait for the pasted screenshot to finish saving before closing.", "warning");
+    } else if (currentEditor()?.isDirty()) confirmation.show();
     else void context.platform.closeWindow();
   });
   const onFocus = () => {
@@ -286,7 +330,7 @@ export async function mountCurrentFile(
     const resource = currentResource;
     const expectedGeneration = generation;
     const expectedReconciliation = ++reconciliation;
-    if (!editor || !resource) return;
+    if (!editor || !resource || pendingImageSaves > 0) return;
 
     void (async () => {
       const onDisk = await context.platform.fileStamp(resource).catch(() => known);

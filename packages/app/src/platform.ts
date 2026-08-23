@@ -49,6 +49,20 @@ export interface FileStamp {
   length: number;
 }
 
+export type ClipboardImageMediaType = "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+
+/** A bounded image write whose destination and filename remain native-owned. */
+export interface ClipboardImageWriteRequest {
+  readonly projectId: string;
+  readonly worktreeId: string;
+  readonly mediaType: ClipboardImageMediaType;
+  readonly bytes: Uint8Array;
+}
+
+export interface SavedClipboardImage {
+  readonly relativePath: string;
+}
+
 export interface WorkspaceFile {
   resource: FileResource;
   relative: string;
@@ -175,6 +189,8 @@ export interface Platform {
    * The guarantee lives on the other side of this boundary — see fs.rs.
    */
   writeTextFile(resource: FileResource, contents: string): Promise<void>;
+  /** Persist one supported image below the fixed `docs/screenshots` project directory. */
+  saveClipboardImage(request: ClipboardImageWriteRequest): Promise<SavedClipboardImage>;
   /**
    * Identity enough to notice someone else wrote the file, or null if it is gone.
    *
@@ -333,6 +349,7 @@ const tauri: Platform = {
   readTextFile: (resource) => invoke<string>("read_text_file", { resource }),
   readBoundedFile: (resource) => invoke<BoundedFileRead>("read_bounded_file", { resource }),
   writeTextFile: (resource, contents) => invoke<void>("write_text_file", { resource, contents }),
+  saveClipboardImage: (request) => invoke<SavedClipboardImage>("save_clipboard_image", { request }),
   fileStamp: (resource) => invoke<FileStamp | null>("file_stamp", { resource }),
   onCloseRequested: (handler) => {
     /*
@@ -434,6 +451,9 @@ const browser: Platform = {
   }),
   writeTextFile: async (resource) => {
     throw new Error(`no filesystem in the browser shell: ${resource.relativePath}`);
+  },
+  saveClipboardImage: async () => {
+    throw new Error("clipboard image saving requires the desktop shell");
   },
   // Null rather than a throw: "there is no file here" is the honest answer in a
   // browser, and it makes the reconcile path a no-op instead of an error to catch.

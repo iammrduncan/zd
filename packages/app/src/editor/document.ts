@@ -4,6 +4,7 @@ import { EditorView, keymap } from "@codemirror/view";
 
 import { createEditorFind, editorFindExtension, type EditorFind } from "@/editor/find";
 
+import { clipboardImagePaste, type ClipboardImage } from "./clipboard-image";
 import { caretFocus, dropCaret, hasCaret } from "./focus";
 import { markdownStructure } from "./markdown/continuation";
 import { isTypewriter, setTypewriter, typewriterMode } from "./typewriter";
@@ -171,6 +172,10 @@ export interface EditorOptions {
    * where the bytes go. Omit it and cmd+s is a quiet no-op.
    */
   onSave?: (text: string) => void | Promise<void | boolean>;
+  /** Persist a pasted image and return the document text inserted after it succeeds. */
+  onPasteImage?: (image: ClipboardImage) => Promise<string>;
+  /** Present a failed or refused image paste without changing the document. */
+  onPasteImageProblem?: (message: string) => void;
   /**
    * Called when the document crosses between saved and unsaved, and only then —
    * not on every keystroke.
@@ -311,6 +316,12 @@ export function createEditor(
           recheck();
           find?.queueRefresh();
         }),
+        !readOnly && options.onPasteImage
+          ? clipboardImagePaste({
+              save: options.onPasteImage,
+              onProblem: (message) => options.onPasteImageProblem?.(message),
+            })
+          : [],
         /*
          * No chords of our own. Every binding this surface used to own — save,
          * and the former document-info command — is now a workbench command registered by

@@ -449,6 +449,20 @@ line numbers, folding gutter, or minimap.
 Read-only, binary, undecodable, missing, denied, or over-limit content remains scrollable where safe
 and explains the restriction in one local supporting line.
 
+### Clipboard images
+
+Editable Markdown and plain-text buffers accept PNG, JPEG, GIF, and WebP clipboard images up to 16
+MiB. The webview supplies only the active project/worktree identities, declared media type, and
+bytes. Native code validates the signature, chooses a collision-safe filename, and writes only
+below the approved worktree's fixed `docs/screenshots` directory; the webview cannot choose a path,
+directory, or filename.
+
+The editor keeps the paste selection pending while that bounded write runs. Success inserts one
+undoable document-relative image link labelled `Screenshot`. Failure shows a local warning and does
+not alter the buffer. File switching and window close are refused while the write is pending, and an
+intervening edit is preserved rather than overwritten by the eventual link. Code and read-only
+buffers do not intercept image paste.
+
 ### Focus and typewriter behavior
 
 Focus Mode is off by default. Enabling it restores the existing line, paragraph, or section
