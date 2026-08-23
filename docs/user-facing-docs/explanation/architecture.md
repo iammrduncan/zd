@@ -38,6 +38,10 @@ Returning to that file restores the draft, including after `zd` relaunches. Savi
 the draft. The Files tree bolds its name and includes `unsaved` in its accessible label while the
 draft exists.
 
+The command registry owns both dispatch and displayed shortcut labels. Settings writes validated,
+conflict-free window-command overrides to local preferences; the same registry applies them after
+launch, so the Command List and Shortcut Reference cannot drift from the active binding.
+
 ## Local and opt-in behavior
 
 Theme files are bounded, closed-schema configuration rather than executable extensions. Remote

@@ -255,3 +255,27 @@ test("the command list opens from its shortcut and executes a filtered command",
   await expect(commandList).toBeHidden();
   await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
 });
+
+test("Settings edits a window shortcut and restores it after reload", async ({ page }) => {
+  const primary = await page.evaluate(() =>
+    /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",
+  );
+  const editor = page.locator(".current-file .md-editor");
+
+  await page.keyboard.press(`${primary}+,`);
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  const binding = settings.getByRole("button", {
+    name: /Change shortcut for Turn Focus Mode on or off/u,
+  });
+  await binding.click();
+  await binding.press(`${primary}+Alt+k`);
+  await settings.getByRole("button", { name: "Close Settings", exact: true }).click();
+
+  await page.keyboard.press(`${primary}+Alt+k`);
+  await expect(editor).toHaveAttribute("data-focus-mode", "true");
+
+  await page.reload();
+  await page.locator(".current-file .cm-editor").waitFor();
+  await page.keyboard.press(`${primary}+Alt+k`);
+  await expect(editor).toHaveAttribute("data-focus-mode", "true");
+});

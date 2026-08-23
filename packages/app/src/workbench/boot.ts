@@ -7,6 +7,7 @@ import { attachShortcuts } from "./shortcuts";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "./state";
 import { attachWorkbenchCommands } from "./commands";
 import { mountCommandList } from "./command-list";
+import { restoreShortcutBindings } from "./shortcut-settings";
 import { attachWorkbenchDiagnostics } from "./diagnostics";
 import { diagnosticsEnabled, setDiagnosticsEnabled } from "./preferences";
 import { mountWorkbenchFeatures } from "./features";
@@ -131,6 +132,7 @@ export async function bootWorkbench(
   const detachOpenRequests = attachOpenRequests(runtime);
   await launchSpan?.end("ok");
 
+  localNotices.push(...restoreShortcutBindings());
   localNotices.push(...(await rootCommands.ready));
   showLocalNotices(host, localNotices);
 

@@ -24,3 +24,7 @@ the current context.
 A context-dependent shortcut falls through when its target is unavailable. The global summon may be
 unavailable when the operating system refuses registration or another application owns the chord;
 ordinary launch still works.
+
+To change a window shortcut, open **Settings**, choose its current binding under **Shortcuts**, and
+press the replacement chord. A chord already used by another command is refused. **Reset** restores
+the registered default. The global summon shortcut remains managed by the operating system.

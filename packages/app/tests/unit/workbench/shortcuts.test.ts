@@ -8,6 +8,7 @@ import {
   register,
   registerCommandObserver,
   releaseHeld,
+  setCommandChord,
   type Command,
 } from "@/workbench/shortcuts";
 
@@ -90,9 +91,46 @@ describe("the registry", () => {
     // and which one wins becomes registration order — invisible and arbitrary.
     expect(() => register({ ...save(), id: "document.other" })).toThrow(/already/i);
   });
+
+  it("rebinds one command and refuses a chord owned by another", () => {
+    const run = vi.fn(() => true);
+    register(save(run));
+    register({
+      id: "document.find",
+      chord: { key: "f", mod: true },
+      description: "Find",
+      run: () => true,
+    });
+
+    expect(setCommandChord("document.save", { key: "k", mod: true, alt: true })).toEqual({
+      updated: true,
+    });
+    expect(commands().find(({ id }) => id === "document.save")?.chord).toEqual({
+      key: "k",
+      mod: true,
+      alt: true,
+    });
+    expect(dispatch(key({ key: "s", metaKey: true }))).toBe(false);
+    expect(dispatch(key({ key: "˚", code: "KeyK", metaKey: true, altKey: true }))).toBe(true);
+    expect(run).toHaveBeenCalledOnce();
+    expect(setCommandChord("document.save", { key: "f", mod: true })).toMatchObject({
+      updated: false,
+      problem: expect.stringContaining("Find"),
+    });
+  });
 });
 
 describe("dispatch", () => {
+  it("leaves a captured shortcut editor key for the recorder", () => {
+    const run = vi.fn(() => true);
+    register(save(run));
+    const recorder = document.createElement("button");
+    recorder.dataset.shortcutRecorder = "true";
+
+    expect(dispatch(key({ key: "s", metaKey: true, target: recorder }))).toBe(false);
+    expect(run).not.toHaveBeenCalled();
+  });
+
   it("publishes only commands that actually ran", () => {
     const observed = vi.fn();
     const detach = registerCommandObserver(observed);

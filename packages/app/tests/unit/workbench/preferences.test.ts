@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   attentionSettings,
+  clearShortcutBinding,
   diagnosticsEnabled,
   forgetPreferences,
   setAttentionAgentSound,
@@ -10,7 +11,9 @@ import {
   setAttentionSoundEnabled,
   setAttentionVolume,
   setDiagnosticsEnabled,
+  setShortcutBinding,
   setWordWrap,
+  shortcutBindings,
   wordWrap,
 } from "@/workbench/preferences";
 
@@ -70,6 +73,30 @@ describe("local diagnostics", () => {
 
     setDiagnosticsEnabled(false);
     expect(diagnosticsEnabled()).toBe(false);
+  });
+});
+
+describe("shortcut bindings", () => {
+  it("persists validated command chords and clears one override", () => {
+    setShortcutBinding("focus.toggle", { key: "k", mod: true, alt: true });
+    forgetPreferences();
+
+    expect(shortcutBindings()).toEqual({
+      "focus.toggle": { key: "k", mod: true, alt: true },
+    });
+
+    clearShortcutBinding("focus.toggle");
+    expect(shortcutBindings()).toEqual({});
+  });
+
+  it("ignores malformed stored chords", () => {
+    window.localStorage.setItem(
+      "zd.shortcutBindings.v1",
+      JSON.stringify({ "focus.toggle": { key: "", mod: "yes" } }),
+    );
+    forgetPreferences();
+
+    expect(shortcutBindings()).toEqual({});
   });
 });
 
