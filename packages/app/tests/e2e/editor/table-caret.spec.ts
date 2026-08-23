@@ -128,6 +128,31 @@ test("the table is the focus target once the caret is on it", async ({ page }) =
     .toBe("target");
 });
 
+test("editing a rendered table cell keeps the document viewport still", async ({ page }) => {
+  await open(page);
+  const table = await page.evaluate(tableLines);
+  await caretOnLine(page, table.first);
+  const cell = page.locator("table.md-rendered td").first();
+  await expect(cell).toBeVisible();
+  await cell.click();
+  const surface = page.locator(".md-surface");
+  const beforeText = await page.evaluate(() => window.zdEditor!.text());
+  const samples = [await surface.evaluate((element) => element.scrollTop)];
+
+  for (const key of ["A", "B", "C", "D"]) {
+    await page.keyboard.press(key);
+    await settle(page);
+    samples.push(await surface.evaluate((element) => element.scrollTop));
+  }
+
+  expect(
+    Math.max(...samples) - Math.min(...samples),
+    `scroll samples: ${samples.join(", ")}`,
+  ).toBeLessThanOrEqual(1);
+  expect(await page.evaluate(() => window.zdEditor!.text())).not.toBe(beforeText);
+  await expect(cell).toBeFocused();
+});
+
 test("the next press leaves the table", async ({ page }) => {
   await open(page);
   const table = await page.evaluate(tableLines);
