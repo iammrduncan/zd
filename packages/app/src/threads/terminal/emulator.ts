@@ -96,10 +96,16 @@ function fontOptions(source: HTMLElement): {
   const style = getComputedStyle(source);
   const fontSize = Number.parseFloat(style.fontSize) || 13;
   const lineHeight = Number.parseFloat(style.lineHeight);
+  const terminalCellLine = Number.parseFloat(style.getPropertyValue("--type-terminal-cell-line"));
   return {
     fontFamily: style.fontFamily || "monospace",
     fontSize,
-    lineHeight: Number.isFinite(lineHeight) && lineHeight > 0 ? lineHeight / fontSize : 1.35,
+    lineHeight:
+      Number.isFinite(terminalCellLine) && terminalCellLine >= 1
+        ? terminalCellLine
+        : Number.isFinite(lineHeight) && lineHeight > 0
+          ? lineHeight / fontSize
+          : 1.35,
   };
 }
 

@@ -108,12 +108,32 @@ test("renders VT cursor updates, ANSI, Unicode, and untrusted output accessibly"
     const style = getComputedStyle(element);
     return {
       family: style.fontFamily,
+      size: Number.parseFloat(style.fontSize),
+      lineHeight: Number.parseFloat(style.lineHeight),
       foreground: style.color,
       background: style.backgroundColor,
     };
   });
   expect(typography.family).toContain("iA Writer Mono");
+  expect(typography.size).toBe(14);
+  expect(typography.lineHeight).toBeCloseTo(22, 0);
   expect(typography.foreground).not.toBe(typography.background);
+  const renderedRow = await page
+    .locator('.xterm-accessibility-tree [role="listitem"]')
+    .first()
+    .evaluate((row) => {
+      const style = getComputedStyle(row);
+      return {
+        height: row.getBoundingClientRect().height,
+        inlineHeight: (row as HTMLElement).style.height,
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize,
+      };
+    });
+  expect(renderedRow.fontFamily).toContain("iA Writer Mono");
+  expect(renderedRow.fontSize).toBe("14px");
+  expect(renderedRow.inlineHeight).toBe("22px");
+  expect(renderedRow.height).toBeCloseTo(22, 0);
 });
 
 test("searches parsed terminal state and reports the active result", async ({ page }) => {

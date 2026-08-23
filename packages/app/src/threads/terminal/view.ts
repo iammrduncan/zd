@@ -177,7 +177,7 @@ export function mountTerminalThreadSurface(
     return emulator.findPrevious(query.value, searchOptions(false));
   };
 
-  const refreshTheme = () => emulator.refreshTheme(root);
+  const refreshTheme = () => emulator.refreshTheme(viewport);
   const fit = () => {
     if (!active || !visible) return;
     const dimensions = emulator.fit();

@@ -110,6 +110,10 @@
   --type-code-style: normal;
   --type-code-line: 1.571; /* 22 / 14 */
 
+  /* xterm multiplies the bundled face's measured 18px glyph box, not the CSS
+     font size. This correction keeps its physical cell at the code role's 22px. */
+  --type-terminal-cell-line: 1.223; /* 22 / 18 */
+
   /*
    * Inline source. The 15px is an optical correction against 17px prose — mono
    * reads larger at the same nominal size — so it tracks prose, not code size.
