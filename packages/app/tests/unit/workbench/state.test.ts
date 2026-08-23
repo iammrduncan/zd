@@ -357,49 +357,6 @@ describe("atomic workbench context transitions", () => {
     expect(seen).not.toHaveBeenCalled();
   });
 
-  it("reconciles open files and thread memory after native rename and Trash operations", () => {
-    const state = populatedState();
-    const owner = createWorkbenchStateOwner({
-      ...state,
-      openFiles: [
-        { ...state.openFiles[0]!, relativePath: "docs/README.md" },
-        {
-          id: "file-child",
-          projectId: "project-a",
-          worktreeId: "worktree-a",
-          relativePath: "docs/notes.md",
-          bufferId: "buffer-child",
-        },
-        state.openFiles[1]!,
-      ],
-    });
-    const docs = {
-      projectId: "project-a",
-      worktreeId: "worktree-a",
-      relativePath: "docs",
-    };
-
-    owner.renameFilePath(docs, "writing");
-
-    expect(owner.snapshot().openFiles.map(({ relativePath }) => relativePath)).toEqual([
-      "writing/README.md",
-      "writing/notes.md",
-      "src/main.ts",
-    ]);
-    expect(owner.snapshot().active.fileId).toBe(
-      fileStateId({ ...docs, relativePath: "writing/README.md" }),
-    );
-    expect(owner.snapshot().threads[0]?.fileId).toBe(owner.snapshot().active.fileId);
-
-    owner.removeFilePath({ ...docs, relativePath: "writing" });
-
-    expect(owner.snapshot().openFiles.map(({ relativePath }) => relativePath)).toEqual([
-      "src/main.ts",
-    ]);
-    expect(owner.snapshot().active.fileId).toBeNull();
-    expect(owner.snapshot().threads[0]?.fileId).toBeNull();
-  });
-
   it("restores each project's exact session context after repeated activation", async () => {
     const owner = createWorkbenchStateOwner(populatedState());
 

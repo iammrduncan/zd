@@ -309,6 +309,39 @@ describe("FileTreeController", () => {
     });
   });
 
+  it("does not publish a completed mutation after its project loses focus", async () => {
+    let finishCreate!: () => void;
+    const createPending = new Promise<void>((resolve) => {
+      finishCreate = resolve;
+    });
+    const actions: FileTreeActions = {
+      activateFile: vi.fn(async () => ({ status: "committed" as const })),
+      createEntry: vi.fn(() => createPending),
+    };
+    const adapter: FileTreeAdapter = {
+      snapshot: vi.fn(async (request) =>
+        ready(request.projectId, [entry("docs", "directory")], {
+          projectId: request.projectId,
+          worktreeId: request.worktreeId,
+        }),
+      ),
+      watch: () => () => {},
+    };
+    const controller = new FileTreeController(adapter, actions);
+    await controller.activate(scope);
+
+    const creation = controller.createEntry("docs", "new.md", "file");
+    await controller.activate({ projectId: "beta", worktreeId: "beta-root" });
+    finishCreate();
+
+    await expect(creation).resolves.toBe(false);
+    expect(controller.snapshot()).toMatchObject({
+      scope: { projectId: "beta", worktreeId: "beta-root" },
+      selectedPath: null,
+      notice: null,
+    });
+  });
+
   it("keeps invalid names and protected metadata out of mutation actions", async () => {
     const actions: FileTreeActions = {
       activateFile: vi.fn(async () => ({ status: "committed" as const })),

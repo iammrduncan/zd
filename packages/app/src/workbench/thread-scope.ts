@@ -10,8 +10,12 @@ export interface ThreadScopePlatform {
   createThreadWorktree(request: CreateThreadWorktreeRequest): Promise<CreateThreadWorktreeResult>;
 }
 
-function refused(cause: unknown): TransitionResult {
+export function refused(cause: unknown): TransitionResult {
   return { status: "refused", reason: cause instanceof Error ? cause.message : String(cause) };
+}
+
+export function isScope(value: TransitionResult | TerminalScope): value is TerminalScope {
+  return !("status" in value);
 }
 
 /** Resolves only native-approved project/worktree identities for terminal threads. */
