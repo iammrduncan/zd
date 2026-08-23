@@ -8,6 +8,12 @@ import type { WorkbenchRegions, WorkbenchState } from "./state";
 
 const GEOMETRY_STEP = 8;
 const SPLIT_STEP = 0.02;
+const THREADS_MIN_WIDTH = 184;
+const THREADS_MAX_WIDTH = 300;
+const FILES_MIN_WIDTH = 220;
+const FILES_MAX_WIDTH = 360;
+const CENTRE_MIN_WIDTH = 528;
+const NAVIGATION_DIVIDERS_WIDTH = 2;
 const FILES_SUPPRESSED_QUERY = "(max-width: 58.25rem)";
 const THREADS_HIDDEN_QUERY = "(max-width: 40rem)";
 const NOTHING: Unmount = () => {};
@@ -148,6 +154,35 @@ function watchResponsiveSuppression(
   return () => media.removeEventListener("change", reconcileFocus);
 }
 
+export function fitNavigationWidths(
+  shellWidth: number,
+  requestedThreads: number,
+  requestedFiles: number,
+): { readonly threads: number; readonly files: number } {
+  const threads = Math.min(THREADS_MAX_WIDTH, Math.max(THREADS_MIN_WIDTH, requestedThreads));
+  const files = Math.min(FILES_MAX_WIDTH, Math.max(FILES_MIN_WIDTH, requestedFiles));
+  const requestedTotal = threads + files;
+  const available = Math.max(0, shellWidth - CENTRE_MIN_WIDTH - NAVIGATION_DIVIDERS_WIDTH);
+  if (available >= requestedTotal) return { threads, files };
+
+  const minimumTotal = THREADS_MIN_WIDTH + FILES_MIN_WIDTH;
+  if (available <= minimumTotal) {
+    return { threads: THREADS_MIN_WIDTH, files: FILES_MIN_WIDTH };
+  }
+
+  const threadsSlack = threads - THREADS_MIN_WIDTH;
+  const filesSlack = files - FILES_MIN_WIDTH;
+  const slack = threadsSlack + filesSlack;
+  if (slack === 0) return { threads, files };
+
+  const reduction = requestedTotal - available;
+  const threadsReduction = reduction * (threadsSlack / slack);
+  return {
+    threads: threads - threadsReduction,
+    files: files - (reduction - threadsReduction),
+  };
+}
+
 function regionState(shell: HTMLElement, state: WorkbenchState): void {
   const { regions } = state;
   shell.dataset.threadsVisibility = regions.threads.visibility;
@@ -157,6 +192,12 @@ function regionState(shell: HTMLElement, state: WorkbenchState): void {
   shell.dataset.windowPresentation = state.window.presentation;
   shell.style.setProperty("--workbench-threads-width", `${regions.threads.width}px`);
   shell.style.setProperty("--workbench-files-width", `${regions.files.width}px`);
+  const fitted =
+    regions.threads.visibility === "full" && regions.files.visibility === "visible"
+      ? fitNavigationWidths(shell.clientWidth, regions.threads.width, regions.files.width)
+      : { threads: regions.threads.width, files: regions.files.width };
+  shell.style.setProperty("--workbench-threads-fitted-width", `${fitted.threads}px`);
+  shell.style.setProperty("--workbench-files-fitted-width", `${fitted.files}px`);
   const splitPercent = Math.round(regions.centre.split * 10_000) / 100;
   shell.style.setProperty("--workbench-centre-split", `${splitPercent}%`);
 }
@@ -311,15 +352,20 @@ export async function mountWorkbenchShell(
     previousPresentation = state.window.presentation;
   };
 
-  threadsResizer.setAttribute("aria-valuemin", "184");
-  threadsResizer.setAttribute("aria-valuemax", "300");
-  filesResizer.setAttribute("aria-valuemin", "220");
-  filesResizer.setAttribute("aria-valuemax", "360");
+  threadsResizer.setAttribute("aria-valuemin", String(THREADS_MIN_WIDTH));
+  threadsResizer.setAttribute("aria-valuemax", String(THREADS_MAX_WIDTH));
+  filesResizer.setAttribute("aria-valuemin", String(FILES_MIN_WIDTH));
+  filesResizer.setAttribute("aria-valuemax", String(FILES_MAX_WIDTH));
   centreResizer.setAttribute("aria-valuemin", "30");
   centreResizer.setAttribute("aria-valuemax", "70");
 
   render(context.state.snapshot());
   const stopState = context.state.subscribe(render);
+  const geometryObserver =
+    typeof ResizeObserver === "undefined"
+      ? null
+      : new ResizeObserver(() => regionState(shell, context.state.snapshot()));
+  geometryObserver?.observe(shell);
 
   const selectTab = (tab: "files" | "changes") =>
     updateRegions(context, (regions) => ({
@@ -331,6 +377,7 @@ export async function mountWorkbenchShell(
   changesTab.addEventListener("click", () => selectTab("changes"));
 
   const cleanups: Unmount[] = [
+    () => geometryObserver?.disconnect(),
     watchResponsiveSuppression(FILES_SUPPRESSED_QUERY, files, centreFocusTarget),
     watchResponsiveSuppression(THREADS_HIDDEN_QUERY, threads, centreFocusTarget),
     onArrowResize(threadsResizer, (direction) =>

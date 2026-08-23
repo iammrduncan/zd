@@ -6,7 +6,7 @@ import { unavailableGitAdapter } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { unavailableTerminalAdapter } from "@/terminal";
 import type { WorkbenchMount, WorkbenchRuntimeContext } from "@/workbench/runtime";
-import { mountWorkbenchShell } from "@/workbench/shell";
+import { fitNavigationWidths, mountWorkbenchShell } from "@/workbench/shell";
 import { createWorkbenchStateOwner } from "@/workbench/state";
 import { homeLaunch } from "@/workbench/resources";
 
@@ -78,6 +78,20 @@ function context(): WorkbenchRuntimeContext {
 }
 
 describe("the root workbench shell", () => {
+  it("fits requested navigation widths around the useful centre minimum", () => {
+    expect(fitNavigationWidths(1100, 236, 280)).toEqual({ threads: 236, files: 280 });
+
+    const compact = fitNavigationWidths(1000, 236, 280);
+    expect(compact.threads).toBeGreaterThanOrEqual(184);
+    expect(compact.files).toBeGreaterThanOrEqual(220);
+    expect(compact.threads + compact.files).toBeCloseTo(470);
+
+    const expanded = fitNavigationWidths(1100, 300, 360);
+    expect(expanded.threads).toBeGreaterThan(184);
+    expect(expanded.files).toBeGreaterThan(220);
+    expect(expanded.threads + expanded.files).toBeCloseTo(570);
+  });
+
   it("mounts every feature through a named region host and tears them down in reverse", async () => {
     const host = document.createElement("div");
     const mounted: string[] = [];
@@ -185,6 +199,8 @@ describe("the root workbench shell", () => {
     expect(shell.dataset.focusRegion).toBe("thread");
     expect(shell.style.getPropertyValue("--workbench-threads-width")).toBe("244px");
     expect(shell.style.getPropertyValue("--workbench-files-width")).toBe("320px");
+    expect(shell.style.getPropertyValue("--workbench-threads-fitted-width")).toBe("244px");
+    expect(shell.style.getPropertyValue("--workbench-files-fitted-width")).toBe("320px");
     expect(shell.style.getPropertyValue("--workbench-centre-split")).toBe("55%");
   });
 

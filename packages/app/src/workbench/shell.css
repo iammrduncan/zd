@@ -2,9 +2,11 @@
   /* Safe first-frame values; the root state owner overrides these per instance. */
   --workbench-threads-width: 236px;
   --workbench-files-width: 280px;
+  --workbench-threads-fitted-width: var(--workbench-threads-width);
+  --workbench-files-fitted-width: var(--workbench-files-width);
   --workbench-centre-split: 42%;
-  --workbench-threads-responsive-width: clamp(184px, var(--workbench-threads-width), 300px);
-  --workbench-files-responsive-width: clamp(220px, var(--workbench-files-width), 360px);
+  --workbench-threads-responsive-width: clamp(184px, var(--workbench-threads-fitted-width), 300px);
+  --workbench-files-responsive-width: clamp(220px, var(--workbench-files-fitted-width), 360px);
   --workbench-threads-column: var(--workbench-threads-responsive-width);
   --workbench-files-column: var(--workbench-files-responsive-width);
   --workbench-threads-divider: var(--hairline);
@@ -172,16 +174,6 @@
 .zd-workbench[data-files-visibility="hidden"] > .zd-workbench-files,
 .zd-workbench[data-files-visibility="hidden"] > [data-resizer="files"] {
   display: none;
-}
-
-@media (max-width: 80rem) {
-  .zd-workbench[data-threads-visibility="full"] {
-    --workbench-threads-responsive-width: 184px;
-  }
-
-  .zd-workbench[data-files-visibility="visible"] {
-    --workbench-files-responsive-width: 220px;
-  }
 }
 
 @media (max-width: 75rem) {

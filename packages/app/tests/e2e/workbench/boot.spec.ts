@@ -29,6 +29,15 @@ test("boots the styled workbench at the root route", async ({ page }) => {
   expect(styled.background, "the workbench canvas token was not applied").toBe(styled.canvas);
   expect(styled.height, "the file surface did not fill the app window").toBeGreaterThan(0);
   expect(styled.noticeFamily).toContain("iA Writer Quattro");
+
+  const [surfaceBox, emptyBox] = await Promise.all([
+    surface.boundingBox(),
+    surface.locator(".zd-region-empty").boundingBox(),
+  ]);
+  expect(surfaceBox).not.toBeNull();
+  expect(emptyBox).not.toBeNull();
+  expect(emptyBox!.x + emptyBox!.width / 2).toBeCloseTo(surfaceBox!.x + surfaceBox!.width / 2, 0);
+  expect(emptyBox!.y + emptyBox!.height / 2).toBeCloseTo(surfaceBox!.y + surfaceBox!.height / 2, 0);
 });
 
 test("applies the workbench design tokens rather than browser defaults", async ({ page }) => {
