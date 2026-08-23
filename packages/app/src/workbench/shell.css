@@ -226,7 +226,7 @@
   }
 }
 
-@media (max-width: 68.75rem) {
+@media (max-width: 58.25rem) {
   .zd-workbench[data-files-visibility] {
     --workbench-files-responsive-width: 0px;
     --workbench-files-divider: 0px;
