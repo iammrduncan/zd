@@ -86,6 +86,7 @@ test("thread status and type icons align with the title without entering its lab
   await page.getByRole("button", { name: "New terminal in zd" }).click();
 
   const geometry = await project.locator(".zd-thread-row").evaluate((row) => {
+    const dot = row.querySelector<HTMLElement>(".zd-thread-state-dot")!.getBoundingClientRect();
     const icon = row.querySelector<HTMLElement>(".zd-thread-type-icon")!.getBoundingClientRect();
     const name = row.querySelector<HTMLElement>(".zd-thread-name")!.getBoundingClientRect();
     const type = row.querySelector<HTMLElement>(".zd-thread-type")!.getBoundingClientRect();
@@ -93,14 +94,19 @@ test("thread status and type icons align with the title without entering its lab
       iconRight: icon.right,
       labelsLeft: name.left,
       iconCentre: icon.top + icon.height / 2,
+      dotCentre: dot.top + dot.height / 2,
       nameCentre: name.top + name.height / 2,
       iconBottom: icon.bottom,
       metadataTop: type.top,
     };
   });
 
-  expect(geometry.iconRight).toBeLessThanOrEqual(geometry.labelsLeft);
-  expect(Math.abs(geometry.iconCentre - geometry.nameCentre)).toBeLessThanOrEqual(4);
+  expect(geometry.labelsLeft - geometry.iconRight).toBeGreaterThanOrEqual(4);
+  expect(
+    Math.abs(geometry.iconCentre - geometry.nameCentre),
+    JSON.stringify(geometry),
+  ).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.dotCentre - geometry.nameCentre)).toBeLessThanOrEqual(1);
   expect(geometry.iconBottom).toBeLessThanOrEqual(geometry.metadataTop);
 });
 

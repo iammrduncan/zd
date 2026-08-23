@@ -73,6 +73,7 @@
   position: relative;
   display: grid;
   grid-template-columns: var(--space-2) var(--space-3) minmax(0, 1fr);
+  column-gap: var(--space-1);
   align-items: start;
   min-block-size: calc(var(--space-4) + var(--space-2));
   inline-size: 100%;
@@ -174,7 +175,7 @@
 .zd-thread-state-dot {
   inline-size: var(--space-1);
   block-size: var(--space-1);
-  margin-block-start: calc((var(--space-3) - var(--space-1)) / 2);
+  margin-block-start: calc((22px - var(--space-1)) / 2);
   border-radius: 50%;
   background: var(--state-idle);
 }
@@ -198,8 +199,7 @@
 .zd-thread-type-icon {
   display: grid;
   place-items: center;
-  block-size: 12px;
-  margin-block-start: 1px;
+  block-size: 22px;
   overflow: hidden;
   color: var(--text-secondary);
   font-size: 12px;

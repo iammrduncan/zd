@@ -351,8 +351,9 @@ Threads is a project/thread hierarchy, not a dashboard.
 - Project rows use a small disclosure chevron, slightly stronger text, and a persistent
   selection-derived background band. The active project strengthens to `surface.selection` and
   keeps the inset `line.focus` hairline.
-- Thread rows are indented beneath their project and use compact two-line rows: the name first,
-  then terminal/agent type, visible lifecycle, and differing worktree in supporting text.
+- Thread rows are indented beneath their project and use compact two-line rows: a state dot and type
+  icon share the first line's vertical centre, followed by a clear gap and the name; the second line
+  contains configured context in supporting text.
 - The selected row uses `surface.selection`, primary text, and a 2 px inset `line.focus` hairline.
 - Hover uses a reduced selection wash and never changes metrics.
 - Project and thread order is stable while status updates arrive.
