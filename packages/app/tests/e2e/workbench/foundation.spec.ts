@@ -58,6 +58,26 @@ test("a file-tree selection takes the overlap centre back from an active thread"
   expect(pageErrors).toEqual([]);
 });
 
+test("the active project header remains visually distinct from its active thread", async ({
+  page,
+}) => {
+  const project = page.locator('[data-project-id="project-zd"]');
+  await project.locator(".zd-project-heading").hover();
+  await page.getByRole("button", { name: "New terminal in zd" }).click();
+
+  const colours = await project.evaluate((group) => {
+    const projectRow = group.querySelector<HTMLElement>('.zd-project-row[aria-current="true"]');
+    const threadRow = group.querySelector<HTMLElement>('.zd-thread-row[aria-current="true"]');
+    if (!projectRow || !threadRow) throw new Error("active project and thread rows are required");
+    return {
+      project: getComputedStyle(projectRow).backgroundColor,
+      thread: getComputedStyle(threadRow).backgroundColor,
+    };
+  });
+
+  expect(colours.project).not.toBe(colours.thread);
+});
+
 test("Cmd+J restores and toggles the current thread and file after a project round trip", async ({
   page,
 }) => {
