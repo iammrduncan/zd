@@ -588,8 +588,10 @@ no invented default chord and remain assignable in Settings. Search treats white
 query words independently, so intent such as `theme dark` matches the displayed `Theme: Dark`
 command.
 
-The Shortcut Reference is a fixed two-column view of the same registry. It never becomes a second
-hand-maintained shortcut inventory.
+The Shortcut Reference is a compact editable table over the same registry. It never becomes a
+second hand-maintained shortcut inventory. Platform-correct key notation, the action name, and reset
+state use fixed columns with a dense row rhythm. Selecting a binding records a replacement
+immediately and reports conflicts in the surface; Settings reuses the same editor.
 
 ## 15. Settings
 

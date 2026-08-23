@@ -1,8 +1,10 @@
 # Shortcut reference
 
 The live Shortcut Reference is authoritative because it is rendered from the command registry that
-dispatches each key. Hold `Cmd+.` on macOS or `Ctrl+.` elsewhere to show the commands available in
-the current context.
+dispatches each key. Press `Cmd+.` on macOS or `Ctrl+.` elsewhere to show the commands available in
+the current context. Its compact table also edits application shortcuts: select a binding, press the
+replacement chord, or use Reset to restore the default. Operating-system shortcuts remain visible
+but system-managed.
 
 | Action | macOS | Windows and Linux |
 | --- | --- | --- |
