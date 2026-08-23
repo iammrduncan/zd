@@ -18,10 +18,12 @@ The current product expansion is coordinated by the
 
 ## Historical snapshots
 
-- The [prototype wrap-up goals](objectives/wrap-up/README.md) are superseded planning records.
-- The [early application-surface ideas](objectives/mini-apps/README.md) are superseded exploration.
+- The [prototype wrap-up goals](objectives/_completed/summary-wrap-up.md) are summarized superseded
+  planning records.
+- The [early application-surface ideas](objectives/_completed/summary-mini-apps.md) are summarized
+  superseded exploration.
 
-Both indexes point back to the current workbench plan and must not be used as execution queues.
+Both summaries point back to the current workbench plan and must not be used as execution queues.
 
 ## Rules
 
