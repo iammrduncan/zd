@@ -20,20 +20,29 @@
 }
 
 .zd-project-heading {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--space-4) var(--space-4);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
 }
 
 .zd-project-actions {
   display: flex;
   min-inline-size: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.zd-project-heading:hover .zd-project-actions,
+.zd-project-heading:focus-within .zd-project-actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .zd-project-row,
 .zd-project-text-action,
 .zd-project-add,
-.zd-project-remove {
+.zd-project-menu-action {
   appearance: none;
   border: 0;
   border-radius: 0;
@@ -67,7 +76,7 @@
 .zd-project-row:focus-visible,
 .zd-project-text-action:focus-visible,
 .zd-project-add:focus-visible,
-.zd-project-remove:focus-visible {
+.zd-project-menu-action:focus-visible {
   outline: none;
   text-decoration: underline;
   text-decoration-color: var(--line-focus);
@@ -76,12 +85,12 @@
 }
 
 .zd-project-add,
-.zd-project-remove {
+.zd-project-menu-action {
   color: var(--text-secondary);
 }
 
 .zd-project-add:hover,
-.zd-project-remove:hover {
+.zd-project-menu-action:hover {
   color: var(--text-primary);
 }
 
@@ -89,10 +98,25 @@
   padding-inline: var(--space-1);
 }
 
-.zd-project-remove {
-  inline-size: var(--space-4);
+.zd-project-menu {
+  position: fixed;
+  z-index: 2;
+  display: grid;
+  min-inline-size: calc(var(--space-4) * 4);
+  padding-block: var(--space-1);
+  border: var(--hairline) solid var(--line-quiet);
+  background: var(--surface-transient);
+}
+
+.zd-project-menu-action {
   min-block-size: var(--space-4);
-  padding: 0;
+  padding: var(--space-1) var(--space-2);
+  text-align: start;
+}
+
+.zd-project-menu-action:hover,
+.zd-project-menu-action:focus-visible {
+  background: var(--surface-selection);
 }
 
 .zd-project-disclosure {

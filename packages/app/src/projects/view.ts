@@ -55,6 +55,31 @@ export function mountProjectList(
   let active = true;
   let draggedProjectId: string | null = null;
   let childCleanups: ProjectChildUnmount[] = [];
+  let projectMenu: HTMLElement | null = null;
+  let projectMenuAnchor: HTMLButtonElement | null = null;
+
+  const dismissProjectMenu = (restoreFocus = false) => {
+    const anchor = projectMenuAnchor;
+    anchor?.removeAttribute("aria-controls");
+    projectMenu?.remove();
+    projectMenu = null;
+    projectMenuAnchor = null;
+    document.removeEventListener("pointerdown", dismissProjectMenuFromPointer);
+    document.removeEventListener("keydown", dismissProjectMenuFromKeyboard);
+    if (restoreFocus) anchor?.focus();
+  };
+
+  function dismissProjectMenuFromPointer(event: PointerEvent): void {
+    if (projectMenu?.contains(event.target as Node)) return;
+    dismissProjectMenu();
+  }
+
+  function dismissProjectMenuFromKeyboard(event: KeyboardEvent): void {
+    if (event.key !== "Escape" || !projectMenu) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dismissProjectMenu(true);
+  }
 
   const clearStatus = () => {
     status.replaceChildren();
@@ -92,7 +117,49 @@ export function mountProjectList(
     void perform(() => controller.addProject());
   });
 
+  const openProjectMenu = (
+    project: ProjectListItem,
+    row: HTMLButtonElement,
+    inlineStart: number,
+    blockStart: number,
+  ) => {
+    dismissProjectMenu();
+
+    const menu = document.createElement("div");
+    menu.className = "zd-project-menu";
+    menu.dataset.projectMenu = project.id;
+    menu.id = `zd-project-menu-${project.id}`;
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", `${project.name} project actions`);
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "zd-project-menu-action";
+    close.setAttribute("role", "menuitem");
+    close.setAttribute("aria-label", `Close ${project.name}`);
+    close.textContent = "Close";
+    close.addEventListener("click", () => {
+      dismissProjectMenu(true);
+      void perform(() => controller.removeProject(project.id));
+    });
+    menu.append(close);
+    root.append(menu);
+
+    const bounds = menu.getBoundingClientRect();
+    const boundedInlineStart = Math.max(0, Math.min(inlineStart, window.innerWidth - bounds.width));
+    const boundedBlockStart = Math.max(0, Math.min(blockStart, window.innerHeight - bounds.height));
+    menu.style.left = `${boundedInlineStart}px`;
+    menu.style.top = `${boundedBlockStart}px`;
+    row.setAttribute("aria-controls", menu.id);
+    projectMenu = menu;
+    projectMenuAnchor = row;
+    document.addEventListener("pointerdown", dismissProjectMenuFromPointer);
+    document.addEventListener("keydown", dismissProjectMenuFromKeyboard);
+    close.focus();
+  };
+
   const render = (snapshot: ProjectWorkbenchSnapshot) => {
+    dismissProjectMenu();
     for (const cleanup of childCleanups) cleanup();
     childCleanups = [];
     list.replaceChildren();
@@ -124,6 +191,7 @@ export function mountProjectList(
       row.id = `zd-project-row-${projectIndex}`;
       row.draggable = true;
       row.setAttribute("aria-expanded", "true");
+      row.setAttribute("aria-haspopup", "menu");
       row.setAttribute("aria-label", projectLabel(project));
       row.title = project.root;
       if (snapshot.active?.projectId === project.id) row.setAttribute("aria-current", "true");
@@ -142,6 +210,16 @@ export function mountProjectList(
       row.addEventListener("click", (event) => {
         event.preventDefault();
         void perform(() => controller.activateProject(project.id));
+      });
+      row.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        openProjectMenu(project, row, event.clientX, event.clientY);
+      });
+      row.addEventListener("keydown", (event) => {
+        if (event.key !== "ContextMenu" && !(event.key === "F10" && event.shiftKey)) return;
+        event.preventDefault();
+        const bounds = row.getBoundingClientRect();
+        openProjectMenu(project, row, bounds.left, bounds.bottom);
       });
       row.addEventListener("dragstart", (event) => {
         draggedProjectId = project.id;
@@ -166,17 +244,7 @@ export function mountProjectList(
         const insertionIndex = projectIndex + (insertAfter ? 1 : 0);
         void perform(() => controller.moveProject(movedId, insertionIndex));
       });
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "zd-project-remove";
-      remove.dataset.projectRemove = project.id;
-      remove.setAttribute("aria-label", `Remove ${project.name} from zd`);
-      remove.title = `Remove ${project.name}`;
-      remove.textContent = "−";
-      remove.addEventListener("click", () => {
-        void perform(() => controller.removeProject(project.id));
-      });
-      projectHeading.append(row, projectActions, remove);
+      projectHeading.append(row, projectActions);
       group.append(projectHeading);
 
       if (project.recovery) {
@@ -221,6 +289,7 @@ export function mountProjectList(
     unsubscribe();
     for (const cleanup of childCleanups) cleanup();
     childCleanups = [];
+    dismissProjectMenu();
     root.remove();
   };
 }

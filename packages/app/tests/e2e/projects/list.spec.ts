@@ -165,8 +165,15 @@ async function mountFixture(page: Page): Promise<void> {
     host.style.width = "236px";
     document.body.replaceChildren(host);
     mountProjectList(host, new ProjectsController(adapter), {
-      renderChildren: (project, childHost) => {
+      renderChildren: (project, childHost, actionHost) => {
         childHost.textContent = `${project.id} thread · idle`;
+        const createThread = document.createElement("button");
+        createThread.type = "button";
+        createThread.className = "zd-thread-create-action";
+        createThread.dataset.threadCreate = project.id;
+        createThread.setAttribute("aria-label", `New terminal in ${project.name}`);
+        createThread.textContent = "+";
+        actionHost.append(createThread);
       },
     });
     window.projectFixture = { calls };
@@ -218,13 +225,29 @@ test("ordinary, modified-pointer, and keyboard activation share one transition",
     .toEqual(["activate:beta", "activate:beta", "activate:alpha"]);
 });
 
-test("native add and guarded remove actions stay available in the compact list", async ({
+test("new-thread stays contextual and project close lives in the right-click menu", async ({
   page,
 }) => {
   await mountFixture(page);
 
+  const betaHeading = page.locator('[data-project-id="beta"] .zd-project-heading');
+  const createThread = page.locator('[data-project-id="beta"] [data-thread-create="beta"]');
+  const contextualActions = page.locator('[data-project-id="beta"] .zd-project-actions');
+  await page.mouse.move(800, 400);
+  await expect(contextualActions).toHaveCSS("opacity", "0");
+  await betaHeading.hover();
+  await expect(contextualActions).toHaveCSS("opacity", "1");
+  await expect(createThread).toBeVisible();
+  await page.mouse.move(800, 400);
+  await createThread.focus();
+  await expect(contextualActions).toHaveCSS("opacity", "1");
+
   await page.locator("[data-project-add]").click();
-  await page.locator('[data-project-remove="beta"]').click();
+  await expect(page.locator("[data-project-remove]")).toHaveCount(0);
+  await page.locator('[data-project-id="beta"] .zd-project-row').click({ button: "right" });
+  const menu = page.getByRole("menu", { name: "Beta project actions" });
+  await expect(menu).toBeVisible();
+  await menu.getByRole("menuitem", { name: "Close Beta" }).click();
 
   await expect
     .poll(() => page.evaluate(() => window.projectFixture.calls))
