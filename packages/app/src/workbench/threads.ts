@@ -16,7 +16,7 @@ import {
   type ThreadWorkbenchAdapter,
   type ThreadWorkbenchSnapshot,
 } from "@/threads";
-import { ThreadScopeResolver, type ThreadScopePlatform } from "./thread-scope";
+import { isScope, refused, ThreadScopeResolver, type ThreadScopePlatform } from "./thread-scope";
 import { boundedAutomaticName } from "./thread-name";
 import {
   defaultThreadId,
@@ -51,14 +51,6 @@ const DEFAULT_VIEWPORT: TerminalViewport = {
   pixelWidth: 0,
   pixelHeight: 0,
 };
-
-function refused(cause: unknown): TransitionResult {
-  return { status: "refused", reason: cause instanceof Error ? cause.message : String(cause) };
-}
-
-function isScope(value: TransitionResult | TerminalScope): value is TerminalScope {
-  return !("status" in value);
-}
 
 export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
   readonly #attentionListeners = new Set<(event: ThreadAttentionEventV1) => void>();

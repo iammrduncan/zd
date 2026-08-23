@@ -1,5 +1,16 @@
-import { normalizeFileTreeEntries, visibleFileTreeRows } from "./model";
+import { visibleFileTreeRows } from "./model";
+import {
+  applyFileTreeFilter,
+  updateFileTreeScroll,
+  type FileTreeFilterRestore,
+} from "./filter-state";
 import { copyFilePath } from "./path-copy";
+import { createFileTreeEntry, renameFileTreeEntry, trashFileTreeEntry } from "./mutations";
+import {
+  entriesWithGitOverlay,
+  fileTreeResultNotice,
+  persistentFileTreeNotice,
+} from "./reconciliation";
 import type {
   FileGitState,
   FilePathPresentation,
@@ -18,25 +29,6 @@ import type {
   VisibleFileTreeRow,
 } from "./types";
 
-function fileNameProblem(name: string): string | null {
-  if (name.length === 0) return "Enter a name.";
-  if (name === "." || name === "..") return "That name is reserved.";
-  if (/[\\/]/u.test(name)) return "Enter one file or folder name, without a path.";
-  if ([...name].some((character) => character.codePointAt(0)! <= 31)) {
-    return "Names cannot contain control characters.";
-  }
-  return null;
-}
-
-function childPath(parentPath: string | null, name: string): string {
-  return parentPath ? `${parentPath}/${name}` : name;
-}
-
-interface FilterRestore {
-  readonly selectedPath: string | null;
-  readonly scroll: FileTreeScrollState;
-}
-
 interface ScopeMemory {
   readonly scope: FileTreeScope;
   state: FileTreeLoadState;
@@ -48,7 +40,7 @@ interface ScopeMemory {
   activePath: string | null;
   filterOpen: boolean;
   filterQuery: string;
-  filterRestore: FilterRestore | null;
+  filterRestore: FileTreeFilterRestore | null;
   scroll: FileTreeScrollState;
   revision: string | null;
   truncated: boolean;
@@ -206,10 +198,10 @@ export class FileTreeController {
   setWatchProblem(problem: string | null): void {
     const memory = this.#current;
     if (!memory || memory.watchProblem === problem) return;
-    const previousPersistentNotice = persistentNotice(memory);
+    const previousPersistentNotice = persistentFileTreeNotice(memory);
     memory.watchProblem = problem;
     if (memory.notice === null || memory.notice === previousPersistentNotice) {
-      memory.notice = persistentNotice(memory);
+      memory.notice = persistentFileTreeNotice(memory);
     }
     this.#publish();
   }
@@ -335,7 +327,7 @@ export class FileTreeController {
     });
     if (result.status === "committed") {
       memory.activePath = entry.relativePath;
-      memory.notice = persistentNotice(memory);
+      memory.notice = persistentFileTreeNotice(memory);
     } else {
       memory.notice = result.reason;
     }
@@ -360,102 +352,40 @@ export class FileTreeController {
   ): Promise<boolean> {
     const memory = this.#current;
     if (!memory) return false;
-    const problem = fileNameProblem(name);
-    const parent = parentPath
-      ? memory.entries.find((entry) => entry.relativePath === parentPath)
-      : null;
-    if (problem || (parentPath !== null && parent?.kind !== "directory")) {
-      memory.notice = problem ?? "The destination folder is unavailable.";
-      this.#publish();
-      return false;
-    }
-    if (!this.actions.createEntry) {
-      memory.notice = "Creating files and folders is unavailable.";
-      this.#publish();
-      return false;
-    }
-    const relativePath = childPath(parentPath, name);
-    try {
-      await this.actions.createEntry({ ...memory.scope, relativePath }, kind);
-      if (this.#current !== memory) return false;
-      if (parentPath) memory.expandedPaths.add(parentPath);
-      memory.selectedPath = relativePath;
-      memory.notice = `Created ${relativePath}.`;
-      this.#publish();
-      return true;
-    } catch (cause) {
-      if (this.#current !== memory) return false;
-      memory.notice = cause instanceof Error ? cause.message : `Could not create ${relativePath}.`;
-      this.#publish();
-      return false;
-    }
+    return createFileTreeEntry(
+      memory,
+      this.actions,
+      () => this.#current === memory,
+      () => this.#publishIfCurrent(memory),
+      parentPath,
+      name,
+      kind,
+    );
   }
 
   async renameEntry(path: string, newName: string): Promise<boolean> {
     const memory = this.#current;
-    const entry = memory?.entries.find((candidate) => candidate.relativePath === path);
-    if (!memory || !entry) return false;
-    const problem = fileNameProblem(newName);
-    if (problem || entry.kind === "symlink" || path === ".git" || path.startsWith(".git/")) {
-      memory.notice =
-        problem ??
-        (entry.kind === "symlink"
-          ? "Symbolic links cannot be renamed here."
-          : "Repository metadata is protected.");
-      this.#publish();
-      return false;
-    }
-    if (!this.actions.renameEntry) {
-      memory.notice = "Renaming files and folders is unavailable.";
-      this.#publish();
-      return false;
-    }
-    try {
-      await this.actions.renameEntry({ ...memory.scope, relativePath: path }, newName);
-      if (this.#current !== memory) return false;
-      const nextPath = childPath(entry.parentPath, newName);
-      memory.selectedPath = nextPath;
-      memory.notice = `Renamed ${path} to ${nextPath}.`;
-      this.#publish();
-      return true;
-    } catch (cause) {
-      if (this.#current !== memory) return false;
-      memory.notice = cause instanceof Error ? cause.message : `Could not rename ${path}.`;
-      this.#publish();
-      return false;
-    }
+    if (!memory) return false;
+    return renameFileTreeEntry(
+      memory,
+      this.actions,
+      () => this.#current === memory,
+      () => this.#publishIfCurrent(memory),
+      path,
+      newName,
+    );
   }
 
   async trashEntry(path: string): Promise<boolean> {
     const memory = this.#current;
-    const entry = memory?.entries.find((candidate) => candidate.relativePath === path);
-    if (!memory || !entry) return false;
-    if (entry.kind === "symlink" || path === ".git" || path.startsWith(".git/")) {
-      memory.notice =
-        entry.kind === "symlink"
-          ? "Symbolic links cannot be moved to Trash here."
-          : "Repository metadata is protected.";
-      this.#publish();
-      return false;
-    }
-    if (!this.actions.trashEntry) {
-      memory.notice = "Moving files and folders to Trash is unavailable.";
-      this.#publish();
-      return false;
-    }
-    try {
-      await this.actions.trashEntry({ ...memory.scope, relativePath: path });
-      if (this.#current !== memory) return false;
-      memory.selectedPath = entry.parentPath;
-      memory.notice = `Moved ${path} to Trash.`;
-      this.#publish();
-      return true;
-    } catch (cause) {
-      if (this.#current !== memory) return false;
-      memory.notice = cause instanceof Error ? cause.message : `Could not move ${path} to Trash.`;
-      this.#publish();
-      return false;
-    }
+    if (!memory) return false;
+    return trashFileTreeEntry(
+      memory,
+      this.actions,
+      () => this.#current === memory,
+      () => this.#publishIfCurrent(memory),
+      path,
+    );
   }
 
   summonFilter(): void {
@@ -467,21 +397,9 @@ export class FileTreeController {
 
   setFilter(query: string): void {
     const memory = this.#current;
-    if (!memory || memory.filterQuery === query) return;
+    if (!memory) return;
     const started = performance.now();
-    if (memory.filterQuery.length === 0 && query.length > 0) {
-      memory.filterRestore = {
-        selectedPath: memory.selectedPath,
-        scroll: { ...memory.scroll },
-      };
-      memory.scroll = { top: 0, left: memory.scroll.left };
-    }
-    memory.filterQuery = query;
-    if (query.length === 0 && memory.filterRestore) {
-      memory.selectedPath = memory.filterRestore.selectedPath;
-      memory.scroll = memory.filterRestore.scroll;
-      memory.filterRestore = null;
-    }
+    if (!applyFileTreeFilter(memory, query)) return;
     this.#publish();
     this.#record("filter", "applied", performance.now() - started);
   }
@@ -497,10 +415,7 @@ export class FileTreeController {
   setScroll(scroll: FileTreeScrollState): void {
     const memory = this.#current;
     if (!memory) return;
-    memory.scroll = {
-      top: Math.max(0, scroll.top),
-      left: Math.max(0, scroll.left),
-    };
+    updateFileTreeScroll(memory, scroll);
   }
 
   reconcileGit(states: ReadonlyMap<string, FileGitState>): void {
@@ -547,7 +462,7 @@ export class FileTreeController {
     memory.refreshing = false;
     if (result.status === "unchanged") {
       memory.revision = result.revision;
-      memory.notice = persistentNotice(memory);
+      memory.notice = persistentFileTreeNotice(memory);
       return;
     }
     if (result.status === "ready") {
@@ -561,8 +476,8 @@ export class FileTreeController {
       memory.truncated = result.truncated;
       memory.ignoredTruncated = result.ignoredTruncated;
       memory.unreadableDirectories = result.unreadableDirectories;
-      memory.treeNotice = treeNotice(result);
-      memory.notice = persistentNotice(memory);
+      memory.treeNotice = fileTreeResultNotice(result);
+      memory.notice = persistentFileTreeNotice(memory);
       return;
     }
     memory.rawEntries = [];
@@ -571,7 +486,7 @@ export class FileTreeController {
     memory.ignoredTruncated = false;
     memory.unreadableDirectories = 0;
     memory.treeNotice = null;
-    memory.notice = persistentNotice(memory);
+    memory.notice = persistentFileTreeNotice(memory);
     if (result.status === "empty") {
       memory.revision = result.revision;
       memory.state = "empty";
@@ -616,42 +531,4 @@ export class FileTreeController {
       }),
     ).catch(() => {});
   }
-}
-
-function entriesWithGitOverlay(
-  entries: readonly NativeFileTreeEntry[],
-  states: ReadonlyMap<string, FileGitState> = new Map(),
-): readonly FileTreeEntry[] {
-  const present = new Set(entries.map((entry) => entry.relativePath));
-  const deleted: NativeFileTreeEntry[] = [];
-  for (const [relativePath, state] of states) {
-    if (state !== "deleted" || present.has(relativePath)) continue;
-    const name = relativePath.split("/").at(-1) ?? relativePath;
-    const slash = relativePath.lastIndexOf("/");
-    deleted.push({
-      relativePath,
-      parentPath: slash < 0 ? null : relativePath.slice(0, slash),
-      name,
-      kind: "file",
-      ignored: false,
-      byteLength: null,
-      modified: null,
-    });
-  }
-  return normalizeFileTreeEntries([...entries, ...deleted], states);
-}
-
-function treeNotice(result: Extract<FileTreeResult, { status: "ready" }>): string | null {
-  const notices: string[] = [];
-  if (result.truncated) notices.push("The project exceeds the bounded file-tree limit.");
-  if (result.ignoredTruncated) notices.push("Additional ignored entries are hidden.");
-  if (result.unreadableDirectories > 0) notices.push("Some folders could not be read.");
-  return notices.length > 0 ? notices.join(" ") : null;
-}
-
-function persistentNotice(memory: Pick<ScopeMemory, "treeNotice" | "watchProblem">): string | null {
-  const notices = [memory.treeNotice, memory.watchProblem].filter(
-    (notice): notice is string => notice !== null,
-  );
-  return notices.length > 0 ? notices.join(" ") : null;
 }

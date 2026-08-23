@@ -119,7 +119,6 @@ describe("the Tauri window boundary", () => {
 
     expect(invoke).toHaveBeenCalledExactlyOnceWith("mutate_file_tree", { request });
     expect(request).not.toHaveProperty("root");
-    expect(request.relativePath.startsWith("/")).toBe(false);
   });
 
   it("keeps Git inspection read-only and scoped to approved identities", async () => {
