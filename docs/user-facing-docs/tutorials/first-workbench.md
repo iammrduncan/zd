@@ -35,9 +35,10 @@ lifecycle and attention state without accepting arbitrary process commands from 
 
 ## 3. Open and edit a file
 
-Choose `notes.md` under **Files**. The centre switches to the current file while the thread remains
-available under its project. Add a second paragraph, then press `Cmd+S` on macOS or `Ctrl+S`
-elsewhere.
+Use a folder's disclosure chevron to expand or collapse it; choosing the folder name only selects it
+and will not accidentally close its contents. Choose `notes.md` under **Files**. The centre switches
+to the current file while the thread remains available under its project. Add a second paragraph,
+then press `Cmd+S` on macOS or `Ctrl+S` elsewhere.
 
 Markdown remains directly editable, including cells inside rendered tables. Press `Cmd+E` or
 `Ctrl+E` when you need to edit the table delimiters or other literal Markdown source. Code and
