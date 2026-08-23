@@ -257,9 +257,9 @@ const INVOCATION_DIR: &str = "ZD_CWD";
 ///
 /// The process working directory, except when something has told us it is not
 /// the directory the user was standing in. `tauri dev` runs the binary from
-/// `src-tauri/`, so `zd README.md` typed at the repo root went looking for
-/// `src-tauri/README.md` and failed — the `app:open` script passes npm's
-/// `INIT_CWD` through so development resolves paths the way a shipped binary
+/// `packages/tauri/`, so `zd README.md` typed at the repo root went looking for
+/// `packages/tauri/README.md` and failed — the development launch scripts pass npm's
+/// `INIT_CWD` through so `npm run app .` resolves paths the way a shipped binary
 /// does. A shipped binary never sets it and takes the plain working directory.
 ///
 /// A relative override is refused rather than honoured: it would be resolved
