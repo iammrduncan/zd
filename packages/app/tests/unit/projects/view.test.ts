@@ -98,7 +98,7 @@ async function settle(): Promise<void> {
 }
 
 describe("the Projects list", () => {
-  it("opens the native project chooser and exposes removal without mutating early", async () => {
+  it("opens the native project chooser and keeps project closure in a contextual menu", async () => {
     const gamma: ProjectGrant = {
       id: "gamma",
       name: "Gamma",
@@ -118,7 +118,15 @@ describe("the Projects list", () => {
     mountProjectList(host, new ProjectsController(workbench));
 
     host.querySelector<HTMLButtonElement>("[data-project-add]")!.click();
-    host.querySelector<HTMLButtonElement>('[data-project-remove="beta"]')!.click();
+    expect(host.querySelector("[data-project-remove]")).toBeNull();
+    const beta = host.querySelector<HTMLButtonElement>('[data-project-id="beta"] .zd-project-row')!;
+    beta.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 80, clientY: 40 }),
+    );
+    const close = host.querySelector<HTMLButtonElement>('[role="menuitem"]')!;
+    expect(close.textContent).toBe("Close");
+    expect(close.getAttribute("aria-label")).toBe("Close Beta");
+    close.click();
     await settle();
 
     expect(workbench.chooseProject).toHaveBeenCalledOnce();
@@ -126,6 +134,20 @@ describe("the Projects list", () => {
     expect(workbench.removeProject).toHaveBeenCalledExactlyOnceWith("beta");
     expect(host.querySelector('[data-project-id="beta"]')).not.toBeNull();
     expect(host.querySelector('[data-project-id="gamma"]')).toBeNull();
+  });
+
+  it("dismisses the project menu with Escape and restores the project row", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    mountProjectList(host, new ProjectsController(adapter()));
+    const beta = host.querySelector<HTMLButtonElement>('[data-project-id="beta"] .zd-project-row')!;
+
+    beta.dispatchEvent(new KeyboardEvent("keydown", { key: "F10", shiftKey: true, bubbles: true }));
+    expect(host.querySelector('[role="menu"]')).not.toBeNull();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect(host.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(beta);
   });
 
   it("renders ordered project headings with thread content nested under each owner", () => {
