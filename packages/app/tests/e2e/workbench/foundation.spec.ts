@@ -37,24 +37,21 @@ test("the root file surface owns editing, Find, save, and explicit Focus Mode", 
     .toContain("export const saved = true;");
 });
 
-test("project-owned Settings controls local diagnostics without leaving the workbench", async ({
-  page,
-}) => {
+test("transient Settings controls local diagnostics without crowding Threads", async ({ page }) => {
   const threads = page.locator('[data-region="threads"]');
-  const settings = threads.locator('[data-diagnostic-settings="true"]');
 
   await expect(threads.locator('[data-project-id="project-zd"] .zd-project-row')).toContainText(
     "zd",
   );
-  expect(
-    await threads.evaluate((region) => {
-      const projects = region.querySelector(".zd-projects");
-      const diagnostics = region.querySelector('[data-diagnostic-settings="true"]');
-      return Boolean(projects && diagnostics && projects.compareDocumentPosition(diagnostics) & 4);
-    }),
-  ).toBe(true);
+  await expect(threads.locator('[data-diagnostic-settings="true"]')).toHaveCount(0);
 
-  await settings.locator("summary").click();
+  const primary = await page.evaluate(() =>
+    /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",
+  );
+  await page.keyboard.press(`${primary}+,`);
+  const settings = page.locator(
+    '[data-workbench-settings="true"] [data-diagnostic-settings="true"]',
+  );
   const toggle = settings.getByRole("checkbox", { name: "Local diagnostics" });
   await expect(toggle).not.toBeChecked();
   await toggle.check();
