@@ -160,8 +160,13 @@ export class WorkbenchStateOwner {
     if (!thread) return { status: "refused", reason: `Unknown thread ${threadId}` };
     const problem = this.#threadScopeProblem(thread);
     if (problem) return { status: "refused", reason: problem };
-    const candidate = stateWithFocus(this.#state, "thread");
-    return this.#commitTransition(candidate, this.#contextForThread(candidate, thread));
+    const target = this.#contextForThread(this.#state, thread);
+    const threadOwnsCentre =
+      this.#state.regions.focus === "thread" || this.#state.regions.focus === "threads";
+    const repeated = this.#state.active.threadId === threadId;
+    const focus = repeated && threadOwnsCentre && target.fileId !== null ? "file" : "thread";
+    const candidate = stateWithFocus(this.#state, focus);
+    return this.#commitTransition(candidate, target);
   }
 
   renameThread(threadId: string, name: string): Promise<TransitionResult> {

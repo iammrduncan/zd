@@ -155,6 +155,26 @@ describe("durable root thread state", () => {
     expect(seen).toHaveBeenCalledOnce();
   });
 
+  it("returns a repeated active-thread activation to its remembered file", async () => {
+    const initial = stateWithoutThreads();
+    const owner = createWorkbenchStateOwner({ ...initial, threads: [thread()] });
+
+    await owner.activateThread("thread-b");
+    await owner.activateThread("thread-b");
+
+    expect(owner.snapshot()).toMatchObject({
+      active: { threadId: "thread-b", fileId: "file-b" },
+      regions: { focus: "file" },
+    });
+
+    await owner.activateThread("thread-b");
+
+    expect(owner.snapshot()).toMatchObject({
+      active: { threadId: "thread-b", fileId: "file-b" },
+      regions: { focus: "thread" },
+    });
+  });
+
   it("refuses a missing worktree without exposing a partial context", async () => {
     const initial = stateWithoutThreads();
     const owner = createWorkbenchStateOwner({
