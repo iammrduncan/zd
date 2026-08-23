@@ -233,7 +233,7 @@ export function chordFromEvent(event: KeyboardEvent): Chord | null {
 }
 
 /** Run one registry entry through the same availability and observation path as a chord. */
-export function executeCommand(command: Command): boolean {
+export function executeCommand(command: Command, held = false): boolean {
   const current = registered.get(command.id);
   if (!current || current.run !== command.run) return false;
   if (current.available && !current.available()) return false;
@@ -245,6 +245,7 @@ export function executeCommand(command: Command): boolean {
       // Observability cannot change whether a command runs.
     }
   }
+  if (!held) current.release?.();
   return true;
 }
 
@@ -346,7 +347,7 @@ export function dispatch(event: KeyboardEvent): boolean {
     if (command.scope === "global") continue;
     const chord = effectiveChord(command);
     if (!matches(chord, event, platform)) continue;
-    if (!executeCommand(command)) return false;
+    if (!executeCommand(command, true)) return false;
     // Only a command that actually ran is holding. One that declined has nothing
     // to release, and calling `release` on it would close something it never
     // opened.

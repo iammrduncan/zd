@@ -8,6 +8,7 @@ import { createWorkbenchStateOwner, workbenchStateFromGrants } from "./state";
 import { attachWorkbenchCommands } from "./commands";
 import { mountCommandList } from "./command-list";
 import { restoreShortcutBindings } from "./shortcut-settings";
+import { mountWindowChrome } from "./chrome";
 import { attachWorkbenchDiagnostics } from "./diagnostics";
 import { diagnosticsEnabled, setDiagnosticsEnabled } from "./preferences";
 import { mountWorkbenchFeatures } from "./features";
@@ -110,6 +111,7 @@ export async function bootWorkbench(
   const rootCommands = attachWorkbenchCommands(host, runtime);
   const detachCommandList = mountCommandList(host);
   const detachReference = registerReference(host);
+  const detachChrome = mountWindowChrome();
 
   let unmount: Unmount;
   try {
@@ -124,6 +126,7 @@ export async function bootWorkbench(
     detachThemeState();
     theme.dispose();
     detachReference();
+    detachChrome();
     detachShortcuts();
     saySoOnScreen(host, `zd could not start: ${reasonFor(cause)}`);
     return NOTHING;
@@ -141,6 +144,7 @@ export async function bootWorkbench(
     detachThemeState();
     theme.dispose();
     detachReference();
+    detachChrome();
     detachCommandList();
     rootCommands.detach();
     detachShortcuts();

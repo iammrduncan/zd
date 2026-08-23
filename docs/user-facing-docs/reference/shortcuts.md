@@ -27,4 +27,5 @@ ordinary launch still works.
 
 To change a window shortcut, open **Settings**, choose its current binding under **Shortcuts**, and
 press the replacement chord. A chord already used by another command is refused. **Reset** restores
-the registered default. The global summon shortcut remains managed by the operating system.
+the registered default. The global summon shortcut remains managed by the operating system. The
+`[h]` action in the top drag strip opens the live Shortcut Reference.

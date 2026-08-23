@@ -47,18 +47,43 @@ body {
 }
 
 /*
- * The workbench's one blank chrome strip. `#zd` reserves the same token-sized
+ * The workbench's one quiet chrome strip. `#zd` reserves the same token-sized
  * height, so the native grab handle never covers project, source, or terminal
  * content. Tauri listens on the element carrying the data attribute; keeping it
- * childless also keeps that native contract exact.
+ * its own compact actions do not carry the drag attribute, so they remain normal
+ * buttons while the rest of the strip stays a native grab handle.
  */
 .zd-window-drag-region {
   position: fixed;
   inset: 0 0 auto;
   z-index: 4;
   height: var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  padding-inline: var(--space-2);
   border-block-end: var(--hairline) solid var(--line-quiet);
   background: var(--surface-canvas);
+}
+
+.zd-window-chrome-action {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--type-navigation-family);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.zd-window-chrome-action:is(:hover, :focus-visible) {
+  color: var(--text-primary);
+  outline: none;
+  text-decoration: underline;
+  text-decoration-color: var(--line-focus);
+  text-underline-offset: 2px;
 }
 
 code,
