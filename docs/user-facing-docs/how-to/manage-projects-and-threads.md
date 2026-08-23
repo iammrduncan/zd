@@ -52,6 +52,10 @@ running app/status, current approved directory, or branch/worktree. The choice i
 Attention remains available in the row's state and accessible label. Rename and reorder actions
 preserve its stable identity and terminal session.
 
+Choose the active thread row again to return to its current or last-opened file. Choose it once more
+to show the still-mounted terminal again; this is the same switch as `Cmd+J` on macOS or `Ctrl+J`
+elsewhere.
+
 Closing a live thread asks you to terminate its process first. Removing a thread never deletes its
 Git worktree or branch. If the project, worktree, or terminal process is missing, the row stays
 visible with a specific recovery action instead of switching to a partial context.

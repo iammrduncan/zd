@@ -89,7 +89,9 @@ test("thread status and type icons align with the title without entering its lab
     const dot = row.querySelector<HTMLElement>(".zd-thread-state-dot")!.getBoundingClientRect();
     const icon = row.querySelector<HTMLElement>(".zd-thread-type-icon")!.getBoundingClientRect();
     const name = row.querySelector<HTMLElement>(".zd-thread-name")!.getBoundingClientRect();
-    const type = row.querySelector<HTMLElement>(".zd-thread-type")!.getBoundingClientRect();
+    const secondary = row
+      .querySelector<HTMLElement>(".zd-thread-secondary")!
+      .getBoundingClientRect();
     return {
       iconRight: icon.right,
       labelsLeft: name.left,
@@ -97,7 +99,7 @@ test("thread status and type icons align with the title without entering its lab
       dotCentre: dot.top + dot.height / 2,
       nameCentre: name.top + name.height / 2,
       iconBottom: icon.bottom,
-      metadataTop: type.top,
+      metadataTop: secondary.top,
     };
   });
 
@@ -123,6 +125,14 @@ test("Cmd+J restores and toggles the current thread and file after a project rou
 
   await zd.locator(".zd-project-heading").hover();
   await page.getByRole("button", { name: "New terminal in zd" }).click();
+  await expect(threadSurface).toBeVisible();
+  await expect(fileSurface).toBeHidden();
+
+  const activeThread = zd.locator('[data-thread-id][aria-current="true"]');
+  await activeThread.click();
+  await expect(fileSurface).toBeVisible();
+  await expect(threadSurface).toBeHidden();
+  await activeThread.click();
   await expect(threadSurface).toBeVisible();
   await expect(fileSurface).toBeHidden();
 

@@ -322,7 +322,8 @@ own focus and semantic viewport anchor.
 
 `Cmd+J` / `Ctrl+J` switches centre focus between the current thread and selected file. It uses the
 complete context restored for the active project, so switching projects does not discard either
-surface.
+surface. Choosing the already-active thread row performs the same switch to its remembered file;
+choosing that row again returns to the still-mounted thread.
 
 Side by side is available only when both centre surfaces can retain a useful minimum. When the
 window becomes too narrow, presentation temporarily falls back to overlap without changing the
