@@ -155,10 +155,7 @@ test("it changes nothing but what is revealed", async ({ page }) => {
 });
 
 test("the Reference lists it, so it is discoverable", async ({ page }) => {
-  // Held, not pressed: the Reference is on screen only while the chord is down, so
-  // `press` would open and close it inside one call. See shortcut-reference.spec.ts.
-  await page.keyboard.down("ControlOrMeta");
-  await page.keyboard.down("Period");
+  await page.keyboard.press("ControlOrMeta+Period");
 
   // §7.1: the Reference renders the registry. A toggle nobody can find is a toggle
   // that does not exist — and this one is the only route to a rendered construct's

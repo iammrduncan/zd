@@ -237,19 +237,15 @@ describe("re-registering", () => {
 
 describe("a held command", () => {
   /*
-   * "esc is set to close shortcut menu, when releasing cmd+. should just close
-   * it" (feedback, 2026-07-30).
-   *
-   * So a chord can be *held*: it runs on the press and is told when the hold ends.
-   * That belongs here rather than in the surface it opens, because §7.1 allows one
-   * place for a binding to live and a second keyup listener elsewhere is F16
-   * starting again — the Reference would own half a binding the registry cannot
-   * describe.
+   * A chord can be momentary: it runs on keydown and is told when the hold ends.
+   * That belongs here rather than in the surface it affects, because §7.1 allows
+   * one place for a binding to live and a second keyup listener elsewhere would
+   * split one binding across two owners.
    */
   const held = (release = vi.fn()): Command => ({
-    id: "help.shortcuts",
-    chord: { key: ".", mod: true },
-    description: "Show the Shortcut Reference",
+    id: "view.peek",
+    chord: { key: "v", mod: true },
+    description: "Peek at the alternate view",
     run: () => true,
     release,
   });
@@ -258,10 +254,10 @@ describe("a held command", () => {
     const release = vi.fn();
     register(held(release));
 
-    dispatch(key({ key: ".", metaKey: true }));
+    dispatch(key({ key: "v", metaKey: true }));
     expect(release).not.toHaveBeenCalled();
 
-    releaseHeld(key({ key: ".", metaKey: true }));
+    releaseHeld(key({ key: "v", metaKey: true }));
     expect(release).toHaveBeenCalledOnce();
   });
 
@@ -271,7 +267,7 @@ describe("a held command", () => {
     const release = vi.fn();
     register(held(release));
 
-    dispatch(key({ key: ".", metaKey: true }));
+    dispatch(key({ key: "v", metaKey: true }));
     releaseHeld(key({ key: "Meta" }));
 
     expect(release).toHaveBeenCalledOnce();
@@ -281,7 +277,7 @@ describe("a held command", () => {
     const release = vi.fn();
     register(held(release));
 
-    dispatch(key({ key: ".", metaKey: true }));
+    dispatch(key({ key: "v", metaKey: true }));
     releaseHeld(key({ key: "a" }));
 
     expect(release).not.toHaveBeenCalled();
@@ -292,8 +288,8 @@ describe("a held command", () => {
     const release = vi.fn();
     register(held(release));
 
-    dispatch(key({ key: ".", metaKey: true }));
-    releaseHeld(key({ key: "." }));
+    dispatch(key({ key: "v", metaKey: true }));
+    releaseHeld(key({ key: "v" }));
     releaseHeld(key({ key: "Meta" }));
 
     expect(release).toHaveBeenCalledOnce();
@@ -303,7 +299,7 @@ describe("a held command", () => {
     const release = vi.fn();
     register({ ...held(release), run: () => false });
 
-    dispatch(key({ key: ".", metaKey: true }));
+    dispatch(key({ key: "v", metaKey: true }));
     releaseHeld(key({ key: "Meta" }));
 
     expect(release).not.toHaveBeenCalled();

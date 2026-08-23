@@ -133,12 +133,11 @@ test("escape does not change the document", async ({ page }) => {
   expect(await page.evaluate(() => window.zdEditor!.text())).toBe(before);
 });
 
-test("the Reference lists it and says when it cannot run", async ({ page }) => {
-  await page.keyboard.down("ControlOrMeta");
-  await page.keyboard.down("Period");
+test("the Reference lists Escape as its available dismiss key", async ({ page }) => {
+  await page.keyboard.press("ControlOrMeta+Period");
 
   const row = await page
-    .locator(".zd-reference-row", { hasText: "caret" })
+    .locator(".zd-reference-row", { hasText: "active transient" })
     .first()
     .evaluate((el) => ({
       chord: el.querySelector(".zd-reference-chord")?.textContent?.trim() ?? "",
@@ -146,7 +145,8 @@ test("the Reference lists it and says when it cannot run", async ({ page }) => {
     }));
 
   // §7.1: the Reference renders the registry, and states honestly whether a
-  // binding can run here. No caret has been placed, so this one cannot.
+  // binding can run here. The persistent Reference is itself the top transient,
+  // so Escape can dismiss it even though no caret has been placed underneath.
   expect(row.chord.toLowerCase()).toContain("esc");
-  expect(row.available, "a command that cannot run is shown as working").toBe("false");
+  expect(row.available, "the Reference says its dismiss key cannot run").toBe("true");
 });

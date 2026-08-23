@@ -7,7 +7,14 @@ import { setGranularity } from "./focus";
 import { typewriterY } from "./typewriter";
 import { setWordWrap, wordWrap } from "@/workbench/preferences";
 import { registerReference } from "@/workbench/reference";
-import { attachShortcuts, commands, register } from "@/workbench/shortcuts";
+import {
+  attachShortcuts,
+  commandTargetAvailable,
+  commands,
+  register,
+  registerCommandTarget,
+  runCommandTarget,
+} from "@/workbench/shortcuts";
 import { anchorY, type FocusGranularity } from "./focus/anchor";
 
 /*
@@ -290,11 +297,17 @@ register({
 });
 
 register({
-  id: "document.dropCaret",
-  // The product routes this through `workbench.escape`; the standalone fixture
-  // keeps one direct owner because it has no root workbench attachment.
+  id: "workbench.escape",
   chord: { key: "Escape" },
-  description: "Dismiss Find, or drop the caret and follow the reading anchor again",
+  description: "Dismiss the active transient or leave the current mode",
+  available: () => commandTargetAvailable("workbench.escape"),
+  run: () => runCommandTarget("workbench.escape"),
+});
+
+registerCommandTarget({
+  id: "document.dropCaret",
+  commandId: "workbench.escape",
+  priority: 20,
   available: () => editor.find.isOpen() || editor.hasCaret(),
   run: () => editor.find.close() || editor.dropCaret(),
 });
