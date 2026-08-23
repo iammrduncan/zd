@@ -1,5 +1,10 @@
 export { createEditor, type Editor, type EditorOptions } from "./document";
 export {
+  MAX_CLIPBOARD_IMAGE_BYTES,
+  type ClipboardImage,
+  type ClipboardImageMediaType,
+} from "./clipboard-image";
+export {
   LANGUAGE_REGISTRY,
   LANGUAGE_REGISTRY_VERSION,
   MARKDOWN_DOCUMENT,

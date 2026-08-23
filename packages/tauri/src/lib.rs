@@ -5,6 +5,7 @@
 //! `docs/adr/suite/0001-use-tauri-with-portable-web-frontend_H.md`.
 
 mod cli;
+mod clipboard_images;
 mod file_tree;
 mod fs;
 mod git;
@@ -82,6 +83,7 @@ pub fn run() {
             cli::remove_project_grant,
             has_pending_open_request,
             accept_open_request,
+            clipboard_images::save_clipboard_image,
             file_tree::file_tree_snapshot,
             git::git_status,
             git::git_history_page,

@@ -57,6 +57,42 @@ test("a file-tree selection takes the overlap centre back from an active thread"
   expect(pageErrors).toEqual([]);
 });
 
+test("pasting a screenshot into Markdown saves it before inserting a relative link", async ({
+  page,
+}) => {
+  await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
+  const content = page.locator(".current-file .cm-content");
+  await expect(content).toContainText("# README.md");
+  await content.click();
+
+  await page.evaluate(() => {
+    const target = document.querySelector<HTMLElement>(".current-file .cm-content");
+    if (!target) throw new Error("fixture editor is unavailable");
+    const clipboard = new DataTransfer();
+    clipboard.items.add(
+      new File([Uint8Array.of(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)], "capture.png", {
+        type: "image/png",
+      }),
+    );
+    target.dispatchEvent(
+      new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: clipboard }),
+    );
+  });
+
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-saved-clipboard-image",
+    /"mediaType":"image\/png".*"byteLength":8/,
+  );
+
+  const primary = await page.evaluate(() =>
+    /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",
+  );
+  await page.keyboard.press(`${primary}+s`);
+  await expect
+    .poll(() => page.locator("html").getAttribute("data-saved-text"))
+    .toContain("![Screenshot](docs/screenshots/screenshot-fixture.png)");
+});
+
 test("transient Settings controls local diagnostics without crowding Threads", async ({ page }) => {
   const threads = page.locator('[data-region="threads"]');
 

@@ -230,6 +230,11 @@ targeting and typewriter relationship. Find and Focus are distinct commands.
 Saving is atomic. A buffer becomes clean only after the platform confirms the write. External changes
 are detected and reconciled; failures preserve the buffer and explain the refusal near the file.
 
+Pasting a supported screenshot into editable Markdown or plain text saves it below the active
+project's `docs/screenshots` directory and inserts a document-relative Markdown image link only
+after that native write succeeds. A refused or failed image write leaves the document unchanged.
+Code buffers keep ordinary clipboard behavior and never translate an image into Markdown.
+
 ## 10. Attention and notifications
 
 One transition from a supported thread's `busy` state to `waiting` emits one versioned attention

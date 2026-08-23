@@ -380,6 +380,15 @@ const platform: Platform = {
     };
     document.documentElement.dataset.savedText = contents;
   },
+  saveClipboardImage: async (request) => {
+    document.documentElement.dataset.savedClipboardImage = JSON.stringify({
+      projectId: request.projectId,
+      worktreeId: request.worktreeId,
+      mediaType: request.mediaType,
+      byteLength: request.bytes.byteLength,
+    });
+    return { relativePath: "docs/screenshots/screenshot-fixture.png" };
+  },
   fileStamp: async () => ({ ...stamp }),
 };
 
