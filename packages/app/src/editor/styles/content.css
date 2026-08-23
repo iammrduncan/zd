@@ -52,10 +52,10 @@
 }
 
 /*
- * The three syntax categories emitted by the editor highlighter.
+ * The seven syntax categories emitted by the editor highlighter.
  *
  * DESIGN.md §5.2: colour "through the active DesignSystem… never with
- * feature-local colours", and exactly three categories. Colour only — no weight
+ * feature-local colours", through the closed theme schema. Colour only — no weight
  * or style change, so a declared language reads as the same passage rather than as
  * a different kind of text.
  */
@@ -63,16 +63,32 @@
   color: var(--syntax-keyword);
 }
 
+.md-editor .md-syn-type {
+  color: var(--syntax-type);
+}
+
+.md-editor .md-syn-function {
+  color: var(--syntax-function);
+}
+
 .md-editor .md-syn-string {
   color: var(--syntax-string);
+}
+
+.md-editor .md-syn-number {
+  color: var(--syntax-number);
 }
 
 .md-editor .md-syn-comment {
   color: var(--syntax-comment);
 }
 
+.md-editor .md-syn-punctuation {
+  color: var(--syntax-punctuation);
+}
+
 /*
- * Dimmed, and still three categories. §4.4 moves context toward its surface
+ * Dimmed, and still seven categories. §4.4 moves context toward its surface
  * rather than flattening it, and §5.2 wants syntax "distinguishable at the warmest
  * setting and without colour" — a dimmed code block is still a code block, so the
  * categories must not collapse into one ink.
@@ -81,12 +97,28 @@
   color: var(--focus-context-keyword);
 }
 
+.md-editor[data-focus-mode="true"] [data-focus="context"] .md-syn-type {
+  color: var(--focus-context-type);
+}
+
+.md-editor[data-focus-mode="true"] [data-focus="context"] .md-syn-function {
+  color: var(--focus-context-function);
+}
+
 .md-editor[data-focus-mode="true"] [data-focus="context"] .md-syn-string {
   color: var(--focus-context-string);
 }
 
+.md-editor[data-focus-mode="true"] [data-focus="context"] .md-syn-number {
+  color: var(--focus-context-number);
+}
+
 .md-editor[data-focus-mode="true"] [data-focus="context"] .md-syn-comment {
   color: var(--focus-context-comment);
+}
+
+.md-editor[data-focus-mode="true"] [data-focus="context"] .md-syn-punctuation {
+  color: var(--focus-context-punctuation);
 }
 
 /*

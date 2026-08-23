@@ -127,6 +127,7 @@ describe("the root current-file owner", () => {
     expect(fixture.readBoundedFile).toHaveBeenCalledExactlyOnceWith(resource("src/main.ts"));
     expect(host.querySelector(".md-editor")?.getAttribute("data-language")).toBe("code");
     expect(host.querySelector(".md-editor")?.getAttribute("data-focus-mode")).toBe("false");
+    expect(host.querySelector(".cm-lineNumbers")).not.toBeNull();
     expect(commandTargetAvailable("file.find")).toBe(true);
     expect(commandTargetAvailable("focus.toggle")).toBe(true);
 

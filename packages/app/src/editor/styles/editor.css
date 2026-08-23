@@ -134,8 +134,29 @@
   line-height: var(--type-code-line);
 }
 
+.md-editor[data-language="code"] .cm-gutters {
+  border: 0;
+  border-inline-end: var(--hairline) solid var(--line-quiet);
+  background: var(--surface-canvas);
+  color: var(--text-muted);
+  font-family: var(--type-code-family);
+  font-size: var(--type-code-size);
+  font-style: var(--type-code-style);
+  font-weight: var(--type-code-weight);
+  line-height: var(--type-code-line);
+}
+
+.md-editor[data-language="code"] .cm-lineNumbers .cm-gutterElement {
+  min-width: var(--space-5);
+  padding-inline: var(--space-2);
+}
+
+.md-editor[data-language="code"] .cm-line {
+  padding-inline: var(--space-2);
+}
+
 /* The base theme insets every line by 2px, which dents the measure. */
-.md-editor .cm-line {
+.md-editor[data-language="markdown"] .cm-line {
   padding: 0;
 }
 

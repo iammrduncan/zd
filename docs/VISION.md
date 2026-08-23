@@ -207,10 +207,11 @@ Markdown preserves the current rendered, directly editable reading experience: s
 source honesty, rendered tables/code/images, selection, undo, safe rendering, Raw Mode, and the same
 document position for caret, focus, find, save, and viewport restoration.
 
-Non-Markdown text uses the same editor owner without Markdown parsing or decoration. It receives the
-shared canvas, code typography, syntax colour, wrap preference, selection, undo/redo, and atomic save
-path. It does not receive language servers, completion, diagnostics, refactoring, debugging,
-breadcrumbs, a minimap, line numbers, or IDE gutters.
+Non-Markdown text uses the same editor owner without Markdown parsing or decoration. It opens at
+line one at the top of a full-width code plane with a compact line-number gutter, code typography,
+syntax colour, wrap preference, selection, undo/redo, and the atomic save path. It does not receive
+language servers, completion, diagnostics, refactoring, debugging, breadcrumbs, a folding gutter,
+or a minimap.
 
 A versioned language registry maps names and extensions to bundled CodeMirror language support.
 Rust, JavaScript, JSX, TypeScript, TSX, and HTML remain required. Additional languages are selected

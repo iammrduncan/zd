@@ -6,7 +6,7 @@ Status: **complete — 2026-08-22**
 
 CodeMirror is the one editor engine for Markdown and code. Markdown keeps the current rendered,
 directly editable reading experience; other supported text files receive a restrained code
-presentation with syntax highlighting and complete current-file find/replace.
+presentation with line numbers, syntax highlighting, and complete current-file find/replace.
 
 ## Visual References
 
@@ -17,7 +17,7 @@ presentation with syntax highlighting and complete current-file find/replace.
 - [Approved overlap workbench](assets/workbench-light-overlap-v2.png) shows the editor owning the
   centre surface by itself.
 - [Approved side-by-side workbench](assets/workbench-light-side-by-side-v2.png) shows the same editor
-  reflowed beside a thread without becoming a conventional IDE pane.
+  reflowed beside a thread without adding a toolbar, breadcrumb strip, or minimap.
 
 The current screenshots govern retained editor character; the concepts govern workbench placement.
 Apply the shared Visual Reference Contract in `goal.md`.
@@ -32,8 +32,9 @@ custom Markdown surface, and avoids maintaining two editor state, theme, search,
 1. Markdown preserves the current semantic typography, rendered constructs, source honesty,
    selection, editing, focus targeting, Raw Mode, undo history, and safe rendering behavior.
 2. Non-Markdown text opens in the same editor module without Markdown parsing or decoration. It
-   uses the shared canvas, code typography, wrapping preference, selection, undo/redo, and atomic
-   save path.
+   opens at line one at the top of a full-width code plane and uses a compact line-number gutter,
+   the shared canvas, code typography, wrapping preference, selection, undo/redo, and atomic save
+   path.
 3. A versioned language registry maps filenames and extensions to bundled CodeMirror language
    packages. Adding a language changes one registry and one test inventory rather than branching
    across the shell and editor.
@@ -63,6 +64,8 @@ custom Markdown surface, and avoids maintaining two editor state, theme, search,
   language resolution, syntax presentation, Find/Replace, read-only use, and lifecycle handles.
 - Markdown continues through the retained rendered-source editor, while Rust, JavaScript/JSX,
   TypeScript/TSX, HTML, CSS, JSON, and honest plain text share the same editor owner and themes.
+  Non-Markdown buffers use a compact line-number gutter, the full code plane, and all seven theme
+  syntax roles while Markdown retains its reader geometry.
 - The current-file coordinator maps bounded native results to text, binary, undecodable, missing,
   denied, over-limit, and read-only states and keeps atomic save/dirty-close behavior intact.
 - Release-browser evidence for the 3.72 MB, 48,000-line fixture recorded 142 ms open, 33 ms find,
@@ -86,5 +89,5 @@ retains its established behavior and appearance.
 
 - Monaco or a second editor engine.
 - Language servers, autocomplete, diagnostics, refactoring, debugging, breadcrumbs, minimaps, or
-  IDE gutters unless a later goal explicitly adds them.
+  IDE gutters beyond the compact line-number rail.
 - Workspace-wide content search; current-file Find and file-tree filtering have separate owners.

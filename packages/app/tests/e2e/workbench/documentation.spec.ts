@@ -30,6 +30,21 @@ test("assembles the implemented workbench used by product screenshots", async ({
     "changed",
   );
   await expect(page.locator(".cm-content")).toContainText("bootWorkbench");
+  await expect(
+    page
+      .locator(".current-file .cm-lineNumbers .cm-gutterElement")
+      .filter({ hasText: /^1$/ })
+      .first(),
+  ).toBeVisible();
+  const codeOpening = await page.locator(".current-file .editor-buffer").evaluate((surface) => {
+    const firstLine = surface.querySelector<HTMLElement>(".cm-line")!;
+    return {
+      scrollTop: surface.scrollTop,
+      firstLineOffset: firstLine.getBoundingClientRect().top - surface.getBoundingClientRect().top,
+    };
+  });
+  expect(codeOpening.scrollTop).toBeCloseTo(0, 0);
+  expect(codeOpening.firstLineOffset).toBeLessThanOrEqual(1);
 
   await page.evaluate(() => {
     window.workbenchDocumentationFixture.setCentreMode("side-by-side");

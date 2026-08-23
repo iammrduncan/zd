@@ -441,10 +441,11 @@ caret approaches it.
 
 ### Code and plain text
 
-Non-Markdown text uses `type.code`, syntax colour from the active theme, the shared wrap preference,
-selection, caret, undo/redo, scrolling, and saving. Unsupported text stays plain. There are no
-language servers, autocomplete lists, diagnostics, refactoring controls, debugger, breadcrumbs,
-line numbers, folding gutter, or minimap.
+Non-Markdown text opens at line one at the top of a full-width code plane. It uses `type.code`, a
+compact line-number gutter, all seven syntax roles from the active theme, the shared wrap preference,
+selection, caret, undo/redo, scrolling, and saving. Unsupported text stays plain but retains line
+numbers. There are no language servers, autocomplete lists, diagnostics, refactoring controls,
+debugger, breadcrumbs, folding gutter, or minimap.
 
 Read-only, binary, undecodable, missing, denied, or over-limit content remains scrollable where safe
 and explains the restriction in one local supporting line.

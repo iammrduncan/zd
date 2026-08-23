@@ -516,14 +516,34 @@
     var(--syntax-keyword),
     var(--focus-context-endpoint) var(--focus-mix)
   );
+  --focus-context-type: color-mix(
+    in srgb,
+    var(--syntax-type),
+    var(--focus-context-endpoint) var(--focus-mix)
+  );
+  --focus-context-function: color-mix(
+    in srgb,
+    var(--syntax-function),
+    var(--focus-context-endpoint) var(--focus-mix)
+  );
   --focus-context-string: color-mix(
     in srgb,
     var(--syntax-string),
     var(--focus-context-endpoint) var(--focus-mix)
   );
+  --focus-context-number: color-mix(
+    in srgb,
+    var(--syntax-number),
+    var(--focus-context-endpoint) var(--focus-mix)
+  );
   --focus-context-comment: color-mix(
     in srgb,
     var(--syntax-comment),
+    var(--focus-context-endpoint) var(--focus-mix)
+  );
+  --focus-context-punctuation: color-mix(
+    in srgb,
+    var(--syntax-punctuation),
     var(--focus-context-endpoint) var(--focus-mix)
   );
 }

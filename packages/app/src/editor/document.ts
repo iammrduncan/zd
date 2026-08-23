@@ -1,6 +1,6 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { Compartment, EditorState, Text } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 
 import { createEditorFind, editorFindExtension, type EditorFind } from "@/editor/find";
 
@@ -226,10 +226,12 @@ export interface EditorOptions {
  * Mount an editing surface inside `parent`.
  *
  * Vision §6: "This is not a second mode — §4 is the surface, and this is what it
- * does when a caret is in it." So this brings no chrome of its own: no line
- * numbers, no fold gutter, no active-line wash, no scroller. Appearance lives in
- * styles/editor.css, because it is type and colour, and type and colour in this
- * project are shared semantic tokens — never values compiled into a script.
+ * does when a caret is in it." Markdown brings no editor chrome. Code receives
+ * the one conventional aid that depends on document structure: line numbers.
+ * Neither surface adds a fold gutter, active-line wash, or second scroller.
+ * Appearance lives in styles/editor.css, because it is type and colour, and type
+ * and colour in this project are shared semantic tokens — never values compiled
+ * into a script.
  *
  * The extension list is the whole feature set, and it is short on purpose:
  * editing, undo, wrapping, the markdown notation of §6.1, and the caret-driven
@@ -309,6 +311,7 @@ export function createEditor(
         rawModeState(),
         EditorState.readOnly.of(readOnly),
         EditorView.editable.of(!readOnly),
+        language.markdown ? [] : lineNumbers(),
         history(),
         editorFindExtension(),
         EditorView.updateListener.of((update) => {
