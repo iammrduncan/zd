@@ -83,6 +83,42 @@ test("resizes both navigation panes at the native window width", async ({ page }
   await expect.poll(async () => (await centre.boundingBox())!.width).toBeGreaterThanOrEqual(528);
 });
 
+test("manually collapses Projects to icons and restores its saved width", async ({ page }) => {
+  await page.setViewportSize({ width: 1300, height: 800 });
+  await page.goto("/dev/workbench.html");
+  await expect(page.locator('html[data-workbench-ready="true"]')).toBeAttached();
+
+  const shell = page.locator(".zd-workbench");
+  const projects = page.locator('[data-region="threads"]');
+  await page.locator('[data-project-id="project-zd"] .zd-project-heading').hover();
+  await page.getByRole("button", { name: "New terminal in zd" }).click();
+
+  const collapse = projects.getByRole("button", { name: "Collapse Projects pane" });
+  await expect(collapse).toBeVisible();
+  await expect(collapse).toHaveAttribute("aria-expanded", "true");
+  await collapse.focus();
+  await page.keyboard.press("Enter");
+
+  await expect(shell).toHaveAttribute("data-threads-visibility", "collapsed");
+  await expect(projects).toHaveCSS("width", "56px");
+  await expect(projects.getByRole("heading", { name: "PROJECTS" })).toBeHidden();
+  await expect(projects.getByRole("button", { name: "Open project folder" })).toBeHidden();
+  await expect(projects.locator(".zd-project-icon:visible")).toHaveCount(4);
+  await expect(projects.locator(".zd-project-name:visible")).toHaveCount(0);
+  await expect(projects.locator(".zd-thread-type-icon:visible")).toHaveCount(1);
+  await expect(projects.locator(".zd-thread-labels:visible")).toHaveCount(0);
+
+  const expand = projects.getByRole("button", { name: "Expand Projects pane" });
+  await expect(expand).toHaveAttribute("aria-expanded", "false");
+  await expand.focus();
+  await page.keyboard.press("Enter");
+  await expect(shell).toHaveAttribute("data-threads-visibility", "full");
+  await expect(projects).toHaveCSS("width", "236px");
+  await expect(projects.getByRole("heading", { name: "PROJECTS" })).toBeVisible();
+  await expect(projects.locator(".zd-project-name:visible")).toHaveCount(4);
+  await expect(projects.locator(".zd-thread-labels:visible")).toHaveCount(1);
+});
+
 test("applies responsive regions in the specified suppression order", async ({ page }) => {
   await page.setViewportSize({ width: 1260, height: 800 });
   await page.goto("/");

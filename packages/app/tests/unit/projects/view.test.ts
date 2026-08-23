@@ -177,6 +177,26 @@ describe("the Projects list", () => {
     ).not.toBeNull();
   });
 
+  it("mounts one pane action with the Projects toolbar and tears it down", () => {
+    const host = document.createElement("div");
+    const stopAction = vi.fn();
+    const unmount = mountProjectList(host, new ProjectsController(adapter()), {
+      renderToolbarActions: (actionHost) => {
+        const collapse = document.createElement("button");
+        collapse.dataset.projectsCollapse = "true";
+        actionHost.append(collapse);
+        return stopAction;
+      },
+    });
+
+    expect(
+      host.querySelector(".zd-project-toolbar-actions [data-projects-collapse]"),
+    ).not.toBeNull();
+
+    unmount();
+    expect(stopAction).toHaveBeenCalledOnce();
+  });
+
   it("exposes active, root, and unavailable state without relying on colour", () => {
     const host = document.createElement("div");
     mountProjectList(host, new ProjectsController(adapter()));

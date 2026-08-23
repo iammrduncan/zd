@@ -8,6 +8,7 @@ import type { ProjectActionResult, ProjectListItem, ProjectWorkbenchSnapshot } f
 export type ProjectChildUnmount = () => void;
 
 export interface ProjectListOptions {
+  readonly renderToolbarActions?: (host: HTMLElement) => void | ProjectChildUnmount;
   readonly renderChildren?: (
     project: ProjectListItem,
     host: HTMLElement,
@@ -40,7 +41,10 @@ export function mountProjectList(
   addProject.dataset.projectAdd = "true";
   addProject.setAttribute("aria-label", "Open project folder");
   addProject.textContent = "Open";
-  toolbar.append(navigationHeading, addProject);
+  const toolbarActions = document.createElement("div");
+  toolbarActions.className = "zd-project-toolbar-actions";
+  toolbarActions.append(addProject);
+  toolbar.append(navigationHeading, toolbarActions);
 
   const list = document.createElement("div");
   list.className = "zd-project-list";
@@ -54,6 +58,7 @@ export function mountProjectList(
   status.hidden = true;
   root.append(toolbar, list, status);
   host.append(root);
+  const stopToolbarActions = options.renderToolbarActions?.(toolbarActions);
 
   let active = true;
   let draggedProjectId: string | null = null;
@@ -209,7 +214,11 @@ export function mountProjectList(
       const name = document.createElement("span");
       name.className = "zd-project-name";
       name.textContent = project.name;
-      row.append(disclosure, name);
+      const icon = document.createElement("span");
+      icon.className = "zd-project-icon";
+      icon.setAttribute("aria-hidden", "true");
+      icon.textContent = project.name.trim().charAt(0).toLocaleUpperCase() || "•";
+      row.append(disclosure, icon, name);
 
       row.addEventListener("click", (event) => {
         event.preventDefault();
@@ -294,6 +303,7 @@ export function mountProjectList(
     for (const cleanup of childCleanups) cleanup();
     childCleanups = [];
     dismissProjectMenu();
+    stopToolbarActions?.();
     root.remove();
   };
 }
