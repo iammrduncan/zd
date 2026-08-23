@@ -160,20 +160,23 @@ describe("the root current-file owner", () => {
     expect(transition).toMatchObject({
       status: "refused",
       reason: expect.stringContaining("unsaved"),
+      presentation: "owner",
+      recovery: { label: "Save current file" },
     });
     expect(fixture.readBoundedFile).toHaveBeenCalledOnce();
 
-    expect(
-      commands()
-        .find(({ id }) => id === "document.save")
-        ?.run(),
-    ).toBe(true);
+    const notice = host.querySelector<HTMLElement>(".current-file-notice")!;
+    expect(notice.hidden).toBe(false);
+    expect(notice.textContent).toContain("The current file has unsaved work");
+    notice.querySelector<HTMLButtonElement>("button")!.click();
+
     await vi.waitFor(() =>
       expect(fixture.writeTextFile).toHaveBeenCalledWith(
         resource("src/main.ts"),
         "const value = 1;\nconst next = 2;",
       ),
     );
+    expect(notice.hidden).toBe(true);
 
     fixture.requestClose();
     await vi.waitFor(() => expect(fixture.closeWindow).toHaveBeenCalledOnce());

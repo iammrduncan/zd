@@ -118,13 +118,15 @@ export interface TransitionRecovery {
   readonly run: () => void | Promise<void>;
 }
 
-export type TransitionDecision =
-  | { readonly status: "ready" }
-  | {
-      readonly status: "refused";
-      readonly reason: string;
-      readonly recovery?: TransitionRecovery;
-    };
+export interface TransitionRefusal {
+  readonly status: "refused";
+  readonly reason: string;
+  readonly recovery?: TransitionRecovery;
+  /** The guard's owning surface already rendered this problem and recovery. */
+  readonly presentation?: "owner";
+}
+
+export type TransitionDecision = { readonly status: "ready" } | TransitionRefusal;
 
 export interface ContextTransition {
   readonly from: WorkbenchContext;
@@ -147,13 +149,7 @@ export interface ProjectRemovalGuard {
   prepareRemoval(change: ProjectRemoval): TransitionDecision | Promise<TransitionDecision>;
 }
 
-export type TransitionResult =
-  | { readonly status: "committed" }
-  | {
-      readonly status: "refused";
-      readonly reason: string;
-      readonly recovery?: TransitionRecovery;
-    };
+export type TransitionResult = { readonly status: "committed" } | TransitionRefusal;
 
 export function defaultWorkbenchState(): WorkbenchState {
   return {

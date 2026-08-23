@@ -38,6 +38,23 @@
   border-color: var(--line-focus);
 }
 
+.current-file-notice-action {
+  padding: 0;
+  color: var(--text-link);
+  background: none;
+  border: none;
+  border-block-end: var(--hairline) solid transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.current-file-notice-action:hover,
+.current-file-notice-action:focus-visible {
+  color: var(--text-primary);
+  border-block-end-color: var(--line-focus);
+  outline: none;
+}
+
 .current-file-close-confirmation {
   inline-size: min(var(--reading-measure), calc(100% - (2 * var(--reading-inset-x))));
   padding: var(--space-4);
