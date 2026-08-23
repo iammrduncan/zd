@@ -229,6 +229,16 @@ describe("FileTreeController", () => {
     expect(controller.snapshot().notice).toContain("bounded file-tree limit");
   });
 
+  it("does not spend persistent pane space explaining omitted ignored entries", async () => {
+    const controller = new FileTreeController(
+      sequence([ready("one", [entry("notes.md")], { ignoredTruncated: true })]),
+    );
+
+    await controller.activate(scope);
+
+    expect(controller.snapshot().notice).toBeNull();
+  });
+
   it("reports watcher failure without replacing rows or bounded-tree context", async () => {
     const controller = new FileTreeController(
       sequence([ready("one", [entry("notes.md")], { truncated: true })]),

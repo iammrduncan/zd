@@ -152,7 +152,7 @@ class TableWidget extends WidgetType {
       if (insert === currentCell.source) return;
       view.dispatch({
         changes: { from: currentCell.from, to: currentCell.to, insert },
-        userEvent: "input.type",
+        userEvent: "input.table",
       });
     });
     element.addEventListener("blur", () => {

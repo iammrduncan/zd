@@ -235,7 +235,10 @@ const focus = ViewPlugin.fromClass(
      *
      *   - Typewriter Mode is already pinning every line, and two things scrolling one
      *     surface is the compounding-correction shape that made the caret bounce.
-     *   - A pointer selection, or a block jump. Clicking near the bottom of the window
+     *   - A pointer selection, a block jump, or an edit owned by a rendered table cell.
+     *     The table cell has the live DOM caret, so moving the document to follow the
+     *     dormant CodeMirror selection would make the page jump on every keystroke.
+     *     Clicking near the bottom of the window
      *     is the reader saying *there*, and answering by moving the document under their
      *     pointer is not what they asked for; the block jump is already putting
      *     something on the anchor and means the block rather than the caret's row.
@@ -248,7 +251,9 @@ const focus = ViewPlugin.fromClass(
 
       const deliberate = update.transactions.some(
         (transaction) =>
-          transaction.isUserEvent("select.pointer") || transaction.isUserEvent("select.blockjump"),
+          transaction.isUserEvent("select.pointer") ||
+          transaction.isUserEvent("select.blockjump") ||
+          transaction.isUserEvent("input.table"),
       );
       if (deliberate) return;
 

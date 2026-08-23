@@ -57,6 +57,19 @@ test("keeps both sidebar headers close to the title strip", async ({ page }) => 
   expect(offsets).toEqual({ projects: 16, files: 16 });
 });
 
+test("lets the Files viewport use the full remaining sidebar height", async ({ page }) => {
+  await page.setViewportSize({ width: 1300, height: 800 });
+  await page.goto("/");
+
+  const gap = await page.evaluate(() => {
+    const region = document.querySelector<HTMLElement>('[data-region="files"]')!;
+    const tree = region.querySelector<HTMLElement>(".zd-file-tree")!;
+    return region.getBoundingClientRect().bottom - tree.getBoundingClientRect().bottom;
+  });
+
+  expect(gap).toBe(0);
+});
+
 test("resizes both navigation panes at the native window width", async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 760 });
   await page.goto("/");

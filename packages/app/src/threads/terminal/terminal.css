@@ -19,11 +19,6 @@
   display: none;
 }
 
-.zd-terminal-thread-surface:focus-within {
-  outline: var(--hairline) solid var(--terminal-focus);
-  outline-offset: calc(var(--hairline) * -1);
-}
-
 .zd-terminal-thread-header,
 .zd-terminal-thread-search {
   display: flex;

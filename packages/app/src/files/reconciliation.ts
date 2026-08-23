@@ -29,7 +29,6 @@ export function fileTreeResultNotice(
 ): string | null {
   const notices: string[] = [];
   if (result.truncated) notices.push("The project exceeds the bounded file-tree limit.");
-  if (result.ignoredTruncated) notices.push("Additional ignored entries are hidden.");
   if (result.unreadableDirectories > 0) notices.push("Some folders could not be read.");
   return notices.length > 0 ? notices.join(" ") : null;
 }

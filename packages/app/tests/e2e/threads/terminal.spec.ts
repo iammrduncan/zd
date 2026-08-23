@@ -136,6 +136,25 @@ test("renders VT cursor updates, ANSI, Unicode, and untrusted output accessibly"
   expect(renderedRow.height).toBeCloseTo(22, 0);
 });
 
+test("fills its host without drawing a focus outline around the terminal pane", async ({
+  page,
+}) => {
+  await mountFixture(page);
+
+  const geometry = await page.locator(".zd-terminal-thread-surface").evaluate((surface) => {
+    const host = surface.parentElement!;
+    const style = getComputedStyle(surface);
+    return {
+      hostBottom: host.getBoundingClientRect().bottom,
+      surfaceBottom: surface.getBoundingClientRect().bottom,
+      outlineStyle: style.outlineStyle,
+    };
+  });
+
+  expect(geometry.surfaceBottom).toBe(geometry.hostBottom);
+  expect(geometry.outlineStyle).toBe("none");
+});
+
 test("searches parsed terminal state and reports the active result", async ({ page }) => {
   await mountFixture(page);
   await expect(page.getByRole("application")).toContainText("日本語");
