@@ -53,6 +53,8 @@ in `goal.md`.
 - `packages/app/src/threads/` owns stable thread records, lifecycle/attention reduction, the compact
   project-nested region, create/rename/reorder/activate/close/remove/recover operations, and terminal
   presentation while keeping runtime handles out of durable state.
+- The `PROJECTS` header switches the left region between its saved full width and a 56 px rail of
+  project monograms plus labelled thread icons without changing active context or live sessions.
 - The root thread coordinator resolves project/worktree scope, attaches scoped terminal sessions,
   restores project/worktree/thread/file/region state atomically, and serializes lifecycle changes
   with transition guards.

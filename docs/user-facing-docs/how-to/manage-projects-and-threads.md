@@ -1,11 +1,11 @@
 # Manage projects and threads
 
-Use the Threads region to keep several approved projects and their terminal sessions in one
+Use the Projects pane to keep several approved projects and their terminal sessions in one
 workbench. Each thread remembers its project, worktree, current file, and terminal context.
 
 ## Add a project
 
-Choose **+ Project** at the bottom of the Threads region, then select a folder in the native picker.
+Choose **Open** in the `PROJECTS` header, then select a folder in the native picker.
 `zd` adds that folder as an approved project without replacing projects that are already open.
 
 Choose a project heading to activate its remembered worktree, thread, and file together. Use
@@ -15,6 +15,13 @@ projects in their displayed order.
 If a project moved or became unavailable, use its **Locate** action to approve the new location.
 Removing a project revokes its native grant only after running terminals and dirty files allow the
 transition. It does not delete the folder.
+
+## Collapse the Projects pane
+
+Choose the left chevron in the `PROJECTS` header to turn the pane into a 56 px icon rail. Project
+monograms identify project headings; terminal or agent icons and state dots identify their threads.
+Choose the right chevron to restore the previous full width. Collapsing does not change the active
+project, thread, file, scroll position, or live terminal session.
 
 ## Create a terminal thread
 

@@ -47,6 +47,43 @@ function threadsNavigationMount(
       createProjectWorkbenchAdapter(context.state, context.platform, context.instrumentation),
     );
     const stopProjects = mountProjectList(host, projects, {
+      renderToolbarActions: (actionHost) => {
+        const toggle = document.createElement("button");
+        toggle.type = "button";
+        toggle.className = "zd-project-collapse";
+        toggle.dataset.projectsCollapse = "true";
+        let pending = false;
+        const renderToggle = () => {
+          const collapsed = threads.snapshot().visibility === "collapsed";
+          const label = collapsed ? "Expand Projects pane" : "Collapse Projects pane";
+          toggle.setAttribute("aria-label", label);
+          toggle.setAttribute("aria-expanded", String(!collapsed));
+          toggle.title = label;
+          toggle.textContent = collapsed ? "›" : "‹";
+        };
+        const toggleVisibility = async () => {
+          if (pending) return;
+          pending = true;
+          toggle.disabled = true;
+          try {
+            const next = threads.snapshot().visibility === "collapsed" ? "full" : "collapsed";
+            await threads.setVisibility(next);
+          } finally {
+            pending = false;
+            toggle.disabled = false;
+          }
+        };
+        toggle.addEventListener("click", () => {
+          void toggleVisibility();
+        });
+        renderToggle();
+        const stopThreads = threads.subscribe(renderToggle);
+        actionHost.append(toggle);
+        return () => {
+          stopThreads();
+          toggle.remove();
+        };
+      },
       renderChildren: (project, children, actionHost) =>
         mountProjectThreads(children, threads, project.id, {
           projectName: project.name,
