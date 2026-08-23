@@ -221,18 +221,18 @@
   grid-column: 1 / -1;
 }
 
+.zd-thread-secondary {
+  grid-column: 1 / -1;
+}
+
 .zd-thread-name,
-.zd-thread-type,
-.zd-thread-lifecycle,
-.zd-thread-worktree {
+.zd-thread-secondary {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.zd-thread-type,
-.zd-thread-lifecycle,
-.zd-thread-worktree {
+.zd-thread-secondary {
   color: var(--text-secondary);
   font-family: var(--type-supporting-family);
   font-size: var(--type-supporting-size);
@@ -241,30 +241,66 @@
   line-height: var(--type-supporting-line);
 }
 
-.zd-thread-type::after,
-.zd-thread-worktree::before {
-  color: var(--text-muted);
-  content: "·";
-}
-
-.zd-thread-type::after {
-  margin-inline-start: var(--space-1);
-}
-
-.zd-thread-worktree::before {
-  margin-inline-end: var(--space-1);
-}
-
-.zd-thread-row[data-thread-lifecycle="busy"] .zd-thread-lifecycle {
+.zd-thread-row[data-thread-secondary-line="app"][data-thread-lifecycle="busy"]
+  .zd-thread-secondary {
   color: var(--state-busy);
 }
 
-.zd-thread-row[data-thread-lifecycle="waiting"] .zd-thread-lifecycle {
+.zd-thread-row[data-thread-secondary-line="app"][data-thread-lifecycle="waiting"]
+  .zd-thread-secondary {
   color: var(--state-waiting);
 }
 
-.zd-thread-row[data-thread-lifecycle="failed"] .zd-thread-lifecycle {
+.zd-thread-row[data-thread-secondary-line="app"][data-thread-lifecycle="failed"]
+  .zd-thread-secondary {
   color: var(--state-error);
+}
+
+.zd-thread-settings {
+  position: fixed;
+  z-index: 3;
+  display: grid;
+  min-inline-size: calc(var(--space-5) * 5);
+  padding-block: var(--space-1);
+  border: var(--hairline) solid var(--line-quiet);
+  background: var(--surface-transient);
+}
+
+.zd-thread-settings-heading {
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-muted);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  font-weight: var(--type-supporting-weight);
+}
+
+.zd-thread-settings-action {
+  appearance: none;
+  min-block-size: var(--space-4);
+  border: 0;
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  text-align: start;
+}
+
+.zd-thread-settings-action::before {
+  display: inline-block;
+  inline-size: var(--space-3);
+  color: var(--text-muted);
+  content: "";
+}
+
+.zd-thread-settings-action[aria-checked="true"]::before {
+  content: "✓";
+}
+
+.zd-thread-settings-action:is(:hover, :focus-visible) {
+  outline: 0;
+  background: var(--surface-selection);
+  color: var(--text-primary);
 }
 
 .zd-thread-recovery,

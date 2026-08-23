@@ -30,6 +30,7 @@ async function mountFixture(page: Page, threadCount = 3): Promise<void> {
       worktree: {
         id: index % 2 === 0 ? "alpha-root" : "beta-feature",
         label: index % 2 === 0 ? "project root" : "feature/browser",
+        root: index % 2 === 0 ? "/workspace/alpha" : "/workspace/beta-feature",
         kind: index % 2 === 0 ? "project-root" : "worktree",
         availability: "available",
       },
@@ -125,6 +126,7 @@ async function mountFixture(page: Page, threadCount = 3): Promise<void> {
             {
               id: "alpha-root",
               label: "project root",
+              root: "/workspace/alpha",
               kind: "project-root",
               availability: "available",
             },
@@ -147,7 +149,7 @@ test("renders a dense accessible project/thread hierarchy", async ({ page }) => 
   await expect(selected).toHaveAttribute("aria-current", "true");
   await expect(selected).toHaveAttribute("aria-label", /codex, waiting.*attention required/);
   await expect(selected).toContainText("waiting");
-  await expect(page.locator('[data-thread-id="thread-1"]')).toContainText("feature/browser");
+  await expect(page.locator('[data-thread-id="thread-1"]')).toContainText("terminal · busy");
 
   await page.mouse.move(800, 400);
   const metrics = await selected.evaluate((row) => ({
@@ -156,7 +158,7 @@ test("renders a dense accessible project/thread hierarchy", async ({ page }) => 
     background: getComputedStyle(row).backgroundColor,
     dot: getComputedStyle(row.querySelector(".zd-thread-state-dot")!).backgroundColor,
     nameTop: row.querySelector(".zd-thread-name")!.getBoundingClientRect().top,
-    lifecycleTop: row.querySelector(".zd-thread-lifecycle")!.getBoundingClientRect().top,
+    secondaryTop: row.querySelector(".zd-thread-secondary")!.getBoundingClientRect().top,
     actionsOpacity: getComputedStyle(
       row.closest(".zd-thread-item")!.querySelector(".zd-thread-actions")!,
     ).opacity,
@@ -166,7 +168,7 @@ test("renders a dense accessible project/thread hierarchy", async ({ page }) => 
   expect(metrics.family).toContain("iA Writer Mono");
   expect(metrics.background).not.toBe("rgba(0, 0, 0, 0)");
   expect(metrics.dot).not.toBe(metrics.background);
-  expect(metrics.lifecycleTop).toBeGreaterThan(metrics.nameTop);
+  expect(metrics.secondaryTop).toBeGreaterThan(metrics.nameTop);
   expect(metrics.actionsOpacity).toBe("0");
 
   await selected.hover();
@@ -174,6 +176,23 @@ test("renders a dense accessible project/thread hierarchy", async ({ page }) => 
     "opacity",
     "1",
   );
+});
+
+test("thread context settings choose the secondary line", async ({ page }) => {
+  await mountFixture(page);
+  const thread = page.locator('[data-thread-id="thread-1"]');
+
+  await thread.click({ button: "right" });
+  const menu = page.getByRole("menu", { name: "Thread 1 thread settings" });
+  await expect(menu).toContainText("Second line");
+  await expect(page.getByRole("menuitemradio", { name: "App running" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await page.getByRole("menuitemradio", { name: "Branch / worktree" }).click();
+
+  await expect(thread.locator(".zd-thread-secondary")).toHaveText("feature/browser");
+  await expect(menu).toHaveCount(0);
 });
 
 test("pointer and keyboard activation use the same transaction request", async ({ page }) => {

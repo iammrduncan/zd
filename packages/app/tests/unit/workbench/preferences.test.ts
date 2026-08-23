@@ -15,7 +15,9 @@ import {
   setWordWrap,
   shortcutBindings,
   setThemePreference,
+  setThreadSecondaryLine,
   themePreference,
+  threadSecondaryLine,
   wordWrap,
 } from "@/workbench/preferences";
 
@@ -110,6 +112,17 @@ describe("theme selection", () => {
     forgetPreferences();
 
     expect(themePreference()).toEqual({ selected: "dark", lastValid: "dark" });
+  });
+});
+
+describe("thread secondary line", () => {
+  it("defaults to the running app and persists another valid choice", () => {
+    expect(threadSecondaryLine()).toBe("app");
+
+    setThreadSecondaryLine("directory");
+    forgetPreferences();
+
+    expect(threadSecondaryLine()).toBe("directory");
   });
 });
 

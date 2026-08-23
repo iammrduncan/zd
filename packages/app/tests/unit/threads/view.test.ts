@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ThreadsController,
@@ -9,6 +9,7 @@ import {
   type ThreadWorkbenchAdapter,
   type ThreadWorkbenchSnapshot,
 } from "@/threads";
+import { forgetPreferences } from "@/workbench/preferences";
 
 const committed: ThreadActionResult = { status: "committed" };
 
@@ -23,6 +24,7 @@ function thread(
     worktree: {
       id: `${projectId}-root`,
       label: "project root",
+      root: `/workspace/${projectId}`,
       kind: "project-root",
       availability: "available",
     },
@@ -55,6 +57,7 @@ function initialSnapshot(): ThreadWorkbenchSnapshot {
         worktree: {
           id: "alpha-review",
           label: "feature/review",
+          root: "/workspace/alpha-review",
           kind: "worktree",
           availability: "available",
         },
@@ -116,6 +119,8 @@ async function settle(): Promise<void> {
 }
 
 describe("the Threads region", () => {
+  beforeEach(() => forgetPreferences());
+
   it("renders compact project groups and exposes every state without relying on colour", () => {
     const host = document.createElement("aside");
     mountThreadsRegion(host, new ThreadsController(adapter()));
@@ -133,7 +138,8 @@ describe("the Threads region", () => {
     expect(waiting.textContent).toContain("Review changes");
     expect(waiting.textContent).toContain("codex");
     expect(waiting.textContent).toContain("waiting");
-    expect(waiting.textContent).toContain("feature/review");
+    expect(waiting.textContent).not.toContain("feature/review");
+    expect(waiting.getAttribute("aria-label")).toContain("worktree feature/review");
     expect(waiting.getAttribute("aria-label")).toContain("attention required");
     expect(waiting.getAttribute("aria-current")).toBe("true");
     expect(host.querySelector('[data-thread-recovery="missing"]')?.textContent).toContain(
@@ -187,6 +193,45 @@ describe("the Threads region", () => {
     expect(workbench.activateThread).toHaveBeenNthCalledWith(2, "shell");
   });
 
+  it("configures the secondary line from the thread context menu", () => {
+    const workbench = adapter();
+    const host = document.createElement("aside");
+    document.body.append(host);
+    mountThreadsRegion(host, new ThreadsController(workbench));
+    const review = host.querySelector<HTMLButtonElement>('[data-thread-id="review"]')!;
+
+    review.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 80,
+        clientY: 40,
+      }),
+    );
+
+    const menu = host.querySelector<HTMLElement>('[data-thread-settings="review"]')!;
+    expect(menu.getAttribute("role")).toBe("menu");
+    expect(menu.textContent).toContain("Second line");
+    expect(
+      [...menu.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].map((item) => [
+        item.textContent,
+        item.getAttribute("aria-checked"),
+      ]),
+    ).toEqual([
+      ["App running", "true"],
+      ["Current directory", "false"],
+      ["Branch / worktree", "false"],
+    ]);
+
+    menu.querySelector<HTMLButtonElement>('[data-thread-secondary-line="directory"]')!.click();
+
+    expect(
+      host.querySelector<HTMLElement>('[data-thread-id="review"] .zd-thread-secondary')
+        ?.textContent,
+    ).toBe("/workspace/alpha-review");
+    expect(host.querySelector('[role="menu"]')).toBeNull();
+  });
+
   it("does not repeat a refusal already presented by its owning surface", async () => {
     const workbench = adapter();
     workbench.activateThread.mockResolvedValue({
@@ -238,6 +283,7 @@ describe("the Threads region", () => {
         {
           id: "alpha-root",
           label: "project root",
+          root: "/workspace/alpha",
           kind: "project-root",
           availability: "available",
         },
@@ -322,6 +368,7 @@ describe("the Threads region", () => {
         {
           id: "alpha-root",
           label: "project root",
+          root: "/workspace/alpha",
           kind: "project-root",
           availability: "available",
         },

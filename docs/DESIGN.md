@@ -353,7 +353,9 @@ Threads is a project/thread hierarchy, not a dashboard.
   keeps the inset `line.focus` hairline.
 - Thread rows are indented beneath their project and use compact two-line rows: a state dot and type
   icon share the first line's vertical centre, followed by a clear gap and the name; the second line
-  contains configured context in supporting text.
+  contains one configured context value in supporting text. A thread's secondary-click menu lets
+  the user choose running app/status, approved current directory, or branch/worktree; the choice is
+  shared by all rows and persists locally so the hierarchy stays visually consistent.
 - The selected row uses `surface.selection`, primary text, and a 2 px inset `line.focus` hairline.
 - Hover uses a reduced selection wash and never changes metrics.
 - Project and thread order is stable while status updates arrive.

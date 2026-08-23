@@ -31,6 +31,9 @@ const ATTENTION_MUTED = "zd.attentionMuted";
 const ATTENTION_VOLUME = "zd.attentionVolume";
 const SHORTCUT_BINDINGS = "zd.shortcutBindings.v1";
 const THEME_SELECTION = "zd.themeSelection.v1";
+const THREAD_SECONDARY_LINE = "zd.threadSecondaryLine.v1";
+
+export type ThreadSecondaryLine = "app" | "directory" | "worktree";
 
 function attentionSoundKey(agent: SupportedAttentionAgent): string {
   return `zd.attentionSound.${agent}`;
@@ -206,6 +209,16 @@ export function themePreference(): ThemePreference {
 
 export function setThemePreference(preference: ThemePreference): void {
   write(THEME_SELECTION, JSON.stringify(preference));
+}
+
+/** The one supporting detail shown beneath every thread name. */
+export function threadSecondaryLine(): ThreadSecondaryLine {
+  const stored = read(THREAD_SECONDARY_LINE);
+  return stored === "directory" || stored === "worktree" ? stored : "app";
+}
+
+export function setThreadSecondaryLine(line: ThreadSecondaryLine): void {
+  write(THREAD_SECONDARY_LINE, line);
 }
 
 /**

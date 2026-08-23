@@ -7,6 +7,11 @@ import { createThreadAction, type ProjectThreadsOptions } from "./create-view";
 import { renderThreadActions } from "./row-actions";
 import type { ThreadProjectGroup, ThreadRecord, ThreadWorkbenchSnapshot } from "./types";
 import { performThreadAction } from "./view-actions";
+import {
+  setThreadSecondaryLine,
+  threadSecondaryLine,
+  type ThreadSecondaryLine,
+} from "@/workbench/preferences";
 
 export type { ProjectThreadsOptions } from "./create-view";
 
@@ -38,12 +43,29 @@ function textSpan(className: string, text: string): HTMLSpanElement {
   return span;
 }
 
+function secondaryLine(thread: ThreadRecord, line = threadSecondaryLine()): string {
+  switch (line) {
+    case "app":
+      return `${typeLabel(thread)} · ${thread.lifecycle}`;
+    case "directory":
+      return thread.worktree.root;
+    case "worktree":
+      return thread.worktree.kind === "project-root" ? "project root" : thread.worktree.label;
+  }
+}
+
 interface RenderContext {
   readonly root: HTMLElement;
   readonly list: HTMLElement;
   readonly status: HTMLElement;
   readonly controller: ThreadsController;
   readonly projectId?: string;
+  openSettings(
+    thread: ThreadRecord,
+    row: HTMLButtonElement,
+    inlineStart: number,
+    blockStart: number,
+  ): void;
 }
 
 function focusRelative(root: HTMLElement, current: HTMLElement, offset: number): void {
@@ -124,6 +146,7 @@ function renderThreadRows(
     row.dataset.threadId = thread.id;
     row.dataset.threadLifecycle = thread.lifecycle;
     row.dataset.threadAttention = thread.attention.unread ? "unread" : "read";
+    row.dataset.threadSecondaryLine = threadSecondaryLine();
     row.draggable = true;
     row.setAttribute("role", "treeitem");
     row.setAttribute("aria-label", accessibleThreadLabel(thread));
@@ -139,15 +162,21 @@ function renderThreadRows(
     labels.className = "zd-thread-labels";
     labels.append(
       textSpan("zd-thread-name", thread.name),
-      textSpan("zd-thread-type", typeLabel(thread)),
-      textSpan("zd-thread-lifecycle", thread.lifecycle),
+      textSpan("zd-thread-secondary", secondaryLine(thread)),
     );
-    if (thread.worktree.kind === "worktree") {
-      labels.append(textSpan("zd-thread-worktree", thread.worktree.label));
-    }
     row.append(dot, icon, labels);
     row.addEventListener("click", () => {
       void performThreadAction(context.status, () => context.controller.activateThread(thread.id));
+    });
+    row.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      context.openSettings(thread, row, event.clientX, event.clientY);
+    });
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "ContextMenu" && !(event.key === "F10" && event.shiftKey)) return;
+      event.preventDefault();
+      const bounds = row.getBoundingClientRect();
+      context.openSettings(thread, row, bounds.left, bounds.bottom);
     });
     installKeyboardNavigation(row, context.root);
 
@@ -273,11 +302,89 @@ function mountThreadView(
   root.append(list, status);
   host.append(root);
 
-  const context = { root, list, status, controller, ...(projectId ? { projectId } : {}) };
+  let settingsMenu: HTMLElement | null = null;
+  let settingsAnchor: HTMLButtonElement | null = null;
+  const dismissSettings = (restoreFocus = false): void => {
+    settingsMenu?.remove();
+    settingsMenu = null;
+    document.removeEventListener("pointerdown", dismissSettingsFromPointer);
+    document.removeEventListener("keydown", dismissSettingsFromKeyboard);
+    if (restoreFocus) settingsAnchor?.focus();
+    settingsAnchor?.removeAttribute("aria-controls");
+    settingsAnchor = null;
+  };
+  function dismissSettingsFromPointer(event: PointerEvent): void {
+    if (settingsMenu?.contains(event.target as Node)) return;
+    dismissSettings();
+  }
+  function dismissSettingsFromKeyboard(event: KeyboardEvent): void {
+    if (event.key !== "Escape" || !settingsMenu) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dismissSettings(true);
+  }
+  const openSettings = (
+    thread: ThreadRecord,
+    row: HTMLButtonElement,
+    inlineStart: number,
+    blockStart: number,
+  ): void => {
+    dismissSettings();
+    const menu = document.createElement("div");
+    menu.className = "zd-thread-settings";
+    menu.dataset.threadSettings = thread.id;
+    menu.id = `zd-thread-settings-${thread.id}`;
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", `${thread.name} thread settings`);
+    const heading = document.createElement("p");
+    heading.className = "zd-thread-settings-heading";
+    heading.textContent = "Second line";
+    menu.append(heading);
+    const selected = threadSecondaryLine();
+    for (const [value, label] of [
+      ["app", "App running"],
+      ["directory", "Current directory"],
+      ["worktree", "Branch / worktree"],
+    ] as const satisfies readonly (readonly [ThreadSecondaryLine, string])[]) {
+      const action = document.createElement("button");
+      action.type = "button";
+      action.className = "zd-thread-settings-action";
+      action.dataset.threadSecondaryLine = value;
+      action.setAttribute("role", "menuitemradio");
+      action.setAttribute("aria-checked", String(value === selected));
+      action.textContent = label;
+      action.addEventListener("click", () => {
+        setThreadSecondaryLine(value);
+        dismissSettings(true);
+        renderSnapshot(controller.snapshot(), context);
+      });
+      menu.append(action);
+    }
+    root.append(menu);
+    const bounds = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(0, Math.min(inlineStart, window.innerWidth - bounds.width))}px`;
+    menu.style.top = `${Math.max(0, Math.min(blockStart, window.innerHeight - bounds.height))}px`;
+    row.setAttribute("aria-controls", menu.id);
+    settingsMenu = menu;
+    settingsAnchor = row;
+    document.addEventListener("pointerdown", dismissSettingsFromPointer);
+    document.addEventListener("keydown", dismissSettingsFromKeyboard);
+    menu.querySelector<HTMLButtonElement>('[role="menuitemradio"]')?.focus();
+  };
+
+  const context: RenderContext = {
+    root,
+    list,
+    status,
+    controller,
+    openSettings,
+    ...(projectId ? { projectId } : {}),
+  };
   renderSnapshot(controller.snapshot(), context);
   const unsubscribe = controller.subscribe((snapshot) => renderSnapshot(snapshot, context));
 
   return () => {
+    dismissSettings();
     unsubscribe();
     createAction?.remove();
     root.remove();
