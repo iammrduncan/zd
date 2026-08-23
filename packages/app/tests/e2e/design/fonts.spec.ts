@@ -157,7 +157,7 @@ test("the probe inherits the no-synthesis rule it depends on", async ({ page }) 
   expect(synthesis).toBe("none");
 });
 
-test("every face in the DESIGN.md 5.1 manifest actually loads", async ({ page }) => {
+test("every text face in the DESIGN.md 5.1 manifest actually loads", async ({ page }) => {
   await page.goto("/");
 
   // `[...document.fonts]` lists *declared* faces even when the file 404s, so
@@ -176,7 +176,11 @@ test("every face in the DESIGN.md 5.1 manifest actually loads", async ({ page })
   for (const face of MANIFEST) {
     expect(loaded).toContain(`${face.family}/${face.weight}/${face.style}/loaded`);
   }
-  expect(loaded, "the manifest is exact — no extra faces").toHaveLength(MANIFEST.length);
+  expect(
+    loaded.filter((face) => !face.startsWith("codicon/")),
+    "the text manifest is exact — Codicons is the sole icon-only face",
+  ).toHaveLength(MANIFEST.length);
+  expect(loaded.filter((face) => face.startsWith("codicon/"))).toHaveLength(1);
 });
 
 test("every face is served as a real TrueType file", async ({ page, request }) => {

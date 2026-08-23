@@ -222,6 +222,9 @@ The workbench bundles four unmodified local faces:
 - `iAWriterMonoS-Regular.ttf` for navigation, paths, Markdown markers, code, terminal text, and
   diffs.
 
+The editor-style file glyphs come from the bundled Codicons icon-only face. It is not a typography
+role and never replaces visible text or the accessible file-type label.
+
 Fonts are never fetched. Synthetic bold, synthetic italic, faux oblique, and stroke expansion are
 forbidden. Missing glyphs use the platform fallback chain while preserving the owning role's size,
 line height, weight, style, and semantic colour.
