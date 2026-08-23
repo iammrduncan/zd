@@ -76,6 +76,31 @@ describe("Files tree view", () => {
     expect(notes.textContent).not.toMatch(/\bM\b/u);
   });
 
+  it("uses themeable editor icons instead of punctuation stand-ins", async () => {
+    const fixture = await mounted([
+      entry("docs", "directory"),
+      entry("README.md"),
+      entry("main.ts"),
+      entry("image.png"),
+    ]);
+
+    expect(
+      fixture.host.querySelector('[data-file-path="docs"] .zd-file-tree-icon')?.classList,
+    ).toContain("codicon-folder");
+    expect(
+      fixture.host.querySelector('[data-file-path="README.md"] .zd-file-tree-icon')?.classList,
+    ).toContain("codicon-markdown");
+    expect(
+      fixture.host.querySelector('[data-file-path="main.ts"] .zd-file-tree-icon')?.classList,
+    ).toContain("codicon-code");
+    expect(
+      fixture.host.querySelector('[data-file-path="image.png"] .zd-file-tree-icon')?.classList,
+    ).toContain("codicon-file-media");
+    expect(
+      fixture.host.querySelector('[data-file-path="README.md"] .zd-file-tree-icon')?.textContent,
+    ).toBe("");
+  });
+
   it("uses one keyboard path for expansion, navigation, and root-owned activation", async () => {
     const fixture = await mounted([
       entry("src", "directory"),
