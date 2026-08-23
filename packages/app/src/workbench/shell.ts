@@ -5,7 +5,7 @@ import type {
   WorkbenchRuntimeContext,
 } from "./runtime";
 import type { WorkbenchRegions, WorkbenchState } from "./state";
-import { commands, executeCommand, registerCommandTarget } from "./shortcuts";
+import { registerCommandTarget } from "./shortcuts";
 
 const GEOMETRY_STEP = 8;
 const SPLIT_STEP = 0.02;
@@ -292,13 +292,7 @@ export async function mountWorkbenchShell(
   changesPanel.append(quietState("No Git context."));
   files.append(tabs, filesPanel, changesPanel);
 
-  const filesVisibility = document.createElement("button");
-  filesVisibility.type = "button";
-  filesVisibility.className = "zd-files-visibility-toggle";
-  filesVisibility.dataset.filesVisibilityToggle = "true";
-  filesVisibility.setAttribute("aria-controls", files.id);
-
-  shell.append(threads, threadsResizer, centre, filesResizer, files, filesVisibility);
+  shell.append(threads, threadsResizer, centre, filesResizer, files);
   host.replaceChildren(shell);
 
   const threadOwnsCentre = (regions: WorkbenchRegions) =>
@@ -306,6 +300,10 @@ export async function mountWorkbenchShell(
   const centreFocusTarget = (regions = context.state.snapshot().regions) =>
     threadOwnsCentre(regions) ? threadSurface : fileSurface;
   let lastMeaningfulFocus: HTMLElement = centreFocusTarget();
+  let lastProjectsVisibility =
+    context.state.snapshot().regions.threads.visibility === "hidden"
+      ? "full"
+      : context.state.snapshot().regions.threads.visibility;
   let previousPresentation = context.state.snapshot().window.presentation;
   const rememberFocus = (event: FocusEvent) => {
     if (event.target instanceof HTMLElement && shell.contains(event.target)) {
@@ -318,11 +316,9 @@ export async function mountWorkbenchShell(
     regionState(shell, state);
     const { regions } = state;
     const filesSelected = regions.files.tab === "files";
-    const filesVisible = regions.files.visibility === "visible";
-    const filesVisibilityLabel = filesVisible ? "Hide Files and Changes" : "Show Files and Changes";
-    filesVisibility.textContent = filesVisible ? "Hide Files" : "Show Files";
-    filesVisibility.setAttribute("aria-label", filesVisibilityLabel);
-    filesVisibility.setAttribute("aria-expanded", String(filesVisible));
+    if (regions.threads.visibility !== "hidden") {
+      lastProjectsVisibility = regions.threads.visibility;
+    }
     filesTab.setAttribute("aria-selected", String(filesSelected));
     changesTab.setAttribute("aria-selected", String(!filesSelected));
     filesTab.tabIndex = filesSelected ? 0 : -1;
@@ -388,11 +384,6 @@ export async function mountWorkbenchShell(
     }));
   filesTab.addEventListener("click", () => selectTab("files"));
   changesTab.addEventListener("click", () => selectTab("changes"));
-  filesVisibility.addEventListener("click", () => {
-    const command = commands().find(({ id }) => id === "files.toggleVisibility");
-    if (command) executeCommand(command);
-  });
-
   const stopFilesVisibility = registerCommandTarget({
     id: "workbench.files.toggle-visibility",
     commandId: "files.toggleVisibility",
@@ -409,8 +400,25 @@ export async function mountWorkbenchShell(
       return true;
     },
   });
+  const stopProjectsVisibility = registerCommandTarget({
+    id: "workbench.projects.toggle-visibility",
+    commandId: "projects.toggleVisibility",
+    priority: 100,
+    available: () => true,
+    run: () => {
+      updateRegions(context, (regions) => ({
+        ...regions,
+        threads: {
+          ...regions.threads,
+          visibility: regions.threads.visibility === "hidden" ? lastProjectsVisibility : "hidden",
+        },
+      }));
+      return true;
+    },
+  });
 
   const cleanups: Unmount[] = [
+    stopProjectsVisibility,
     stopFilesVisibility,
     () => geometryObserver?.disconnect(),
     watchResponsiveSuppression(FILES_SUPPRESSED_QUERY, files, centreFocusTarget),

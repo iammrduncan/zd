@@ -37,6 +37,12 @@
 
 .zd-workbench-threads {
   grid-column: 1;
+  overflow: hidden;
+  padding-block-end: 0;
+}
+
+.zd-workbench-threads > [data-workbench-slot="threads"] {
+  block-size: 100%;
 }
 
 .zd-workbench-centre {
@@ -124,31 +130,6 @@
   gap: var(--space-3);
   min-height: 24px;
   border-block-end: var(--hairline) solid var(--line-quiet);
-  padding-inline-end: 72px;
-}
-
-.zd-files-visibility-toggle {
-  position: absolute;
-  z-index: 2;
-  inset-block-start: var(--space-5);
-  inset-inline-end: var(--space-2);
-  min-block-size: 24px;
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: var(--type-supporting-family);
-  font-size: var(--type-supporting-size);
-  line-height: var(--type-supporting-line);
-}
-
-.zd-files-visibility-toggle:is(:hover, :focus-visible) {
-  color: var(--text-primary);
-  outline: none;
-  text-decoration: underline;
-  text-decoration-color: var(--line-focus);
-  text-underline-offset: var(--space-1);
 }
 
 .zd-files-tab {

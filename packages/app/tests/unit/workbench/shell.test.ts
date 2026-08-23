@@ -182,17 +182,22 @@ describe("the root workbench shell", () => {
     expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual(["false", "true"]);
   });
 
-  it("keeps a semantic visibility target available after Files and Changes is hidden", async () => {
+  it("keeps semantic chrome targets available after either navigation pane is hidden", async () => {
     const runtime = context();
     const host = document.createElement("div");
     const unmount = await mountWorkbenchShell(host, runtime, () => () => {});
 
     expect(runCommandTarget("files.toggleVisibility")).toBe(true);
     expect(runtime.state.snapshot().regions.files.visibility).toBe("hidden");
-    expect(host.querySelector("[data-files-visibility-toggle]")?.textContent).toBe("Show Files");
+    expect(host.querySelector("[data-files-visibility-toggle]")).toBeNull();
 
     expect(runCommandTarget("files.toggleVisibility")).toBe(true);
     expect(runtime.state.snapshot().regions.files.visibility).toBe("visible");
+
+    expect(runCommandTarget("projects.toggleVisibility")).toBe(true);
+    expect(runtime.state.snapshot().regions.threads.visibility).toBe("hidden");
+    expect(runCommandTarget("projects.toggleVisibility")).toBe(true);
+    expect(runtime.state.snapshot().regions.threads.visibility).toBe("full");
     unmount();
   });
 

@@ -199,6 +199,7 @@ describe("root workbench commands", () => {
       mod: true,
       shift: true,
     });
+    expect(byId.get("projects.toggleVisibility")?.chord).toBeUndefined();
     expect(byId.get("command.list")?.chord).toEqual({ key: "p", mod: true, shift: true });
     expect(byId.get("settings.open")?.chord).toEqual({ key: ",", mod: true });
     expect(byId.get("window.summon")?.chord).toEqual({ key: " ", mod: true, shift: true });

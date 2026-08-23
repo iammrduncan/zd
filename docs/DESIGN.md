@@ -64,9 +64,10 @@ Text actions retain generous invisible hit areas, accessible names, and complete
 
 The native traffic-light or caption controls may remain where the operating system requires them.
 The application reserves one hairline-separated top drag strip when the web surface needs a reliable
-native grab area. Its trailing edge may carry the two compact text actions `[s]` for Settings and
-`[h]` for the Shortcut Reference. It draws no title text, branded header, persistent status bar,
-footer, decorative scrollbar, breadcrumb strip, minimap, or control ribbon.
+native grab area. Its trailing edge carries four compact text actions: `[p]` and `[f]` show or hide
+the Projects and Files/Changes panes, `[s]` opens Settings, and `[h]` opens the Shortcut Reference.
+It draws no title text, branded header, persistent status bar, decorative scrollbar, breadcrumb
+strip, minimap, or control ribbon.
 
 Files/Changes is one sanctioned text-tab pair. It uses words and a hairline, not boxed tabs.
 
@@ -356,15 +357,16 @@ Threads is a project/thread hierarchy, not a dashboard.
 - Hover uses a reduced selection wash and never changes metrics.
 - Project and thread order is stable while status updates arrive.
 
-Full-width mode shows complete labels. Collapsed mode shows labelled terminal/agent icons with state
-dots and accessible names; hover or keyboard focus reveals the text label without expanding the
-whole region. Hidden mode removes the region from layout. All three states are keyboard-operable and
-restore selection.
+Full-width mode shows complete labels and no redundant project monogram. Collapsed mode shows
+project monograms plus labelled terminal/agent icons with state dots and accessible names; hover or
+keyboard focus reveals the text label without expanding the whole region. Hidden mode removes the
+region from layout. All three states are keyboard-operable and restore selection.
 
-The trailing `Collapse` text action in the `PROJECTS` header switches to collapsed mode; the compact
-rail keeps an `Expand` text action visible. Collapsed mode is a 56 px rail of project monograms and
-thread icons; expanding restores the prior full width. This presentation change preserves
-project/thread selection, scroll, active context, and live sessions.
+The bottom edge of the Projects pane carries one quiet left/right chevron for collapse and expand;
+the `PROJECTS` header contains only the heading and `Open`. Collapsed mode is a 56 px rail of project
+monograms and thread icons; expanding restores the prior full width. The `[p]` top-chrome action
+shows or hides the pane without changing its last full/collapsed presentation. These presentation
+changes preserve project/thread selection, scroll, active context, and live sessions.
 
 Create, rename, reorder, close, and remove are commands. Their ordinary path is the command list or
 contextual text action, not a persistent button strip.
@@ -380,10 +382,9 @@ thread is quiet but unmistakable; it does not pulse, bounce, or animate.
 shown with primary text and a 2 px `line.focus` underline. The inactive word uses secondary text.
 The tab change is immediate and preserves independent state.
 
-A persistent `Hide Files` text action removes the complete Files/Changes plane without discarding
-its tab, width, expansion, selection, filter, or scroll state. The same edge action becomes
-`Show Files` while hidden. The command is also available from the Command List and
-`Cmd+Shift+B` / `Ctrl+Shift+B`.
+The `[f]` top-chrome action removes or restores the complete Files/Changes plane without discarding
+its tab, width, expansion, selection, filter, or scroll state. The same command is available from
+the Command List and `Cmd+Shift+B` / `Ctrl+Shift+B`; no duplicate edge action crowds the tabs.
 
 ### Files tree
 

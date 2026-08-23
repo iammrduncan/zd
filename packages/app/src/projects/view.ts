@@ -8,7 +8,7 @@ import type { ProjectActionResult, ProjectListItem, ProjectWorkbenchSnapshot } f
 export type ProjectChildUnmount = () => void;
 
 export interface ProjectListOptions {
-  readonly renderToolbarActions?: (host: HTMLElement) => void | ProjectChildUnmount;
+  readonly renderFooterActions?: (host: HTMLElement) => void | ProjectChildUnmount;
   readonly renderChildren?: (
     project: ProjectListItem,
     host: HTMLElement,
@@ -56,9 +56,11 @@ export function mountProjectList(
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
   status.hidden = true;
-  root.append(toolbar, list, status);
+  const footer = document.createElement("div");
+  footer.className = "zd-project-footer";
+  root.append(toolbar, list, status, footer);
   host.append(root);
-  const stopToolbarActions = options.renderToolbarActions?.(toolbarActions);
+  const stopFooterActions = options.renderFooterActions?.(footer);
 
   let active = true;
   let draggedProjectId: string | null = null;
@@ -303,7 +305,7 @@ export function mountProjectList(
     for (const cleanup of childCleanups) cleanup();
     childCleanups = [];
     dismissProjectMenu();
-    stopToolbarActions?.();
+    stopFooterActions?.();
     root.remove();
   };
 }
