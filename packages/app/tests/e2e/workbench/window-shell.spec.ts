@@ -37,10 +37,7 @@ test("keeps the file tree visible at the native window's default width", async (
 
   const files = page.locator('[data-region="files"]');
   await expect(files).toBeVisible();
-  await expect(files.getByRole("tab", { name: "FILES" })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  );
+  await expect(files.getByRole("tab", { name: "FILES" })).toHaveAttribute("aria-selected", "true");
 });
 
 test("applies responsive regions in the specified suppression order", async ({ page }) => {
