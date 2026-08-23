@@ -405,8 +405,8 @@ The tree is deliberately dense, in the manner of Zed:
 
 Expanded directories may show subtle nesting guides using `line.quiet`. The selected file uses the
 same wash and inset hairline as Threads. Keyboard focus adds a high-contrast underline or hairline
-without changing geometry. Clicking a directory's name selects it without changing expansion;
-collapse and expansion require deliberate disclosure-chevron or keyboard Left/Right/Enter intent.
+without changing geometry. Clicking a directory row selects and toggles it; clicking it again
+reverses the disclosure. Keyboard Left/Right/Enter provides the same deliberate control.
 
 Git colour applies to both filename and icon:
 

@@ -170,7 +170,7 @@ test("keyboard disclosure reaches nested files and activates through one root ac
   await expect(main.locator(".zd-file-tree-guides > span")).toHaveCount(1);
 });
 
-test("selecting a folder keeps it open until disclosure is deliberate", async ({ page }) => {
+test("selecting a folder toggles it open and closed", async ({ page }) => {
   await mountFixture(page);
   const src = page.locator('[data-file-path="src"]');
 
@@ -178,11 +178,11 @@ test("selecting a folder keeps it open until disclosure is deliberate", async ({
   await expect(src).toHaveAttribute("aria-expanded", "true");
 
   await src.locator(".zd-file-tree-name").click();
-  await expect(src).toHaveAttribute("aria-expanded", "true");
+  await expect(src).toHaveAttribute("aria-expanded", "false");
   await expect(src).toHaveAttribute("aria-selected", "true");
 
-  await src.locator(".zd-file-tree-disclosure").click();
-  await expect(src).toHaveAttribute("aria-expanded", "false");
+  await src.locator(".zd-file-tree-name").click();
+  await expect(src).toHaveAttribute("aria-expanded", "true");
 });
 
 test("filtering by category restores selection and both scroll axes when cleared", async ({

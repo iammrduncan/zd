@@ -146,12 +146,10 @@ function createRow(
   name.className = "zd-file-tree-name";
   name.textContent = row.entry.name;
   button.append(guides, disclosure, icon, name);
-  button.addEventListener("click", (event) => {
+  button.addEventListener("click", () => {
     controller.select(row.entry.relativePath);
     if (row.entry.kind === "directory") {
-      if ((event.target as Element).closest(".zd-file-tree-disclosure")) {
-        controller.toggle(row.entry.relativePath);
-      }
+      controller.toggle(row.entry.relativePath);
       return;
     }
     void controller.activateSelected();
