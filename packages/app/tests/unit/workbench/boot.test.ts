@@ -192,6 +192,7 @@ describe("one workbench boot", () => {
         unreadableDirectories: 0,
         elapsedMicros: 1,
       })),
+      watch: () => () => {},
     };
     const git = {
       ...unavailableGitAdapter,
@@ -256,6 +257,7 @@ describe("one workbench boot", () => {
         unreadableDirectories: 0,
         elapsedMicros: 1,
       })),
+      watch: () => () => {},
     };
     const git = {
       ...unavailableGitAdapter,

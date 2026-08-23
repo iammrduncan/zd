@@ -64,9 +64,15 @@ export interface FileTreeRequest extends FileTreeScope {
   readonly previousRevision: string | null;
 }
 
-/** Narrow platform seam. The Tauri implementation invokes `file_tree_snapshot`. */
+export type FileTreeWatchEvent =
+  | { readonly status: "ready" }
+  | { readonly status: "changed" }
+  | { readonly status: "unavailable"; readonly problem: string };
+
+/** Narrow platform seam. The Tauri implementation owns snapshots and change signals. */
 export interface FileTreeAdapter {
   snapshot(request: FileTreeRequest): Promise<FileTreeResult>;
+  watch(scope: FileTreeScope, listener: (event: FileTreeWatchEvent) => void): () => void;
 }
 
 /** Honest inert adapter for browser fixtures and surfaces without native file authority. */
@@ -77,6 +83,20 @@ export const unavailableFileTreeAdapter: FileTreeAdapter = {
     worktreeId: request.worktreeId,
     problem: "file trees require the desktop shell",
   }),
+  watch: (_scope, listener) => {
+    let active = true;
+    queueMicrotask(() => {
+      if (active) {
+        listener({
+          status: "unavailable",
+          problem: "automatic file-tree updates require the desktop shell",
+        });
+      }
+    });
+    return () => {
+      active = false;
+    };
+  },
 };
 
 /** Root-owned context transition. The Files feature never sets active file state itself. */

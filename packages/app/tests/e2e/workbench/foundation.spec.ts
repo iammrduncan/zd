@@ -58,6 +58,22 @@ test("a file-tree selection takes the overlap centre back from an active thread"
   expect(pageErrors).toEqual([]);
 });
 
+test("a new disk file appears in the expanded tree without refocusing", async ({ page }) => {
+  await page.locator('[data-file-path="docs"]').click();
+  await page.locator('[data-file-path="docs/screenshots"]').click();
+  await expect(page.locator('[data-file-path="docs/screenshots/first.png"]')).toBeVisible();
+
+  await page.evaluate(() => {
+    window.workbenchDocumentationFixture.createFile("docs/screenshots/second.png");
+  });
+
+  await expect(page.locator('[data-file-path="docs/screenshots/second.png"]')).toBeVisible();
+  await expect(page.locator('[data-file-path="docs/screenshots"]')).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+});
+
 test("pasting a screenshot into Markdown saves it before inserting a relative link", async ({
   page,
 }) => {

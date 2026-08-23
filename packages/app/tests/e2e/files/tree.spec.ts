@@ -59,6 +59,7 @@ async function mountFixture(page: Page): Promise<void> {
         unreadableDirectories: 0,
         elapsedMicros: 120,
       }),
+      watch: () => () => {},
     };
     const controller = new FileTreeController(adapter, {
       activateFile: async (resource) => {

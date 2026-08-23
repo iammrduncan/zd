@@ -19,6 +19,7 @@ against approved grants; frontend callers do not supply arbitrary filesystem pat
 | [`fs.rs`](fs.rs) | Perform current grant-scoped listings, reads, file stamps, links, and atomic writes. |
 | [`clipboard_images.rs`](clipboard_images.rs) | Validate and persist bounded clipboard images below fixed project-owned screenshot directories. |
 | [`file_tree.rs`](file_tree.rs) | Scan one approved project/worktree into a bounded ignored-aware tree snapshot. |
+| [`file_tree_watch.rs`](file_tree_watch.rs) | Debounce native disk changes for one approved tree and emit path-free scope signals. |
 | [`git.rs`](git.rs) | Run the fixed read-only status, history, comparison, and diff operations. |
 | [`worktrees.rs`](worktrees.rs) | Create and approve one structured Git worktree without delete or prune authority. |
 | [`themes.rs`](themes.rs) | Discover bounded, direct-child theme configuration files. |

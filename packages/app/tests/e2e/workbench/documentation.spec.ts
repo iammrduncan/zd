@@ -4,6 +4,7 @@ declare global {
   interface Window {
     workbenchDocumentationFixture: {
       setCentreMode(mode: "overlap" | "side-by-side"): void;
+      createFile(relativePath: string): void;
     };
   }
 }

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { FileTreeAdapter, FileTreeResult } from "@/files";
+import type { FileTreeAdapter, FileTreeResult, FileTreeWatchEvent } from "@/files";
 import { unavailableGitAdapter, type GitAdapter, type GitStatusSnapshot } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { createWorkbenchFilesRuntime } from "@/workbench/files";
@@ -128,7 +128,10 @@ beforeEach(() => clearCommands());
 describe("the root Files and Git coordinator", () => {
   it("activates the scoped tree and reconciles Git state without a path boundary", async () => {
     const owner = createWorkbenchStateOwner(workbenchStateFromGrants([alpha], launch(alpha)));
-    const files: FileTreeAdapter = { snapshot: vi.fn(async () => treeResult(alpha)) };
+    const files: FileTreeAdapter = {
+      snapshot: vi.fn(async () => treeResult(alpha)),
+      watch: () => () => {},
+    };
     const git = gitAdapter(vi.fn(async () => gitResult(alpha, "modified")));
     const runtime = createWorkbenchFilesRuntime(
       owner,
@@ -167,6 +170,7 @@ describe("the root Files and Git coordinator", () => {
       snapshot: vi.fn(async (request) =>
         request.projectId === alpha.id ? treeResult(alpha) : treeResult(beta),
       ),
+      watch: () => () => {},
     };
     const git = gitAdapter(
       vi.fn((scope) =>
@@ -197,7 +201,10 @@ describe("the root Files and Git coordinator", () => {
 
   it("updates a file-only selection without rescanning the same tree", async () => {
     const owner = createWorkbenchStateOwner(workbenchStateFromGrants([alpha], launch(alpha)));
-    const files: FileTreeAdapter = { snapshot: vi.fn(async () => treeResult(alpha)) };
+    const files: FileTreeAdapter = {
+      snapshot: vi.fn(async () => treeResult(alpha)),
+      watch: () => () => {},
+    };
     const runtime = createWorkbenchFilesRuntime(
       owner,
       files,
@@ -218,9 +225,33 @@ describe("the root Files and Git coordinator", () => {
     detach();
   });
 
-  it("refreshes only on bounded signals and exposes the focused tree filter target", async () => {
+  it("refreshes on bounded disk and focus signals without polling", async () => {
     const owner = createWorkbenchStateOwner(workbenchStateFromGrants([alpha], launch(alpha)));
-    const files: FileTreeAdapter = { snapshot: vi.fn(async () => treeResult(alpha)) };
+    let fileAdded = false;
+    let watchReady: () => void = () => {
+      throw new Error("disk watcher was not installed");
+    };
+    let diskChange: () => void = () => {
+      throw new Error("disk watcher was not installed");
+    };
+    const stopWatch = vi.fn();
+    const watch = vi.fn(
+      (
+        _scope: { readonly projectId: string; readonly worktreeId: string },
+        listener: (event: FileTreeWatchEvent) => void,
+      ) => {
+        watchReady = () => listener({ status: "ready" });
+        diskChange = () => {
+          fileAdded = true;
+          listener({ status: "changed" });
+        };
+        return stopWatch;
+      },
+    );
+    const files = {
+      snapshot: vi.fn(async () => treeResult(alpha, fileAdded ? "new.md" : "README.md")),
+      watch,
+    };
     const intervals = vi.spyOn(window, "setInterval");
     const runtime = createWorkbenchFilesRuntime(
       owner,
@@ -231,15 +262,28 @@ describe("the root Files and Git coordinator", () => {
     const detach = runtime.attach();
     await vi.waitFor(() => expect(files.snapshot).toHaveBeenCalledOnce());
 
+    expect(watch).toHaveBeenCalledExactlyOnceWith(
+      { projectId: alpha.id, worktreeId: "worktree-alpha" },
+      expect.any(Function),
+    );
+    watchReady();
+    await vi.waitFor(() => expect(files.snapshot).toHaveBeenCalledTimes(2));
+    expect(runtime.controller.snapshot().entries[0]?.name).toBe("README.md");
+
+    diskChange();
+    await vi.waitFor(() => expect(files.snapshot).toHaveBeenCalledTimes(3));
+    expect(runtime.controller.snapshot().entries[0]?.name).toBe("new.md");
+
     expect(commandTargetAvailable("files.filter")).toBe(true);
     expect(runCommandTarget("files.filter")).toBe(true);
     expect(runtime.controller.snapshot().filterOpen).toBe(true);
 
     window.dispatchEvent(new Event("focus"));
-    await vi.waitFor(() => expect(files.snapshot).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(files.snapshot).toHaveBeenCalledTimes(4));
     expect(intervals).not.toHaveBeenCalled();
 
     detach();
+    expect(stopWatch).toHaveBeenCalledOnce();
     intervals.mockRestore();
     expect(commandTargetAvailable("files.filter")).toBe(false);
   });

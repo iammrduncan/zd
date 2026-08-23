@@ -14,7 +14,12 @@ import type {
   NotificationPresentationResult,
 } from "@/notifications";
 import type { BoundedFileRead } from "@/editor";
-import { unavailableFileTreeAdapter, type FileTreeAdapter } from "@/files";
+import {
+  unavailableFileTreeAdapter,
+  type FileTreeAdapter,
+  type FileTreeScope,
+  type FileTreeWatchEvent,
+} from "@/files";
 import { createTauriGitAdapter, unavailableGitAdapter, type GitAdapter } from "@/git";
 import {
   unavailableTerminalAdapter,
@@ -97,6 +102,18 @@ export interface CreateThreadWorktreeRequest {
   readonly branch: string;
   readonly baseRevision: string | null;
 }
+
+type NativeFileTreeWatchSignal = FileTreeScope &
+  (
+    | { readonly status: "changed"; readonly watchId: string }
+    | {
+        readonly status: "unavailable";
+        readonly watchId: string;
+        readonly problem: string;
+      }
+  );
+
+let fileTreeWatchSequence = 0;
 
 export type WorktreeRefusalKind =
   | "unknown-project"
@@ -342,6 +359,69 @@ const tauri: Platform = {
   },
   fileTree: {
     snapshot: (request) => invoke("file_tree_snapshot", { request }),
+    watch: (scope, listener) => {
+      const request = {
+        ...scope,
+        watchId: `file-tree-watch-${++fileTreeWatchSequence}`,
+      };
+      let active = true;
+      let started = false;
+      const pending = listen<NativeFileTreeWatchSignal>("file-tree-watch", ({ payload }) => {
+        if (
+          !active ||
+          payload.watchId !== request.watchId ||
+          payload.projectId !== scope.projectId ||
+          payload.worktreeId !== scope.worktreeId
+        ) {
+          return;
+        }
+        const event: FileTreeWatchEvent =
+          payload.status === "changed"
+            ? { status: "changed" }
+            : { status: "unavailable", problem: payload.problem };
+        listener(event);
+      })
+        .then(async (unlisten) => {
+          if (!active) return unlisten;
+          try {
+            await invoke<void>("start_file_tree_watch", { request });
+            started = true;
+            if (active) listener({ status: "ready" });
+          } catch {
+            if (active) {
+              listener({
+                status: "unavailable",
+                problem: "Automatic file-tree updates are unavailable.",
+              });
+            }
+          }
+          return unlisten;
+        })
+        .catch(() => {
+          if (active) {
+            listener({
+              status: "unavailable",
+              problem: "Automatic file-tree updates are unavailable.",
+            });
+          }
+          return null;
+        });
+
+      return () => {
+        if (!active) return;
+        active = false;
+        void pending.then(async (unlisten) => {
+          if (started) {
+            try {
+              await invoke<void>("stop_file_tree_watch", { request });
+            } catch {
+              // Native shutdown also drops every active watcher.
+            }
+          }
+          unlisten?.();
+        });
+      };
+    },
   },
   git: createTauriGitAdapter((command, payload) => invoke(command, payload)),
   workspaceFiles: (projectId, worktreeId) =>
