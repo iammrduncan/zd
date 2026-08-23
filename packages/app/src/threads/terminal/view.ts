@@ -254,11 +254,13 @@ export function mountTerminalThreadSurface(
     searchStatus.textContent =
       resultCount > 0 && resultIndex >= 0 ? `${resultIndex + 1} of ${resultCount}` : "No results";
   });
+  const unsubscribeTitle = emulator.onTitleChange((title) => options.onTitleChange?.(title));
   scheduleFit();
 
   const dispose = () => {
     if (!active) return;
     active = false;
+    unsubscribeTitle();
     unsubscribeSearch();
     unsubscribeBinary();
     unsubscribeData();

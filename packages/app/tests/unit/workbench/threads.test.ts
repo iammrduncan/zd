@@ -69,6 +69,21 @@ describe("the root Threads runtime adapter", () => {
     );
   });
 
+  it("uses terminal titles until the user gives the thread a manual name", async () => {
+    const state = owner();
+    const runtime = createRootThreadsAdapter(state, platform(), {
+      createId: () => "thread-titled",
+    });
+    await runtime.createThread({ ...existingRequest(), name: "Terminal" });
+
+    await runtime.updateAutomaticName("thread-titled", "npm test");
+    expect(state.snapshot().threads[0]?.name).toBe("npm test");
+
+    await runtime.renameThread("thread-titled", "Test runner");
+    await runtime.updateAutomaticName("thread-titled", "zsh");
+    expect(state.snapshot().threads[0]?.name).toBe("Test runner");
+  });
+
   it("creates a worktree only through the structured native operation and refreshes its grant", async () => {
     const state = owner();
     const native = terminalAdapter();
@@ -276,6 +291,43 @@ describe("the root Threads runtime adapter", () => {
     expect(host.querySelector(".zd-terminal-thread-metadata")?.textContent).toContain("Review");
     unmount();
     expect(host.querySelector(".zd-terminal-thread-surface")).toBeNull();
+    await runtime.dispose();
+  });
+
+  it("routes the mounted emulator title into the automatic thread name", async () => {
+    const state = owner();
+    const runtime = createRootThreadsAdapter(state, platform(), {
+      createId: () => "thread-mounted-title",
+    });
+    await runtime.createThread({ ...existingRequest(), name: "Terminal" });
+    let emitTitle: ((title: string) => void) | null = null;
+    const createEmulator = () => {
+      const emulator = headlessEmulator();
+      return {
+        ...emulator,
+        onTitleChange: (listener: (title: string) => void) => {
+          emitTitle = listener;
+          return () => {
+            emitTitle = null;
+          };
+        },
+      };
+    };
+    const host = document.createElement("div");
+    const unmount = mountActiveThread(
+      host,
+      { state } as unknown as WorkbenchRuntimeContext,
+      runtime,
+      { createEmulator },
+    );
+
+    const publishTitle = emitTitle as ((title: string) => void) | null;
+    expect(publishTitle).not.toBeNull();
+    publishTitle?.("pnpm test");
+    await vi.waitFor(() => expect(state.snapshot().threads[0]?.name).toBe("pnpm test"));
+
+    unmount();
+    expect(emitTitle).toBeNull();
     await runtime.dispose();
   });
 

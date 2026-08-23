@@ -127,7 +127,13 @@ export function mountActiveThread(
     if (!mountedThread) {
       mountedThread = {
         session,
-        surface: mountTerminalThreadSurface(host, session, metadata, surfaceOptions),
+        surface: mountTerminalThreadSurface(host, session, metadata, {
+          ...surfaceOptions,
+          onTitleChange: (title) => {
+            surfaceOptions.onTitleChange?.(title);
+            void threads.updateAutomaticName(threadId, title);
+          },
+        }),
       };
       mounted.set(threadId, mountedThread);
     } else {

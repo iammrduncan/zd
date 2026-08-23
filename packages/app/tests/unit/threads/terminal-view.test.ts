@@ -50,6 +50,7 @@ class FakeEmulator implements TerminalEmulator {
   #binary: ((data: string) => void) | null = null;
   #data: ((data: string) => void) | null = null;
   #searchResults: ((results: TerminalEmulatorSearchResults) => void) | null = null;
+  #titleChange: ((title: string) => void) | null = null;
 
   open(host: HTMLElement, label: string): void {
     const focusTarget = document.createElement("textarea");
@@ -80,6 +81,13 @@ class FakeEmulator implements TerminalEmulator {
     this.#searchResults = listener;
     return () => {
       this.#searchResults = null;
+    };
+  }
+
+  onTitleChange(listener: (title: string) => void): () => void {
+    this.#titleChange = listener;
+    return () => {
+      this.#titleChange = null;
     };
   }
 
@@ -143,6 +151,10 @@ class FakeEmulator implements TerminalEmulator {
 
   emitSearchResults(results: TerminalEmulatorSearchResults): void {
     this.#searchResults?.(results);
+  }
+
+  emitTitle(title: string): void {
+    this.#titleChange?.(title);
   }
 }
 
@@ -245,6 +257,24 @@ describe("the terminal thread surface", () => {
     expect(host.querySelector('[role="status"]')?.textContent).toBe("1 of 2");
     expect(surface.closeSearch()).toBe(true);
     expect(surface.closeSearch()).toBe(false);
+  });
+
+  it("forwards terminal-owned title changes and detaches them with the surface", () => {
+    const terminal = TerminalThreadSession.attach(adapter(), session);
+    const emulator = new FakeEmulator();
+    const onTitleChange = vi.fn();
+    const host = document.createElement("div");
+    const surface = mountTerminalThreadSurface(host, terminal, metadata, {
+      createEmulator: () => emulator,
+      onTitleChange,
+    });
+
+    emulator.emitTitle("npm test");
+    expect(onTitleChange).toHaveBeenCalledExactlyOnceWith("npm test");
+
+    surface.dispose();
+    emulator.emitTitle("zsh");
+    expect(onTitleChange).toHaveBeenCalledOnce();
   });
 
   it("coalesces fitting into native resize, refreshes theme in place, and disposes cleanly", async () => {

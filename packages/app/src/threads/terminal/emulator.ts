@@ -22,6 +22,7 @@ export interface TerminalEmulator {
   onData(listener: (data: string) => void): () => void;
   onBinary(listener: (data: string) => void): () => void;
   onSearchResults(listener: (results: TerminalEmulatorSearchResults) => void): () => void;
+  onTitleChange(listener: (title: string) => void): () => void;
   attachCustomKeyEventHandler(handler: (event: KeyboardEvent) => boolean): void;
   setLabel(label: string): void;
   focus(): void;
@@ -172,6 +173,11 @@ class XtermEmulator implements TerminalEmulator {
 
   onSearchResults(listener: (results: TerminalEmulatorSearchResults) => void): () => void {
     const subscription = this.#search.onDidChangeResults(listener);
+    return () => subscription.dispose();
+  }
+
+  onTitleChange(listener: (title: string) => void): () => void {
+    const subscription = this.#terminal.onTitleChange(listener);
     return () => subscription.dispose();
   }
 
