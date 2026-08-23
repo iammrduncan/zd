@@ -1,0 +1,5 @@
+make sure commenting is still allowed
+update adrs with design change direction
+update VISION.md
+update user-facing-docs
+x close out objectives
