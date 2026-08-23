@@ -230,6 +230,15 @@ describe("the repository documentation map", () => {
     }
   });
 
+  it("documents recoverable unsaved buffers without claiming that they block navigation", () => {
+    const architecture = page("docs/user-facing-docs/explanation/architecture.md");
+    const cli = page("docs/user-facing-docs/reference/cli.md");
+
+    expect(architecture).toContain("recoverable draft");
+    expect(cli).toContain("does not block the switch");
+    expect(cli).not.toContain("dirty current file must allow the switch");
+  });
+
   it("keeps current product context on the workbench naming contract", () => {
     const currentPages = [
       ...PUBLIC_PAGES,

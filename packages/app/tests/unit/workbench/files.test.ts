@@ -4,6 +4,7 @@ import type { FileTreeAdapter, FileTreeResult, FileTreeWatchEvent } from "@/file
 import { unavailableGitAdapter, type GitAdapter, type GitStatusSnapshot } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { createWorkbenchFilesRuntime } from "@/workbench/files";
+import { FileDraftStore } from "@/workbench/current-file/drafts";
 import type { ProjectGrant } from "@/workbench/resources";
 import { clearCommands, commandTargetAvailable, runCommandTarget } from "@/workbench/shortcuts";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";
@@ -222,6 +223,32 @@ describe("the root Files and Git coordinator", () => {
 
     await vi.waitFor(() => expect(runtime.controller.snapshot().activePath).toBe("notes.md"));
     expect(files.snapshot).toHaveBeenCalledOnce();
+    detach();
+  });
+
+  it("projects recoverable draft state into the active Files tree", async () => {
+    const owner = createWorkbenchStateOwner(workbenchStateFromGrants([alpha], launch(alpha)));
+    const drafts = new FileDraftStore(window.localStorage);
+    const runtime = createWorkbenchFilesRuntime(
+      owner,
+      { snapshot: vi.fn(async () => treeResult(alpha)), watch: () => () => {} },
+      gitAdapter(async () => gitResult(alpha, "modified")),
+      createUnavailableInstrumentationClient(),
+      drafts,
+    );
+    const detach = runtime.attach();
+    await vi.waitFor(() => expect(runtime.controller.snapshot().state).toBe("ready"));
+
+    drafts.save(
+      {
+        projectId: alpha.id,
+        worktreeId: alpha.worktrees[0]!.id,
+        relativePath: "README.md",
+      },
+      "unsaved",
+    );
+
+    expect(runtime.controller.snapshot().dirtyPaths).toEqual(new Set(["README.md"]));
     detach();
   });
 

@@ -146,6 +146,7 @@ export interface FileTreeViewSnapshot {
   readonly expandedPaths: ReadonlySet<string>;
   readonly selectedPath: string | null;
   readonly activePath: string | null;
+  readonly dirtyPaths: ReadonlySet<string>;
   readonly filterOpen: boolean;
   readonly filterQuery: string;
   readonly scroll: FileTreeScrollState;

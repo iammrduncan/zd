@@ -13,8 +13,9 @@ Choose a project heading to activate its remembered worktree, thread, and file t
 projects in their displayed order.
 
 If a project moved or became unavailable, use its **Locate** action to approve the new location.
-Removing a project revokes its native grant only after running terminals and dirty files allow the
-transition. It does not delete the folder.
+Removing a project revokes its native grant only after running terminals allow the transition. It
+does not delete the folder. Ordinary project switches keep unsaved files as recoverable drafts and
+restore them when you return.
 
 ## Collapse the Projects pane
 

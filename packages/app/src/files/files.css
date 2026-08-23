@@ -189,6 +189,11 @@
   flex: 0 0 auto;
 }
 
+.zd-file-tree-row[data-dirty="true"] .zd-file-tree-name {
+  font-family: var(--type-h6-family);
+  font-weight: var(--type-h6-weight);
+}
+
 .zd-file-tree-status,
 .zd-file-tree-notice {
   margin: 0;

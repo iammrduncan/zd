@@ -192,6 +192,10 @@ export interface EditorOptions {
    * guards transitions, saving, and close confirmation.
    */
   onDirtyChange?: (dirty: boolean) => void;
+  /** Persist recovery text after each document transaction without owning its path. */
+  onTextChange?: (text: string, dirty: boolean) => void;
+  /** Disk text used as the saved baseline when opening a recovered draft. */
+  savedText?: string;
   /**
    * How to parse this document — vision §6.2.
    *
@@ -258,7 +262,7 @@ export function createEditor(
    * nothing, and §10 makes idle cost part of the design on documents that run to
    * megabytes.
    */
-  let written = Text.of(doc.split("\n"));
+  let written = Text.of((options.savedText ?? doc).split("\n"));
 
   const language = options.language ?? MARKDOWN_DOCUMENT;
   const readOnly = options.readOnly ?? false;
@@ -326,6 +330,7 @@ export function createEditor(
         EditorView.updateListener.of((update) => {
           if (!update.docChanged) return;
           recheck();
+          options.onTextChange?.(update.state.doc.toString(), dirty);
           find?.queueRefresh();
         }),
         !readOnly && options.onPasteImage
@@ -410,6 +415,7 @@ export function createEditor(
     raw: () => isRaw(view.state),
   });
   const documentFind = find;
+  recheck();
 
   return {
     text: () => view.state.doc.toString(),

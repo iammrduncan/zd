@@ -181,12 +181,8 @@ test("pasting a screenshot into Markdown saves it before inserting a relative li
     .toContain("![Screenshot](docs/screenshots/screenshot-fixture.png)");
 });
 
-test("a dirty file owns one actionable transition refusal", async ({ page }) => {
+test("a dirty file survives context switches and is bold in the Files tree", async ({ page }) => {
   const notes = page.locator('[data-project-id="project-notes"]');
-  await notes.locator(".zd-project-heading").hover();
-  await page.getByRole("button", { name: "New terminal in agent-notes" }).click();
-  await expect(notes.locator("[data-thread-id]")).toHaveCount(1);
-
   await page.locator('[data-project-id="project-zd"] .zd-project-row').click();
   await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
   const content = page.locator(".current-file .cm-content");
@@ -195,19 +191,23 @@ test("a dirty file owns one actionable transition refusal", async ({ page }) => 
   await content.press("End");
   await content.pressSequentially("\nconst unsaved = true;");
 
-  await notes.locator("[data-thread-id]").click();
-  await notes.locator(".zd-project-row").click();
+  const dirty = page.locator('[data-file-path="README.md"]');
+  await expect(dirty).toHaveAttribute("data-dirty", "true");
+  await expect(dirty).toHaveAttribute("aria-label", /unsaved/u);
+  expect(
+    await dirty.locator(".zd-file-tree-name").evaluate((name) => getComputedStyle(name).fontWeight),
+  ).toBe("700");
 
-  const notice = page.locator(".current-file-notice");
-  await expect(notice).toBeVisible();
-  await expect(notice).toContainText("The current file has unsaved work");
-  await expect(notice.getByRole("button", { name: "Save current file" })).toBeVisible();
-  await expect(page.locator(".zd-thread-status:visible")).toHaveCount(0);
-  await expect(page.locator(".zd-project-status:visible")).toHaveCount(0);
+  await notes.locator(".zd-project-row").click();
+  await expect(notes.locator(".zd-project-row")).toHaveAttribute("aria-current", "true");
+  await expect(page.locator(".current-file-notice:visible")).toHaveCount(0);
+
+  await page.locator('[data-project-id="project-zd"] .zd-project-row').click();
   await expect(page.locator('[data-project-id="project-zd"] .zd-project-row')).toHaveAttribute(
     "aria-current",
     "true",
   );
+  await expect(page.locator(".current-file .cm-content")).toContainText("const unsaved = true;");
 });
 
 test("transient Settings controls local diagnostics without crowding Threads", async ({ page }) => {

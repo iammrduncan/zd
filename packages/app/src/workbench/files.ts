@@ -12,6 +12,7 @@ import type { DiagnosticOutcome, InstrumentationClient } from "@/instrumentation
 import { registerCommandTarget } from "./shortcuts";
 import type { Unmount } from "./runtime";
 import type { WorkbenchState, WorkbenchStateOwner } from "./state";
+import { FileDraftStore } from "./current-file/drafts";
 
 function scopeKey(scope: FileTreeScope): string {
   return `${scope.projectId}\0${scope.worktreeId}`;
@@ -69,6 +70,7 @@ export class WorkbenchFilesRuntime {
     readonly git: GitAdapter,
     readonly instrumentation: InstrumentationClient,
     fileTree: FileTreeAdapter,
+    readonly drafts: FileDraftStore = new FileDraftStore(),
   ) {
     this.#fileTree = fileTree;
     this.controller = new FileTreeController(
@@ -82,6 +84,7 @@ export class WorkbenchFilesRuntime {
     if (this.#attached) throw new Error("Files runtime is already attached");
     this.#attached = true;
     const stopState = this.owner.subscribe((state) => this.#synchronize(state));
+    const stopDrafts = this.drafts.subscribe(() => this.#synchronizeDrafts());
     const onFocus = () => {
       void this.refresh("focus");
     };
@@ -125,6 +128,7 @@ export class WorkbenchFilesRuntime {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", onFocus);
       stopState();
+      stopDrafts();
     };
   }
 
@@ -160,6 +164,7 @@ export class WorkbenchFilesRuntime {
     const key = scopeKey(scope);
     if (key === this.#activeKey) {
       this.controller.setActivePath(activePath(state));
+      this.#synchronizeDrafts();
       return;
     }
 
@@ -169,8 +174,14 @@ export class WorkbenchFilesRuntime {
     this.#activeKey = key;
     this.#publishGit(this.#gitSnapshots.get(key) ?? null);
     void this.controller.activate(scope, activePath(state));
+    this.#synchronizeDrafts();
     this.#startWatching(scope, generation);
     void this.#refreshGit(scope, generation);
+  }
+
+  #synchronizeDrafts(): void {
+    const scope = activeScope(this.owner.snapshot());
+    this.controller.setDirtyPaths(scope ? this.drafts.dirtyPaths(scope) : new Set());
   }
 
   #startWatching(scope: FileTreeScope, generation: number): void {
@@ -258,6 +269,7 @@ export function createWorkbenchFilesRuntime(
   fileTree: FileTreeAdapter,
   git: GitAdapter,
   instrumentation: InstrumentationClient,
+  drafts?: FileDraftStore,
 ): WorkbenchFilesRuntime {
-  return new WorkbenchFilesRuntime(owner, git, instrumentation, fileTree);
+  return new WorkbenchFilesRuntime(owner, git, instrumentation, fileTree, drafts);
 }

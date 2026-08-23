@@ -7,6 +7,7 @@ import {
 } from "@/editor";
 import { screenshotLink } from "./clipboard-image";
 import { closeConfirmation } from "./close-confirmation";
+import { FileDraftStore } from "./drafts";
 import { reconcile, saveWouldClobber } from "./reconcile";
 import type { FileStamp } from "@/platform";
 import type { FileResource } from "../resources";
@@ -19,6 +20,8 @@ import "./styles.css";
 export interface MountCurrentFileOptions {
   /** Whether this surface currently owns editor commands. Lifecycle guards remain active. */
   readonly isActive?: () => boolean;
+  /** Shared recovery state used by the editor and Files tree. */
+  readonly drafts?: FileDraftStore;
 }
 
 function activeResource(state: WorkbenchState): FileResource | null {
@@ -45,6 +48,7 @@ export async function mountCurrentFile(
   context: WorkbenchRuntimeContext,
   options: MountCurrentFileOptions = {},
 ): Promise<Unmount> {
+  const drafts = options.drafts ?? new FileDraftStore();
   let mounted: MountedEditorBuffer | null = null;
   let active = true;
   let generation = 0;
@@ -96,6 +100,7 @@ export async function mountCurrentFile(
     read: BoundedFileRead,
     openedGeneration: number,
     focus: boolean,
+    savedText?: string,
   ) => {
     mounted?.destroy();
     mounted = null;
@@ -128,6 +133,7 @@ export async function mountCurrentFile(
         try {
           await context.platform.writeTextFile(resource, text);
           known = await context.platform.fileStamp(resource).catch(() => null);
+          drafts.clear(resource);
           clearNotice();
           await save?.end("ok");
           return true;
@@ -136,6 +142,11 @@ export async function mountCurrentFile(
           await save?.end("failed");
           return false;
         }
+      },
+      ...(savedText === undefined ? {} : { savedText }),
+      onTextChange: (text, dirty) => {
+        if (dirty) drafts.save(resource, text);
+        else drafts.clear(resource);
       },
       ...(acceptsPastedImages
         ? {
@@ -216,7 +227,21 @@ export async function mountCurrentFile(
       await span?.end("cancelled");
       return;
     }
-    render(resource, read, requested, true);
+    const draft = drafts.get(resource);
+    let savedText: string | undefined;
+    if (draft && read.status === "text" && read.writable) {
+      if (draft.text === read.text) {
+        drafts.clear(resource);
+      } else {
+        savedText = read.text;
+        read = {
+          ...read,
+          text: draft.text,
+          byteLength: new TextEncoder().encode(draft.text).byteLength,
+        };
+      }
+    }
+    render(resource, read, requested, true, savedText);
     await span?.end(read.status === "text" ? "ok" : "unavailable");
   };
 
@@ -330,16 +355,7 @@ export async function mountCurrentFile(
         showNotice(reason, "warning");
         return { status: "refused", reason, presentation: "owner" };
       }
-      const editor = currentEditor();
-      if (!editor?.isDirty()) return { status: "ready" };
-
-      const reason = "The current file has unsaved work";
-      const recovery: TransitionRecovery = {
-        label: "Save current file",
-        run: () => editor.save(),
-      };
-      showNotice(reason, "warning", recovery);
-      return { status: "refused", reason, recovery, presentation: "owner" };
+      return { status: "ready" };
     },
   });
   let fileId = context.state.snapshot().active.fileId;
@@ -410,6 +426,7 @@ export async function mountCurrentFile(
   return () => {
     if (!active) return;
     active = false;
+    drafts.flush();
     generation += 1;
     reconciliation += 1;
     host.removeEventListener("focus", focusCurrentFile);
