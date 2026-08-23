@@ -35,7 +35,10 @@ function adapter(entries: readonly NativeFileTreeEntry[]): FileTreeAdapter {
 }
 
 async function mounted(entries: readonly NativeFileTreeEntry[]) {
-  const actions = { activateFile: vi.fn(async () => ({ status: "committed" as const })) };
+  const actions = {
+    activateFile: vi.fn(async () => ({ status: "committed" as const })),
+    copyPath: vi.fn(async () => {}),
+  };
   const controller = new FileTreeController(adapter(entries), actions);
   const host = document.createElement("aside");
   const unmount = mountFileTree(host, controller);
@@ -108,6 +111,55 @@ describe("Files tree view", () => {
 
     expect(notes.dataset.dirty).toBe("true");
     expect(notes.getAttribute("aria-label")).toContain("unsaved");
+  });
+
+  it("copies a file's relative or full path from its context menu", async () => {
+    const fixture = await mounted([entry("docs", "directory"), entry("docs/notes.md")]);
+    fixture.controller.expand("docs");
+
+    fixture.host.querySelector<HTMLElement>('[data-file-path="docs/notes.md"]')!.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 40,
+        clientY: 50,
+      }),
+    );
+    const menu = fixture.host.querySelector<HTMLElement>('[role="menu"]')!;
+    expect(menu.getAttribute("aria-label")).toBe("notes.md file actions");
+    menu.querySelector<HTMLButtonElement>('[data-copy-path="relative"]')!.click();
+    await Promise.resolve();
+    expect(fixture.actions.copyPath).toHaveBeenLastCalledWith(
+      { projectId: "alpha", worktreeId: "alpha-root", relativePath: "docs/notes.md" },
+      "relative",
+    );
+
+    fixture.host.querySelector<HTMLElement>('[data-file-path="docs/notes.md"]')!.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 40,
+        clientY: 50,
+      }),
+    );
+    fixture.host.querySelector<HTMLButtonElement>('[data-copy-path="full"]')!.click();
+    await Promise.resolve();
+    expect(fixture.actions.copyPath).toHaveBeenLastCalledWith(
+      { projectId: "alpha", worktreeId: "alpha-root", relativePath: "docs/notes.md" },
+      "full",
+    );
+  });
+
+  it("opens file path actions from the keyboard context-menu chord", async () => {
+    const fixture = await mounted([entry("notes.md")]);
+    const notes = fixture.host.querySelector<HTMLElement>('[data-file-path="notes.md"]')!;
+
+    notes.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "F10", shiftKey: true, bubbles: true, cancelable: true }),
+    );
+
+    expect(fixture.host.querySelector('[role="menu"]')).not.toBeNull();
+    expect(fixture.host.querySelector('[role="menuitem"]')?.textContent).toBe("Copy Relative Path");
   });
 
   it("uses one keyboard path for expansion, navigation, and root-owned activation", async () => {

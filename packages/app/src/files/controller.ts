@@ -1,6 +1,8 @@
 import { normalizeFileTreeEntries, visibleFileTreeRows } from "./model";
+import { copyFilePath } from "./path-copy";
 import type {
   FileGitState,
+  FilePathPresentation,
   FileTreeActions,
   FileTreeAdapter,
   FileTreeEntry,
@@ -324,6 +326,16 @@ export class FileTreeController {
     }
     this.#publish();
     this.#record("activate", result.status, performance.now() - started);
+  }
+
+  async copyPath(path: string, presentation: FilePathPresentation): Promise<void> {
+    const memory = this.#current;
+    const entry = memory?.entries.find((candidate) => candidate.relativePath === path);
+    if (!memory || !entry) return;
+    const notice = await copyFilePath(this.actions, memory.scope, entry, presentation);
+    if (!notice || this.#current !== memory) return;
+    memory.notice = notice;
+    this.#publish();
   }
 
   summonFilter(): void {

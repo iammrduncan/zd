@@ -1,6 +1,7 @@
 import {
   FileTreeController,
   type FileGitState,
+  type FilePathPresentation,
   type FileTreeAdapter,
   type FileTreeMetric,
   type FileTreeRefreshReason,
@@ -11,6 +12,7 @@ import { reconcileGitStatus, type GitAdapter, type GitStatusSnapshot } from "@/g
 import type { DiagnosticOutcome, InstrumentationClient } from "@/instrumentation";
 import { registerCommandTarget } from "./shortcuts";
 import type { Unmount } from "./runtime";
+import type { FileResource } from "./resources";
 import type { WorkbenchState, WorkbenchStateOwner } from "./state";
 import { FileDraftStore } from "./current-file/drafts";
 
@@ -32,6 +34,20 @@ function activeScope(state: WorkbenchState): FileTreeScope | null {
 
 function activePath(state: WorkbenchState): string | null {
   return state.openFiles.find(({ id }) => id === state.active.fileId)?.relativePath ?? null;
+}
+
+function defaultClipboardWrite(text: string): Promise<void> {
+  if (!navigator.clipboard?.writeText) {
+    return Promise.reject(new Error("The clipboard is unavailable."));
+  }
+  return navigator.clipboard.writeText(text);
+}
+
+function fullPath(root: string, relativePath: string): string {
+  const separator = root.includes("\\") && !root.includes("/") ? "\\" : "/";
+  const cleanRoot = root.replace(/[\\/]+$/u, "");
+  const cleanRelative = separator === "\\" ? relativePath.replaceAll("/", "\\") : relativePath;
+  return `${cleanRoot}${separator}${cleanRelative}`;
 }
 
 function gitOutcome(snapshot: GitStatusSnapshot): DiagnosticOutcome {
@@ -71,11 +87,15 @@ export class WorkbenchFilesRuntime {
     readonly instrumentation: InstrumentationClient,
     fileTree: FileTreeAdapter,
     readonly drafts: FileDraftStore = new FileDraftStore(),
+    readonly copyText: (text: string) => Promise<void> = defaultClipboardWrite,
   ) {
     this.#fileTree = fileTree;
     this.controller = new FileTreeController(
       fileTree,
-      { activateFile: (resource) => owner.activateFile(resource) },
+      {
+        activateFile: (resource) => owner.activateFile(resource),
+        copyPath: (resource, presentation) => this.#copyPath(resource, presentation),
+      },
       { record: (metric) => this.#recordFileMetric(metric) },
     );
   }
@@ -184,6 +204,23 @@ export class WorkbenchFilesRuntime {
     this.controller.setDirtyPaths(scope ? this.drafts.dirtyPaths(scope) : new Set());
   }
 
+  async #copyPath(resource: FileResource, presentation: FilePathPresentation): Promise<void> {
+    const worktree = this.owner
+      .snapshot()
+      .worktrees.find(
+        ({ id, projectId, availability }) =>
+          id === resource.worktreeId &&
+          projectId === resource.projectId &&
+          availability === "available",
+      );
+    if (!worktree) throw new Error("The worktree path is unavailable.");
+    await this.copyText(
+      presentation === "relative"
+        ? resource.relativePath
+        : fullPath(worktree.root, resource.relativePath),
+    );
+  }
+
   #startWatching(scope: FileTreeScope, generation: number): void {
     const handle = (event: FileTreeWatchEvent) => {
       if (
@@ -270,6 +307,7 @@ export function createWorkbenchFilesRuntime(
   git: GitAdapter,
   instrumentation: InstrumentationClient,
   drafts?: FileDraftStore,
+  copyText?: (text: string) => Promise<void>,
 ): WorkbenchFilesRuntime {
-  return new WorkbenchFilesRuntime(owner, git, instrumentation, fileTree, drafts);
+  return new WorkbenchFilesRuntime(owner, git, instrumentation, fileTree, drafts, copyText);
 }

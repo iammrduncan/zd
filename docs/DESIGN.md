@@ -415,6 +415,12 @@ name, path, or supported category and states result count quietly. Its visible c
 `Escape` both dismiss the row and restore the existing expansion, selection, scroll, and tree focus.
 It is not workspace content search.
 
+A file's context menu offers `Copy Relative Path` and `Copy Full Path`. The relative form preserves
+the project-relative slash path. The full form joins that identity to the active native-approved
+worktree root without making absolute paths part of ordinary file commands. Both actions report
+clipboard failure in the Files region, and `Shift+F10` / the platform Context Menu key reaches the
+same menu as a secondary click.
+
 Loading, empty, denied, missing, non-directory, watcher failure, and non-repository conditions are
 honest text rows. Updates never collapse unrelated directories or move the active file.
 

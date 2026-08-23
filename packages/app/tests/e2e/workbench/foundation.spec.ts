@@ -252,6 +252,21 @@ test("a dirty file survives context switches and is bold in the Files tree", asy
   await expect(page.locator(".current-file .cm-content")).toContainText("const unsaved = true;");
 });
 
+test("a file context menu copies relative and full paths", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  const row = page.getByRole("treeitem", { name: "README.md, Markdown file, modified" });
+
+  await row.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Copy Relative Path" }).click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("README.md");
+
+  await row.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Copy Full Path" }).click();
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe("/workspace/zd/README.md");
+});
+
 test("transient Settings controls local diagnostics without crowding Threads", async ({ page }) => {
   const threads = page.locator('[data-region="threads"]');
 

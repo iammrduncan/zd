@@ -43,6 +43,11 @@ Markdown remains directly editable, including cells inside rendered tables. Pres
 `Ctrl+E` when you need to edit the table delimiters or other literal Markdown source. Code and
 configuration files use the same editor with a filename-derived language mode.
 
+To copy a file path for a command or note, right-click the file under **Files**. Choose **Copy
+Relative Path** for a path from the worktree root, such as `notes.md`, or **Copy Full Path** for its
+absolute path on your computer. You can open the same menu from the keyboard with `Shift+F10` or the
+Context Menu key.
+
 ## 4. Inspect the change
 
 Choose **Changes** on the right. Select `notes.md` in the working-tree list to open its read-only
