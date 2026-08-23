@@ -97,7 +97,7 @@ test("an undeclared or unsupported language stays honest monospace", async ({ pa
   });
 
   // The fixture's `sh` block. §5.2: "every other language hint, including
-  // `mermaid`, remains plain code" — misleading colour is worse than none.
+  // unregistered languages remain plain code — misleading colour is worse than none.
   expect(shell, "the shell block was not rendered").not.toBeNull();
   expect(shell!.classified, "an unsupported language received colour").toBe(0);
 });

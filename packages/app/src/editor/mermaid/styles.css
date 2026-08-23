@@ -1,0 +1,37 @@
+.md-mermaid-diagram {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  overflow: auto;
+  padding-block: var(--gap-block);
+  margin: 0;
+  scrollbar-width: none;
+}
+
+.md-mermaid-diagram::-webkit-scrollbar {
+  display: none;
+}
+
+.md-mermaid-diagram > svg {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  flex: none;
+}
+
+.md-editor[data-language="mermaid"] {
+  width: 100%;
+  max-width: none;
+}
+
+.md-editor[data-language="mermaid"] .cm-content {
+  width: 100%;
+  font-family: var(--type-code-family);
+  font-size: var(--type-code-size);
+  font-style: var(--type-code-style);
+  font-weight: var(--type-code-weight);
+  line-height: var(--type-code-line);
+}

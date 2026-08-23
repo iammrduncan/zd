@@ -35,6 +35,18 @@ describe("markdown files", () => {
   });
 });
 
+describe("mermaid files", () => {
+  it("recognises both standalone Mermaid extensions", () => {
+    for (const path of ["architecture.mmd", "docs/flow.mermaid", "FLOW.MMD"]) {
+      const language = languageFor(path);
+      expect(language.id).toBe("mermaid");
+      expect(language.label).toBe("Mermaid");
+      expect(language.markdown).toBe(false);
+      expect(language.diagram).toBe(true);
+    }
+  });
+});
+
 describe("files that are not markdown", () => {
   it("does not treat source files as markdown", () => {
     // The reported pair, by name.

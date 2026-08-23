@@ -38,8 +38,9 @@ creates it on the first successful save.
 - Several approved projects and Git worktrees in one root window.
 - Project-scoped terminal threads for a shell, Codex, Claude Code, or OpenCode workflow.
 - A compact, keyboard-accessible file tree with file type and Git state.
-- CodeMirror editing for Markdown and common code/configuration languages, with bounded large-file
-  states and Find/Replace.
+- CodeMirror editing for Markdown and common code/configuration languages, including rendered
+  Mermaid fences and standalone `.mmd` / `.mermaid` diagrams, with bounded large-file states and
+  Find/Replace.
 - Read-only Git status, commit history, revision comparison, and file diffs.
 - Current Light, Dark, Dracula, and validated local theme files.
 - A global quick-access shortcut that reuses the running workbench.

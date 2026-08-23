@@ -31,7 +31,7 @@ instead of creating another state, command, or native-authority owner.
 | [`design/`](design/) | Shared semantic roles, bundled fonts, validated themes, and appearance ownership. |
 | [`projects/`](projects/) | Project-list model, controller, view, and workbench adapter contract. |
 | [`instrumentation/`](instrumentation/) | Closed diagnostic schema and the local opt-in frontend client. |
-| [`editor/`](editor/) | CodeMirror document mechanics, bounded buffers, languages, Markdown behavior and styles, Find/Replace, focus, and document-local annotations. |
+| [`editor/`](editor/) | CodeMirror document mechanics, bounded buffers, languages, Markdown and Mermaid rendering, styles, Find/Replace, focus, and document-local annotations. |
 | [`terminal/`](terminal/) | Structured terminal-session adapter, viewport validation, and bounded scrollback contract. |
 | [`threads/`](threads/) | Project-scoped thread model, lifecycle, attention event, create flow, and terminal presentation. |
 | [`files/`](files/) | Persistent compact file-tree model, controller, filtering, Git reconciliation, and virtualization. |

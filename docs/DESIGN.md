@@ -491,11 +491,26 @@ Markdown is rendered prose, selectable, and directly editable.
 - Block notation hangs left of its text edge so prose keeps one straight measure.
 - Raw HTML is inert text. Remote images are never fetched. Unsafe links never activate.
 - Fenced code uses one continuous `surface.code` plane and the shared code role.
+- A complete `mermaid` fence replaces its code plane with a responsive SVG diagram using the active
+  semantic theme roles. Raw Mode restores the complete fence and editable definition.
 - Relative local-document links stay in the workbench and preserve reversible history.
 - Review annotations remain document-local and cannot become a competing state owner.
 
 Incomplete syntax stays editable plain text. The surface never reveals notation only because the
 caret approaches it.
+
+### Mermaid
+
+Standalone `.mmd` and `.mermaid` files open on the shared editor surface as a centred, responsive
+diagram. They do not gain a toolbar, tab strip, private palette, or second buffer. Raw Mode reveals
+monospaced editable source; saving and draft recovery continue to own that source rather than the
+generated SVG. Invalid or unsupported source stays visible and editable.
+
+Diagram SVG consumes `surface`, `text`, `line`, and focus roles from the current `DesignSystem` so a
+theme change updates an already mounted diagram. Mermaid source and renderer output are untrusted.
+Only a closed set of inert SVG geometry and text elements and attributes may enter the document;
+scripts, event handlers, embedded HTML, links, remote resources, executable URLs, and remote font
+imports are rejected.
 
 ### Code and plain text
 

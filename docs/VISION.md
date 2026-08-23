@@ -206,8 +206,13 @@ part of this goal.
 CodeMirror is the one editor engine for Markdown and supported text files.
 
 Markdown preserves the current rendered, directly editable reading experience: semantic typography,
-source honesty, rendered tables/code/images, selection, undo, safe rendering, Raw Mode, and the same
-document position for caret, focus, find, save, and viewport restoration.
+source honesty, rendered tables/code/images/Mermaid diagrams, selection, undo, safe rendering, Raw
+Mode, and the same document position for caret, focus, find, save, and viewport restoration.
+
+Complete `mermaid` fences render as theme-native diagrams. Standalone `.mmd` and `.mermaid` files
+use the same buffer and open as diagrams by default; Raw Mode reveals their editable source. Invalid
+or unsupported definitions remain source text. Rendering is local, has no remote font or image
+fetches, and admits only inert SVG through a closed output boundary.
 
 Non-Markdown text uses the same editor owner without Markdown parsing or decoration. It opens at
 line one at the top of a full-width code plane with a compact line-number gutter, code typography,
@@ -311,8 +316,9 @@ operating-system authority.
 - File access is a native-owned set of explicit project/worktree grants.
 - Every path operation canonicalizes its target and rejects parent or symbolic-link escape.
 - The frontend may choose among existing grants but cannot widen them by supplying a path.
-- Markdown and agent-produced markup are untrusted. Raw HTML is inert, remote images are blocked,
-  unsafe links do not activate, and HTTP(S) links open through the operating system.
+- Markdown, Mermaid, and agent-produced markup are untrusted. Raw HTML is inert, remote images are
+  blocked, generated diagrams admit only inert local SVG, unsafe links do not activate, and HTTP(S)
+  links open through the operating system.
 - Terminal authority is expressed through structured sessions, never generic command execution.
 - Notification content is privacy-minimal.
 - Theme files are validated data, not plugins.
