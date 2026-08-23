@@ -407,11 +407,20 @@ describe("the root Files and Git coordinator", () => {
       watch,
     };
     const intervals = vi.spyOn(window, "setInterval");
+    const refreshGrants = vi.fn(async () => [
+      {
+        ...alpha,
+        worktrees: [{ ...alpha.worktrees[0]!, name: "feature/live" }],
+      },
+    ]);
     const runtime = createWorkbenchFilesRuntime(
       owner,
       files,
       gitAdapter(async () => gitResult(alpha, "modified")),
       createUnavailableInstrumentationClient(),
+      undefined,
+      undefined,
+      refreshGrants,
     );
     const detach = runtime.attach();
     await vi.waitFor(() => expect(files.snapshot).toHaveBeenCalledOnce());
@@ -427,6 +436,8 @@ describe("the root Files and Git coordinator", () => {
     diskChange();
     await vi.waitFor(() => expect(files.snapshot).toHaveBeenCalledTimes(3));
     expect(runtime.controller.snapshot().entries[0]?.name).toBe("new.md");
+    await vi.waitFor(() => expect(owner.snapshot().worktrees[0]?.name).toBe("feature/live"));
+    expect(refreshGrants).toHaveBeenCalledOnce();
 
     expect(commandTargetAvailable("files.filter")).toBe(true);
     expect(runCommandTarget("files.filter")).toBe(true);

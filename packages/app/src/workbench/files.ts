@@ -14,7 +14,7 @@ import { reconcileGitStatus, type GitAdapter, type GitStatusSnapshot } from "@/g
 import type { DiagnosticOutcome, InstrumentationClient } from "@/instrumentation";
 import { registerCommandTarget } from "./shortcuts";
 import type { Unmount } from "./runtime";
-import type { FileResource } from "./resources";
+import type { FileResource, ProjectGrant } from "./resources";
 import type { WorkbenchState, WorkbenchStateOwner } from "./state";
 import { FileDraftStore } from "./current-file/drafts";
 
@@ -90,6 +90,7 @@ export class WorkbenchFilesRuntime {
     fileTree: FileTreeAdapter,
     readonly drafts: FileDraftStore = new FileDraftStore(),
     readonly copyText: (text: string) => Promise<void> = defaultClipboardWrite,
+    readonly refreshProjectGrants: (() => Promise<readonly ProjectGrant[]>) | null = null,
   ) {
     this.#fileTree = fileTree;
     this.controller = new FileTreeController(
@@ -170,7 +171,11 @@ export class WorkbenchFilesRuntime {
     const scope = activeScope(this.owner.snapshot());
     if (!scope || scopeKey(scope) !== this.#activeKey) return;
     const generation = this.#generation;
-    await Promise.all([this.controller.refresh(reason), this.#refreshGit(scope, generation)]);
+    await Promise.all([
+      this.controller.refresh(reason),
+      this.#refreshGit(scope, generation),
+      ...(reason === "disk" ? [this.#refreshProjectGrant(scope, generation)] : []),
+    ]);
   }
 
   #synchronize(state: WorkbenchState): void {
@@ -321,6 +326,25 @@ export class WorkbenchFilesRuntime {
     await span?.end(gitOutcome(reconciled));
   }
 
+  async #refreshProjectGrant(scope: FileTreeScope, generation: number): Promise<void> {
+    if (!this.refreshProjectGrants) return;
+    let grants: readonly ProjectGrant[];
+    try {
+      grants = await this.refreshProjectGrants();
+    } catch {
+      return;
+    }
+    if (!this.#attached || generation !== this.#generation || scopeKey(scope) !== this.#activeKey) {
+      return;
+    }
+    const grant = grants.find(
+      (candidate) =>
+        candidate.id === scope.projectId &&
+        candidate.worktrees.some(({ id }) => id === scope.worktreeId),
+    );
+    if (grant) await this.owner.refreshProjectGrant(grant);
+  }
+
   #recordFileMetric(metric: FileTreeMetric): void {
     const outcomes = new Set(["ready", "unchanged", "empty", "expanded", "applied", "committed"]);
     void this.instrumentation.record({
@@ -343,6 +367,15 @@ export function createWorkbenchFilesRuntime(
   instrumentation: InstrumentationClient,
   drafts?: FileDraftStore,
   copyText?: (text: string) => Promise<void>,
+  refreshProjectGrants?: () => Promise<readonly ProjectGrant[]>,
 ): WorkbenchFilesRuntime {
-  return new WorkbenchFilesRuntime(owner, git, instrumentation, fileTree, drafts, copyText);
+  return new WorkbenchFilesRuntime(
+    owner,
+    git,
+    instrumentation,
+    fileTree,
+    drafts,
+    copyText,
+    refreshProjectGrants,
+  );
 }

@@ -89,14 +89,22 @@ impl FileTreeWatchState {
         }
 
         let watched_root = std::fs::canonicalize(root).map_err(|_| WATCH_PROBLEM.to_string())?;
+        let git_head = git_head_path(&watched_root);
         let callback_root = watched_root.clone();
+        let callback_git_head = git_head.clone();
         let callback_request = request.clone();
         let callback_listener = Arc::clone(&listener);
         let mut debouncer =
             new_debouncer(
                 WATCH_DEBOUNCE,
                 move |result: DebounceEventResult| match result {
-                    Ok(events) if has_project_change(&callback_root, &events) => {
+                    Ok(events)
+                        if has_project_change(
+                            &callback_root,
+                            callback_git_head.as_deref(),
+                            &events,
+                        ) =>
+                    {
                         callback_listener(changed_signal(&callback_request));
                     }
                     Ok(_) => {}
@@ -109,6 +117,13 @@ impl FileTreeWatchState {
             .watcher()
             .watch(&watched_root, RecursiveMode::Recursive)
             .map_err(|_| WATCH_PROBLEM.to_string())?;
+        if let Some(head) = git_head.filter(|head| !head.starts_with(&watched_root)) {
+            let git_directory = head.parent().unwrap_or(&head);
+            debouncer
+                .watcher()
+                .watch(git_directory, RecursiveMode::NonRecursive)
+                .map_err(|_| WATCH_PROBLEM.to_string())?;
+        }
 
         let mut active = self.active.lock().map_err(|_| WATCH_PROBLEM.to_string())?;
         active.insert(
@@ -182,19 +197,40 @@ fn valid_watch_id(watch_id: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
 }
 
-fn has_project_change(root: &Path, events: &[DebouncedEvent]) -> bool {
+fn has_project_change(root: &Path, git_head: Option<&Path>, events: &[DebouncedEvent]) -> bool {
     events
         .iter()
-        .any(|event| is_project_path(root, &event.path))
+        .any(|event| is_project_path(root, git_head, &event.path))
 }
 
-fn is_project_path(root: &Path, path: &Path) -> bool {
+fn is_project_path(root: &Path, git_head: Option<&Path>, path: &Path) -> bool {
+    if git_head.is_some_and(|head| path == head) {
+        return true;
+    }
     let Ok(relative) = path.strip_prefix(root) else {
         return false;
     };
     !relative
         .components()
         .any(|component| component.as_os_str() == ".git")
+}
+
+fn git_head_path(root: &Path) -> Option<std::path::PathBuf> {
+    let dot_git = root.join(".git");
+    let head = if dot_git.is_dir() {
+        dot_git.join("HEAD")
+    } else {
+        let pointer = std::fs::read_to_string(dot_git).ok()?;
+        let git_dir = pointer.trim().strip_prefix("gitdir:")?.trim();
+        let git_dir = Path::new(git_dir);
+        let git_dir = if git_dir.is_absolute() {
+            git_dir.to_path_buf()
+        } else {
+            root.join(git_dir)
+        };
+        git_dir.join("HEAD")
+    };
+    std::fs::canonicalize(head).ok()
 }
 
 fn changed_signal(request: &FileTreeWatchRequest) -> FileTreeWatchSignal {
@@ -317,11 +353,72 @@ mod tests {
     }
 
     #[test]
+    fn emits_a_scope_signal_when_git_head_changes() {
+        let root = TestDirectory::new("git-head");
+        fs::create_dir(root.0.join(".git")).expect("create Git metadata");
+        fs::write(root.0.join(".git/HEAD"), b"ref: refs/heads/main\n").expect("write Git HEAD");
+        let state = FileTreeWatchState::default();
+        let watch = request("watch-git-head");
+        let (sender, receiver) = mpsc::sync_channel(8);
+        state
+            .start(
+                &root.0,
+                &watch,
+                Arc::new(move |signal| {
+                    let _ = sender.send(signal);
+                }),
+            )
+            .expect("start watcher");
+
+        fs::write(root.0.join(".git/HEAD"), b"ref: refs/heads/feature/live\n")
+            .expect("switch branch");
+
+        assert_eq!(receive_changed(&receiver), changed_signal(&watch));
+    }
+
+    #[test]
+    fn resolves_linked_worktree_head_outside_the_approved_root() {
+        let root = TestDirectory::new("linked-root");
+        let metadata = TestDirectory::new("linked-metadata");
+        fs::write(
+            root.0.join(".git"),
+            format!("gitdir: {}\n", metadata.0.display()),
+        )
+        .expect("write linked-worktree pointer");
+        fs::write(metadata.0.join("HEAD"), b"ref: refs/heads/main\n").expect("write linked HEAD");
+
+        assert_eq!(
+            git_head_path(&root.0),
+            Some(
+                metadata
+                    .0
+                    .join("HEAD")
+                    .canonicalize()
+                    .expect("canonical HEAD")
+            )
+        );
+    }
+
+    #[test]
     fn ignores_internal_git_paths_and_rejects_widened_requests() {
         let root = PathBuf::from("/approved/project");
-        assert!(is_project_path(&root, &root.join("docs/new.md")));
-        assert!(!is_project_path(&root, &root.join(".git/index")));
-        assert!(!is_project_path(&root, Path::new("/other/project/new.md")));
+        let head = root.join(".git/HEAD");
+        assert!(is_project_path(
+            &root,
+            Some(&head),
+            &root.join("docs/new.md")
+        ));
+        assert!(is_project_path(&root, Some(&head), &head));
+        assert!(!is_project_path(
+            &root,
+            Some(&head),
+            &root.join(".git/index")
+        ));
+        assert!(!is_project_path(
+            &root,
+            Some(&head),
+            Path::new("/other/project/new.md")
+        ));
         assert!(!valid_watch_id(""));
         assert!(!valid_watch_id("watch/one"));
         assert!(valid_watch_id("file-tree-watch_42"));
