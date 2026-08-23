@@ -129,8 +129,7 @@ test("toggling keeps the caret, the document, and the scroll position", async ({
 });
 
 test("the Reference lists it, so it is discoverable", async ({ page }) => {
-  await page.keyboard.down("ControlOrMeta");
-  await page.keyboard.down("Period");
+  await page.keyboard.press("ControlOrMeta+Period");
 
   const row = await page
     .locator(".zd-reference-row", { hasText: "wrap" })

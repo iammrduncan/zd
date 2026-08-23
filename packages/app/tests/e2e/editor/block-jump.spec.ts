@@ -159,16 +159,14 @@ test("the jump does not change the document", async ({ page }) => {
  * reported missing.
  */
 
-/** Hold cmd+. down, and leave it down. The Reference is a hold, not a toggle. */
-async function holdReference(page: import("@playwright/test").Page) {
-  await page.keyboard.down("ControlOrMeta");
-  await page.keyboard.down("Period");
+async function openReference(page: import("@playwright/test").Page) {
+  await page.keyboard.press("ControlOrMeta+Period");
 }
 
 const JUMP_ROW = ".zd-reference .zd-reference-row";
 
 test("the jump has a row in the Shortcut Reference", async ({ page }) => {
-  await holdReference(page);
+  await openReference(page);
 
   const row = page.locator(JUMP_ROW, { hasText: "next focus block" }).first();
   await expect(row, "the block jump is not listed at all").toHaveCount(1);
@@ -198,7 +196,7 @@ test("the Reference says honestly that the jump needs a caret", async ({ page })
    */
   await page.goto("/dev/editor.html");
   await page.locator(".md-line-h1").first().waitFor();
-  await holdReference(page);
+  await openReference(page);
 
   const row = page.locator(JUMP_ROW, { hasText: "next focus block" }).first();
   await expect(row).toHaveAttribute("data-available", "false");

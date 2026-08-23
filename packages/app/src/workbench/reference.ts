@@ -1,4 +1,4 @@
-import { chordLabel, commands, register, type Command } from "./shortcuts";
+import { chordLabel, commands, register, registerCommandTarget, type Command } from "./shortcuts";
 
 /**
  * The Shortcut Reference — vision §7.1, DESIGN.md §7.8, finding F02.
@@ -39,6 +39,7 @@ const UNAVAILABLE_NOTE = "not available here";
 function row(command: Command): HTMLElement {
   const line = document.createElement("div");
   line.className = "zd-reference-row";
+  line.setAttribute("role", "row");
 
   /*
    * F16, the half the registry cannot keep on its own: "Unavailable commands must
@@ -57,10 +58,12 @@ function row(command: Command): HTMLElement {
 
   const chord = document.createElement("kbd");
   chord.className = "zd-reference-chord";
+  chord.setAttribute("role", "cell");
   chord.textContent = chordLabel(command.chord);
 
   const description = document.createElement("span");
   description.className = "zd-reference-description";
+  description.setAttribute("role", "cell");
   description.textContent = command.description;
 
   line.append(chord, description);
@@ -99,6 +102,8 @@ export function openReference(host: HTMLElement): void {
 
   const column = document.createElement("div");
   column.className = "zd-reference-column";
+  column.setAttribute("role", "table");
+  column.setAttribute("aria-label", "Keyboard shortcuts");
   plane.append(column);
 
   /*
@@ -130,39 +135,49 @@ export function closeReference(): void {
 }
 
 /**
- * Register the Reference's own command. Returns the removal function.
+ * Register the Reference's command and semantic Escape target.
  *
- * One command, held rather than toggled: the sheet is on screen for exactly as
- * long as `cmd+.` is down. That is the 2026-07-30 decision — "when releasing
- * cmd+. should just close it. esc should be set to unfocus the editor" — and it
- * changes §7.1's "pressing it again restores that context" into letting go, which
- * is the same round trip reached a different way. F02's real requirement is that
- * the context comes back untouched, and that is unaffected.
+ * `cmd+.` is a persistent toggle: a complete press opens the table and the next
+ * complete press closes it. Its `release` callback only rearms the toggle after
+ * keyup. That small latch matters because a held key auto-repeats keydown events;
+ * without it one physical press would flicker the table open and closed.
  *
- * There *was* a second command: `transient.dismiss`, Escape, available only while
- * the sheet was up. It is gone, and not merely unbound. Held means the sheet cannot
- * still be there by the time a separate key could be pressed, so that command could
- * never run — and §7.1 forbids listing a binding that cannot run. Escape belongs to
- * the editor now, which is the whole point of taking this task first.
- *
- * `run` only opens. It used to toggle, which a held chord makes wrong twice over: a
- * held key auto-repeats, so a toggle would flicker the sheet many times a second,
- * and the close is `release`'s job.
+ * Escape is routed through the workbench's one semantic command. A high-priority
+ * target dismisses this top transient before Find, a caret, or another underlying
+ * mode can consume the same press.
  */
 export function registerReference(host: HTMLElement): () => void {
+  let shortcutDown = false;
   const remove = register({
     id: "help.shortcuts",
     chord: { key: ".", mod: true },
-    description: "Show the Shortcut Reference while held",
+    description: "Open or close the Shortcut Reference",
     run: () => {
-      openReference(host);
+      if (shortcutDown) return true;
+      shortcutDown = true;
+      if (isReferenceOpen()) closeReference();
+      else openReference(host);
       return true;
     },
-    release: closeReference,
+    release: () => {
+      shortcutDown = false;
+    },
+  });
+  const removeDismiss = registerCommandTarget({
+    id: "shortcut-reference.dismiss",
+    commandId: "workbench.escape",
+    priority: 1_000,
+    available: isReferenceOpen,
+    run: () => {
+      if (!isReferenceOpen()) return false;
+      closeReference();
+      return true;
+    },
   });
 
   return () => {
     closeReference();
+    removeDismiss();
     remove();
   };
 }

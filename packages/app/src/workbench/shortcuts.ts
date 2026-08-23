@@ -54,11 +54,10 @@ export interface Command {
   /**
    * The chord is no longer held. Absent means the command is a press, not a hold.
    *
-   * A held command is one whose effect lasts exactly as long as the keys are down:
-   * `cmd+.` shows the Reference while held and takes it away on release (feedback,
-   * 2026-07-30). Declaring that here rather than listening for keyup in the
-   * surface itself is the §7.1 rule holding — a binding lives in one place, and
-   * half a binding somewhere else is F16 starting again.
+   * A held command can end a momentary effect or rearm a repeat-safe toggle.
+   * Declaring keyup here rather than listening inside a surface keeps the §7.1
+   * rule intact: a binding lives in one place, and half a binding somewhere else
+   * is F16 starting again.
    *
    * Called once per hold, whichever key of the chord comes up first.
    */
@@ -278,9 +277,8 @@ const MODIFIERS = new Set(["Meta", "Control", "Shift", "Alt"]);
  * End any hold this keyup finishes.
  *
  * A chord stops being held as soon as *any* of its keys is released, and which
- * one comes up first is not something a person controls — letting go of `cmd+.`
- * usually releases Cmd a few milliseconds before the period. So a modifier going
- * up ends every hold, and the chord's own key ends its own.
+ * one comes up first is not something a person controls. So a modifier going up
+ * ends every hold, and the chord's own key ends its own.
  *
  * Idempotent per hold: both keys of the chord always come up, and the surface
  * must not be closed twice.

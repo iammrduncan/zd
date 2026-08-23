@@ -8,26 +8,15 @@ import { expect, test } from "@playwright/test";
 // than a screenshot: "A static screenshot cannot prove the open/close round trip
 // preserves context." So the document beneath is compared before and after.
 //
-// **Held, not toggled** (feedback, 2026-07-30): "esc is set to close shortcut menu,
-// when releasing cmd+. should just close it. esc should be set to unfocus the
-// editor". So the Reference is on screen for exactly as long as the chord is down,
-// and F02's "pressing it again" becomes "letting go" — the round trip it asks for
-// is the same round trip either way, which is why every test here holds the chord
-// rather than pressing it. `page.keyboard.press` sends keydown *and* keyup, so it
-// would now open and close the sheet inside one call.
+// Current feedback restores the original persistent interaction: one complete
+// cmd+. press opens the Reference and the next closes it. Escape dismisses the
+// open transient before the editor beneath sees that same key.
 
 const SHEET = ".zd-reference";
 
-/** Hold cmd+. down, and leave it down. */
-async function hold(page: import("@playwright/test").Page) {
-  await page.keyboard.down("ControlOrMeta");
-  await page.keyboard.down("Period");
-}
-
-/** Let it go, in the order a hand actually does: modifier last. */
-async function letGo(page: import("@playwright/test").Page) {
-  await page.keyboard.up("Period");
-  await page.keyboard.up("ControlOrMeta");
+async function open(page: import("@playwright/test").Page) {
+  await page.keyboard.press("ControlOrMeta+Period");
+  await expect(page.locator(SHEET)).toHaveCount(1);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -55,7 +44,7 @@ test("there is no sheet until the command", async ({ page }) => {
 });
 
 test("cmd+period opens the reference and lists the registry", async ({ page }) => {
-  await hold(page);
+  await open(page);
 
   const sheet = page.locator(SHEET);
   await expect(sheet).toHaveCount(1);
@@ -69,8 +58,50 @@ test("cmd+period opens the reference and lists the registry", async ({ page }) =
   expect(text, "the Reference does not list itself").toContain("Shortcut Reference");
 });
 
+test("cmd+period stays open after release and toggles closed on the next press", async ({
+  page,
+}) => {
+  const before = await documentState(page);
+
+  await page.keyboard.press("ControlOrMeta+Period");
+  await expect(page.locator(SHEET)).toHaveCount(1);
+
+  await page.keyboard.press("ControlOrMeta+Period");
+  await expect(page.locator(SHEET)).toHaveCount(0);
+  expect(await documentState(page)).toEqual(before);
+});
+
+test("the key and action columns use compact dense rows", async ({ page }) => {
+  await open(page);
+
+  const table = page.getByRole("table", { name: "Keyboard shortcuts" });
+  await expect(table).toHaveCount(1);
+  expect(await table.getByRole("row").count()).toBeGreaterThan(0);
+
+  const rows = await table.getByRole("row").evaluateAll((list) =>
+    list.map((row) => {
+      const chord = row.querySelector<HTMLElement>(".zd-reference-chord")!;
+      const description = row.querySelector<HTMLElement>(".zd-reference-description")!;
+      const chordBox = chord.getBoundingClientRect();
+      const descriptionBox = description.getBoundingClientRect();
+      return {
+        height: row.getBoundingClientRect().height,
+        chordSize: Number.parseFloat(getComputedStyle(chord).fontSize),
+        descriptionSize: Number.parseFloat(getComputedStyle(description).fontSize),
+        columnGap: descriptionBox.left - chordBox.right,
+      };
+    }),
+  );
+
+  expect(rows.length).toBeGreaterThan(0);
+  expect(Math.max(...rows.map(({ height }) => height))).toBeLessThanOrEqual(24);
+  expect(Math.max(...rows.map(({ chordSize }) => chordSize))).toBeLessThanOrEqual(13);
+  expect(Math.max(...rows.map(({ descriptionSize }) => descriptionSize))).toBeLessThanOrEqual(13);
+  expect(Math.min(...rows.map(({ columnGap }) => columnGap))).toBeGreaterThanOrEqual(8);
+});
+
 test("every row shows a key and a description, and no row is empty", async ({ page }) => {
-  await hold(page);
+  await open(page);
 
   const rows = await page.locator(`${SHEET} .zd-reference-row`).evaluateAll((list) =>
     list.map((row) => ({
@@ -89,7 +120,7 @@ test("every row shows a key and a description, and no row is empty", async ({ pa
 });
 
 test("the document is still there underneath, not blanked", async ({ page }) => {
-  await hold(page);
+  await open(page);
 
   // F02 exactly: the window went blank. The sheet covers the content region
   // (§6.2) — it does not replace it, so the document is still in the DOM and
@@ -99,7 +130,7 @@ test("the document is still there underneath, not blanked", async ({ page }) => 
   expect(underneath.surfaceVisible, "the surface was hidden rather than covered").toBe(true);
 });
 
-test("letting go restores the context unchanged", async ({ page }) => {
+test("escape dismisses the reference before changing the document mode", async ({ page }) => {
   // Put the document in a state worth preserving: a caret, a focus target, and a
   // scroll position that is not the top.
   await page.locator(".cm-line", { hasText: "A paragraph here should be" }).first().click();
@@ -107,56 +138,47 @@ test("letting go restores the context unchanged", async ({ page }) => {
   await page.waitForTimeout(200);
   const before = await documentState(page);
 
-  await hold(page);
-  await expect(page.locator(SHEET)).toHaveCount(1);
-  await letGo(page);
+  expect(await page.evaluate(() => window.zdEditor!.hasCaret())).toBe(true);
+  await open(page);
+  await page.keyboard.press("Escape");
   await expect(page.locator(SHEET)).toHaveCount(0);
 
-  // F02's requirement, unchanged by the chord becoming a hold: "restore that
-  // context unchanged" — every field, not just that something is on screen.
+  // The top transient gets the first Escape; the caret beneath is untouched.
+  expect(await page.evaluate(() => window.zdEditor!.hasCaret())).toBe(true);
   expect(await documentState(page)).toEqual(before);
+
+  // Once the transient is gone, the same semantic command reaches the next
+  // contextual target.
+  await page.keyboard.press("Escape");
+  expect(await page.evaluate(() => window.zdEditor!.hasCaret())).toBe(false);
 });
 
-test("releasing the modifier first is enough", async ({ page }) => {
-  await hold(page);
+test("releasing either key leaves the persistent reference open", async ({ page }) => {
+  await page.keyboard.down("ControlOrMeta");
+  await page.keyboard.down("Period");
   await expect(page.locator(SHEET)).toHaveCount(1);
 
-  // Nobody releases two keys simultaneously, and which one goes first is not
-  // something a hand controls. Cmd usually comes up a few milliseconds early.
   await page.keyboard.up("ControlOrMeta");
-  await expect(page.locator(SHEET)).toHaveCount(0);
+  await expect(page.locator(SHEET)).toHaveCount(1);
 
   await page.keyboard.up("Period");
-  await expect(page.locator(SHEET), "the second key up reopened it").toHaveCount(0);
+  await expect(page.locator(SHEET)).toHaveCount(1);
 });
 
-test("escape is not the Reference's key any more", async ({ page }) => {
-  await hold(page);
-  await expect(page.locator(SHEET)).toHaveCount(1);
-  await letGo(page);
-
-  /*
-   * §8 gives Escape to "the top transient surface", and the Reference used to be
-   * one. It cannot be any more: the sheet is gone the instant the chord is
-   * released, so there is never a moment when Escape could dismiss it, and a
-   * command that can never run is exactly what §7.1 forbids listing.
-   *
-   * This standalone editor specimen has no root workbench router, so its one
-   * Escape binding remains the document command. The product workbench owns the
-   * chord and routes this same behavior as a contextual target.
-   */
+test("escape has one semantic owner", async ({ page }) => {
   const owners = await page.evaluate(() =>
     window
       .zdTest!.commands()
       .filter((command) => command.chord.key === "Escape")
       .map((command) => command.id),
   );
-  expect(owners, "Escape is not the document's, or is shared").toEqual(["document.dropCaret"]);
+  expect(owners).toEqual(["workbench.escape"]);
 });
 
 test("holding it does not stack two sheets", async ({ page }) => {
-  // A held key auto-repeats, so the same chord arrives many times over one hold.
-  await hold(page);
+  // A held key auto-repeats, so the same chord arrives many times before keyup.
+  await page.keyboard.down("ControlOrMeta");
+  await page.keyboard.down("Period");
   await page.keyboard.down("Period");
   await page.keyboard.down("Period");
 
@@ -166,7 +188,7 @@ test("holding it does not stack two sheets", async ({ page }) => {
 });
 
 test("the sheet is a calm plane, not a floating card", async ({ page }) => {
-  await hold(page);
+  await open(page);
 
   const look = await page.locator(SHEET).evaluate((el) => {
     const style = getComputedStyle(el);
@@ -195,13 +217,11 @@ test("the sheet is a calm plane, not a floating card", async ({ page }) => {
 // shortcuts." §7.1 says the same — "A binding that cannot run in the current
 // context is presented honestly rather than displayed as working."
 //
-// Every real command on the editor page is available, and that stopped being a
-// coincidence when the Reference gave up Escape — `transient.dismiss` used to be
-// the one guaranteed-unavailable row. So an unavailable command is registered
-// deliberately through `zdTest`, which is more honest than contriving a context.
+// An unavailable command can be registered deliberately through `zdTest`, which
+// is more stable than depending on whichever editor mode happens to be active.
 
 test("an unavailable command is listed, not hidden", async ({ page }) => {
-  await hold(page);
+  await open(page);
 
   const rows = await page.locator(`${SHEET} .zd-reference-row`).evaluateAll((list) =>
     list.map((row) => ({
@@ -225,10 +245,8 @@ test("an unavailable command is listed, not hidden", async ({ page }) => {
 });
 
 test("an unavailable row says so in words, not only in colour", async ({ page }) => {
-  // Availability is driven directly through a registered command. There *is* a
-  // naturally unavailable one on this page now — Escape, until a caret is placed —
-  // but a registered one states its own condition instead of depending on another
-  // feature's, which is what made this test fail when Escape arrived.
+  // Availability is driven directly through a registered command instead of
+  // depending on another feature's current mode.
   await page.evaluate(() => {
     window.zdTest!.register({
       id: "test.unavailable",
@@ -238,7 +256,7 @@ test("an unavailable row says so in words, not only in colour", async ({ page })
       run: () => true,
     });
   });
-  await hold(page);
+  await open(page);
 
   // Identified by its own description, not by being the first unavailable row —
   // "the first row that looks like it" is a locator that goes stale the moment a

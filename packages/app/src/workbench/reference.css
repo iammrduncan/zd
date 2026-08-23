@@ -33,6 +33,7 @@
 
 /* "a centred column no wider than 640 px". */
 .zd-reference-column {
+  inline-size: min(100%, var(--transient-measure));
   max-width: var(--transient-measure);
   margin-inline: auto;
 }
@@ -41,32 +42,33 @@
  * A row of the two-column table §7.1 asks for: "platform-correct key notation on
  * the left and the action name on the right", with "consistent row rhythm".
  *
- * Grid rather than a table element, so the key column is one width down the whole
- * sheet without markup saying so. The typographic pass — restrained inline-code
- * style, aligned columns, minimal scrolling — is its own task; this is the shape.
+ * Grid keeps the key column aligned down the whole semantic table. Navigation
+ * typography and a 24 px rhythm make the full binding set scannable at once.
  */
 .zd-reference-row {
   display: grid;
-  grid-template-columns: var(--transient-key-column) 1fr;
-  gap: var(--gap-paragraph);
+  grid-template-columns: var(--transient-key-column) minmax(0, 1fr);
+  column-gap: var(--space-3);
   align-items: baseline;
-  padding-block: var(--gap-list-item);
+  min-block-size: 24px;
+  padding-block: 1px;
 }
 
-/* §5.2: key notation is code, and quiet. */
+/* Key notation is compact, aligned, and quiet. */
 .zd-reference-chord {
-  font-family: var(--type-code-family);
-  font-size: var(--type-code-size);
-  line-height: var(--type-prose-line);
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-navigation-size);
+  line-height: var(--type-navigation-line);
   color: var(--text-secondary);
   text-align: right;
 }
 
-/* The action name is prose, because it is prose. */
+/* Actions share the same dense table rhythm as their keys. */
 .zd-reference-description {
-  font-family: var(--type-prose-family);
-  font-size: var(--type-prose-size);
-  line-height: var(--type-prose-line);
+  min-width: 0;
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-navigation-size);
+  line-height: var(--type-navigation-line);
   color: var(--text-primary);
 }
 
@@ -89,5 +91,6 @@
 .zd-reference-note {
   font-family: var(--type-supporting-family);
   font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
   color: var(--text-muted);
 }

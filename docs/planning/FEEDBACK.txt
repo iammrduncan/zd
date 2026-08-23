@@ -1,7 +1,6 @@
 # Rule: Work on each feedback item until resolved. Once resolved move it to below the Feedback Addressed Line. Mark it with "\" while feedback is in progress. One line per feedback item in this file.
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
-cmd+. should open up hotkeys and keep it open. Hotkeys should be a nice condensed table not a spread apart list that makes it hard to see.
 in code editor, currently selected line should be highlighted just like in zed and other editors.
 we should have "THREADS" heading be "PROJECTS".
 We should have project headers be darker background always so we can see at a glance what projects are open or not. ![Screenshot](../screenshots/screenshot-1787455389990233000.png)
@@ -11,6 +10,7 @@ cmd+j should really swap between the current thread/terminal and the current foc
 thread/project pane should be collapsable to icons only.
 seems we need a general "context" setter function that sets the current view context based on all the variables here and whether it was a hotkey or clicking a thread or clicking a project etc... and it knows current threads contexts, worktrees, open files, etc and can restore those states etc... maybe?
 === Feedback Addressed ===
+cmd+. should open up hotkeys and keep it open. Hotkeys should be a nice condensed table not a spread apart list that makes it hard to see.
 Should probably have a thin chrome at top of app to give some space between edge and other stuff since we have code now. Also gives us a good place to click and drige stuff around.
 on hover of project header in thread shows "+" on right of it that allows you to start a new thread in that project.
 remove the +- on the project header.
