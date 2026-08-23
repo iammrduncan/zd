@@ -226,18 +226,32 @@ describe("durable root thread state", () => {
       ...initial,
       threads: [thread({ projectId: "project-a", worktreeId: "worktree-a", fileId: "file-a" })],
       active: { ...initial.active, threadId: "thread-b" },
+      regions: {
+        ...initial.regions,
+        centre: { ...initial.regions.centre, mode: "overlap" },
+        focus: "thread",
+      },
     });
 
-    await owner.activateFile({
+    const notes = {
       projectId: "project-a",
       worktreeId: "worktree-a",
       relativePath: "notes.md",
-    });
+    };
+    await owner.activateFile(notes);
 
     expect(owner.snapshot().threads[0]).toMatchObject({
       id: "thread-b",
       fileId: expect.stringContaining("notes.md"),
     });
+    expect(owner.snapshot().regions).toMatchObject({
+      centre: { mode: "overlap" },
+      focus: "file",
+    });
+
+    owner.updateRegions({ ...owner.snapshot().regions, focus: "thread" });
+    await owner.activateFile(notes);
+    expect(owner.snapshot().regions.focus).toBe("file");
   });
 
   it("serializes thread ordering, attention acknowledgement, and visibility changes", async () => {
