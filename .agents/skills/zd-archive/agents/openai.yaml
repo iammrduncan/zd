@@ -1,4 +1,0 @@
-interface:
-  display_name: "ZD Archive"
-  short_description: "Archive completed zd task lines safely"
-  default_prompt: "Use $zd-archive to move completed task lines into the archive."
