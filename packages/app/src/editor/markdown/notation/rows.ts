@@ -3,6 +3,7 @@ import { StateField, type EditorState, type Extension, type Range } from "@codem
 import { Decoration, EditorView, type DecorationSet } from "@codemirror/view";
 
 import { isRaw, rawModeChanged } from "../raw";
+import { mermaidFence } from "../../mermaid/source";
 
 /**
  * Whole rows of pure notation, taken off the screen.
@@ -89,6 +90,7 @@ function notationRowDecorations(state: EditorState): DecorationSet {
       }
 
       if (node.name !== "FencedCode") return;
+      if (mermaidFence(state, node.node)) return;
 
       /*
        * Driven off `CodeMark` children rather than by matching backticks in the

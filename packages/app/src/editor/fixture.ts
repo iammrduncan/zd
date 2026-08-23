@@ -116,6 +116,13 @@ never drops to body inline-code size in the middle of a heading.
 | \`--hairline\` | A cell can hold inline code |
 | [a link](https://example.com/cell) | and a link, rendered as one |
 
+## Mermaid
+
+\`\`\`mermaid
+flowchart LR
+  Plan[Plan] --> Ship[Ship]
+\`\`\`
+
 A setext heading underlined
 ===========================
 
@@ -187,6 +194,13 @@ npm run dev\`;
 }
 `;
 
+const MERMAID_SAMPLE = `sequenceDiagram
+  participant Writer
+  participant Reader
+  Writer->>Reader: Open the diagram
+  Reader-->>Writer: Understand the flow
+`;
+
 /** A deterministic multi-megabyte text fixture without a multi-megabyte repository blob. */
 function largeSample(): string {
   const lines = Array.from({ length: 48_000 }, (_, index) => {
@@ -214,9 +228,21 @@ if (!host) throw new Error("dev/editor.html is missing the #zd host element");
  */
 const documentKind = new URLSearchParams(window.location.search).get("doc");
 const source =
-  documentKind === "code" ? CODE_SAMPLE : documentKind === "large" ? largeSample() : SAMPLE;
+  documentKind === "code"
+    ? CODE_SAMPLE
+    : documentKind === "large"
+      ? largeSample()
+      : documentKind === "mermaid"
+        ? MERMAID_SAMPLE
+        : SAMPLE;
 const path =
-  documentKind === "code" ? "sample.ts" : documentKind === "large" ? "sample.log" : "sample.md";
+  documentKind === "code"
+    ? "sample.ts"
+    : documentKind === "large"
+      ? "sample.log"
+      : documentKind === "mermaid"
+        ? "sample.mmd"
+        : "sample.md";
 
 // Two elements, two jobs: the surface scrolls and carries the insets; the column
 // holds the measure. See styles/markdown.css.
@@ -247,7 +273,7 @@ const editor = createEditor(column, source, {
   // The focused-reading regression pages exercise the enabled treatment. The
   // product workbench itself starts with this explicit mode off, and the code
   // fixture represents that conventional resting state.
-  focus: documentKind !== "code",
+  focus: documentKind !== "code" && documentKind !== "mermaid",
 });
 
 /*

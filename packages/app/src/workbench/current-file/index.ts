@@ -302,11 +302,17 @@ export async function mountCurrentFile(
     register({
       id: "document.raw",
       chord: { key: "e", mod: true },
-      description: "Raw mode: show literal Markdown source",
-      available: () => Boolean(commandEditor() && mounted?.buffer.language.markdown),
+      description: "Raw mode: show literal Markdown or Mermaid source",
+      available: () =>
+        Boolean(
+          commandEditor() &&
+          (mounted?.buffer.language.markdown || mounted?.buffer.language.diagram),
+        ),
       run: () => {
         const editor = commandEditor();
-        if (!editor || !mounted?.buffer.language.markdown) return false;
+        if (!editor || (!mounted?.buffer.language.markdown && !mounted?.buffer.language.diagram)) {
+          return false;
+        }
         editor.toggleRaw();
         return true;
       },

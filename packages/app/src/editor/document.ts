@@ -22,6 +22,7 @@ import { autoPairing } from "./pairing";
 import { isRaw, rawModeState, setRaw } from "./markdown/raw";
 import { hiddenNotationRows } from "./markdown/notation/rows";
 import { markdownTables } from "./markdown/table";
+import { mermaidDiagrams } from "./mermaid";
 import { reviewAnnotations, setCommentTags, type CommentTag, type ReviewSelection } from "./review";
 
 import "./styles/editor.css";
@@ -274,7 +275,7 @@ export function createEditor(
    * file never flashes through the prose face (§2: "Nothing flashes, jumps, or
    * reflows while you work").
    */
-  parent.dataset.language = language.markdown ? "markdown" : "code";
+  parent.dataset.language = language.markdown ? "markdown" : language.diagram ? "mermaid" : "code";
   parent.dataset.editable = String(!readOnly);
   let focusMode = options.focus ?? false;
   parent.dataset.focusMode = String(focusMode);
@@ -322,7 +323,7 @@ export function createEditor(
         rawModeState(),
         EditorState.readOnly.of(readOnly),
         EditorView.editable.of(!readOnly),
-        language.markdown
+        language.markdown || language.diagram
           ? []
           : [lineNumbers(), highlightActiveLine(), highlightActiveLineGutter()],
         history(),
@@ -386,8 +387,11 @@ export function createEditor(
               // Also a StateField, and for the same reason — hiding a whole row is
               // a block decoration. See notation/rows.ts.
               hiddenNotationRows(),
+              mermaidDiagrams("markdown"),
             ]
-          : (language.support ?? []),
+          : language.diagram
+            ? mermaidDiagrams("standalone")
+            : (language.support ?? []),
         caretFocus(),
         options.onSelectionChange || options.onCommentActivate
           ? reviewAnnotations({

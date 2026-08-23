@@ -44,6 +44,8 @@ describe("file-tree model", () => {
   it("classifies common file types without binding navigation to an editor language", () => {
     expect(categoryFor("README.md", "file")).toBe("markdown");
     expect(categoryFor("main.rs", "file")).toBe("code");
+    expect(categoryFor("architecture.mmd", "file")).toBe("code");
+    expect(categoryFor("flow.mermaid", "file")).toBe("code");
     expect(categoryFor("package.json", "file")).toBe("config");
     expect(categoryFor("records.csv", "file")).toBe("data");
     expect(categoryFor("photo.png", "file")).toBe("image");

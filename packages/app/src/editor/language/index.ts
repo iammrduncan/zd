@@ -68,6 +68,7 @@ export interface DocumentLanguage {
   readonly id: string;
   readonly label: string;
   readonly markdown: boolean;
+  readonly diagram: boolean;
   readonly support: Extension | null;
 }
 
@@ -75,6 +76,15 @@ export const MARKDOWN_DOCUMENT: DocumentLanguage = {
   id: "markdown",
   label: "Markdown",
   markdown: true,
+  diagram: false,
+  support: null,
+};
+
+export const MERMAID_DOCUMENT: DocumentLanguage = {
+  id: "mermaid",
+  label: "Mermaid",
+  markdown: false,
+  diagram: true,
   support: null,
 };
 
@@ -82,6 +92,7 @@ export const PLAIN_TEXT_DOCUMENT: DocumentLanguage = {
   id: "plain-text",
   label: "Plain Text",
   markdown: false,
+  diagram: false,
   support: null,
 };
 
@@ -101,6 +112,7 @@ function extensionOf(name: string): string {
 export function languageFor(path: string): DocumentLanguage {
   const name = fileName(path);
   const extension = extensionOf(name);
+  if (extension === "mmd" || extension === "mermaid") return MERMAID_DOCUMENT;
   const registration = LANGUAGE_REGISTRY.find(
     (candidate) => candidate.filenames.includes(name) || candidate.extensions.includes(extension),
   );
@@ -112,6 +124,7 @@ export function languageFor(path: string): DocumentLanguage {
     id: registration.id,
     label: registration.label,
     markdown: false,
+    diagram: false,
     support: registration.description?.support
       ? [registration.description.support, codeHighlighting()]
       : null,

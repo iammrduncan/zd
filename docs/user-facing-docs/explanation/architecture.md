@@ -28,7 +28,7 @@ File scans avoid descending ignored dependency/build trees indefinitely. File wr
 
 ## One editor engine
 
-CodeMirror owns the current Markdown or code buffer, language selection, Find/Replace, selection,
+CodeMirror owns the current Markdown, Mermaid, or code buffer, language selection, Find/Replace, selection,
 undo history, and dirty state. Markdown decorations shape the editable source as a reading surface;
 code files use a compact code presentation. Git comparisons create separate read-only buffers with
 explicit revision identities, so they cannot overwrite the live document.

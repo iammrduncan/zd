@@ -24,6 +24,8 @@ const EXTENSIONS: Readonly<
     "jsx",
     "kt",
     "lua",
+    "mermaid",
+    "mmd",
     "php",
     "py",
     "rb",

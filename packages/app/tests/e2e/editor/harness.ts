@@ -17,6 +17,7 @@ export async function openEditor(
   await expect(editor, "the editor fixture did not mount").toBeVisible();
   const requested = options.url ?? "";
   const code = requested.includes("doc=code") || requested.includes("doc=large");
+  const mermaid = requested.includes("doc=mermaid");
   if (code) {
     await expect(page.locator('.md-editor[data-language="code"]')).toBeVisible();
     await expect(
@@ -26,6 +27,8 @@ export async function openEditor(
         })
         .first(),
     ).toBeVisible();
+  } else if (mermaid) {
+    await expect(page.locator('.md-editor[data-language="mermaid"]')).toBeVisible();
   } else {
     await expect(
       page.locator(".md-editor .md-line-h1", { hasText: "Typing in the document" }),
