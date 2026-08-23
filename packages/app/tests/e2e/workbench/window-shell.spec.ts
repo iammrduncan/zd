@@ -40,21 +40,74 @@ test("keeps the file tree visible at the native window's default width", async (
   await expect(files.getByRole("tab", { name: "FILES" })).toHaveAttribute("aria-selected", "true");
 });
 
+test("resizes both navigation panes at the native window width", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 760 });
+  await page.goto("/");
+
+  const threads = page.locator('[data-region="threads"]');
+  const centre = page.locator('[data-region="centre"]');
+  const files = page.locator('[data-region="files"]');
+  const threadsResizer = page.locator('[data-resizer="threads"]');
+  const filesResizer = page.locator('[data-resizer="files"]');
+  const beforeThreads = await threads.boundingBox();
+  const beforeFiles = await files.boundingBox();
+  const threadsDivider = await threadsResizer.boundingBox();
+  expect(beforeThreads).not.toBeNull();
+  expect(beforeFiles).not.toBeNull();
+  expect(threadsDivider).not.toBeNull();
+
+  await page.mouse.move(
+    threadsDivider!.x + threadsDivider!.width / 2,
+    threadsDivider!.y + threadsDivider!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(threadsDivider!.x + 32, threadsDivider!.y + threadsDivider!.height / 2);
+  await page.mouse.up();
+  await expect
+    .poll(async () => (await threads.boundingBox())!.width)
+    .toBeGreaterThan(beforeThreads!.width + 24);
+
+  const filesDivider = await filesResizer.boundingBox();
+  expect(filesDivider).not.toBeNull();
+  await page.mouse.move(
+    filesDivider!.x + filesDivider!.width / 2,
+    filesDivider!.y + filesDivider!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(filesDivider!.x - 32, filesDivider!.y + filesDivider!.height / 2);
+  await page.mouse.up();
+  await expect
+    .poll(async () => (await files.boundingBox())!.width)
+    .toBeGreaterThan(beforeFiles!.width + 20);
+
+  await expect.poll(async () => (await centre.boundingBox())!.width).toBeGreaterThanOrEqual(528);
+});
+
 test("applies responsive regions in the specified suppression order", async ({ page }) => {
   await page.setViewportSize({ width: 1260, height: 800 });
   await page.goto("/");
 
   const shell = page.locator(".zd-workbench");
   const threads = page.locator('[data-region="threads"]');
+  const centre = page.locator('[data-region="centre"]');
   const files = page.locator('[data-region="files"]');
 
-  await expect(threads).toHaveCSS("width", "184px");
-  await expect(files).toHaveCSS("width", "220px");
+  await expect(threads).toHaveCSS("width", "236px");
+  await expect(files).toHaveCSS("width", "280px");
 
   await page.setViewportSize({ width: 1000, height: 800 });
   await expect(files).toBeVisible();
   await expect(threads).toBeVisible();
-  await expect(threads).toHaveCSS("width", "184px");
+  const [compactThreads, compactCentre, compactFiles] = await Promise.all([
+    threads.boundingBox(),
+    centre.boundingBox(),
+    files.boundingBox(),
+  ]);
+  expect(compactThreads!.width).toBeGreaterThanOrEqual(184);
+  expect(compactThreads!.width).toBeLessThan(236);
+  expect(compactFiles!.width).toBeGreaterThanOrEqual(220);
+  expect(compactFiles!.width).toBeLessThan(280);
+  expect(compactCentre!.width).toBeGreaterThanOrEqual(528);
 
   await page.setViewportSize({ width: 920, height: 800 });
   await expect(files).toBeHidden();

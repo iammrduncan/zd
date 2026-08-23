@@ -1,8 +1,6 @@
 # Rule: Work on each feedback item until resolved. Once resolved move it to below the Feedback Addressed Line. Mark it with "\" while feedback is in progress. One line per feedback item in this file.
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
-"no file selected" should just be centered in the viewport.
-thread pane and file/changes panes are not resizeable
 I want to be able to paste a screenshot from clipboard inline to a file. When done it saves the screenshot to the project under a docs/screenshots/ directory and inserts link to the screenshot to the file. This will allow me to edit feedback txt or md files and paste screenshots inline to the feedback for you to inspect later.
 terminal font is way too big, terminal font should be a monospaced font by default like fira code or ibm mono.
 code editor that isn't markdown should be just like any ide with line numbers and syntax highlighting and open at top of the viewport etc...
@@ -13,3 +11,5 @@ remove the +- on the project header.
 Right click project to get project context menue which includes "close"
 hierarchy on the thread panel is funky with threads => + project => treads/projects => settings.
 see reference thread screenshots of thread/project panes I like. Match these as closely as possible. ref1:docs/screenshots/zed-threads.png, ref2:docs/screenshots/workbench-1-x.png, ref3:docs/screenshots/herdr.png
+"no file selected" should just be centered in the viewport.
+thread pane and file/changes panes are not resizeable
