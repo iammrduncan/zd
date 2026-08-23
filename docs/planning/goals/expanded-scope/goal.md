@@ -2,6 +2,8 @@
 
 Status: **complete — 2026-08-22**
 
+Archived summary: [Expanded Scope Completion Summary](../_completed/expanded-scope.md)
+
 ## Outcome
 
 Execute the pivot from `zd md` and the ZenSuite growing-miniapp model to one `zd` agent workbench
