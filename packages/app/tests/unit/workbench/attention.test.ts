@@ -76,6 +76,25 @@ describe("attention settings", () => {
     });
   });
 
+  it("previews a newly selected agent sound at the current volume", async () => {
+    const native = adapter();
+    const controller = new AttentionSettingsController(native.value);
+    controller.setSoundEnabled(true);
+    controller.setVolume(0.35);
+    const host = document.createElement("div");
+    const unmount = mountAttentionSettings(host, controller);
+    const codex = host.querySelector<HTMLSelectElement>('[data-agent-sound="codex"]')!;
+
+    codex.value = "bright";
+    codex.dispatchEvent(new Event("change"));
+
+    await vi.waitFor(() =>
+      expect(native.value.playSound).toHaveBeenCalledWith({ sound: "bright", volume: 0.35 }),
+    );
+    expect(attentionSettings().agentSounds.codex).toBe("bright");
+    unmount();
+  });
+
   it("renders unavailable controls with an explanation and persists immediate choices", async () => {
     const controller = new AttentionSettingsController(adapter("unsupported").value);
     const host = document.createElement("div");

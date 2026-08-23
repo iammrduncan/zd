@@ -1,7 +1,6 @@
 # Rule: Work on each feedback item until resolved. Once resolved move it to below the Feedback Addressed Line. Mark it with "\" while feedback is in progress. One line per feedback item in this file.
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
-when picking sounds it should play it when I change it. ![Screenshot](../screenshots/screenshot-1787463814772534000.png)
 cmd+, opens settings. pressing it again does not close it.
 we should allow in settings the editing of hotkeys.
 we should show in our top chrome handle small [s][h] buttons for settings and hotkeys. I kindof like the bracket button there.
@@ -12,6 +11,7 @@ no way to close filter files input after opening it.
 we need a dark theme and a theme slector in the command pallete (Which we need command pallete to actually work (the cmd+shift+p thing)).
 right click file should allow me to copy relative path or full path to clipboard.
 === Feedback Addressed ===
+when picking sounds it should play it when I change it. ![Screenshot](../screenshots/screenshot-1787463814772534000.png)
 still cannot edit tables in reader editor mode ![Screenshot](../screenshots/screenshot-1787463753600263000.png)
 command list doesn't open anything...
 unable to change files if current file is unsaved... maybe we should introduce tabs? ![Screenshot](../screenshots/screenshot-1787463576303470000.png) or something...  Actually i think bolding unsaved files would be good. unsaved files are stored in app state and recoverable if app is killed oer something. Should not prevent change files or other stuff.
