@@ -95,8 +95,19 @@ test("manually collapses Projects to icons and restores its saved width", async 
 
   const collapse = projects.getByRole("button", { name: "Collapse Projects pane" });
   await expect(collapse).toBeVisible();
-  await expect(collapse).toHaveText("Collapse");
+  await expect(collapse).toHaveText("‹");
   await expect(collapse).toHaveAttribute("aria-expanded", "true");
+  const [projectsBox, collapseBox] = await Promise.all([
+    projects.boundingBox(),
+    collapse.boundingBox(),
+  ]);
+  expect(projectsBox).not.toBeNull();
+  expect(collapseBox).not.toBeNull();
+  expect(
+    projectsBox!.y + projectsBox!.height - (collapseBox!.y + collapseBox!.height),
+  ).toBeLessThan(16);
+  await expect(projects.locator(".zd-project-toolbar")).not.toContainText("Collapse");
+  await expect(projects.locator(".zd-project-icon:visible")).toHaveCount(0);
   await collapse.focus();
   await page.keyboard.press("Enter");
 
@@ -110,7 +121,7 @@ test("manually collapses Projects to icons and restores its saved width", async 
   await expect(projects.locator(".zd-thread-labels:visible")).toHaveCount(0);
 
   const expand = projects.getByRole("button", { name: "Expand Projects pane" });
-  await expect(expand).toHaveText("Expand");
+  await expect(expand).toHaveText("›");
   await expect(expand).toHaveAttribute("aria-expanded", "false");
   await expand.focus();
   await page.keyboard.press("Enter");
@@ -121,17 +132,19 @@ test("manually collapses Projects to icons and restores its saved width", async 
   await expect(projects.locator(".zd-thread-labels:visible")).toHaveCount(1);
 });
 
-test("hides and restores Files and Changes from a persistent text action", async ({ page }) => {
+test("hides and restores Files and Changes from the top chrome", async ({ page }) => {
   await page.setViewportSize({ width: 1300, height: 800 });
   await page.goto("/dev/workbench.html");
   const shell = page.locator(".zd-workbench");
   const files = page.locator('[data-region="files"]');
 
-  await page.getByRole("button", { name: "Hide Files and Changes" }).click();
+  const chrome = page.getByRole("toolbar", { name: "Window controls" });
+  await expect(page.locator("[data-files-visibility-toggle]")).toHaveCount(0);
+  await chrome.getByRole("button", { name: "Show or hide Files and Changes" }).click();
   await expect(shell).toHaveAttribute("data-files-visibility", "hidden");
   await expect(files).toBeHidden();
 
-  await page.getByRole("button", { name: "Show Files and Changes" }).click();
+  await chrome.getByRole("button", { name: "Show or hide Files and Changes" }).click();
   await expect(shell).toHaveAttribute("data-files-visibility", "visible");
   await expect(files).toHaveCSS("width", "280px");
 });
@@ -248,12 +261,22 @@ test("the thin top chrome reserves a native window drag region", async ({ page }
   expect(receivesPointer).toBe(true);
 });
 
-test("the top chrome exposes compact Settings and hotkey actions", async ({ page }) => {
-  await page.goto("/");
+test("the top chrome exposes compact panel, Settings, and hotkey actions", async ({ page }) => {
+  await page.goto("/dev/workbench.html");
   const chrome = page.locator(".zd-window-drag-region");
 
+  await expect(chrome.getByRole("button", { name: "Show or hide Projects" })).toHaveText("[p]");
+  await expect(chrome.getByRole("button", { name: "Show or hide Files and Changes" })).toHaveText(
+    "[f]",
+  );
   await expect(chrome.getByRole("button", { name: "Settings" })).toHaveText("[s]");
   await expect(chrome.getByRole("button", { name: "Keyboard shortcuts" })).toHaveText("[h]");
+
+  const shell = page.locator(".zd-workbench");
+  await chrome.getByRole("button", { name: "Show or hide Projects" }).click();
+  await expect(shell).toHaveAttribute("data-threads-visibility", "hidden");
+  await chrome.getByRole("button", { name: "Show or hide Projects" }).click();
+  await expect(shell).toHaveAttribute("data-threads-visibility", "full");
 
   await chrome.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();

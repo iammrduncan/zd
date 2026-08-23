@@ -48,7 +48,7 @@ function threadsNavigationMount(
       createProjectWorkbenchAdapter(context.state, context.platform, context.instrumentation),
     );
     const stopProjects = mountProjectList(host, projects, {
-      renderToolbarActions: (actionHost) => {
+      renderFooterActions: (actionHost) => {
         const toggle = document.createElement("button");
         toggle.type = "button";
         toggle.className = "zd-project-collapse";
@@ -60,7 +60,7 @@ function threadsNavigationMount(
           toggle.setAttribute("aria-label", label);
           toggle.setAttribute("aria-expanded", String(!collapsed));
           toggle.title = label;
-          toggle.textContent = collapsed ? "Expand" : "Collapse";
+          toggle.textContent = collapsed ? "›" : "‹";
         };
         const toggleVisibility = async () => {
           if (pending) return;

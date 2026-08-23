@@ -124,6 +124,12 @@ export function attachWorkbenchCommands(
       run: () => runCommandTarget("files.toggleVisibility"),
     }),
     register({
+      id: "projects.toggleVisibility",
+      description: "Show or hide Projects",
+      available: () => commandTargetAvailable("projects.toggleVisibility"),
+      run: () => runCommandTarget("projects.toggleVisibility"),
+    }),
+    register({
       id: "settings.open",
       chord: { key: ",", mod: true },
       description: "Open or close Settings",

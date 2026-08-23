@@ -1,7 +1,7 @@
 import { commands, executeCommand } from "./shortcuts";
 import type { Unmount } from "./runtime";
 
-/** Populate the reserved native drag strip with its two compact command affordances. */
+/** Populate the reserved native drag strip with its compact command affordances. */
 export function mountWindowChrome(root: ParentNode = document): Unmount {
   const chrome = root.querySelector<HTMLElement>(".zd-window-drag-region");
   if (!chrome) return () => {};
@@ -19,12 +19,14 @@ export function mountWindowChrome(root: ParentNode = document): Unmount {
     return button;
   };
 
+  const projects = action("Show or hide Projects", "[p]", "projects.toggleVisibility");
+  const files = action("Show or hide Files and Changes", "[f]", "files.toggleVisibility");
   const settings = action("Settings", "[s]", "settings.open");
   const shortcuts = action("Keyboard shortcuts", "[h]", "help.shortcuts");
   chrome.removeAttribute("aria-hidden");
   chrome.setAttribute("role", "toolbar");
   chrome.setAttribute("aria-label", "Window controls");
-  chrome.replaceChildren(settings, shortcuts);
+  chrome.replaceChildren(projects, files, settings, shortcuts);
 
   return () => {
     chrome.replaceChildren();

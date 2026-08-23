@@ -19,10 +19,13 @@ restore them when you return.
 
 ## Collapse the Projects pane
 
-Choose the left chevron in the `PROJECTS` header to turn the pane into a 56 px icon rail. Project
+Choose the left chevron at the bottom of the Projects pane to turn it into a 56 px icon rail. Project
 monograms identify project headings; terminal or agent icons and state dots identify their threads.
 Choose the right chevron to restore the previous full width. Collapsing does not change the active
 project, thread, file, scroll position, or live terminal session.
+
+Use `[p]` in the top drag strip to hide or restore the whole Projects pane. Project monograms appear
+only in the collapsed icon rail, not beside names in the full pane.
 
 ## Create a terminal thread
 

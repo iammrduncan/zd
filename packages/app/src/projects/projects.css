@@ -1,4 +1,8 @@
 .zd-projects {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  block-size: 100%;
+  min-block-size: 0;
   color: var(--text-primary);
   font-family: var(--type-navigation-family);
   font-size: var(--type-navigation-size);
@@ -39,6 +43,8 @@
 
 .zd-project-list {
   margin-block-start: var(--space-2);
+  min-block-size: 0;
+  overflow: auto;
 }
 
 .zd-project-group + .zd-project-group {
@@ -85,7 +91,7 @@
 
 .zd-project-row {
   display: grid;
-  grid-template-columns: var(--space-2) var(--space-3) minmax(0, 1fr);
+  grid-template-columns: var(--space-2) minmax(0, 1fr);
   align-items: center;
   min-block-size: var(--space-4);
   inline-size: 100%;
@@ -172,7 +178,7 @@
 }
 
 .zd-project-icon {
-  display: grid;
+  display: none;
   place-items: center;
   inline-size: var(--space-3);
   block-size: var(--space-3);
@@ -181,6 +187,17 @@
   font-size: var(--type-supporting-size);
   line-height: 1;
   text-transform: uppercase;
+}
+
+.zd-project-footer {
+  display: flex;
+  justify-content: flex-end;
+  min-block-size: var(--space-4);
+  border-block-start: var(--hairline) solid var(--line-quiet);
+}
+
+.zd-project-footer .zd-project-collapse {
+  min-inline-size: var(--space-4);
 }
 
 .zd-project-name {
@@ -229,6 +246,10 @@
   padding-inline: 0;
 }
 
+.zd-workbench[data-threads-visibility="collapsed"] .zd-project-footer {
+  justify-content: center;
+}
+
 .zd-workbench[data-threads-visibility="collapsed"] .zd-project-region-heading,
 .zd-workbench[data-threads-visibility="collapsed"] .zd-project-add,
 .zd-workbench[data-threads-visibility="collapsed"] .zd-project-disclosure,
@@ -261,6 +282,7 @@
 }
 
 .zd-workbench[data-threads-visibility="collapsed"] .zd-project-icon {
+  display: grid;
   inline-size: var(--space-4);
   block-size: var(--space-4);
   color: var(--text-primary);

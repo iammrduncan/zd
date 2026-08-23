@@ -32,7 +32,8 @@ file tree without losing its expansion, selection, or scroll position.
 To change a window shortcut, open **Settings**, choose its current binding under **Shortcuts**, and
 press the replacement chord. A chord already used by another command is refused. **Reset** restores
 the registered default. The global summon shortcut remains managed by the operating system. The
-`[h]` action in the top drag strip opens the live Shortcut Reference.
+`[p]` and `[f]` in the top drag strip show or hide Projects and Files/Changes. `[s]` opens Settings,
+and `[h]` opens the live Shortcut Reference.
 
 To change the theme, open the Command List, type `theme`, and choose **Theme: Follow System**,
 **Theme: Current Light**, **Theme: Dark**, **Theme: Dracula**, or a validated installed theme. The
