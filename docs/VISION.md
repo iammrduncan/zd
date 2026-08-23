@@ -93,6 +93,8 @@ WorkbenchState
 
 Projects, worktrees, threads, terminal sessions, editor buffers, and revision buffers have distinct
 identities. Views observe this state and request transitions; they do not keep competing active IDs.
+Project, thread, file, shortcut, notification, and restore actions all enter the same typed context
+activation boundary. The owner—not the input surface—resolves and remembers the complete tuple.
 
 The shell has four semantic regions:
 

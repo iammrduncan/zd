@@ -198,12 +198,51 @@ describe("the versioned workbench state", () => {
 });
 
 describe("atomic workbench context transitions", () => {
+  it("resolves project, thread, file, and exact intents through one entry point", async () => {
+    const owner = createWorkbenchStateOwner(populatedState());
+
+    await expect(
+      owner.activateContext({ kind: "project", projectId: "project-b" }),
+    ).resolves.toEqual({ status: "committed" });
+    expect(owner.snapshot().active).toEqual(beta);
+
+    await expect(owner.activateContext({ kind: "thread", threadId: "thread-a" })).resolves.toEqual({
+      status: "committed",
+    });
+    expect(owner.snapshot().active).toEqual({
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+      threadId: "thread-a",
+      fileId: "file-a",
+    });
+
+    const resource: FileResource = {
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+      relativePath: "next.md",
+    };
+    await expect(owner.activateContext({ kind: "file", resource })).resolves.toEqual({
+      status: "committed",
+    });
+    expect(owner.snapshot().active).toMatchObject({
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+      threadId: "thread-a",
+      fileId: fileStateId(resource),
+    });
+
+    await expect(owner.activateContext({ kind: "exact", context: beta })).resolves.toEqual({
+      status: "committed",
+    });
+    expect(owner.snapshot().active).toEqual(beta);
+  });
+
   it("publishes one snapshot containing the complete target context", async () => {
     const owner = createWorkbenchStateOwner(populatedState());
     const seen: WorkbenchContext[] = [];
     owner.subscribe((state) => seen.push(state.active));
 
-    const result = await owner.activateContext(beta);
+    const result = await owner.activateContext({ kind: "exact", context: beta });
 
     expect(result).toEqual({ status: "committed" });
     expect(owner.snapshot().active).toEqual(beta);
@@ -215,7 +254,10 @@ describe("atomic workbench context transitions", () => {
     const seen = vi.fn();
     owner.subscribe(seen);
 
-    const result = await owner.activateContext({ ...beta, fileId: "file-a" });
+    const result = await owner.activateContext({
+      kind: "exact",
+      context: { ...beta, fileId: "file-a" },
+    });
 
     expect(result).toMatchObject({ status: "refused", reason: expect.stringContaining("file-a") });
     expect(owner.snapshot().active.projectId).toBe("project-a");
@@ -234,7 +276,7 @@ describe("atomic workbench context transitions", () => {
       }),
     });
 
-    const result = await owner.activateContext(beta);
+    const result = await owner.activateContext({ kind: "exact", context: beta });
 
     expect(result).toMatchObject({
       status: "refused",
@@ -255,7 +297,7 @@ describe("atomic workbench context transitions", () => {
       },
     });
 
-    const result = await owner.activateContext(beta);
+    const result = await owner.activateContext({ kind: "exact", context: beta });
 
     expect(result).toMatchObject({
       status: "refused",
