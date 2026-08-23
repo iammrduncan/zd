@@ -13,8 +13,9 @@ test("assembles the implemented workbench used by product screenshots", async ({
   await expect(page.locator('html[data-workbench-ready="true"]')).toBeAttached();
   const navigation = page.locator('[data-region="threads"]');
   const navigationHeader = navigation.locator(".zd-project-toolbar");
-  await expect(navigation.getByRole("heading", { name: "THREADS" })).toHaveCount(1);
-  await expect(navigationHeader.getByRole("heading", { name: "THREADS" })).toBeVisible();
+  await expect(navigation).toHaveAttribute("aria-label", "Projects");
+  await expect(navigation.getByRole("heading", { name: "PROJECTS" })).toHaveCount(1);
+  await expect(navigationHeader.getByRole("heading", { name: "PROJECTS" })).toBeVisible();
   await expect(navigationHeader.getByRole("button", { name: "Open project folder" })).toHaveText(
     "Open",
   );

@@ -165,7 +165,7 @@ describe("the Projects list", () => {
 
     const groups = [...host.querySelectorAll<HTMLElement>("[data-project-id]")];
     const navigationHeader = host.querySelector<HTMLElement>(".zd-project-toolbar")!;
-    expect(navigationHeader.querySelector("h2")?.textContent).toBe("THREADS");
+    expect(navigationHeader.querySelector("h2")?.textContent).toBe("PROJECTS");
     expect(
       navigationHeader.querySelector<HTMLButtonElement>("[data-project-add]")?.textContent,
     ).toBe("Open");

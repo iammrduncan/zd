@@ -215,7 +215,7 @@ export async function mountWorkbenchShell(
   const threads = document.createElement("aside");
   threads.className = "zd-workbench-threads";
   threads.dataset.region = "threads";
-  threads.setAttribute("aria-label", "Threads");
+  threads.setAttribute("aria-label", "Projects");
   const threadsPanel = document.createElement("div");
   threadsPanel.dataset.workbenchSlot = "threads";
   threadsPanel.append(quietState("No projects open."));
