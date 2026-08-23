@@ -3,6 +3,7 @@ import "./settings.css";
 import type { InstrumentationClient } from "@/instrumentation";
 import type { AttentionSettingsController } from "./attention";
 import { mountDiagnosticSettings } from "./diagnostics";
+import { mountShortcutSettings } from "./shortcut-settings";
 import type { Unmount } from "./runtime";
 import { registerCommandTarget } from "./shortcuts";
 
@@ -60,7 +61,17 @@ export function mountWorkbenchSettings(
     planeHost.append(nextPlane);
     plane = nextPlane;
 
-    stopControls = mountDiagnosticSettings(column, instrumentation, revealDiagnostics, attention);
+    const stopDiagnostics = mountDiagnosticSettings(
+      column,
+      instrumentation,
+      revealDiagnostics,
+      attention,
+    );
+    const stopShortcuts = mountShortcutSettings(column);
+    stopControls = () => {
+      stopShortcuts();
+      stopDiagnostics();
+    };
     const diagnosticSettings = column.querySelector<HTMLDetailsElement>(
       "[data-diagnostic-settings]",
     );

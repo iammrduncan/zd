@@ -75,6 +75,7 @@ export interface CommandTarget {
 
 /** Registration order, which is the order the Reference lists them in. */
 const registered = new Map<string, Command>();
+const bindingOverrides = new Map<string, Chord>();
 const targets = new Map<string, Map<string, CommandTarget>>();
 const observers = new Set<(commandId: string) => void>();
 
@@ -122,6 +123,10 @@ function chordKey(chord: Chord): string {
   return [...parts.filter(Boolean), chord.key.toLowerCase()].join("+");
 }
 
+function effectiveChord(command: Command): Chord {
+  return bindingOverrides.get(command.id) ?? command.chord;
+}
+
 /**
  * Add a command. Returns the function that removes it again.
  *
@@ -137,11 +142,12 @@ function chordKey(chord: Chord): string {
 export function register(command: Command): () => void {
   const taken = [...registered.values()].find(
     (existing) =>
-      existing.id !== command.id && chordKey(existing.chord) === chordKey(command.chord),
+      existing.id !== command.id &&
+      chordKey(effectiveChord(existing)) === chordKey(effectiveChord(command)),
   );
   if (taken) {
     throw new Error(
-      `${command.id} wants ${chordKey(command.chord)}, which ${taken.id} already has`,
+      `${command.id} wants ${chordKey(effectiveChord(command))}, which ${taken.id} already has`,
     );
   }
 
@@ -155,14 +161,83 @@ export function register(command: Command): () => void {
 
 /** Every registered command, in registration order. What the Reference renders. */
 export function commands(): Command[] {
-  return [...registered.values()];
+  return [...registered.values()].map((command) => {
+    const chord = bindingOverrides.get(command.id);
+    return chord ? { ...command, chord } : command;
+  });
+}
+
+export type CommandBindingResult =
+  { readonly updated: true } | { readonly updated: false; readonly problem: string };
+
+/** Rebind one window command without creating a second dispatch path. */
+export function setCommandChord(commandId: string, chord: Chord): CommandBindingResult {
+  const command = registered.get(commandId);
+  if (!command) return { updated: false, problem: "That command is no longer available." };
+  if (command.scope === "global") {
+    return {
+      updated: false,
+      problem: "Global shortcuts are managed by the operating system.",
+    };
+  }
+  const conflict = [...registered.values()].find(
+    (candidate) =>
+      candidate.id !== commandId && chordKey(effectiveChord(candidate)) === chordKey(chord),
+  );
+  if (conflict) {
+    return {
+      updated: false,
+      problem: `${chordLabel(chord)} is already assigned to ${conflict.description}.`,
+    };
+  }
+  bindingOverrides.set(commandId, chord);
+  holding.delete(commandId);
+  return { updated: true };
+}
+
+/** Restore a command's registered default. */
+export function resetCommandChord(commandId: string): CommandBindingResult {
+  const command = registered.get(commandId);
+  if (!command) return { updated: false, problem: "That command is no longer available." };
+  const conflict = [...registered.values()].find(
+    (candidate) =>
+      candidate.id !== commandId && chordKey(effectiveChord(candidate)) === chordKey(command.chord),
+  );
+  if (conflict) {
+    return {
+      updated: false,
+      problem: `${chordLabel(command.chord)} is already assigned to ${conflict.description}.`,
+    };
+  }
+  bindingOverrides.delete(commandId);
+  holding.delete(commandId);
+  return { updated: true };
+}
+
+/** Turn a physical key press into this platform's logical, editable chord. */
+export function chordFromEvent(event: KeyboardEvent): Chord | null {
+  if (MODIFIERS.has(event.key) || event.key === "Escape") return null;
+  const platform = currentPlatform();
+  const mod = platform === "mac" ? event.metaKey : event.ctrlKey;
+  const foreign = platform === "mac" ? event.ctrlKey : event.metaKey;
+  if (foreign || (!mod && !event.altKey)) return null;
+  let key = event.key;
+  if (event.altKey && /^Key[A-Z]$/u.test(event.code)) key = event.code.slice(3).toLowerCase();
+  if (event.altKey && /^Digit[0-9]$/u.test(event.code)) key = event.code.slice(5);
+  return {
+    key,
+    ...(mod ? { mod: true } : {}),
+    ...(event.shiftKey ? { shift: true } : {}),
+    ...(event.altKey ? { alt: true } : {}),
+  };
 }
 
 /** Run one registry entry through the same availability and observation path as a chord. */
 export function executeCommand(command: Command): boolean {
-  if (registered.get(command.id) !== command) return false;
-  if (command.available && !command.available()) return false;
-  if (!command.run()) return false;
+  const current = registered.get(command.id);
+  if (!current || current.run !== command.run) return false;
+  if (current.available && !current.available()) return false;
+  if (!current.run()) return false;
   for (const observer of observers) {
     try {
       observer(command.id);
@@ -176,6 +251,7 @@ export function executeCommand(command: Command): boolean {
 /** Test seam, and used when a window tears down. Production code rarely needs it. */
 export function clearCommands(): void {
   registered.clear();
+  bindingOverrides.clear();
   holding.clear();
   targets.clear();
   observers.clear();
@@ -255,6 +331,12 @@ function physicalKey(key: string): string {
  * command." Nothing else in the app may listen for a chord.
  */
 export function dispatch(event: KeyboardEvent): boolean {
+  if (
+    event.target instanceof Element &&
+    event.target.closest("[data-shortcut-recorder]") !== null
+  ) {
+    return false;
+  }
   // Read once per press rather than once per registered command, and read here
   // rather than cached at module load: a test stubs the navigator, and a value
   // captured at import would be the platform the module happened to load under.
@@ -262,12 +344,13 @@ export function dispatch(event: KeyboardEvent): boolean {
 
   for (const command of registered.values()) {
     if (command.scope === "global") continue;
-    if (!matches(command.chord, event, platform)) continue;
+    const chord = effectiveChord(command);
+    if (!matches(chord, event, platform)) continue;
     if (!executeCommand(command)) return false;
     // Only a command that actually ran is holding. One that declined has nothing
     // to release, and calling `release` on it would close something it never
     // opened.
-    if (command.release) holding.set(command.id, command);
+    if (command.release) holding.set(command.id, { ...command, chord });
     event.preventDefault();
     return true;
   }

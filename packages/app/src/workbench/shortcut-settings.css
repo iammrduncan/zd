@@ -1,0 +1,67 @@
+.zd-shortcut-settings {
+  padding-block: var(--space-3);
+  border-block-start: var(--hairline) solid var(--line-quiet);
+}
+
+.zd-shortcut-settings h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary);
+  font: inherit;
+}
+
+.zd-shortcut-settings-list {
+  display: grid;
+}
+
+.zd-shortcut-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: 30px;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+}
+
+.zd-shortcut-setting-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.zd-shortcut-setting-binding,
+.zd-shortcut-setting-reset {
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-1);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+}
+
+.zd-shortcut-setting-binding:is(:hover, :focus-visible),
+.zd-shortcut-setting-reset:is(:hover, :focus-visible) {
+  color: var(--text-primary);
+  outline: none;
+  text-decoration: underline;
+  text-decoration-color: var(--line-focus);
+  text-underline-offset: var(--space-1);
+}
+
+.zd-shortcut-setting-binding[data-shortcut-recorder="true"] {
+  color: var(--text-primary);
+}
+
+.zd-shortcut-setting-binding:disabled,
+.zd-shortcut-setting-reset:disabled {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.zd-shortcut-settings-status {
+  min-block-size: calc(var(--type-supporting-line) * 1em);
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+}

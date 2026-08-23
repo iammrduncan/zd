@@ -5,6 +5,7 @@ import {
   type CompletionSound,
   type SupportedAttentionAgent,
 } from "@/notifications";
+import type { Chord } from "./shortcuts";
 
 /**
  * Durable workbench preferences.
@@ -28,6 +29,7 @@ const ATTENTION_DESKTOP = "zd.attentionDesktop";
 const ATTENTION_SOUND = "zd.attentionSound";
 const ATTENTION_MUTED = "zd.attentionMuted";
 const ATTENTION_VOLUME = "zd.attentionVolume";
+const SHORTCUT_BINDINGS = "zd.shortcutBindings.v1";
 
 function attentionSoundKey(agent: SupportedAttentionAgent): string {
   return `zd.attentionSound.${agent}`;
@@ -132,6 +134,46 @@ export function attentionSettings(): AttentionNotificationSettings {
       opencode: sound("opencode"),
     },
   };
+}
+
+function isChord(value: unknown): value is Chord {
+  if (!value || typeof value !== "object") return false;
+  const chord = value as Record<string, unknown>;
+  return (
+    typeof chord.key === "string" &&
+    chord.key.length > 0 &&
+    chord.key.length <= 32 &&
+    [chord.mod, chord.shift, chord.alt].every(
+      (modifier) => modifier === undefined || typeof modifier === "boolean",
+    )
+  );
+}
+
+/** Valid persisted window-command overrides, keyed by stable command id. */
+export function shortcutBindings(): Readonly<Record<string, Chord>> {
+  const stored = read(SHORTCUT_BINDINGS);
+  if (!stored) return {};
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        ([commandId, chord]) => commandId.length > 0 && commandId.length <= 128 && isChord(chord),
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+export function setShortcutBinding(commandId: string, chord: Chord): void {
+  write(SHORTCUT_BINDINGS, JSON.stringify({ ...shortcutBindings(), [commandId]: chord }));
+}
+
+export function clearShortcutBinding(commandId: string): void {
+  const next = { ...shortcutBindings() };
+  delete next[commandId];
+  write(SHORTCUT_BINDINGS, JSON.stringify(next));
 }
 
 /**
