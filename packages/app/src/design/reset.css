@@ -1,6 +1,6 @@
 /*
- * Minimal reset. The product is chrome-free by construction, so this mostly
- * removes defaults that would fight the typography.
+ * Minimal reset. The product keeps only one quiet native drag strip, so this
+ * mostly removes defaults that would fight the typography.
  */
 
 *,
@@ -16,10 +16,15 @@
  * nothing would ever scroll.
  */
 html,
-body,
+body {
+  height: 100%;
+  margin: 0;
+}
+
 #zd {
   height: 100%;
   margin: 0;
+  padding-block-start: var(--space-5);
 }
 
 body {
@@ -36,22 +41,24 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Chrome-free: the window is the document. Nothing here is selectable UI. */
+/* The window is the document. Nothing in the reserved chrome is selectable UI. */
 body {
   overflow: hidden;
 }
 
 /*
- * The workbench's native grab handle. It occupies only the empty part of the top
- * reading inset, so dragging the chrome-free window never steals a click from
- * document text. Tauri listens on the element carrying the data attribute;
- * keeping it childless also keeps that native contract exact.
+ * The workbench's one blank chrome strip. `#zd` reserves the same token-sized
+ * height, so the native grab handle never covers project, source, or terminal
+ * content. Tauri listens on the element carrying the data attribute; keeping it
+ * childless also keeps that native contract exact.
  */
 .zd-window-drag-region {
   position: fixed;
   inset: 0 0 auto;
   z-index: 4;
   height: var(--space-5);
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  background: var(--surface-canvas);
 }
 
 code,
