@@ -158,6 +158,21 @@ export function commands(): Command[] {
   return [...registered.values()];
 }
 
+/** Run one registry entry through the same availability and observation path as a chord. */
+export function executeCommand(command: Command): boolean {
+  if (registered.get(command.id) !== command) return false;
+  if (command.available && !command.available()) return false;
+  if (!command.run()) return false;
+  for (const observer of observers) {
+    try {
+      observer(command.id);
+    } catch {
+      // Observability cannot change whether a command runs.
+    }
+  }
+  return true;
+}
+
 /** Test seam, and used when a window tears down. Production code rarely needs it. */
 export function clearCommands(): void {
   registered.clear();
@@ -248,15 +263,7 @@ export function dispatch(event: KeyboardEvent): boolean {
   for (const command of registered.values()) {
     if (command.scope === "global") continue;
     if (!matches(command.chord, event, platform)) continue;
-    if (command.available && !command.available()) return false;
-    if (!command.run()) return false;
-    for (const observer of observers) {
-      try {
-        observer(command.id);
-      } catch {
-        // Observability cannot change whether a command runs.
-      }
-    }
+    if (!executeCommand(command)) return false;
     // Only a command that actually ran is holding. One that declined has nothing
     // to release, and calling `release` on it would close something it never
     // opened.

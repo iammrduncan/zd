@@ -234,3 +234,21 @@ test("transient Settings controls local diagnostics without crowding Threads", a
   await settings.getByRole("button", { name: "Reveal logs" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-diagnostics-revealed", "true");
 });
+
+test("the command list opens from its shortcut and executes a filtered command", async ({
+  page,
+}) => {
+  const primary = await page.evaluate(() =>
+    /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",
+  );
+
+  await page.keyboard.press(`${primary}+Shift+p`);
+  const commandList = page.getByRole("dialog", { name: "Command List" });
+  const query = commandList.getByRole("textbox", { name: "Filter commands" });
+  await expect(query).toBeFocused();
+  await query.fill("settings");
+  await commandList.getByRole("option", { name: /Open Settings/u }).click();
+
+  await expect(commandList).toBeHidden();
+  await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+});
