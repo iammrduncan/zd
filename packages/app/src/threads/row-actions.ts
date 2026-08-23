@@ -16,19 +16,13 @@ export function renderThreadActions(
   rename.setAttribute("aria-label", `Rename ${thread.name}`);
   rename.title = `Rename ${thread.name}`;
   rename.textContent = "✎";
-  const close = document.createElement("button");
-  close.type = "button";
-  close.dataset.threadClose = thread.id;
-  close.setAttribute("aria-label", `Close ${thread.name}`);
-  close.title = `Close ${thread.name}`;
-  close.textContent = "×";
   const remove = document.createElement("button");
   remove.type = "button";
   remove.dataset.threadRemove = thread.id;
   remove.setAttribute("aria-label", `Remove ${thread.name}`);
   remove.title = `Remove ${thread.name}`;
-  remove.textContent = "−";
-  actions.append(rename, close, remove);
+  remove.textContent = "×";
+  actions.append(rename, remove);
 
   const renameForm = document.createElement("form");
   renameForm.className = "zd-thread-rename";
@@ -62,9 +56,6 @@ export function renderThreadActions(
     renameForm.hidden = true;
     if (nextName === thread.name) return;
     void performThreadAction(status, () => controller.renameThread(thread.id, nextName));
-  });
-  close.addEventListener("click", () => {
-    void performThreadAction(status, () => controller.closeThread(thread.id));
   });
   remove.addEventListener("click", () => {
     void performThreadAction(status, () => controller.removeThread(thread.id));

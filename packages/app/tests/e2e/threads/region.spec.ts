@@ -212,7 +212,7 @@ test("pointer and keyboard activation use the same transaction request", async (
     .toEqual(["activate:thread-1", "activate:thread-1"]);
 });
 
-test("compact controls create directly, rename, close, and remove through the adapter", async ({
+test("compact controls create directly, rename, and expose one removal action", async ({
   page,
 }) => {
   await mountFixture(page);
@@ -221,9 +221,8 @@ test("compact controls create directly, rename, close, and remove through the ad
   const rename = page.getByRole("textbox", { name: "New name for Thread 0" });
   await rename.fill("Renamed thread");
   await rename.press("Enter");
-  await page.getByRole("button", { name: "Close Thread 0" }).click();
-  await page.locator('[data-thread-id="thread-2"]').hover();
-  await page.getByRole("button", { name: "Remove Thread 2" }).click();
+  await expect(page.getByRole("button", { name: "Close Thread 0" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Remove Thread 0" }).click();
 
   await page.evaluate(() => window.threadFixture.mountProjectCreator());
   await page.getByRole("button", { name: "New terminal in Alpha" }).click();
@@ -232,8 +231,7 @@ test("compact controls create directly, rename, close, and remove through the ad
     .poll(() => page.evaluate(() => window.threadFixture.calls))
     .toEqual([
       "rename:thread-0:Renamed thread",
-      "close:thread-0",
-      "remove:thread-2",
+      "remove:thread-0",
       'create:{"name":"Terminal","type":{"kind":"terminal","agent":"shell"},"workspace":{"kind":"project-root","projectId":"alpha","worktreeId":"alpha-root"}}',
     ]);
 });

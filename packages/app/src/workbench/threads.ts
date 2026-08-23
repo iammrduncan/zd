@@ -240,7 +240,13 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     if (!thread) return { status: "refused", reason: `Unknown thread ${threadId}` };
     const terminal = this.#sessions.get(threadId);
     const status = terminal?.snapshot().status;
-    if (status === "running" || status === "starting") return this.closeThread(threadId);
+    if (status === "running" || status === "starting") {
+      try {
+        await this.#terminateAndClose(threadId);
+      } catch (cause) {
+        return refused(cause);
+      }
+    }
     if (terminal?.snapshot().sessionId) {
       try {
         await terminal.dispose();
