@@ -237,6 +237,25 @@ describe("the Projects list", () => {
     );
   });
 
+  it("does not repeat a refusal already presented by its owning surface", async () => {
+    const workbench = adapter();
+    workbench.activateProject.mockResolvedValue({
+      status: "refused",
+      reason: "The current file has unsaved work",
+      presentation: "owner",
+    });
+    const host = document.createElement("div");
+    mountProjectList(host, new ProjectsController(workbench));
+
+    host.querySelector<HTMLButtonElement>('[data-project-id="beta"] button')!.click();
+    await settle();
+
+    const status = host.querySelector<HTMLElement>(".zd-project-status")!;
+    expect(status.hidden).toBe(true);
+    expect(status.textContent).toBe("");
+    expect(host.querySelector('[data-project-id="beta"]')).not.toBeNull();
+  });
+
   it("invokes a specific recovery action without making the unavailable row disappear early", async () => {
     const workbench = adapter();
     const host = document.createElement("div");

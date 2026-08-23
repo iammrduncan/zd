@@ -111,6 +111,7 @@ export function mountProjectList(
       const result = await operation();
       if (!active || result === null) return;
       if (result.status === "committed") clearStatus();
+      else if (result.presentation === "owner") clearStatus();
       else showProblem(result.reason, result.recovery);
     } catch (cause) {
       if (active) showProblem(cause instanceof Error ? cause.message : String(cause));

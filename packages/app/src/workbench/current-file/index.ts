@@ -13,7 +13,7 @@ import type { FileResource } from "../resources";
 import { setWordWrap, wordWrap } from "../preferences";
 import type { Unmount, WorkbenchRuntimeContext } from "../runtime";
 import { register, registerCommandTarget } from "../shortcuts";
-import type { WorkbenchState } from "../state";
+import type { TransitionRecovery, WorkbenchState } from "../state";
 import "./styles.css";
 
 export interface MountCurrentFileOptions {
@@ -57,11 +57,32 @@ export async function mountCurrentFile(
   surface.className = "current-file";
   host.replaceChildren(surface);
 
-  const showNotice = (message: string, tone: "info" | "warning" = "info") => {
+  const showNotice = (
+    message: string,
+    tone: "info" | "warning" = "info",
+    recovery?: TransitionRecovery,
+  ) => {
     if (!notice) return;
     notice.hidden = false;
     notice.dataset.tone = tone;
-    notice.textContent = message;
+    notice.replaceChildren(document.createTextNode(message));
+    if (!recovery) return;
+
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = "current-file-notice-action";
+    action.textContent = recovery.label;
+    action.addEventListener("click", () => {
+      action.disabled = true;
+      void Promise.resolve(recovery.run())
+        .catch((cause: unknown) =>
+          showNotice(cause instanceof Error ? cause.message : String(cause), "warning"),
+        )
+        .finally(() => {
+          if (action.isConnected) action.disabled = false;
+        });
+    });
+    notice.append(" ", action);
   };
   const clearNotice = () => {
     if (!notice) return;
@@ -305,11 +326,20 @@ export async function mountCurrentFile(
     prepare: ({ from, to }) => {
       if (from.fileId === to.fileId) return { status: "ready" };
       if (pendingImageSaves > 0) {
-        return { status: "refused", reason: "A pasted screenshot is still being saved" };
+        const reason = "A pasted screenshot is still being saved";
+        showNotice(reason, "warning");
+        return { status: "refused", reason, presentation: "owner" };
       }
-      return currentEditor()?.isDirty()
-        ? { status: "refused", reason: "The current file has unsaved work" }
-        : { status: "ready" };
+      const editor = currentEditor();
+      if (!editor?.isDirty()) return { status: "ready" };
+
+      const reason = "The current file has unsaved work";
+      const recovery: TransitionRecovery = {
+        label: "Save current file",
+        run: () => editor.save(),
+      };
+      showNotice(reason, "warning", recovery);
+      return { status: "refused", reason, recovery, presentation: "owner" };
     },
   });
   let fileId = context.state.snapshot().active.fileId;

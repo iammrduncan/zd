@@ -36,6 +36,7 @@ export async function performThreadAction(
     const result = await operation();
     if (result === null) return null;
     if (result.status === "committed") clearThreadStatus(status);
+    else if (result.presentation === "owner") clearThreadStatus(status);
     else showThreadProblem(status, result.reason, result.recovery);
     return result;
   } catch (cause) {

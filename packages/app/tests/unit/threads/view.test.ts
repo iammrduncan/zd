@@ -187,6 +187,24 @@ describe("the Threads region", () => {
     expect(workbench.activateThread).toHaveBeenNthCalledWith(2, "shell");
   });
 
+  it("does not repeat a refusal already presented by its owning surface", async () => {
+    const workbench = adapter();
+    workbench.activateThread.mockResolvedValue({
+      status: "refused",
+      reason: "The current file has unsaved work",
+      presentation: "owner",
+    });
+    const host = document.createElement("aside");
+    mountProjectThreads(host, new ThreadsController(workbench), "alpha");
+
+    host.querySelector<HTMLButtonElement>('[data-thread-id="shell"]')!.click();
+    await settle();
+
+    const status = host.querySelector<HTMLElement>(".zd-thread-status")!;
+    expect(status.hidden).toBe(true);
+    expect(status.textContent).toBe("");
+  });
+
   it("keeps recoverable rows in place until the adapter publishes", async () => {
     const workbench = adapter();
     const host = document.createElement("aside");

@@ -27,6 +27,7 @@ export type {
   ThreadsVisibility,
   TransitionDecision,
   TransitionGuard,
+  TransitionRefusal,
   TransitionRecovery,
   TransitionResult,
   WindowPresentation,
