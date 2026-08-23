@@ -46,6 +46,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
+  /* Every open project remains a visible group boundary at rest. */
+  background: color-mix(in srgb, var(--surface-selection), var(--surface-sidebar) 35%);
 }
 
 .zd-project-actions {

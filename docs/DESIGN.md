@@ -333,7 +333,9 @@ Threads is a project/thread hierarchy, not a dashboard.
 - Region heading: `PROJECTS` in quiet navigation text.
 - The heading and quiet `Open` project action share one header row; neither becomes a separate
   hierarchy level.
-- Project rows use a small disclosure chevron and slightly stronger text.
+- Project rows use a small disclosure chevron, slightly stronger text, and a persistent
+  selection-derived background band. The active project strengthens to `surface.selection` and
+  keeps the inset `line.focus` hairline.
 - Thread rows are indented beneath their project and use compact two-line rows: the name first,
   then terminal/agent type, visible lifecycle, and differing worktree in supporting text.
 - The selected row uses `surface.selection`, primary text, and a 2 px inset `line.focus` hairline.
