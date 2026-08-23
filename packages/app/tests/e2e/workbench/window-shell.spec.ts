@@ -40,6 +40,23 @@ test("keeps the file tree visible at the native window's default width", async (
   await expect(files.getByRole("tab", { name: "FILES" })).toHaveAttribute("aria-selected", "true");
 });
 
+test("keeps both sidebar headers close to the title strip", async ({ page }) => {
+  await page.goto("/");
+
+  const offsets = await page.evaluate(() => {
+    const projects = document.querySelector<HTMLElement>('[data-region="threads"]')!;
+    const files = document.querySelector<HTMLElement>('[data-region="files"]')!;
+    const projectHeading = projects.querySelector<HTMLElement>(".zd-project-toolbar")!;
+    const fileHeading = files.querySelector<HTMLElement>(".zd-files-tabs")!;
+    return {
+      projects: projectHeading.getBoundingClientRect().top - projects.getBoundingClientRect().top,
+      files: fileHeading.getBoundingClientRect().top - files.getBoundingClientRect().top,
+    };
+  });
+
+  expect(offsets).toEqual({ projects: 16, files: 16 });
+});
+
 test("resizes both navigation panes at the native window width", async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 760 });
   await page.goto("/");
