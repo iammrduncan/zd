@@ -359,6 +359,7 @@ const tauri: Platform = {
   },
   fileTree: {
     snapshot: (request) => invoke("file_tree_snapshot", { request }),
+    mutate: (request) => invoke("mutate_file_tree", { request }),
     watch: (scope, listener) => {
       const request = {
         ...scope,

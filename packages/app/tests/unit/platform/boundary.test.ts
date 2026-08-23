@@ -101,6 +101,27 @@ describe("the Tauri window boundary", () => {
     expect(invoke).not.toHaveBeenCalled();
   });
 
+  it("sends file mutations only through scoped relative requests", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    invoke.mockResolvedValue({ status: "committed" });
+    const request = {
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+      operation: "rename" as const,
+      relativePath: "docs/notes.md",
+      newName: "draft.md",
+    };
+
+    await detectPlatform().fileTree.mutate!(request);
+
+    expect(invoke).toHaveBeenCalledExactlyOnceWith("mutate_file_tree", { request });
+    expect(request).not.toHaveProperty("root");
+    expect(request.relativePath.startsWith("/")).toBe(false);
+  });
+
   it("keeps Git inspection read-only and scoped to approved identities", async () => {
     Object.defineProperty(window, "__TAURI_INTERNALS__", {
       configurable: true,

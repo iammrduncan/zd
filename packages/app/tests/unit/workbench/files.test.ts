@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { FileTreeAdapter, FileTreeResult, FileTreeWatchEvent } from "@/files";
+import type {
+  FileTreeAdapter,
+  FileTreeMutationRequest,
+  FileTreeMutationResult,
+  FileTreeResult,
+  FileTreeWatchEvent,
+} from "@/files";
 import { unavailableGitAdapter, type GitAdapter, type GitStatusSnapshot } from "@/git";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import { createWorkbenchFilesRuntime } from "@/workbench/files";
@@ -277,6 +283,99 @@ describe("the root Files and Git coordinator", () => {
     copyText.mockRejectedValueOnce(new Error("Clipboard permission was denied."));
     await runtime.controller.copyPath("README.md", "relative");
     expect(runtime.controller.snapshot().notice).toBe("Clipboard permission was denied.");
+    detach();
+  });
+
+  it("coordinates native file mutations with active-file and recoverable-draft identities", async () => {
+    const owner = createWorkbenchStateOwner(workbenchStateFromGrants([alpha], launch(alpha)));
+    const drafts = new FileDraftStore(window.localStorage);
+    let currentPath: string | null = "README.md";
+    let revision = 0;
+    const mutate = vi.fn(
+      async (request: FileTreeMutationRequest): Promise<FileTreeMutationResult> => {
+        revision += 1;
+        if (request.operation === "create") currentPath = request.relativePath;
+        if (request.operation === "rename") {
+          const slash = request.relativePath.lastIndexOf("/");
+          currentPath =
+            slash < 0
+              ? request.newName
+              : `${request.relativePath.slice(0, slash)}/${request.newName}`;
+        }
+        if (request.operation === "trash") currentPath = null;
+        return { status: "committed" };
+      },
+    );
+    const files: FileTreeAdapter = {
+      snapshot: vi.fn(async (): Promise<FileTreeResult> => {
+        if (!currentPath) {
+          return {
+            status: "empty",
+            projectId: alpha.id,
+            worktreeId: alpha.worktrees[0]!.id,
+            revision: `mutation-${revision}`,
+            elapsedMicros: 1,
+          };
+        }
+        const current = treeResult(alpha, currentPath);
+        if (current.status !== "ready") throw new Error("fixture must return a ready tree");
+        return { ...current, revision: `mutation-${revision}` };
+      }),
+      watch: () => () => {},
+      mutate,
+    };
+    const runtime = createWorkbenchFilesRuntime(
+      owner,
+      files,
+      gitAdapter(async () => gitResult(alpha, "modified")),
+      createUnavailableInstrumentationClient(),
+      drafts,
+    );
+    const detach = runtime.attach();
+    await vi.waitFor(() => expect(runtime.controller.snapshot().state).toBe("ready"));
+
+    await expect(runtime.controller.createEntry(null, "notes.md", "file")).resolves.toBe(true);
+    expect(owner.snapshot().openFiles.at(-1)?.relativePath).toBe("notes.md");
+    drafts.save(
+      {
+        projectId: alpha.id,
+        worktreeId: alpha.worktrees[0]!.id,
+        relativePath: "notes.md",
+      },
+      "unsaved",
+    );
+
+    await expect(runtime.controller.renameEntry("notes.md", "draft.md")).resolves.toBe(true);
+    expect(owner.snapshot().active.fileId).toBe(
+      owner.snapshot().openFiles.find(({ relativePath }) => relativePath === "draft.md")?.id,
+    );
+    expect(
+      drafts.get({
+        projectId: alpha.id,
+        worktreeId: alpha.worktrees[0]!.id,
+        relativePath: "draft.md",
+      })?.text,
+    ).toBe("unsaved");
+
+    await expect(runtime.controller.trashEntry("draft.md")).resolves.toBe(false);
+    expect(runtime.controller.snapshot().notice).toContain("Save or discard");
+    expect(mutate).toHaveBeenCalledTimes(2);
+
+    drafts.clear({
+      projectId: alpha.id,
+      worktreeId: alpha.worktrees[0]!.id,
+      relativePath: "draft.md",
+    });
+    await expect(runtime.controller.trashEntry("draft.md")).resolves.toBe(true);
+    expect(owner.snapshot().openFiles.some(({ relativePath }) => relativePath === "draft.md")).toBe(
+      false,
+    );
+    expect(mutate).toHaveBeenLastCalledWith({
+      projectId: alpha.id,
+      worktreeId: alpha.worktrees[0]!.id,
+      operation: "trash",
+      relativePath: "draft.md",
+    });
     detach();
   });
 

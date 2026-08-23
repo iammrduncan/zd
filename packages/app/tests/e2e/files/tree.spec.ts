@@ -126,6 +126,44 @@ test("renders a dense horizontally and vertically scrollable virtual tree", asyn
   expect(await page.evaluate(() => window.fileTreeFixture.initialRenderMs)).toBeLessThan(2_000);
 });
 
+test("offers create, rename, copy-path, and confirmed Trash actions for folders", async ({
+  page,
+}) => {
+  await page.goto("/dev/workbench.html");
+  await expect(page.locator('html[data-workbench-ready="true"]')).toBeAttached();
+  const files = page.getByRole("complementary", { name: "Files and Changes" });
+
+  await files.locator('[data-file-path="docs"]').click({ button: "right" });
+  const menu = page.getByRole("menu", { name: "docs file actions" });
+  await expect(menu.getByRole("menuitem")).toHaveText([
+    "New File…",
+    "New Folder…",
+    "Rename…",
+    "Copy Relative Path",
+    "Copy Full Path",
+    "Move to Trash…",
+  ]);
+  await menu.getByRole("menuitem", { name: "New Folder…" }).click();
+  const create = page.getByRole("dialog", { name: "New folder in docs" });
+  await create.getByRole("textbox", { name: "Name" }).fill("drafts");
+  await create.getByRole("button", { name: "Create" }).click();
+  await expect(files.locator('[data-file-path="docs/drafts"]')).toBeVisible();
+
+  await files.locator('[data-file-path="docs/drafts"]').click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Rename…" }).click();
+  const rename = page.getByRole("dialog", { name: "Rename drafts" });
+  await rename.getByRole("textbox", { name: "New name" }).fill("notes");
+  await rename.getByRole("button", { name: "Rename" }).click();
+  await expect(files.locator('[data-file-path="docs/notes"]')).toBeVisible();
+
+  await files.locator('[data-file-path="docs/notes"]').click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Move to Trash…" }).click();
+  const confirmation = page.getByRole("alertdialog", { name: "Move notes to Trash" });
+  await expect(confirmation).toContainText("docs/notes");
+  await confirmation.getByRole("button", { name: "Move to Trash" }).click();
+  await expect(files.locator('[data-file-path="docs/notes"]')).toHaveCount(0);
+});
+
 test("exposes file type and Git state without a status-letter column", async ({ page }) => {
   await mountFixture(page);
   const modified = page.locator('[data-file-path="file-00000.txt"]');

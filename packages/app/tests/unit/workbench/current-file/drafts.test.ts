@@ -35,4 +35,19 @@ describe("file draft recovery", () => {
 
     expect(new FileDraftStore(window.localStorage).get(main)).toBeNull();
   });
+
+  it("moves every draft below a renamed file-tree path without losing recovery text", () => {
+    const drafts = new FileDraftStore(window.localStorage);
+    drafts.save(main, "changed main");
+    drafts.save({ ...main, relativePath: "src/nested/notes.md" }, "changed notes");
+
+    expect(drafts.hasPath({ ...main, relativePath: "src" })).toBe(true);
+    drafts.movePath({ ...main, relativePath: "src" }, "source");
+
+    expect(drafts.get(main)).toBeNull();
+    expect(drafts.get({ ...main, relativePath: "source/main.ts" })?.text).toBe("changed main");
+    expect(drafts.get({ ...main, relativePath: "source/nested/notes.md" })?.text).toBe(
+      "changed notes",
+    );
+  });
 });

@@ -38,6 +38,9 @@ async function mounted(entries: readonly NativeFileTreeEntry[]) {
   const actions = {
     activateFile: vi.fn(async () => ({ status: "committed" as const })),
     copyPath: vi.fn(async () => {}),
+    createEntry: vi.fn(async () => {}),
+    renameEntry: vi.fn(async () => {}),
+    trashEntry: vi.fn(async () => {}),
   };
   const controller = new FileTreeController(adapter(entries), actions);
   const host = document.createElement("aside");
@@ -159,7 +162,91 @@ describe("Files tree view", () => {
     );
 
     expect(fixture.host.querySelector('[role="menu"]')).not.toBeNull();
-    expect(fixture.host.querySelector('[role="menuitem"]')?.textContent).toBe("Copy Relative Path");
+    expect(fixture.host.querySelector('[role="menuitem"]')?.textContent).toBe("Open");
+  });
+
+  it("replaces the system menu with ordinary editor operations for files and folders", async () => {
+    const fixture = await mounted([
+      entry("docs", "directory"),
+      entry("docs/notes.md"),
+      entry("README.md"),
+    ]);
+    fixture.controller.expand("docs");
+    const docs = fixture.host.querySelector<HTMLElement>('[data-file-path="docs"]')!;
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+
+    docs.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(
+      [...fixture.host.querySelectorAll<HTMLElement>('[role="menuitem"]')].map(
+        ({ textContent }) => textContent,
+      ),
+    ).toEqual([
+      "New File…",
+      "New Folder…",
+      "Rename…",
+      "Copy Relative Path",
+      "Copy Full Path",
+      "Move to Trash…",
+    ]);
+  });
+
+  it("captures names and confirms Trash before dispatching file operations", async () => {
+    const fixture = await mounted([
+      entry("docs", "directory"),
+      entry("docs/notes.md"),
+      entry("README.md"),
+    ]);
+    fixture.controller.expand("docs");
+    const contextMenu = (path: string) =>
+      fixture.host
+        .querySelector<HTMLElement>(`[data-file-path="${path}"]`)!
+        .dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+
+    contextMenu("docs");
+    [...fixture.host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
+      .find(({ textContent }) => textContent === "New File…")!
+      .click();
+    const create = fixture.host.querySelector<HTMLFormElement>('[role="dialog"]')!;
+    create.querySelector<HTMLInputElement>("input")!.value = "draft.md";
+    create.requestSubmit();
+    await vi.waitFor(() =>
+      expect(fixture.actions.createEntry).toHaveBeenCalledWith(
+        { ...scope, relativePath: "docs/draft.md" },
+        "file",
+      ),
+    );
+
+    contextMenu("docs/notes.md");
+    [...fixture.host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
+      .find(({ textContent }) => textContent === "Rename…")!
+      .click();
+    const rename = fixture.host.querySelector<HTMLFormElement>('[role="dialog"]')!;
+    rename.querySelector<HTMLInputElement>("input")!.value = "renamed.md";
+    rename.requestSubmit();
+    await vi.waitFor(() =>
+      expect(fixture.actions.renameEntry).toHaveBeenCalledWith(
+        { ...scope, relativePath: "docs/notes.md" },
+        "renamed.md",
+      ),
+    );
+
+    contextMenu("docs/notes.md");
+    [...fixture.host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
+      .find(({ textContent }) => textContent === "Move to Trash…")!
+      .click();
+    const confirmation = fixture.host.querySelector<HTMLElement>('[role="alertdialog"]')!;
+    expect(confirmation.textContent).toContain("docs/notes.md");
+    [...confirmation.querySelectorAll<HTMLButtonElement>("button")]
+      .find(({ textContent }) => textContent === "Move to Trash")!
+      .click();
+    await vi.waitFor(() =>
+      expect(fixture.actions.trashEntry).toHaveBeenCalledWith({
+        ...scope,
+        relativePath: "docs/notes.md",
+      }),
+    );
   });
 
   it("uses one keyboard path for expansion, navigation, and root-owned activation", async () => {

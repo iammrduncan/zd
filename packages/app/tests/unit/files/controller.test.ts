@@ -278,6 +278,60 @@ describe("FileTreeController", () => {
     expect(JSON.stringify(metrics)).not.toContain("notes.md");
   });
 
+  it("routes validated create, rename, and Trash operations through scoped actions", async () => {
+    const actions: FileTreeActions = {
+      activateFile: vi.fn(async () => ({ status: "committed" as const })),
+      createEntry: vi.fn(async () => {}),
+      renameEntry: vi.fn(async () => {}),
+      trashEntry: vi.fn(async () => {}),
+    };
+    const controller = new FileTreeController(
+      sequence([ready("one", [entry("docs", "directory"), entry("docs/notes.md")])]),
+      actions,
+    );
+    await controller.activate(scope);
+
+    await expect(controller.createEntry("docs", "new.md", "file")).resolves.toBe(true);
+    await expect(controller.renameEntry("docs/notes.md", "draft.md")).resolves.toBe(true);
+    await expect(controller.trashEntry("docs/notes.md")).resolves.toBe(true);
+
+    expect(actions.createEntry).toHaveBeenCalledWith(
+      { ...scope, relativePath: "docs/new.md" },
+      "file",
+    );
+    expect(actions.renameEntry).toHaveBeenCalledWith(
+      { ...scope, relativePath: "docs/notes.md" },
+      "draft.md",
+    );
+    expect(actions.trashEntry).toHaveBeenCalledWith({
+      ...scope,
+      relativePath: "docs/notes.md",
+    });
+  });
+
+  it("keeps invalid names and protected metadata out of mutation actions", async () => {
+    const actions: FileTreeActions = {
+      activateFile: vi.fn(async () => ({ status: "committed" as const })),
+      createEntry: vi.fn(async () => {}),
+      renameEntry: vi.fn(async () => {}),
+      trashEntry: vi.fn(async () => {}),
+    };
+    const controller = new FileTreeController(
+      sequence([ready("one", [entry(".git", "directory"), entry("notes.md")])]),
+      actions,
+    );
+    await controller.activate(scope);
+
+    await expect(controller.createEntry(null, "../escape", "file")).resolves.toBe(false);
+    await expect(controller.renameEntry(".git", "metadata")).resolves.toBe(false);
+    await expect(controller.trashEntry(".git")).resolves.toBe(false);
+
+    expect(actions.createEntry).not.toHaveBeenCalled();
+    expect(actions.renameEntry).not.toHaveBeenCalled();
+    expect(actions.trashEntry).not.toHaveBeenCalled();
+    expect(controller.snapshot().notice).toBe("Repository metadata is protected.");
+  });
+
   it.each(["empty", "missing", "denied", "not-directory", "unavailable"] as const)(
     "exposes the %s state explicitly",
     async (status) => {

@@ -1,9 +1,11 @@
 import {
   FileTreeController,
+  type FileTreeCreationKind,
   type FileGitState,
   type FilePathPresentation,
   type FileTreeAdapter,
   type FileTreeMetric,
+  type FileTreeMutationRequest,
   type FileTreeRefreshReason,
   type FileTreeScope,
   type FileTreeWatchEvent,
@@ -95,6 +97,9 @@ export class WorkbenchFilesRuntime {
       {
         activateFile: (resource) => owner.activateFile(resource),
         copyPath: (resource, presentation) => this.#copyPath(resource, presentation),
+        createEntry: (resource, kind) => this.#createEntry(resource, kind),
+        renameEntry: (resource, newName) => this.#renameEntry(resource, newName),
+        trashEntry: (resource) => this.#trashEntry(resource),
       },
       { record: (metric) => this.#recordFileMetric(metric) },
     );
@@ -219,6 +224,36 @@ export class WorkbenchFilesRuntime {
         ? resource.relativePath
         : fullPath(worktree.root, resource.relativePath),
     );
+  }
+
+  async #mutate(request: FileTreeMutationRequest): Promise<void> {
+    if (!this.#fileTree.mutate) throw new Error("File operations are unavailable.");
+    const result = await this.#fileTree.mutate(request);
+    if (result.status === "refused") throw new Error(result.reason);
+  }
+
+  async #createEntry(resource: FileResource, kind: FileTreeCreationKind): Promise<void> {
+    await this.#mutate({ ...resource, operation: "create", kind });
+    await this.controller.refresh("manual");
+    if (kind === "file") await this.owner.activateFile(resource);
+  }
+
+  async #renameEntry(resource: FileResource, newName: string): Promise<void> {
+    const slash = resource.relativePath.lastIndexOf("/");
+    const nextPath = slash < 0 ? newName : `${resource.relativePath.slice(0, slash)}/${newName}`;
+    await this.#mutate({ ...resource, operation: "rename", newName });
+    this.drafts.movePath(resource, nextPath);
+    this.owner.renameFilePath(resource, nextPath);
+    await this.controller.refresh("manual");
+  }
+
+  async #trashEntry(resource: FileResource): Promise<void> {
+    if (this.drafts.hasPath(resource)) {
+      throw new Error("Save or discard unsaved changes before moving this item to Trash.");
+    }
+    await this.#mutate({ ...resource, operation: "trash" });
+    this.owner.removeFilePath(resource);
+    await this.controller.refresh("manual");
   }
 
   #startWatching(scope: FileTreeScope, generation: number): void {

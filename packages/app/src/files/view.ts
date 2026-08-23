@@ -120,7 +120,7 @@ function createRow(
   button.setAttribute("aria-label", fileTreeEntryLabel(row.entry, dirty));
   button.setAttribute("aria-description", row.entry.relativePath);
   button.setAttribute("aria-selected", String(snapshot.selectedPath === row.entry.relativePath));
-  if (row.entry.kind !== "directory") button.setAttribute("aria-haspopup", "menu");
+  button.setAttribute("aria-haspopup", "menu");
   if (snapshot.activePath === row.entry.relativePath) button.setAttribute("aria-current", "page");
   if (row.entry.kind === "directory" && row.hasChildren) {
     button.setAttribute("aria-expanded", String(row.expanded));
@@ -234,45 +234,209 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
     dismissFileMenu(true);
   }
 
-  const openFileMenu = (
+  const placeFileMenu = (menu: HTMLElement, inlineStart: number, blockStart: number): void => {
+    ui.root.append(menu);
+    const bounds = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(0, Math.min(inlineStart, window.innerWidth - bounds.width))}px`;
+    menu.style.top = `${Math.max(0, Math.min(blockStart, window.innerHeight - bounds.height))}px`;
+    fileMenu = menu;
+    document.addEventListener("pointerdown", dismissFileMenuFromPointer);
+    document.addEventListener("keydown", dismissFileMenuFromKeyboard);
+  };
+
+  const openNameEditor = (
+    operation: "create-file" | "create-directory" | "rename",
+    path: string | null,
+    name: string,
+    inlineStart: number,
+    blockStart: number,
+  ): void => {
+    dismissFileMenu();
+    const entry = path
+      ? controller.snapshot().entries.find((candidate) => candidate.relativePath === path)
+      : null;
+    const parentPath = operation === "rename" ? (entry?.parentPath ?? null) : path;
+    const title =
+      operation === "rename"
+        ? `Rename ${name}`
+        : `${operation === "create-file" ? "New file" : "New folder"}${parentPath ? ` in ${parentPath}` : ""}`;
+
+    const editor = document.createElement("form");
+    editor.className = "zd-file-tree-operation";
+    editor.setAttribute("role", "dialog");
+    editor.setAttribute("aria-label", title);
+    const label = document.createElement("label");
+    label.textContent = title;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = operation === "rename" ? name : "";
+    input.setAttribute("aria-label", operation === "rename" ? "New name" : "Name");
+    const problem = document.createElement("span");
+    problem.className = "zd-file-tree-operation-problem";
+    problem.setAttribute("role", "status");
+    const controls = document.createElement("span");
+    controls.className = "zd-file-tree-operation-controls";
+    const submit = document.createElement("button");
+    submit.type = "submit";
+    submit.textContent = operation === "rename" ? "Rename" : "Create";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    cancel.addEventListener("click", () => dismissFileMenu(true));
+    controls.append(submit, cancel);
+    label.append(input);
+    editor.append(label, problem, controls);
+    editor.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const nextName = input.value;
+      submit.disabled = true;
+      void (async () => {
+        const committed =
+          operation === "rename"
+            ? Boolean(path && (await controller.renameEntry(path, nextName)))
+            : await controller.createEntry(
+                parentPath,
+                nextName,
+                operation === "create-file" ? "file" : "directory",
+              );
+        if (committed) {
+          dismissFileMenu();
+          return;
+        }
+        problem.textContent = controller.snapshot().notice ?? "The operation was refused.";
+        submit.disabled = false;
+        input.focus();
+        input.select();
+      })();
+    });
+    placeFileMenu(editor, inlineStart, blockStart);
+    fileMenuPath = path;
+    input.focus();
+    input.select();
+  };
+
+  const openTrashConfirmation = (
     path: string,
     name: string,
     inlineStart: number,
     blockStart: number,
   ): void => {
     dismissFileMenu();
-    controller.select(path);
+    const confirmation = document.createElement("div");
+    confirmation.className = "zd-file-tree-operation";
+    confirmation.setAttribute("role", "alertdialog");
+    confirmation.setAttribute("aria-label", `Move ${name} to Trash`);
+    const question = document.createElement("p");
+    question.textContent = `Move ${path} to Trash?`;
+    const problem = document.createElement("span");
+    problem.className = "zd-file-tree-operation-problem";
+    problem.setAttribute("role", "status");
+    const controls = document.createElement("span");
+    controls.className = "zd-file-tree-operation-controls";
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.textContent = "Move to Trash";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    cancel.addEventListener("click", () => dismissFileMenu(true));
+    confirm.addEventListener("click", () => {
+      confirm.disabled = true;
+      void (async () => {
+        if (await controller.trashEntry(path)) {
+          dismissFileMenu();
+          return;
+        }
+        problem.textContent = controller.snapshot().notice ?? "The operation was refused.";
+        confirm.disabled = false;
+        confirm.focus();
+      })();
+    });
+    controls.append(confirm, cancel);
+    confirmation.append(question, problem, controls);
+    placeFileMenu(confirmation, inlineStart, blockStart);
+    fileMenuPath = path;
+    confirm.focus();
+  };
+
+  const openFileMenu = (
+    path: string | null,
+    name: string,
+    inlineStart: number,
+    blockStart: number,
+  ): void => {
+    dismissFileMenu();
+    if (path) controller.select(path);
+    const entry = path
+      ? controller.snapshot().entries.find((candidate) => candidate.relativePath === path)
+      : null;
 
     const menu = document.createElement("div");
     menu.className = "zd-file-tree-menu";
     menu.setAttribute("role", "menu");
-    menu.setAttribute("aria-label", `${name} file actions`);
+    menu.setAttribute("aria-label", path ? `${name} file actions` : "Project file actions");
 
-    for (const [presentation, label] of [
-      ["relative", "Copy Relative Path"],
-      ["full", "Copy Full Path"],
-    ] as const) {
-      const action = document.createElement("button");
-      action.type = "button";
-      action.className = "zd-file-tree-menu-action";
-      action.dataset.copyPath = presentation;
-      action.setAttribute("role", "menuitem");
-      action.textContent = label;
-      action.addEventListener("click", () => {
+    const action = (label: string, run: () => void, data?: readonly [string, string]): void => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "zd-file-tree-menu-action";
+      if (data) button.dataset[data[0]] = data[1];
+      button.setAttribute("role", "menuitem");
+      button.textContent = label;
+      button.addEventListener("click", run);
+      menu.append(button);
+    };
+
+    if (!entry || entry.kind === "directory") {
+      action("New File…", () => openNameEditor("create-file", path, name, inlineStart, blockStart));
+      action("New Folder…", () =>
+        openNameEditor("create-directory", path, name, inlineStart, blockStart),
+      );
+    } else {
+      action("Open", () => {
         dismissFileMenu(true);
-        void controller.copyPath(path, presentation);
+        void controller.activateSelected();
       });
-      menu.append(action);
     }
-    ui.root.append(menu);
 
-    const bounds = menu.getBoundingClientRect();
-    menu.style.left = `${Math.max(0, Math.min(inlineStart, window.innerWidth - bounds.width))}px`;
-    menu.style.top = `${Math.max(0, Math.min(blockStart, window.innerHeight - bounds.height))}px`;
-    fileMenu = menu;
+    if (entry && entry.kind !== "symlink") {
+      action("Rename…", () => openNameEditor("rename", path, name, inlineStart, blockStart));
+    }
+
+    if (entry) {
+      const entryPath = entry.relativePath;
+      for (const [presentation, label] of [
+        ["relative", "Copy Relative Path"],
+        ["full", "Copy Full Path"],
+      ] as const) {
+        action(label, () => {
+          dismissFileMenu(true);
+          void controller.copyPath(entryPath, presentation);
+        }, ["copyPath", presentation]);
+      }
+      if (entry.kind !== "symlink") {
+        action("Move to Trash…", () =>
+          openTrashConfirmation(entryPath, name, inlineStart, blockStart),
+        );
+      }
+    }
+
+    menu.addEventListener("keydown", (event) => {
+      const actions = [...menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
+      const currentIndex = actions.indexOf(document.activeElement as HTMLButtonElement);
+      let nextIndex: number | null = null;
+      if (event.key === "ArrowDown") nextIndex = (currentIndex + 1) % actions.length;
+      else if (event.key === "ArrowUp")
+        nextIndex = (currentIndex - 1 + actions.length) % actions.length;
+      else if (event.key === "Home") nextIndex = 0;
+      else if (event.key === "End") nextIndex = actions.length - 1;
+      if (nextIndex === null) return;
+      event.preventDefault();
+      actions[nextIndex]?.focus();
+    });
+
+    placeFileMenu(menu, inlineStart, blockStart);
     fileMenuPath = path;
-    document.addEventListener("pointerdown", dismissFileMenuFromPointer);
-    document.addEventListener("keydown", dismissFileMenuFromKeyboard);
     menu.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
   };
 
@@ -340,12 +504,10 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
   });
   ui.viewport.addEventListener("contextmenu", (event) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>("[data-file-path]");
-    if (!target || target.dataset.fileKind === "directory") return;
     event.preventDefault();
     openFileMenu(
-      target.dataset.filePath!,
-      target.querySelector<HTMLElement>(".zd-file-tree-name")?.textContent ??
-        target.dataset.filePath!,
+      target?.dataset.filePath ?? null,
+      target?.querySelector<HTMLElement>(".zd-file-tree-name")?.textContent ?? "project root",
       event.clientX,
       event.clientY,
     );
@@ -356,7 +518,7 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
     const selected = eventPath ?? controller.snapshot().selectedPath;
     if (selected && (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey))) {
       const target = fileRow(selected);
-      if (target && target.dataset.fileKind !== "directory") {
+      if (target) {
         event.preventDefault();
         const bounds = target.getBoundingClientRect();
         openFileMenu(

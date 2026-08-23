@@ -380,6 +380,55 @@ const platform: Platform = {
         elapsedMicros: 240,
       };
     },
+    mutate: async (request) => {
+      const exists = (path: string) =>
+        fileEntries.some(({ relativePath }) => relativePath === path);
+      if (request.operation === "create") {
+        if (exists(request.relativePath)) {
+          return { status: "refused" as const, reason: "That name already exists." };
+        }
+        fileEntries = [
+          ...fileEntries,
+          request.kind === "directory"
+            ? directory(request.relativePath)
+            : file(request.relativePath),
+        ];
+      } else if (request.operation === "rename") {
+        const slash = request.relativePath.lastIndexOf("/");
+        const nextPath =
+          slash < 0
+            ? request.newName
+            : `${request.relativePath.slice(0, slash)}/${request.newName}`;
+        if (exists(nextPath)) {
+          return { status: "refused" as const, reason: "That name already exists." };
+        }
+        fileEntries = fileEntries.map((entry) => {
+          if (
+            entry.relativePath !== request.relativePath &&
+            !entry.relativePath.startsWith(`${request.relativePath}/`)
+          ) {
+            return entry;
+          }
+          const relativePath = `${nextPath}${entry.relativePath.slice(request.relativePath.length)}`;
+          const childSlash = relativePath.lastIndexOf("/");
+          return {
+            ...entry,
+            relativePath,
+            parentPath: childSlash < 0 ? null : relativePath.slice(0, childSlash),
+            name: relativePath.slice(childSlash + 1),
+          };
+        });
+      } else {
+        fileEntries = fileEntries.filter(
+          ({ relativePath }) =>
+            relativePath !== request.relativePath &&
+            !relativePath.startsWith(`${request.relativePath}/`),
+        );
+      }
+      fileTreeRevision += 1;
+      publishFileTreeChange(request);
+      return { status: "committed" as const };
+    },
     watch: (scope, listener) => {
       const key = fileTreeScopeKey(scope);
       const listeners = fileTreeWatchers.get(key) ?? new Set();
