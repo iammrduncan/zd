@@ -11,13 +11,13 @@ import {
   type ThreadInstrumentationEvent,
 } from "@/threads";
 import { createWorkbenchChangesRuntime, mountCurrentFileWithChanges } from "./changes";
-import { mountDiagnosticSettings } from "./diagnostics";
 import { createWorkbenchFilesRuntime } from "./files";
 import { createWorkbenchAttentionRuntime } from "./notifications";
 import { createProjectWorkbenchAdapter } from "./projects";
 import type { Unmount, WorkbenchMount, WorkbenchRuntimeContext } from "./runtime";
 import { mountWorkbenchShell } from "./shell";
 import { registerCommandTarget } from "./shortcuts";
+import { mountWorkbenchSettings } from "./settings";
 import { createRootThreadsAdapter, type RootThreadsAdapter } from "./threads";
 
 function recordThreadAction(
@@ -59,14 +59,15 @@ function threadsNavigationMount(
           })),
         }),
     });
-    const stopDiagnostics = mountDiagnosticSettings(
+    const stopSettings = mountWorkbenchSettings(
       host,
+      host.closest<HTMLElement>(".zd-workbench") ?? host,
       context.instrumentation,
       context.platform.revealDiagnostics,
       attention,
     );
     return () => {
-      stopDiagnostics();
+      stopSettings();
       stopProjects();
     };
   };

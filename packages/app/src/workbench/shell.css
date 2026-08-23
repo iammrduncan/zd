@@ -10,6 +10,7 @@
   --workbench-threads-divider: var(--hairline);
   --workbench-files-divider: var(--hairline);
 
+  position: relative;
   display: grid;
   grid-template-columns:
     var(--workbench-threads-column) var(--workbench-threads-divider) minmax(0, 1fr)

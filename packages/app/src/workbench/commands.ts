@@ -141,6 +141,13 @@ export function attachWorkbenchCommands(
       available: () => commandTargetAvailable("files.filter"),
       run: () => runCommandTarget("files.filter"),
     }),
+    register({
+      id: "settings.open",
+      chord: { key: ",", mod: true },
+      description: "Open Settings",
+      available: () => commandTargetAvailable("settings.open"),
+      run: () => runCommandTarget("settings.open"),
+    }),
   );
 
   for (let projectIndex = 0; projectIndex < 9; projectIndex += 1) {

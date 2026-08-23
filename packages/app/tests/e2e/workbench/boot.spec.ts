@@ -58,14 +58,22 @@ test("loads the bundled iA Writer faces", async ({ page }) => {
   expect(families).toContain("iA Writer Mono/400/normal");
 });
 
-test("keeps Attention settings visible and optional without a desktop shell", async ({ page }) => {
+test("keeps Settings transient and optional without a desktop shell", async ({ page }) => {
   await page.goto("/");
-  const settings = page.locator("[data-diagnostic-settings]");
-  await settings.locator("summary").click();
+  const threads = page.locator('[data-region="threads"]');
+  await expect(threads.locator("[data-diagnostic-settings]")).toHaveCount(0);
 
+  await threads.getByRole("button", { name: "Open Settings" }).click();
+  const sheet = page.locator("[data-workbench-settings]");
+  const settings = sheet.locator("[data-diagnostic-settings]");
+
+  await expect(sheet).toBeVisible();
   await expect(settings.locator("[data-attention-settings]")).toBeVisible();
   await expect(settings.locator("[data-attention-status]")).toContainText("unavailable");
   await expect(settings.locator("[data-notifications-toggle]")).toBeDisabled();
   await expect(settings.locator("[data-sound-toggle]")).not.toBeChecked();
   await expect(settings.locator("[data-sound-volume]")).toHaveValue("50");
+
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
 });
