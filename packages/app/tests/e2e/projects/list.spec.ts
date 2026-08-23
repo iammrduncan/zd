@@ -22,59 +22,59 @@ async function mountFixture(page: Page, projectCount = 3): Promise<void> {
       (next: import("../../../src/projects").ProjectWorkbenchSnapshot) => void
     >();
     const projects: import("../../../src/projects").ProjectListItem[] = [
-        {
-          id: "alpha",
-          name: "Alpha",
-          root: "/work/alpha",
-          order: 0,
-          availability: "available",
-          worktrees: [
-            {
-              id: "alpha-root",
-              name: "main",
-              root: "/work/alpha",
-              availability: "available",
-            },
-          ],
-          recovery: null,
-        },
-        {
-          id: "beta",
-          name: "Beta",
-          root: "/work/beta-old",
-          order: 1,
-          availability: "missing",
-          worktrees: [
-            {
-              id: "beta-root",
-              name: "main",
-              root: "/work/beta-old",
-              availability: "missing",
-            },
-          ],
-          recovery: {
-            kind: "moved",
-            summary: "Folder moved since it was approved.",
-            actionLabel: "Locate folder",
+      {
+        id: "alpha",
+        name: "Alpha",
+        root: "/work/alpha",
+        order: 0,
+        availability: "available",
+        worktrees: [
+          {
+            id: "alpha-root",
+            name: "main",
+            root: "/work/alpha",
+            availability: "available",
           },
+        ],
+        recovery: null,
+      },
+      {
+        id: "beta",
+        name: "Beta",
+        root: "/work/beta-old",
+        order: 1,
+        availability: "missing",
+        worktrees: [
+          {
+            id: "beta-root",
+            name: "main",
+            root: "/work/beta-old",
+            availability: "missing",
+          },
+        ],
+        recovery: {
+          kind: "moved",
+          summary: "Folder moved since it was approved.",
+          actionLabel: "Locate folder",
         },
-        {
-          id: "gamma",
-          name: "Gamma",
-          root: "/work/gamma",
-          order: 2,
-          availability: "available",
-          worktrees: [
-            {
-              id: "gamma-root",
-              name: "main",
-              root: "/work/gamma",
-              availability: "available",
-            },
-          ],
-          recovery: null,
-        },
-      ];
+      },
+      {
+        id: "gamma",
+        name: "Gamma",
+        root: "/work/gamma",
+        order: 2,
+        availability: "available",
+        worktrees: [
+          {
+            id: "gamma-root",
+            name: "main",
+            root: "/work/gamma",
+            availability: "available",
+          },
+        ],
+        recovery: null,
+      },
+    ];
     let snapshot: import("../../../src/projects").ProjectWorkbenchSnapshot = {
       projects: projects.slice(0, count),
       active: {
