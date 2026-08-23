@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { sameColour } from "../colour";
+
 declare global {
   interface Window {
     projectFixture: {
@@ -207,6 +209,21 @@ test("renders a compact accessible hierarchy with a selected project", async ({ 
   expect(metrics.height).toBeLessThanOrEqual(24);
   expect(metrics.family).toContain("iA Writer Mono");
   expect(metrics.background).not.toBe("rgba(0, 0, 0, 0)");
+
+  const resting = await page
+    .locator(
+      '[data-project-id="beta"] .zd-project-heading, [data-project-id="gamma"] .zd-project-heading',
+    )
+    .evaluateAll((headings) =>
+      headings.map((heading) => getComputedStyle(heading).backgroundColor),
+    );
+  expect(resting).toHaveLength(2);
+  for (const background of resting) {
+    expect(background, "an open project header has no resting band").not.toBe("rgba(0, 0, 0, 0)");
+    expect(sameColour(background, metrics.background), "inactive and active projects merge").toBe(
+      false,
+    );
+  }
 });
 
 test("ordinary, modified-pointer, and keyboard activation share one transition", async ({
