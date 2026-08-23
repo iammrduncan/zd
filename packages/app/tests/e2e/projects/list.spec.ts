@@ -10,9 +10,9 @@ declare global {
   }
 }
 
-async function mountFixture(page: Page): Promise<void> {
+async function mountFixture(page: Page, projectCount = 3): Promise<void> {
   await page.goto("/");
-  await page.evaluate(async () => {
+  await page.evaluate(async (count) => {
     const modulePath = "/src/projects/index.ts";
     const { ProjectsController, mountProjectList } = (await import(
       /* @vite-ignore */ modulePath
@@ -21,8 +21,7 @@ async function mountFixture(page: Page): Promise<void> {
     const listeners = new Set<
       (next: import("../../../src/projects").ProjectWorkbenchSnapshot) => void
     >();
-    let snapshot: import("../../../src/projects").ProjectWorkbenchSnapshot = {
-      projects: [
+    const projects: import("../../../src/projects").ProjectListItem[] = [
         {
           id: "alpha",
           name: "Alpha",
@@ -75,7 +74,9 @@ async function mountFixture(page: Page): Promise<void> {
           ],
           recovery: null,
         },
-      ],
+      ];
+    let snapshot: import("../../../src/projects").ProjectWorkbenchSnapshot = {
+      projects: projects.slice(0, count),
       active: {
         projectId: "alpha",
         projectRoot: "/work/alpha",
@@ -165,6 +166,7 @@ async function mountFixture(page: Page): Promise<void> {
     const host = document.createElement("aside");
     host.id = "project-fixture";
     host.style.width = "236px";
+    host.style.height = "720px";
     document.body.replaceChildren(host);
     mountProjectList(host, new ProjectsController(adapter), {
       renderChildren: (project, childHost, actionHost) => {
@@ -180,8 +182,26 @@ async function mountFixture(page: Page): Promise<void> {
       },
     });
     window.projectFixture = { calls };
-  });
+  }, projectCount);
 }
+
+test("a lone project keeps its selection band compact", async ({ page }) => {
+  await mountFixture(page, 1);
+
+  const geometry = await page.locator('[data-project-id="alpha"]').evaluate((group) => {
+    const heading = group.querySelector<HTMLElement>(".zd-project-heading")!;
+    const children = group.querySelector<HTMLElement>(".zd-project-children")!;
+    return {
+      groupHeight: group.getBoundingClientRect().height,
+      headingHeight: heading.getBoundingClientRect().height,
+      childrenHeight: children.getBoundingClientRect().height,
+    };
+  });
+
+  expect(geometry.headingHeight, JSON.stringify(geometry)).toBeLessThanOrEqual(24);
+  expect(geometry.childrenHeight, JSON.stringify(geometry)).toBeLessThanOrEqual(24);
+  expect(geometry.groupHeight, JSON.stringify(geometry)).toBeLessThanOrEqual(48);
+});
 
 test("renders a compact accessible hierarchy with a selected project", async ({ page }) => {
   await mountFixture(page);
