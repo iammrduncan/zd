@@ -32,6 +32,14 @@ import {
 
 const MAX_THREAD_NAME_LENGTH = 160;
 
+function pathIsWithin(candidate: string, root: string): boolean {
+  return candidate === root || candidate.startsWith(`${root}/`);
+}
+
+function movedPath(candidate: string, from: string, to: string): string {
+  return candidate === from ? to : `${to}${candidate.slice(from.length)}`;
+}
+
 function threadNameProblem(name: string): string | null {
   const trimmed = name.trim();
   if (trimmed.length === 0 || trimmed.length > MAX_THREAD_NAME_LENGTH) {
@@ -370,6 +378,86 @@ export class WorkbenchStateOwner {
 
   activateFile(resource: FileResource): Promise<TransitionResult> {
     return this.activateContext({ kind: "file", resource });
+  }
+
+  /** Reconcile open-file identities after one already-committed native rename. */
+  renameFilePath(resource: FileResource, nextPath: string): void {
+    const replacements = new Map<string, OpenFileState>();
+    for (const file of this.#state.openFiles) {
+      if (
+        file.projectId !== resource.projectId ||
+        file.worktreeId !== resource.worktreeId ||
+        !pathIsWithin(file.relativePath, resource.relativePath)
+      ) {
+        continue;
+      }
+      const relativePath = movedPath(file.relativePath, resource.relativePath, nextPath);
+      const movedResource = { ...resource, relativePath };
+      replacements.set(file.id, {
+        ...movedResource,
+        id: fileStateId(movedResource),
+        bufferId: bufferStateId(movedResource),
+      });
+    }
+    if (replacements.size === 0) return;
+    const fileId = (id: string | null): string | null =>
+      id === null ? null : (replacements.get(id)?.id ?? id);
+    const openFiles = this.#state.openFiles.map((file) => replacements.get(file.id) ?? file);
+    const threads = this.#state.threads.map((thread) => ({
+      ...thread,
+      fileId: fileId(thread.fileId),
+    }));
+    const active = { ...this.#state.active, fileId: fileId(this.#state.active.fileId) };
+    for (const [projectId, context] of this.#projectContexts) {
+      this.#projectContexts.set(projectId, { ...context, fileId: fileId(context.fileId) });
+    }
+    this.#publish({ ...this.#state, openFiles, threads, active });
+  }
+
+  /** Reconcile open-file identities after one already-committed move to system Trash. */
+  removeFilePath(resource: FileResource): void {
+    const removedIds = new Set(
+      this.#state.openFiles
+        .filter(
+          (file) =>
+            file.projectId === resource.projectId &&
+            file.worktreeId === resource.worktreeId &&
+            pathIsWithin(file.relativePath, resource.relativePath),
+        )
+        .map(({ id }) => id),
+    );
+    if (removedIds.size === 0) return;
+    const openFiles = this.#state.openFiles.filter(({ id }) => !removedIds.has(id));
+    const threads = this.#state.threads.map((thread) => ({
+      ...thread,
+      fileId: thread.fileId && removedIds.has(thread.fileId) ? null : thread.fileId,
+    }));
+    const activeFileRemoved =
+      this.#state.active.fileId !== null && removedIds.has(this.#state.active.fileId);
+    const fallback = activeFileRemoved
+      ? openFiles.find(
+          (file) =>
+            file.projectId === resource.projectId && file.worktreeId === resource.worktreeId,
+        )
+      : null;
+    const active = {
+      ...this.#state.active,
+      fileId: activeFileRemoved ? (fallback?.id ?? null) : this.#state.active.fileId,
+    };
+    const regions = activeFileRemoved
+      ? stateWithFocus(
+          { ...this.#state, openFiles, threads, active },
+          fallback ? "file" : active.threadId ? "thread" : "files",
+        ).regions
+      : this.#state.regions;
+    for (const [projectId, context] of this.#projectContexts) {
+      const rememberedRemoved = context.fileId !== null && removedIds.has(context.fileId);
+      this.#projectContexts.set(projectId, {
+        ...context,
+        fileId: rememberedRemoved ? null : context.fileId,
+      });
+    }
+    this.#publish({ ...this.#state, openFiles, threads, active, regions });
   }
 
   async #activateFile(resource: FileResource): Promise<TransitionResult> {

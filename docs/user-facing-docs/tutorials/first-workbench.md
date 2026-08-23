@@ -49,6 +49,10 @@ Relative Path** for a path from the worktree root, such as `notes.md`, or **Copy
 absolute path on your computer. You can open the same menu from the keyboard with `Shift+F10` or the
 Context Menu key.
 
+The same menu opens files, creates children in a folder, renames files or folders, and moves them to
+your operating system's Trash or Recycle Bin after confirmation. Right-click empty tree space to
+create at the worktree root. Save or discard an unsaved draft before moving its path to Trash.
+
 ## 4. Inspect the change
 
 Choose **Changes** on the right. Select `notes.md` in the working-tree list to open its read-only

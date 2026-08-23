@@ -25,6 +25,14 @@ function storageKey(resource: FileResource): string {
   return `${DRAFT_KEY_PREFIX}${encodeURIComponent(identity(resource))}`;
 }
 
+function pathIsWithin(candidate: string, root: string): boolean {
+  return candidate === root || candidate.startsWith(`${root}/`);
+}
+
+function movedPath(candidate: string, from: string, to: string): string {
+  return candidate === from ? to : `${to}${candidate.slice(from.length)}`;
+}
+
 function validDraft(value: unknown): value is FileDraft {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
@@ -85,6 +93,32 @@ export class FileDraftStore {
     this.#pending.set(storageKey(resource), null);
     this.#queueFlush();
     this.#publish();
+  }
+
+  hasPath(resource: FileResource): boolean {
+    return [...this.#drafts.values()].some(
+      (draft) =>
+        draft.projectId === resource.projectId &&
+        draft.worktreeId === resource.worktreeId &&
+        pathIsWithin(draft.relativePath, resource.relativePath),
+    );
+  }
+
+  movePath(resource: FileResource, nextPath: string): void {
+    const moving = [...this.#drafts.values()].filter(
+      (draft) =>
+        draft.projectId === resource.projectId &&
+        draft.worktreeId === resource.worktreeId &&
+        pathIsWithin(draft.relativePath, resource.relativePath),
+    );
+    if (moving.length === 0) return;
+    for (const draft of moving) {
+      this.clear(draft);
+      this.save(
+        { ...draft, relativePath: movedPath(draft.relativePath, resource.relativePath, nextPath) },
+        draft.text,
+      );
+    }
   }
 
   dirtyPaths(scope: FileDraftScope): ReadonlySet<string> {

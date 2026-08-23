@@ -7,7 +7,6 @@ export async function copyFilePath(
   entry: FileTreeEntry,
   presentation: FilePathPresentation,
 ): Promise<string | null> {
-  if (entry.kind === "directory") return null;
   if (!actions.copyPath) return "Path copying is unavailable.";
   try {
     await actions.copyPath({ ...scope, relativePath: entry.relativePath }, presentation);

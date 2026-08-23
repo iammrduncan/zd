@@ -424,11 +424,20 @@ name, path, or supported category and states result count quietly. Its visible c
 `Escape` both dismiss the row and restore the existing expansion, selection, scroll, and tree focus.
 It is not workspace content search.
 
-A file's context menu offers `Copy Relative Path` and `Copy Full Path`. The relative form preserves
-the project-relative slash path. The full form joins that identity to the active native-approved
-worktree root without making absolute paths part of ordinary file commands. Both actions report
-clipboard failure in the Files region, and `Shift+F10` / the platform Context Menu key reaches the
-same menu as a secondary click.
+Secondary-clicking a file or directory replaces the system webview menu with the same scoped file
+menu reached by `Shift+F10` or the platform Context Menu key. Files offer Open, Rename, both path
+copies, and Move to Trash. Directories add New File and New Folder; secondary-clicking empty tree
+space offers those root-level creation actions. Name capture and destructive confirmation remain
+inside the tree surface, keep exact project-relative context visible, and report validation,
+collision, permission, and clipboard failures in place.
+
+`Copy Relative Path` preserves the project-relative slash path. `Copy Full Path` joins that identity
+to the active native-approved worktree root without making absolute paths part of ordinary file
+commands. Create, rename, and Trash requests also carry only approved project/worktree identities
+and validated relative paths. Trash means the operating system's recoverable Trash/Recycle Bin;
+repository metadata and symbolic links are protected, and a dirty draft must be saved or discarded
+before its path can move to Trash. Successful directory renames reconcile open-file and draft
+identities for every descendant before the refreshed tree is published.
 
 Loading, empty, denied, missing, non-directory, watcher failure, and non-repository conditions are
 honest text rows. Updates never collapse unrelated directories or move the active file.

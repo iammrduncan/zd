@@ -5,6 +5,7 @@ import type {
   FilePathPresentation,
   FileTreeActions,
   FileTreeAdapter,
+  FileTreeCreationKind,
   FileTreeEntry,
   FileTreeLoadState,
   FileTreeMetricsSink,
@@ -16,6 +17,20 @@ import type {
   NativeFileTreeEntry,
   VisibleFileTreeRow,
 } from "./types";
+
+function fileNameProblem(name: string): string | null {
+  if (name.length === 0) return "Enter a name.";
+  if (name === "." || name === "..") return "That name is reserved.";
+  if (/[\\/]/u.test(name)) return "Enter one file or folder name, without a path.";
+  if ([...name].some((character) => character.codePointAt(0)! <= 31)) {
+    return "Names cannot contain control characters.";
+  }
+  return null;
+}
+
+function childPath(parentPath: string | null, name: string): string {
+  return parentPath ? `${parentPath}/${name}` : name;
+}
 
 interface FilterRestore {
   readonly selectedPath: string | null;
@@ -336,6 +351,111 @@ export class FileTreeController {
     if (!notice || this.#current !== memory) return;
     memory.notice = notice;
     this.#publish();
+  }
+
+  async createEntry(
+    parentPath: string | null,
+    name: string,
+    kind: FileTreeCreationKind,
+  ): Promise<boolean> {
+    const memory = this.#current;
+    if (!memory) return false;
+    const problem = fileNameProblem(name);
+    const parent = parentPath
+      ? memory.entries.find((entry) => entry.relativePath === parentPath)
+      : null;
+    if (problem || (parentPath !== null && parent?.kind !== "directory")) {
+      memory.notice = problem ?? "The destination folder is unavailable.";
+      this.#publish();
+      return false;
+    }
+    if (!this.actions.createEntry) {
+      memory.notice = "Creating files and folders is unavailable.";
+      this.#publish();
+      return false;
+    }
+    const relativePath = childPath(parentPath, name);
+    try {
+      await this.actions.createEntry({ ...memory.scope, relativePath }, kind);
+      if (this.#current !== memory) return false;
+      if (parentPath) memory.expandedPaths.add(parentPath);
+      memory.selectedPath = relativePath;
+      memory.notice = `Created ${relativePath}.`;
+      this.#publish();
+      return true;
+    } catch (cause) {
+      if (this.#current !== memory) return false;
+      memory.notice = cause instanceof Error ? cause.message : `Could not create ${relativePath}.`;
+      this.#publish();
+      return false;
+    }
+  }
+
+  async renameEntry(path: string, newName: string): Promise<boolean> {
+    const memory = this.#current;
+    const entry = memory?.entries.find((candidate) => candidate.relativePath === path);
+    if (!memory || !entry) return false;
+    const problem = fileNameProblem(newName);
+    if (problem || entry.kind === "symlink" || path === ".git" || path.startsWith(".git/")) {
+      memory.notice =
+        problem ??
+        (entry.kind === "symlink"
+          ? "Symbolic links cannot be renamed here."
+          : "Repository metadata is protected.");
+      this.#publish();
+      return false;
+    }
+    if (!this.actions.renameEntry) {
+      memory.notice = "Renaming files and folders is unavailable.";
+      this.#publish();
+      return false;
+    }
+    try {
+      await this.actions.renameEntry({ ...memory.scope, relativePath: path }, newName);
+      if (this.#current !== memory) return false;
+      const nextPath = childPath(entry.parentPath, newName);
+      memory.selectedPath = nextPath;
+      memory.notice = `Renamed ${path} to ${nextPath}.`;
+      this.#publish();
+      return true;
+    } catch (cause) {
+      if (this.#current !== memory) return false;
+      memory.notice = cause instanceof Error ? cause.message : `Could not rename ${path}.`;
+      this.#publish();
+      return false;
+    }
+  }
+
+  async trashEntry(path: string): Promise<boolean> {
+    const memory = this.#current;
+    const entry = memory?.entries.find((candidate) => candidate.relativePath === path);
+    if (!memory || !entry) return false;
+    if (entry.kind === "symlink" || path === ".git" || path.startsWith(".git/")) {
+      memory.notice =
+        entry.kind === "symlink"
+          ? "Symbolic links cannot be moved to Trash here."
+          : "Repository metadata is protected.";
+      this.#publish();
+      return false;
+    }
+    if (!this.actions.trashEntry) {
+      memory.notice = "Moving files and folders to Trash is unavailable.";
+      this.#publish();
+      return false;
+    }
+    try {
+      await this.actions.trashEntry({ ...memory.scope, relativePath: path });
+      if (this.#current !== memory) return false;
+      memory.selectedPath = entry.parentPath;
+      memory.notice = `Moved ${path} to Trash.`;
+      this.#publish();
+      return true;
+    } catch (cause) {
+      if (this.#current !== memory) return false;
+      memory.notice = cause instanceof Error ? cause.message : `Could not move ${path} to Trash.`;
+      this.#publish();
+      return false;
+    }
   }
 
   summonFilter(): void {

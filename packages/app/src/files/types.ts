@@ -8,6 +8,7 @@ export interface FileTreeScope {
 
 export type FileTreeEntryKind = "directory" | "file" | "symlink";
 export type FilePathPresentation = "relative" | "full";
+export type FileTreeCreationKind = "file" | "directory";
 
 export type FileCategory =
   "directory" | "markdown" | "code" | "config" | "data" | "image" | "text" | "binary" | "unknown";
@@ -74,7 +75,24 @@ export type FileTreeWatchEvent =
 export interface FileTreeAdapter {
   snapshot(request: FileTreeRequest): Promise<FileTreeResult>;
   watch(scope: FileTreeScope, listener: (event: FileTreeWatchEvent) => void): () => void;
+  mutate?(request: FileTreeMutationRequest): Promise<FileTreeMutationResult>;
 }
+
+export type FileTreeMutationRequest =
+  | (FileTreeScope & {
+      readonly operation: "create";
+      readonly relativePath: string;
+      readonly kind: FileTreeCreationKind;
+    })
+  | (FileTreeScope & {
+      readonly operation: "rename";
+      readonly relativePath: string;
+      readonly newName: string;
+    })
+  | (FileTreeScope & { readonly operation: "trash"; readonly relativePath: string });
+
+export type FileTreeMutationResult =
+  { readonly status: "committed" } | { readonly status: "refused"; readonly reason: string };
 
 /** Honest inert adapter for browser fixtures and surfaces without native file authority. */
 export const unavailableFileTreeAdapter: FileTreeAdapter = {
@@ -98,12 +116,19 @@ export const unavailableFileTreeAdapter: FileTreeAdapter = {
       active = false;
     };
   },
+  mutate: async () => ({
+    status: "refused",
+    reason: "file operations require the desktop shell",
+  }),
 };
 
 /** Root-owned context transition. The Files feature never sets active file state itself. */
 export interface FileTreeActions {
   activateFile(resource: FileResource): Promise<TransitionResult>;
   copyPath?(resource: FileResource, presentation: FilePathPresentation): Promise<void>;
+  createEntry?(resource: FileResource, kind: FileTreeCreationKind): Promise<void>;
+  renameEntry?(resource: FileResource, newName: string): Promise<void>;
+  trashEntry?(resource: FileResource): Promise<void>;
 }
 
 export type FileTreeRefreshReason = "activate" | "disk" | "focus" | "manual";

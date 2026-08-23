@@ -215,7 +215,8 @@
   font-weight: var(--type-h6-weight);
 }
 
-.zd-file-tree-menu {
+.zd-file-tree-menu,
+.zd-file-tree-operation {
   position: fixed;
   z-index: 2;
   display: grid;
@@ -223,6 +224,66 @@
   padding-block: var(--space-1);
   border: var(--hairline) solid var(--line-quiet);
   background: var(--surface-transient);
+}
+
+.zd-file-tree-operation {
+  gap: var(--space-2);
+  min-inline-size: calc(var(--space-4) * 10);
+  max-inline-size: min(360px, calc(100vw - var(--space-4)));
+  padding: var(--space-2);
+}
+
+.zd-file-tree-operation label {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--text-primary);
+}
+
+.zd-file-tree-operation input {
+  min-inline-size: 0;
+  border: 0;
+  border-block-end: var(--hairline) solid var(--line-focus);
+  border-radius: 0;
+  outline: 0;
+  padding: var(--space-1) 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.zd-file-tree-operation p,
+.zd-file-tree-operation-problem {
+  margin: 0;
+}
+
+.zd-file-tree-operation-problem {
+  min-block-size: 1em;
+  color: var(--state-error);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+}
+
+.zd-file-tree-operation-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.zd-file-tree-operation-controls button {
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-1);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+}
+
+.zd-file-tree-operation-controls button:is(:hover, :focus-visible) {
+  outline: 0;
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--line-focus);
+  text-underline-offset: var(--space-1);
 }
 
 .zd-file-tree-menu-action {
