@@ -309,6 +309,10 @@ Side by side shows the active thread on the left of the centre and selected file
 quiet divider separates them. The default split is 42/58 and is resizable. Each side preserves its
 own focus and semantic viewport anchor.
 
+`Cmd+J` / `Ctrl+J` switches centre focus between the current thread and selected file. It uses the
+complete context restored for the active project, so switching projects does not discard either
+surface.
+
 Side by side is available only when both centre surfaces can retain a useful minimum. When the
 window becomes too narrow, presentation temporarily falls back to overlap without changing the
 persisted preference. Widening restores the split.

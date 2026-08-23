@@ -10,7 +10,7 @@ the current context.
 | Toggle Focus Mode | `Cmd+Shift+F` | `Ctrl+Shift+F` |
 | Filter the active file tree | `Cmd+P` | `Ctrl+P` |
 | Activate project 1 through 9 | `Cmd+1` … `Cmd+9` | `Ctrl+1` … `Ctrl+9` |
-| Focus the active terminal thread | `Cmd+J` | `Ctrl+J` |
+| Switch between the current thread and file | `Cmd+J` | `Ctrl+J` |
 | Summon or hide the workbench globally | `Cmd+Shift+Space` | `Ctrl+Shift+Space` |
 | Save the current file | `Cmd+S` | `Ctrl+S` |
 | Show literal Markdown source | `Cmd+E` | `Ctrl+E` |

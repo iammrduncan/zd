@@ -24,11 +24,13 @@ function updateRegionFocus(
   context.state.updateRegions({ ...context.state.snapshot().regions, focus });
 }
 
-function regionForFocus(element: HTMLElement): WorkbenchRegions["focus"] | null {
-  if (element.closest('[data-centre-surface="thread"]')) return "thread";
-  if (element.closest('[data-centre-surface="file"]')) return "file";
-  if (element.closest('[data-region="threads"]')) return "threads";
-  if (element.closest('[data-region="files"]')) return "files";
+function centreToggleTarget(context: WorkbenchRuntimeContext): "thread" | "file" | null {
+  const state = context.state.snapshot();
+  const threadOwnsCentre = state.regions.focus === "thread" || state.regions.focus === "threads";
+  if (threadOwnsCentre && state.active.fileId !== null) return "file";
+  if (!threadOwnsCentre && state.active.threadId !== null) return "thread";
+  if (state.active.threadId !== null) return "thread";
+  if (state.active.fileId !== null) return "file";
   return null;
 }
 
@@ -45,33 +47,6 @@ export function attachWorkbenchCommands(
     shortcut: "CmdOrCtrl+Shift+Space",
     problem: null as string | null,
   };
-  let previousThreadFocus: HTMLElement | null = null;
-
-  cleanups.push(
-    registerCommandTarget({
-      id: "thread.restore-focus",
-      commandId: "workbench.escape",
-      priority: 80,
-      available: () => {
-        const thread = host.querySelector<HTMLElement>('[data-centre-surface="thread"]');
-        return Boolean(
-          previousThreadFocus?.isConnected &&
-          thread &&
-          (document.activeElement === thread || thread.contains(document.activeElement)),
-        );
-      },
-      run: () => {
-        const target = previousThreadFocus;
-        previousThreadFocus = null;
-        if (!target?.isConnected) return false;
-        target.focus({ preventScroll: true });
-        const region = regionForFocus(target);
-        if (region) updateRegionFocus(context, region);
-        return true;
-      },
-    }),
-  );
-
   cleanups.push(
     registerCommandObserver((commandId) => {
       void context.instrumentation.record({
@@ -170,24 +145,16 @@ export function attachWorkbenchCommands(
 
   cleanups.push(
     register({
-      id: "thread.focus",
+      id: "centre.toggle",
       chord: { key: "j", mod: true },
-      description: "Focus the active terminal thread",
-      available: () => context.state.snapshot().active.threadId !== null,
+      description: "Switch between the current thread and file",
+      available: () => centreToggleTarget(context) !== null,
       run: () => {
-        if (context.state.snapshot().active.threadId === null) return false;
-        const target = host.querySelector<HTMLElement>('[data-centre-surface="thread"]');
+        const region = centreToggleTarget(context);
+        if (!region) return false;
+        const target = host.querySelector<HTMLElement>(`[data-centre-surface="${region}"]`);
         if (!target) return false;
-        const active = document.activeElement;
-        if (
-          active instanceof HTMLElement &&
-          active !== target &&
-          !target.contains(active) &&
-          active.isConnected
-        ) {
-          previousThreadFocus = active;
-        }
-        updateRegionFocus(context, "thread");
+        updateRegionFocus(context, region);
         target.focus({ preventScroll: true });
         return true;
       },
@@ -228,7 +195,6 @@ export function attachWorkbenchCommands(
     detach: () => {
       if (!attached) return;
       attached = false;
-      previousThreadFocus = null;
       for (const cleanup of [...cleanups].reverse()) cleanup();
     },
   };

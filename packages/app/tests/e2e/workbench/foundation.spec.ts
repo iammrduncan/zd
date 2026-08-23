@@ -58,6 +58,57 @@ test("a file-tree selection takes the overlap centre back from an active thread"
   expect(pageErrors).toEqual([]);
 });
 
+test("Cmd+J restores and toggles the current thread and file after a project round trip", async ({
+  page,
+}) => {
+  const primary = await page.evaluate(() =>
+    /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",
+  );
+  const zd = page.locator('[data-project-id="project-zd"]');
+  const notes = page.locator('[data-project-id="project-notes"]');
+  const threadSurface = page.locator('[data-centre-surface="thread"]');
+  const fileSurface = page.locator('[data-centre-surface="file"]');
+
+  await zd.locator(".zd-project-heading").hover();
+  await page.getByRole("button", { name: "New terminal in zd" }).click();
+  await expect(threadSurface).toBeVisible();
+  await expect(fileSurface).toBeHidden();
+
+  await notes.locator(".zd-project-row").click();
+  await expect(notes.locator(".zd-project-row")).toHaveAttribute("aria-current", "true");
+  await zd.locator(".zd-project-row").click();
+  await expect(zd.locator(".zd-project-row")).toHaveAttribute("aria-current", "true");
+  await expect(threadSurface).toBeVisible();
+  await expect(fileSurface).toBeHidden();
+
+  await page.keyboard.press(`${primary}+j`);
+  await expect(fileSurface).toBeVisible();
+  await expect(threadSurface).toBeHidden();
+  await expect(fileSurface.locator(".cm-content")).toContainText("bootWorkbench(host, platform)");
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document.activeElement
+          ?.closest('[data-centre-surface="file"]')
+          ?.getAttribute("data-centre-surface"),
+      ),
+    )
+    .toBe("file");
+
+  await page.keyboard.press(`${primary}+j`);
+  await expect(threadSurface).toBeVisible();
+  await expect(fileSurface).toBeHidden();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document.activeElement
+          ?.closest('[data-centre-surface="thread"]')
+          ?.getAttribute("data-centre-surface"),
+      ),
+    )
+    .toBe("thread");
+});
+
 test("a new disk file appears in the expanded tree without refocusing", async ({ page }) => {
   await page.locator('[data-file-path="docs"]').click();
   await page.locator('[data-file-path="docs/screenshots"]').click();
