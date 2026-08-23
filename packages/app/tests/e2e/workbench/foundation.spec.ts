@@ -78,6 +78,32 @@ test("the active project header remains visually distinct from its active thread
   expect(colours.project).not.toBe(colours.thread);
 });
 
+test("thread status and type icons align with the title without entering its labels", async ({
+  page,
+}) => {
+  const project = page.locator('[data-project-id="project-zd"]');
+  await project.locator(".zd-project-heading").hover();
+  await page.getByRole("button", { name: "New terminal in zd" }).click();
+
+  const geometry = await project.locator(".zd-thread-row").evaluate((row) => {
+    const icon = row.querySelector<HTMLElement>(".zd-thread-type-icon")!.getBoundingClientRect();
+    const name = row.querySelector<HTMLElement>(".zd-thread-name")!.getBoundingClientRect();
+    const type = row.querySelector<HTMLElement>(".zd-thread-type")!.getBoundingClientRect();
+    return {
+      iconRight: icon.right,
+      labelsLeft: name.left,
+      iconCentre: icon.top + icon.height / 2,
+      nameCentre: name.top + name.height / 2,
+      iconBottom: icon.bottom,
+      metadataTop: type.top,
+    };
+  });
+
+  expect(geometry.iconRight).toBeLessThanOrEqual(geometry.labelsLeft);
+  expect(Math.abs(geometry.iconCentre - geometry.nameCentre)).toBeLessThanOrEqual(4);
+  expect(geometry.iconBottom).toBeLessThanOrEqual(geometry.metadataTop);
+});
+
 test("Cmd+J restores and toggles the current thread and file after a project round trip", async ({
   page,
 }) => {
