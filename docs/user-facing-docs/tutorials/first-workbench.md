@@ -39,8 +39,9 @@ Choose `notes.md` under **Files**. The centre switches to the current file while
 available under its project. Add a second paragraph, then press `Cmd+S` on macOS or `Ctrl+S`
 elsewhere.
 
-Markdown remains directly editable. Code and configuration files use the same editor with a
-filename-derived language mode.
+Markdown remains directly editable, including cells inside rendered tables. Press `Cmd+E` or
+`Ctrl+E` when you need to edit the table delimiters or other literal Markdown source. Code and
+configuration files use the same editor with a filename-derived language mode.
 
 ## 4. Inspect the change
 

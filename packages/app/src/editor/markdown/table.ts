@@ -20,19 +20,101 @@ import { isRaw, rawModeChanged } from "./raw";
  * inline decoration from a plugin and stays there; this is the one construct that
  * cannot live beside it.
  *
- * Read-only for now. The caret cannot enter a rendered table, and editing cells in
- * place is its own task (§4.2, phase 4). Until then a table is something you read
- * here and edit by other means — which is the same trade links already make.
+ * Each rendered cell is a small plaintext editing boundary. Its input rewrites the
+ * corresponding `TableCell` range in the CodeMirror document, so the table remains
+ * readerly without becoming a second buffer that can drift from the Markdown.
  */
+
+interface EditableCell {
+  readonly from: number;
+  readonly to: number;
+  readonly source: string;
+}
+
+interface EditableTable {
+  readonly from: number;
+  readonly to: number;
+  readonly header: readonly EditableCell[];
+  readonly rows: readonly (readonly EditableCell[])[];
+  readonly source: string;
+}
+
+type MarkdownTree = ReturnType<typeof syntaxTree>;
+type MarkdownNode = ReturnType<MarkdownTree["resolve"]>;
+
+function trimmedCell(state: EditorState, from: number, to: number): EditableCell {
+  const source = state.doc.sliceString(from, to);
+  const leading = source.match(/^\s*/u)?.[0].length ?? 0;
+  const trailing = source.match(/\s*$/u)?.[0].length ?? 0;
+  const contentFrom = from + leading;
+  const contentTo = Math.max(contentFrom, to - trailing);
+  return {
+    from: contentFrom,
+    to: contentTo,
+    source: state.doc.sliceString(contentFrom, contentTo),
+  };
+}
+
+/** Read editable cell ranges from parser-owned delimiters, including empty cells. */
+function rowCells(state: EditorState, row: MarkdownNode): readonly EditableCell[] {
+  const delimiters = row
+    .getChildren("TableDelimiter")
+    .filter(
+      (delimiter) =>
+        delimiter.to - delimiter.from === 1 &&
+        state.doc.sliceString(delimiter.from, delimiter.to) === "|",
+    );
+  if (delimiters.length === 0) return [trimmedCell(state, row.from, row.to)];
+
+  const ranges: EditableCell[] = [];
+  let from = row.from;
+  for (const delimiter of delimiters) {
+    if (delimiter.from > from) ranges.push(trimmedCell(state, from, delimiter.from));
+    else if (delimiter.from > row.from) ranges.push(trimmedCell(state, from, from));
+    from = delimiter.to;
+  }
+  if (from < row.to) ranges.push(trimmedCell(state, from, row.to));
+  return ranges;
+}
+
+function tableModel(state: EditorState, table: MarkdownNode): EditableTable | null {
+  const header = table.getChild("TableHeader");
+  if (!header) return null;
+  const headerCells = rowCells(state, header);
+  if (headerCells.length === 0) return null;
+  const rows = table.getChildren("TableRow").map((row) => rowCells(state, row));
+  return {
+    from: table.from,
+    to: table.to,
+    header: headerCells,
+    rows,
+    source: state.doc.sliceString(table.from, table.to),
+  };
+}
+
+function tableModelAt(state: EditorState, from: number): EditableTable | null {
+  let found: EditableTable | null = null;
+  syntaxTree(state).iterate({
+    enter: (node) => {
+      if (node.name !== "Table" || node.from !== from) return;
+      found = tableModel(state, node.node);
+    },
+  });
+  return found;
+}
+
+function editableText(value: string): string {
+  return value.replace(/\r?\n/gu, " ").replace(/\|/gu, "\\|");
+}
+
+function cellAt(table: EditableTable, row: number, column: number): EditableCell | null {
+  const cells = row === 0 ? table.header : table.rows[row - 1];
+  return cells?.[column] ?? null;
+}
 
 /** A rendered `<table>` standing in for its source lines. */
 class TableWidget extends WidgetType {
-  constructor(
-    private readonly header: string[],
-    private readonly rows: string[][],
-    /** The source this was built from — the identity used to avoid rebuilding. */
-    private readonly source: string,
-  ) {
+  constructor(private readonly table: EditableTable) {
     super();
   }
 
@@ -43,10 +125,52 @@ class TableWidget extends WidgetType {
    * away the table on each keystroke elsewhere in the document.
    */
   eq(other: TableWidget): boolean {
-    return other.source === this.source;
+    return other.table.from === this.table.from && other.table.source === this.table.source;
   }
 
-  toDOM(): HTMLElement {
+  private renderCell(
+    element: HTMLTableCellElement,
+    cell: EditableCell,
+    view: EditorView,
+    row: number,
+    column: number,
+  ): void {
+    element.replaceChildren(renderInlineMarkdown(cell.source));
+    element.setAttribute("contenteditable", "plaintext-only");
+    element.setAttribute("aria-label", `Edit table cell, row ${row + 1}, column ${column + 1}`);
+    element.dataset.tableRow = String(row);
+    element.dataset.tableColumn = String(column);
+
+    element.addEventListener("input", () => {
+      const tableElement = element.closest<HTMLTableElement>("table[data-table-from]");
+      const from = Number(tableElement?.dataset.tableFrom);
+      if (!Number.isSafeInteger(from)) return;
+      const currentTable = tableModelAt(view.state, from);
+      const currentCell = currentTable ? cellAt(currentTable, row, column) : null;
+      if (!currentCell) return;
+      const insert = editableText(element.textContent ?? "");
+      if (insert === currentCell.source) return;
+      view.dispatch({
+        changes: { from: currentCell.from, to: currentCell.to, insert },
+        userEvent: "input.type",
+      });
+    });
+    element.addEventListener("blur", () => {
+      const tableElement = element.closest<HTMLTableElement>("table[data-table-from]");
+      const from = Number(tableElement?.dataset.tableFrom);
+      if (!Number.isSafeInteger(from)) return;
+      const currentTable = tableModelAt(view.state, from);
+      const currentCell = currentTable ? cellAt(currentTable, row, column) : null;
+      if (currentCell) element.replaceChildren(renderInlineMarkdown(currentCell.source));
+    });
+    element.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      element.blur();
+    });
+  }
+
+  toDOM(view: EditorView): HTMLElement {
     const table = document.createElement("table");
     /*
      * Marks everything inside as rendered markdown, so md.css reaches it. The
@@ -56,18 +180,19 @@ class TableWidget extends WidgetType {
      * cells first rendered their markup.
      */
     table.classList.add("md-rendered");
+    table.dataset.tableFrom = String(this.table.from);
 
     const head = table.createTHead().insertRow();
-    for (const cell of this.header) {
+    this.table.header.forEach((cell, column) => {
       const th = document.createElement("th");
-      th.append(renderInlineMarkdown(cell));
+      this.renderCell(th, cell, view, 0, column);
       head.append(th);
-    }
+    });
 
     const body = table.createTBody();
-    for (const row of this.rows) {
+    this.table.rows.forEach((row, rowIndex) => {
       const tr = body.insertRow();
-      for (const cell of row) {
+      row.forEach((cell, column) => {
         /*
          * Rendered through the shared inline renderer, not assigned as text and
          * not assigned as HTML.
@@ -81,40 +206,33 @@ class TableWidget extends WidgetType {
          * renderers happening to agree.
          */
         const td = tr.insertCell();
-        td.append(renderInlineMarkdown(cell));
-      }
-    }
+        this.renderCell(td, cell, view, rowIndex + 1, column);
+      });
+    });
 
     return table;
   }
 
-  /**
-   * Let the editor ignore events inside the widget.
-   *
-   * True means "this is not editable content, do not try to map a position into
-   * it". Selecting the table's text still works; typing into it does not, which is
-   * the honest state until cell editing lands.
-   */
-  ignoreEvent(): boolean {
-    return false;
+  updateDOM(dom: HTMLElement): boolean {
+    if (!(dom instanceof HTMLTableElement)) return false;
+    const cells = [...dom.querySelectorAll<HTMLTableCellElement>("th, td")];
+    const nextCells = [this.table.header, ...this.table.rows].flat();
+    if (cells.length !== nextCells.length) return false;
+    dom.dataset.tableFrom = String(this.table.from);
+    cells.forEach((element, index) => {
+      if (element === document.activeElement) return;
+      element.replaceChildren(renderInlineMarkdown(nextCells[index]!.source));
+    });
+    return true;
   }
-}
 
-/** Split one `| a | b |` row into its cells. */
-function cells(line: string): string[] {
-  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
-  return trimmed.split("|").map((cell) => cell.trim());
-}
-
-/**
- * Is this the `| --- | :-- |` row?
- *
- * Pure notation — it carries the alignment and nothing a reader needs. Recognised
- * by shape rather than by asking the parser, because it is the one row whose
- * meaning is entirely structural.
- */
-function isDelimiter(line: string): boolean {
-  return /^\s*\|?[\s:-]*\|[\s:|-]*$/.test(line) && line.includes("-");
+  /**
+   * Cell DOM owns editing events; the rest of the widget still maps pointer intent
+   * to the table boundary for caret navigation and focus behavior.
+   */
+  ignoreEvent(event: Event): boolean {
+    return event.target instanceof Element && event.target.closest("[contenteditable]") !== null;
+  }
 }
 
 function tableDecorations(state: EditorState): DecorationSet {
@@ -129,19 +247,12 @@ function tableDecorations(state: EditorState): DecorationSet {
     enter: (node) => {
       if (node.name !== "Table") return;
 
-      const source = state.doc.sliceString(node.from, node.to);
-      const lines = source.split("\n").filter((line) => line.trim() !== "");
-      if (lines.length < 2) return;
-
-      const header = cells(lines[0]!);
-      const rows = lines
-        .slice(1)
-        .filter((line) => !isDelimiter(line))
-        .map(cells);
+      const table = tableModel(state, node.node);
+      if (!table) return;
 
       ranges.push(
         Decoration.replace({
-          widget: new TableWidget(header, rows, source),
+          widget: new TableWidget(table),
           // The whole point, and the reason this needs a StateField: the range
           // crosses line boundaries, so it replaces blocks rather than inline text.
           block: true,
@@ -182,12 +293,12 @@ const tables = StateField.define<DecorationSet>({
     /*
      * A rendered table is one thing to step past.
      *
-     * The widget has no cursor positions of its own, so without this the caret can
-     * be at an offset inside the pipes — which is why Up from below a table landed
-     * above it, "no matter how far below you are" (feedback, 2026-07-30). Cell
-     * editing will replace this with real positions inside the table; until then
-     * stepping over it is the honest behaviour, and raw mode is how the source is
-     * reached.
+     * The widget's editable cells own native DOM carets and map their input back to
+     * exact source ranges. CodeMirror still has no visual positions for the pipes
+     * between those cells, so without this its caret can sit at an invisible source
+     * offset — which is why Up from below a table landed above it, "no matter how
+     * far below you are" (feedback, 2026-07-30). Atomic source navigation and cell
+     * editing are complementary: one crosses the construct, the other edits it.
      *
      * **Still true, and no longer the whole story** (2026-07-30). One thing to step
      * past became one thing to step *over* entirely: measured, plain ArrowDown went
@@ -227,10 +338,10 @@ function tableAt(state: EditorState, pos: number): { from: number; to: number } 
  * never be read at full contrast while you walk the document — which is the thing the
  * product is for.
  *
- * **One stop, at the range's start, and not a position inside it.** The interior has
- * no cursor positions and the atomic range above is deliberately keeping it that way
- * until cell editing exists; the start is a boundary rather than an interior, which is
- * the same position the block jump has always landed on.
+ * **One CodeMirror stop, at the range's start, and not an invisible source position
+ * inside it.** A pointer can focus the rendered cell's own DOM caret; arrowing through
+ * the surrounding document uses the source boundary, which is the same position the
+ * block jump has always landed on.
  *
  * **Declines whenever the next line is not a table**, which is the `continuation.ts`
  * contract rather than `motion.ts`'s: several commands want the arrow keys, each

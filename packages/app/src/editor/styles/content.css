@@ -51,6 +51,15 @@
   padding-inline-end: 0;
 }
 
+.md-editor :is(th, td)[contenteditable="plaintext-only"] {
+  cursor: text;
+}
+
+.md-editor :is(th, td)[contenteditable="plaintext-only"]:focus {
+  outline: none;
+  border-block-end-color: var(--line-focus);
+}
+
 /*
  * The seven syntax categories emitted by the editor highlighter.
  *

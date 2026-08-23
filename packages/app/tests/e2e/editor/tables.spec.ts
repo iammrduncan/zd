@@ -221,3 +221,20 @@ test("a link in a cell reads as activatable", async ({ page }) => {
   // exception to that.
   expect(measured!.colour, "a link in a cell is not text.link").toBe(measured!.link);
 });
+
+test("a rendered cell edits the underlying Markdown without leaving reader mode", async ({
+  page,
+}) => {
+  const cell = page.locator(".md-editor table td", { hasText: "Hairlines only" });
+
+  await expect(cell).toHaveAttribute("contenteditable", "plaintext-only");
+  await cell.fill("Editable hairlines");
+
+  await expect(
+    page.locator(".md-editor table td", { hasText: "Editable hairlines" }),
+  ).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => window.zdEditor!.text()))
+    .toContain("| Table | Editable hairlines |");
+  await expect(page.locator(".md-editor table")).toHaveCount(1);
+});
