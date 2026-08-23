@@ -60,7 +60,7 @@ function threadsNavigationMount(
           toggle.setAttribute("aria-label", label);
           toggle.setAttribute("aria-expanded", String(!collapsed));
           toggle.title = label;
-          toggle.textContent = collapsed ? "›" : "‹";
+          toggle.textContent = collapsed ? "Expand" : "Collapse";
         };
         const toggleVisibility = async () => {
           if (pending) return;

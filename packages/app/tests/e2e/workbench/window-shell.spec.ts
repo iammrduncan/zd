@@ -95,6 +95,7 @@ test("manually collapses Projects to icons and restores its saved width", async 
 
   const collapse = projects.getByRole("button", { name: "Collapse Projects pane" });
   await expect(collapse).toBeVisible();
+  await expect(collapse).toHaveText("Collapse");
   await expect(collapse).toHaveAttribute("aria-expanded", "true");
   await collapse.focus();
   await page.keyboard.press("Enter");
@@ -109,6 +110,7 @@ test("manually collapses Projects to icons and restores its saved width", async 
   await expect(projects.locator(".zd-thread-labels:visible")).toHaveCount(0);
 
   const expand = projects.getByRole("button", { name: "Expand Projects pane" });
+  await expect(expand).toHaveText("Expand");
   await expect(expand).toHaveAttribute("aria-expanded", "false");
   await expand.focus();
   await page.keyboard.press("Enter");

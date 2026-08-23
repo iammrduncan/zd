@@ -358,9 +358,10 @@ dots and accessible names; hover or keyboard focus reveals the text label withou
 whole region. Hidden mode removes the region from layout. All three states are keyboard-operable and
 restore selection.
 
-The trailing chevron in the `PROJECTS` header switches full-width and collapsed mode. Collapsed mode
-is a 56 px rail of project monograms and thread icons; expanding restores the prior full width. This
-presentation change preserves project/thread selection, scroll, active context, and live sessions.
+The trailing `Collapse` text action in the `PROJECTS` header switches to collapsed mode; the compact
+rail keeps an `Expand` text action visible. Collapsed mode is a 56 px rail of project monograms and
+thread icons; expanding restores the prior full width. This presentation change preserves
+project/thread selection, scroll, active context, and live sessions.
 
 Create, rename, reorder, close, and remove are commands. Their ordinary path is the command list or
 contextual text action, not a persistent button strip.
