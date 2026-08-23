@@ -74,4 +74,5 @@ npm run check
 See [Develop zd](docs/user-facing-docs/how-to/develop.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 The canonical design contract is [DESIGN.md](docs/DESIGN.md).
 
-Licensed under the [MIT License](LICENSE).
+Licensed under the [MIT License](LICENSE). File-tree glyphs use Microsoft
+[Codicons](https://github.com/microsoft/vscode-codicons), licensed under CC BY 4.0.

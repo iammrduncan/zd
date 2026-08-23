@@ -1,6 +1,7 @@
+import "@vscode/codicons/dist/codicon.css";
 import "./files.css";
 
-import { categoryIcon, categoryLabel, fileTreeEntryLabel, fileTreeStateText } from "./labels";
+import { categoryIconClass, categoryLabel, fileTreeEntryLabel, fileTreeStateText } from "./labels";
 import { maximumRowColumns } from "./model";
 import type { FileTreeController } from "./controller";
 import type { FileTreeViewSnapshot, VisibleFileTreeRow } from "./types";
@@ -116,11 +117,10 @@ function createRow(
   disclosure.setAttribute("aria-hidden", "true");
   disclosure.textContent = row.hasChildren ? (row.expanded ? "▾" : "›") : "";
   const icon = document.createElement("span");
-  icon.className = "zd-file-tree-icon";
+  icon.className = `zd-file-tree-icon codicon ${categoryIconClass(row.entry.category)}`;
   icon.dataset.icon = row.entry.category;
   icon.setAttribute("aria-hidden", "true");
   icon.title = categoryLabel(row.entry.category);
-  icon.textContent = categoryIcon(row.entry.category);
   const name = document.createElement("span");
   name.className = "zd-file-tree-name";
   name.textContent = row.entry.name;

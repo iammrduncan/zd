@@ -140,6 +140,15 @@ test("exposes file type and Git state without a status-letter column", async ({ 
   expect(await modified.evaluate((row) => getComputedStyle(row).color)).not.toBe(
     await page.evaluate(() => getComputedStyle(document.documentElement).color),
   );
+  const icon = modified.locator(".zd-file-tree-icon");
+  await expect(icon).toHaveClass(/\bcodicon-note\b/u);
+  expect(await icon.textContent()).toBe("");
+  expect(await icon.evaluate((element) => getComputedStyle(element).fontFamily)).toContain(
+    "codicon",
+  );
+  expect(await icon.evaluate((element) => getComputedStyle(element, "::before").content)).not.toBe(
+    "none",
+  );
 });
 
 test("keyboard disclosure reaches nested files and activates through one root action", async ({

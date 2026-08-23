@@ -23,24 +23,24 @@ const GIT_LABELS: Readonly<Record<FileGitState, string>> = {
   submodule: "submodule changed",
 };
 
-const ICONS: Readonly<Record<FileCategory, string>> = {
-  directory: "▱",
-  markdown: "#",
-  code: "‹›",
-  config: "⋮",
-  data: "{}",
-  image: "□",
-  text: "≡",
-  binary: "◇",
-  unknown: "·",
+const ICON_CLASSES: Readonly<Record<FileCategory, string>> = {
+  directory: "codicon-folder",
+  markdown: "codicon-markdown",
+  code: "codicon-code",
+  config: "codicon-settings-gear",
+  data: "codicon-database",
+  image: "codicon-file-media",
+  text: "codicon-note",
+  binary: "codicon-file-binary",
+  unknown: "codicon-file",
 };
 
 export function categoryLabel(category: FileCategory): string {
   return CATEGORY_LABELS[category];
 }
 
-export function categoryIcon(category: FileCategory): string {
-  return ICONS[category];
+export function categoryIconClass(category: FileCategory): string {
+  return ICON_CLASSES[category];
 }
 
 export function fileTreeEntryLabel(entry: FileTreeEntry): string {
