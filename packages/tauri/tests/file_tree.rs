@@ -136,28 +136,28 @@ fn traversal_is_recursive_portable_and_directories_first() {
 }
 
 #[test]
-fn ignored_directories_are_visible_but_never_descended() {
+fn ignored_directories_expose_bounded_children_for_expansion() {
     let scratch = Scratch::new("ignored");
-    std::fs::create_dir_all(scratch.join("vendor/deep/deeper")).unwrap();
-    std::fs::write(scratch.join("vendor/deep/deeper/huge.js"), "generated").unwrap();
+    std::fs::create_dir_all(scratch.join("docs/screenshots")).unwrap();
+    std::fs::write(scratch.join("docs/screenshots/capture.png"), "generated").unwrap();
     std::fs::write(scratch.join("keep.rs"), "fn main() {}").unwrap();
-    std::fs::write(scratch.join(".gitignore"), "vendor/\n").unwrap();
+    std::fs::write(scratch.join(".gitignore"), "docs/screenshots\n").unwrap();
 
     let (_, entries, _, ignored_truncated) = ready(snapshot_in(
         scratch.path(),
         &request(None),
         generous_limits(),
     ));
-    let vendor = entries
+    let screenshots = entries
         .iter()
-        .find(|entry| entry.relative_path == "vendor")
+        .find(|entry| entry.relative_path == "docs/screenshots")
         .unwrap();
 
-    assert!(vendor.ignored);
-    assert_eq!(vendor.kind, FileTreeEntryKind::Directory);
-    assert!(!entries
+    assert!(screenshots.ignored);
+    assert_eq!(screenshots.kind, FileTreeEntryKind::Directory);
+    assert!(entries
         .iter()
-        .any(|entry| entry.relative_path.starts_with("vendor/")));
+        .any(|entry| entry.relative_path == "docs/screenshots/capture.png"));
     assert!(!ignored_truncated);
 }
 
