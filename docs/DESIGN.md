@@ -372,8 +372,10 @@ monograms and thread icons; expanding restores the prior full width. The `[p]` t
 shows or hides the pane without changing its last full/collapsed presentation. These presentation
 changes preserve project/thread selection, scroll, active context, and live sessions.
 
-Create, rename, reorder, close, and remove are commands. Their ordinary path is the command list or
-contextual text action, not a persistent button strip.
+Create, rename, reorder, and remove are commands. A thread row exposes one removal action: it
+terminates and disposes a live terminal before removing the durable thread, or directly removes an
+already stopped thread. Close remains an internal lifecycle operation, never a second user-facing
+glyph. These commands use the command list or contextual text action, not a persistent button strip.
 
 Starting, empty, missing, exited, failed, and unavailable states are plain rows in place. A waiting
 thread is quiet but unmistakable; it does not pulse, bounce, or animate.

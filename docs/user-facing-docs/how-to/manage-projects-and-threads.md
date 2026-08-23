@@ -56,9 +56,10 @@ Choose the active thread row again to return to its current or last-opened file.
 to show the still-mounted terminal again; this is the same switch as `Cmd+J` on macOS or `Ctrl+J`
 elsewhere.
 
-Closing a live thread asks you to terminate its process first. Removing a thread never deletes its
-Git worktree or branch. If the project, worktree, or terminal process is missing, the row stays
-visible with a specific recovery action instead of switching to a partial context.
+Each row has one removal action. Removing a live thread terminates and disposes its terminal before
+removing the row; removing an exited thread removes the row directly. It never deletes the thread's
+Git worktree or branch. If termination fails, the row stays visible with the specific failure
+instead of switching to a partial context.
 
 ## Configure completion attention
 

@@ -160,7 +160,7 @@ describe("the root Threads runtime adapter", () => {
     });
   });
 
-  it("requires the explicit recovery action before terminating a live thread", async () => {
+  it("terminates, disposes, and removes a live thread through one action", async () => {
     const state = owner();
     const native = terminalAdapter();
     const runtime = createRootThreadsAdapter(state, platform(native), {
@@ -168,18 +168,10 @@ describe("the root Threads runtime adapter", () => {
     });
     await runtime.createThread(existingRequest());
 
-    const close = await runtime.closeThread("thread-live");
-
-    expect(close).toMatchObject({
-      status: "refused",
-      reason: expect.stringContaining("running"),
-      recovery: { label: expect.stringContaining("Terminate") },
-    });
-    expect(native.terminate).not.toHaveBeenCalled();
-
-    if (close.status === "refused") await close.recovery?.run();
-    expect(native.terminate).toHaveBeenCalledOnce();
     await expect(runtime.removeThread("thread-live")).resolves.toEqual({ status: "committed" });
+
+    expect(native.terminate).toHaveBeenCalledOnce();
+    expect(native.dispose).toHaveBeenCalledOnce();
     expect(state.snapshot().threads).toEqual([]);
     expect(Object.keys(runtime)).not.toContain("removeWorktree");
   });

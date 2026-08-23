@@ -336,38 +336,33 @@ describe("the Threads region", () => {
     expect(workbench.renameThread).toHaveBeenCalledExactlyOnceWith("review", "Reviewed changes");
   });
 
-  it("closes and removes threads through separate compact controls", async () => {
+  it("shows one removal control and no separate close action", async () => {
     const workbench = adapter();
     const host = document.createElement("div");
     mountProjectThreads(host, new ThreadsController(workbench), "alpha");
 
-    host.querySelector<HTMLButtonElement>('[data-thread-close="review"]')!.click();
-    host.querySelector<HTMLButtonElement>('[data-thread-remove="shell"]')!.click();
+    expect(host.querySelector('[data-thread-close="review"]')).toBeNull();
+    expect(host.querySelectorAll('[data-thread-remove="review"]')).toHaveLength(1);
+    host.querySelector<HTMLButtonElement>('[data-thread-remove="review"]')!.click();
     await settle();
 
-    expect(workbench.closeThread).toHaveBeenCalledExactlyOnceWith("review");
-    expect(workbench.removeThread).toHaveBeenCalledExactlyOnceWith("shell");
+    expect(workbench.closeThread).not.toHaveBeenCalled();
+    expect(workbench.removeThread).toHaveBeenCalledExactlyOnceWith("review");
   });
 
-  it("renders the owning safe action when closing a live thread is refused", async () => {
+  it("renders a local failure if the one removal action is refused", async () => {
     const workbench = adapter();
-    const terminate = vi.fn(async () => undefined);
-    workbench.closeThread.mockResolvedValue({
+    workbench.removeThread.mockResolvedValue({
       status: "refused",
-      reason: "Review changes is still running",
-      recovery: { label: "Terminate Review changes", run: terminate },
+      reason: "Review changes could not be terminated",
     });
     const host = document.createElement("div");
     mountProjectThreads(host, new ThreadsController(workbench), "alpha");
 
-    host.querySelector<HTMLButtonElement>('[data-thread-close="review"]')!.click();
+    host.querySelector<HTMLButtonElement>('[data-thread-remove="review"]')!.click();
     await settle();
     const status = host.querySelector<HTMLElement>('[role="status"]')!;
-    expect(status.textContent).toContain("Review changes is still running");
-    status.querySelector("button")!.click();
-    await settle();
-
-    expect(terminate).toHaveBeenCalledOnce();
+    expect(status.textContent).toContain("Review changes could not be terminated");
   });
 
   it("increments automatic names without asking for another field", async () => {
