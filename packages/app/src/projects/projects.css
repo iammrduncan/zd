@@ -136,9 +136,9 @@
 
 .zd-project-collapse {
   min-inline-size: var(--space-4);
-  font-family: var(--type-code-family);
-  font-size: 1.15em;
-  line-height: 1;
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-navigation-line);
 }
 
 .zd-project-collapse:disabled {
