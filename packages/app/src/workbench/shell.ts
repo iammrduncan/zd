@@ -8,7 +8,7 @@ import type { WorkbenchRegions, WorkbenchState } from "./state";
 
 const GEOMETRY_STEP = 8;
 const SPLIT_STEP = 0.02;
-const FILES_SUPPRESSED_QUERY = "(max-width: 68.75rem)";
+const FILES_SUPPRESSED_QUERY = "(max-width: 58.25rem)";
 const THREADS_HIDDEN_QUERY = "(max-width: 40rem)";
 const NOTHING: Unmount = () => {};
 

@@ -31,6 +31,18 @@ test("lays out the persistent workbench regions at their default geometry", asyn
   );
 });
 
+test("keeps the file tree visible at the native window's default width", async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 760 });
+  await page.goto("/");
+
+  const files = page.locator('[data-region="files"]');
+  await expect(files).toBeVisible();
+  await expect(files.getByRole("tab", { name: "FILES" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+});
+
 test("applies responsive regions in the specified suppression order", async ({ page }) => {
   await page.setViewportSize({ width: 1260, height: 800 });
   await page.goto("/");
@@ -43,9 +55,13 @@ test("applies responsive regions in the specified suppression order", async ({ p
   await expect(files).toHaveCSS("width", "220px");
 
   await page.setViewportSize({ width: 1000, height: 800 });
-  await expect(files).toBeHidden();
+  await expect(files).toBeVisible();
   await expect(threads).toBeVisible();
   await expect(threads).toHaveCSS("width", "184px");
+
+  await page.setViewportSize({ width: 920, height: 800 });
+  await expect(files).toBeHidden();
+  await expect(threads).toBeVisible();
 
   await page.setViewportSize({ width: 760, height: 800 });
   await expect(threads).toBeVisible();
@@ -86,7 +102,7 @@ test("responsive overlap keeps the focused centre surface and releases hidden fo
   await expect(fileSurface).toBeVisible();
 
   await files.getByRole("tab", { name: "FILES" }).focus();
-  await page.setViewportSize({ width: 1000, height: 800 });
+  await page.setViewportSize({ width: 920, height: 800 });
   await expect(files).toBeHidden();
   await expect
     .poll(() => page.evaluate(() => document.activeElement?.closest('[data-region="files"]')))
