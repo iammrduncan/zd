@@ -1,14 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+import { sameColour } from "../colour";
 import { materializeEditorTarget, openEditor } from "./harness";
 
 /*
  * A file that is not markdown — vision §6.2:
  *
- *   "A non-markdown file opens on the same surface, rendered as code: mono
- *    family, no markdown parsing, language-appropriate highlighting. The calm,
- *    the measure, the focus, and the theme are unchanged — what differs is only
- *    that the file is not markdown, and it is not treated as if it were."
+ *   "Non-Markdown text opens at line one at the top of a full-width code plane.
+ *    It uses type.code, a compact line-number gutter, all seven syntax roles
+ *    from the active theme…"
  *
  * Reported as "html and ts parsed as markdown" (feedback, 2026-07-29). The harm
  * is worth naming precisely, because it is not that a `.ts` file went uncoloured:
@@ -25,6 +25,15 @@ import { materializeEditorTarget, openEditor } from "./harness";
 /** The fixture's markdown sample, and the same page opened on a `.ts` file. */
 const MARKDOWN = "/dev/editor.html";
 const CODE = "/dev/editor.html?doc=code";
+const SYNTAX_ROLES = [
+  "keyword",
+  "type",
+  "function",
+  "string",
+  "number",
+  "comment",
+  "punctuation",
+] as const;
 
 async function open(page: import("@playwright/test").Page, url: string) {
   await openEditor(page, { url });
@@ -43,15 +52,97 @@ test("a code file takes the mono family", async ({ page }) => {
   expect(family).toContain("iA Writer Mono");
 });
 
-test("a TypeScript file uses the shared syntax palette", async ({ page }) => {
+test("a TypeScript file uses every shared syntax role in every built-in theme", async ({
+  page,
+}) => {
   await open(page, CODE);
 
-  for (const category of ["keyword", "string", "comment"]) {
+  for (const category of SYNTAX_ROLES) {
     await expect(
-      page.locator(`.md-syn-${category}`),
-      `TypeScript is missing ${category} highlighting`,
+      page.locator(".md-syn-" + category),
+      "TypeScript is missing " + category + " highlighting",
     ).not.toHaveCount(0);
   }
+
+  for (const theme of ["light", "dark", "dracula"] as const) {
+    await page.evaluate(async (selected) => {
+      const appearanceModule = "/src/design/appearance.ts";
+      const { setTheme } = await import(appearanceModule);
+      setTheme(selected);
+    }, theme);
+    const colours = await page.evaluate((roles) => {
+      return roles.map((role) => {
+        const syntax = document.querySelector<HTMLElement>(".md-syn-" + role)!;
+        const probe = document.createElement("span");
+        probe.style.color = "var(--syntax-" + role + ")";
+        document.body.append(probe);
+        const token = getComputedStyle(probe).color;
+        probe.remove();
+        return { role, rendered: getComputedStyle(syntax).color, token };
+      });
+    }, SYNTAX_ROLES);
+
+    for (const colour of colours) {
+      expect(
+        sameColour(colour.rendered, colour.token),
+        theme + " " + colour.role + " did not consume its shared syntax token",
+      ).toBe(true);
+    }
+  }
+});
+
+test("a code file opens as a top-anchored IDE plane with line numbers", async ({ page }) => {
+  await open(page, CODE);
+
+  await expect(
+    page.locator(".cm-lineNumbers .cm-gutterElement").filter({ hasText: /^1$/ }).first(),
+  ).toHaveText("1");
+  const geometry = await page.evaluate(() => {
+    const surface = document.querySelector<HTMLElement>(".md-surface")!;
+    const column = document.querySelector<HTMLElement>(".md-editor")!;
+    const firstLine = document.querySelector<HTMLElement>(".cm-line")!;
+    const gutter = document.querySelector<HTMLElement>(".cm-gutters")!;
+    const firstNumber = [...document.querySelectorAll<HTMLElement>(".cm-gutterElement")].find(
+      (element) => element.textContent?.trim() === "1",
+    )!;
+    const surfaceBox = surface.getBoundingClientRect();
+    const columnBox = column.getBoundingClientRect();
+    const firstLineBox = firstLine.getBoundingClientRect();
+    const firstNumberBox = firstNumber.getBoundingClientRect();
+    const gutterStyle = getComputedStyle(gutter);
+    const numberStyle = getComputedStyle(firstNumber);
+    const probe = document.createElement("span");
+    probe.style.color = "var(--text-muted)";
+    probe.style.backgroundColor = "var(--surface-canvas)";
+    document.body.append(probe);
+    const probeStyle = getComputedStyle(probe);
+    const canvas = probeStyle.backgroundColor;
+    const muted = probeStyle.color;
+    probe.remove();
+    return {
+      scrollTop: surface.scrollTop,
+      firstLineOffset: firstLineBox.top - surfaceBox.top,
+      lineNumberOffset: firstNumberBox.top - firstLineBox.top,
+      columnInset: columnBox.left - surfaceBox.left,
+      widthDifference: surfaceBox.width - columnBox.width,
+      gutterBackground: gutterStyle.backgroundColor,
+      gutterColour: gutterStyle.color,
+      gutterFamily: numberStyle.fontFamily,
+      gutterSize: numberStyle.fontSize,
+      canvas,
+      muted,
+    };
+  });
+
+  expect(geometry.scrollTop).toBeCloseTo(0, 0);
+  expect(geometry.firstLineOffset).toBeLessThanOrEqual(1);
+  expect(geometry.lineNumberOffset).toBeCloseTo(0, 0);
+  expect(geometry.columnInset).toBeCloseTo(0, 0);
+  expect(geometry.widthDifference).toBeCloseTo(0, 0);
+  expect(geometry.gutterFamily).toContain("iA Writer Mono");
+  expect(geometry.gutterSize).toBe("14px");
+  expect(sameColour(geometry.gutterBackground, geometry.canvas)).toBe(true);
+  expect(sameColour(geometry.gutterColour, geometry.muted)).toBe(true);
 });
 
 test("a markdown file still takes the prose family", async ({ page }) => {

@@ -119,7 +119,7 @@ test("the surface does the scrolling — the editor brings no second scroller", 
   expect(measured.surfaceScrolls, "nothing is scrolling at all").toBe(true);
 });
 
-test("the editor brings no chrome of its own", async ({ page }) => {
+test("the Markdown editor brings no IDE chrome of its own", async ({ page }) => {
   await page.goto("/dev/editor.html");
   await page.locator(".cm-line").first().waitFor();
 
@@ -129,7 +129,8 @@ test("the editor brings no chrome of its own", async ({ page }) => {
     activeLine: document.querySelectorAll(".cm-activeLine").length,
   }));
 
-  // §7.3: no line numbers, no fold column, no status panel, no active-line wash.
+  // Markdown remains readerly: no line numbers, fold column, status panel, or
+  // active-line wash. Code has a separate language-driven line-number contract.
   expect(chrome.gutters).toBe(0);
   expect(chrome.panels).toBe(0);
   expect(chrome.activeLine).toBe(0);

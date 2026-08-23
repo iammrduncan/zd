@@ -8,9 +8,9 @@ import { materializeEditorTarget, openEditor, waitForEditorAnimations } from "./
 // language-appropriate syntax highlighting when a language is declared."
 //
 // The plane half already held — editor-blocks.spec.ts compares it to the reader's.
-// This is the highlighting half, and DESIGN.md §5.2 fixes the inventory: Rust only,
-// three categories, "an absent or unknown language remains honest monospace text
-// rather than receiving misleading language colour".
+// This is the highlighting half. The three categories below are representative
+// controls for the shared seven-role palette; "an absent or unknown language
+// remains honest monospace text rather than receiving misleading language colour".
 
 test.beforeEach(async ({ page }) => {
   await openEditor(page);
@@ -21,20 +21,20 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test("a declared rust block colours its three categories", async ({ page }) => {
+test("a declared rust block colours representative syntax roles", async ({ page }) => {
   const found = await page.evaluate(() => ({
     keyword: document.querySelectorAll(".md-editor .md-syn-keyword").length,
     string: document.querySelectorAll(".md-editor .md-syn-string").length,
     comment: document.querySelectorAll(".md-editor .md-syn-comment").length,
   }));
 
-  // §5.2 names exactly these three and no more.
+  // These representative roles prove the declared grammar is active.
   expect(found.keyword, "no keywords were classified").toBeGreaterThan(0);
   expect(found.string, "no strings were classified").toBeGreaterThan(0);
   expect(found.comment, "no comments were classified").toBeGreaterThan(0);
 });
 
-test("the three categories are the reader's own colours", async ({ page }) => {
+test("the representative categories are the reader's own colours", async ({ page }) => {
   // Caret in the fence, so the block is the focus target and its categories show
   // their resting colours. A span on a dimmed line resolves to
   // `--focus-context-*` and is *correct* to do so, which would make this compare
@@ -76,7 +76,7 @@ test("the three categories are the reader's own colours", async ({ page }) => {
   // Colour comes through the active DesignSystem, never through feature-local
   // colours. The editor highlights with CodeMirror and the reader with Shiki, so
   // the only thing keeping them the same passage is that both resolve to these
-  // three tokens — which is worth asserting rather than assuming.
+  // shared tokens — which is worth asserting rather than assuming.
   for (const category of ["keyword", "string", "comment"] as const) {
     expect(editing[category], `${category} was not classified`).not.toBeNull();
     expect(
@@ -133,7 +133,7 @@ test("dimming a code block keeps its categories distinguishable", async ({ page 
 
   // §5.2: "syntax remains distinguishable at the warmest setting and without
   // colour", and §4.4 dims context without flattening it — a dimmed code block is
-  // still a code block, so the three categories must not collapse into one ink.
+  // still a code block, so representative categories must not collapse into one ink.
   expect(new Set(dimmed).size, "the categories collapsed when dimmed").toBe(3);
 });
 

@@ -11,6 +11,14 @@
   scrollbar-width: none;
 }
 
+/*
+ * Code is a working plane, not a reading column. Its gutter owns the leading
+ * edge and long lines use the available centre region before scrolling.
+ */
+.md-surface:has(> .md-editor[data-language="code"]) {
+  padding-inline: 0;
+}
+
 .md-surface::-webkit-scrollbar {
   display: none;
 }
@@ -22,4 +30,15 @@
 .md-editor {
   margin-block: calc(var(--reading-gutter-leading) + var(--reading-inset-top))
     calc(var(--reading-gutter-trailing) + var(--reading-inset-bottom));
+}
+
+/*
+ * A source file starts at line one at the top of the viewport. Removing the
+ * reader gutters also makes the opening anchor's attempted negative scroll clamp
+ * naturally to zero, so there is no competing JavaScript opening policy.
+ */
+.md-editor[data-language="code"] {
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }

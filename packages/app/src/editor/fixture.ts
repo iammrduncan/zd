@@ -71,8 +71,8 @@ H1; the parser knows better, which is the entire reason there is a parser here.
 npm run dev
 \`\`\`
 
-A declared Rust block colours keywords, strings, and comments, and nothing else —
-DESIGN.md 5.2 fixes that inventory at exactly three categories:
+A declared Rust block uses the complete seven-role syntax palette from the active
+theme:
 
 \`\`\`rust
 // Read a document and hand it back as prose.
@@ -172,10 +172,11 @@ const HEADING_SENTINEL_01 = "underscores here are a name, not emphasis";
 // ---
 
 export async function load(path: string): Promise<string> {
+  const retries = 3;
   const shell = \`# install and run
 npm run dev\`;
   const row = "| Construct | Resting state |";
-  return [await readFile(path, "utf8"), shell, row].join("\\n");
+  return [await readFile(path, "utf8"), shell, row].join("\\n").repeat(retries);
 }
 `;
 
@@ -237,8 +238,9 @@ const editor = createEditor(column, source, {
   // The same read the workbench makes, so the dev page persists what the app does.
   wrap: wordWrap(),
   // The focused-reading regression pages exercise the enabled treatment. The
-  // product workbench itself starts with this explicit mode off.
-  focus: true,
+  // product workbench itself starts with this explicit mode off, and the code
+  // fixture represents that conventional resting state.
+  focus: documentKind !== "code",
 });
 
 /*

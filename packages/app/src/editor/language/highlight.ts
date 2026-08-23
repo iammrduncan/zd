@@ -12,7 +12,17 @@ const CATEGORIES = HighlightStyle.define([
     class: "md-syn-comment",
   },
   {
-    tag: [tags.string, tags.special(tags.string), tags.character, tags.docString],
+    tag: [
+      tags.string,
+      tags.special(tags.string),
+      tags.character,
+      tags.docString,
+      tags.attributeValue,
+      tags.regexp,
+      tags.escape,
+      tags.color,
+      tags.url,
+    ],
     class: "md-syn-string",
   },
   {
@@ -23,14 +33,26 @@ const CATEGORIES = HighlightStyle.define([
       tags.moduleKeyword,
       tags.operatorKeyword,
       tags.modifier,
-      tags.typeName,
-      tags.className,
-      tags.tagName,
       tags.self,
       tags.null,
-      tags.bool,
     ],
     class: "md-syn-keyword",
+  },
+  {
+    tag: [tags.typeName, tags.className, tags.tagName, tags.namespace, tags.typeOperator],
+    class: "md-syn-type",
+  },
+  {
+    tag: [tags.function(tags.variableName), tags.function(tags.propertyName)],
+    class: "md-syn-function",
+  },
+  {
+    tag: [tags.number, tags.bool],
+    class: "md-syn-number",
+  },
+  {
+    tag: [tags.operator, tags.punctuation],
+    class: "md-syn-punctuation",
   },
 ]);
 
