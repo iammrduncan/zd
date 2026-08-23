@@ -1,299 +1,281 @@
-# Workbench UX Cohesion Goal
+# Post-fix Workbench UX Cohesion Goal
 
-Status: **proposed — reviewed 2026-08-23**
+Status: **proposed — re-reviewed 2026-08-23 after the current feedback fixes**
 
 ## Outcome
 
-Make the current `zd` workbench behave like a dependable editor without turning it into a busy
-general-purpose IDE. A person should be able to navigate the file tree, perform ordinary file and
-thread operations, and inspect or change shortcuts without guessing which pixels are interactive or
-whether a view change will lose context.
+Finish the current `zd` workbench as a dependable editor shell at every supported desktop width.
+Persistent regions, transient planes, Settings, hierarchy controls, and contextual actions must tell
+the truth about the state they own and remain reachable by pointer and keyboard. The result should
+retain the application's calm writing-first character rather than acquire more permanent chrome.
 
-This goal is deliberately bounded to the interaction gaps proven by the current implementation and
-owner feedback. It does not redesign the editor, add tabs, language-server features, source control
-mutations, or a broad explorer framework.
+This is a bounded interaction-cohesion goal. It does not reopen the editor rendering work, add
+general IDE features, broaden filesystem authority, or revisit feedback fixes that are now proven.
 
-## Authority and evidence
-
-Human feedback is authoritative where it changes an earlier interaction decision. In particular,
-the requested folder behavior supersedes the sentence in [DESIGN.md](../../../DESIGN.md) that limits
-pointer disclosure to the chevron. The retained intent is that *incidental state changes* must not
-collapse folders; a direct primary click on a folder row is now deliberate disclosure intent.
+## Authority and current evidence
 
 This review used:
 
-- [VISION.md](../../../VISION.md) and [DESIGN.md](../../../DESIGN.md), especially the commitments to
-  one state owner, stable context, text-led controls, local authority, keyboard parity, and quiet
-  workbench chrome;
-- the current Projects, Threads, Files, Settings, Shortcut Reference, shell, and native platform
-  source under [`packages/app/src`](../../../../packages/app/src/README.md);
-- the current unit and browser interaction suites under
-  [`packages/app/tests`](../../../../packages/app/tests/);
-- the approved light workbench references in
-  [`expanded-scope/assets`](../expanded-scope/assets/) and the IDE/thread references
-  [`zed-threads.png`](../../../screenshots/zed-threads.png),
-  [`workbench-1-x.png`](../../../screenshots/workbench-1-x.png), and
-  [`herdr.png`](../../../screenshots/herdr.png); and
-- the reported captures for
-  [thread alignment](../../../screenshots/screenshot-1787507039488225000.png),
-  [folder selection](../../../screenshots/screenshot-1787507072574307000.png),
-  [shortcut density](../../../screenshots/screenshot-1787507187754572000.png),
-  [the native file-tree menu](../../../screenshots/screenshot-1787507236542125000.png),
-  [the populated tree](../../../screenshots/screenshot-1787507457655360000.png),
-  [the incomplete restored tree](../../../screenshots/screenshot-1787507488085537000.png), and
-  [ambiguous thread actions](../../../screenshots/screenshot-1787507542075062000.png).
+- [GOOD_ENGINEERING_H.md](../../../GOOD_ENGINEERING_H.md), [VISION.md](../../../VISION.md), and
+  [DESIGN.md](../../../DESIGN.md), especially the state-owner, responsive-order, transient,
+  Settings, interaction-language, and accessibility contracts;
+- the current shell, Settings, command, preference, Projects, Threads, Files, and Shortcut
+  Reference source under [`packages/app/src`](../../../../packages/app/src/README.md);
+- the current unit and browser suites under [`packages/app/tests`](../../../../packages/app/tests/);
+- the populated `/dev/workbench.html` fixture rendered at 1440 × 960, 920 × 800, and 760 × 800,
+  plus the empty production entry point; and
+- the current Settings, Shortcut Reference, project menu, thread menu, file menu, file tree, editor,
+  and terminal states exercised with pointer and keyboard input.
 
-## Prioritized review findings
+The owner direction that Shortcut editing has one home in `[h]` supersedes DESIGN §15's duplicate
+Shortcuts group in Settings. DESIGN should be reconciled accordingly; this goal must not put the
+same binding editor back in Settings.
 
-| Priority | Finding | Concrete evidence | Required outcome |
+## Baseline retained from the completed feedback work
+
+The previous review helped drive fixes that are now visible in the current implementation. Treat
+these as regression constraints, not open findings:
+
+- Files restores its virtualized rows after hide/show.
+- File and directory rows have a bounded custom menu for create, rename, path copy, and Trash.
+- Primary folder-row activation toggles disclosure without incidental refreshes doing so.
+- Threads expose one removal transaction rather than separate Close and Remove meanings.
+- Thread glyph/title alignment and checked-out branch labels are corrected.
+- Shortcut editing lives in one compact `[h]` Reference with consistent type size and readable
+  columns; Settings no longer duplicates it.
+- Sidebar header spacing and rendered Markdown table hierarchy are corrected.
+
+The safe native file operations, draft reconciliation, and virtualization tests added for those
+fixes remain authoritative. No phase below should replace or generalize those boundaries.
+
+## Prioritized findings
+
+| Priority | Finding | Current evidence | Required outcome |
 | --- | --- | --- | --- |
-| P0 | Hiding and restoring Files can leave a stale virtualized window, making valid rows appear missing until another tree update. | The before/after captures show the same expanded hierarchy with fewer mounted descendants after restore. `files/view.ts` renders on controller publication, scroll, and window resize, but not when a `display: none` region regains geometry. | Showing Files immediately renders the correct window while preserving logical expansion, selection, active file, filter, and both scroll axes. |
-| P0 | The file tree is a viewer, not yet a working editor explorer. | The custom menu is installed only for non-directory rows and contains only two copy-path actions; directory secondary-click falls through to the operating-system webview menu. The platform seam has no bounded create, rename, or trash operation. | Files, folders, and root whitespace have coherent, keyboard-accessible menus for a deliberately limited set of safe file operations. |
-| P0 | Thread termination has two indistinguishable destructive controls. | Hover reveals `×` and `−`; one closes a backing session while retaining the record and the other removes the record, while a live remove delegates back to close. The screenshot cannot explain that lifecycle distinction. | Expose one user-facing removal action. If the process is live, the one confirmed action terminates it and removes the durable thread; if it is stopped, it removes the record. |
-| P1 | Folder selection violates the learned direct-manipulation behavior of editor trees. | A folder-name click currently selects without disclosure while Enter toggles. The latest owner direction expects a primary row click to expand and the next primary row click to collapse. | Primary click and Enter/Space toggle a folder. Right-click, refresh, selection restoration, watcher updates, and panel visibility changes never toggle it. |
-| P1 | The Shortcut Reference reads like a raw registry dump rather than a compact reference surface. | The capture is a long ungrouped two-column stream, including many context-unavailable commands, with no heading hierarchy or editing affordance. Editing exists separately in Settings, creating two presentations of the same bindings. | One compact registry-backed table supports scanning, capture, conflict feedback, and reset from the `[h]` surface and is reused by Settings. |
-| P1 | Thread rows and row actions lack one coherent visual and interaction model. | The terminal glyph is optically displaced from the title in the capture. Rename, close, and remove are hover-only glyphs while secondary-click opens a menu containing only second-line settings. | Align state dot, type glyph, and title; put rename, secondary-line choice, and the single removal action in one menu with complete keyboard behavior. |
-| P2 | The project disclosure indicator claims behavior the row does not own. | Project rows hard-code `aria-expanded="true"` and paint a disclosure chevron, but activation does not change child visibility. | Make the disclosure truthful and preserve per-project expansion without changing active context or live sessions. |
-| P2 | Context menus are separately hand-built and omit standard menu navigation. | Projects, Threads, and Files each implement independent open/bound/dismiss logic; focus begins on one item, but Arrow, Home, End, and type-ahead behavior are not shared or guaranteed. | Share a small menu interaction owner while keeping feature actions in their feature modules. |
+| P0 | Responsive suppression removes navigation instead of adapting it. | At 760 px the shell still reports `threadsVisibility="full"` while CSS forces the pane to 56 px. `PROJECTS` and project names have zero visible width, project monograms remain `display: none`, and rows read as clipped chevrons plus “No threads.” At 920 px Files is always `display: none`; `[f]` only flips persisted visible/hidden state and cannot present the region. The responsive browser test checks widths and visibility, not usable content or command recovery. | Responsive state has one semantic owner. The 56 px state renders the real labelled-icon rail, and the Files command opens a usable temporary Files/Changes replacement plane while width suppression applies. Widening restores the exact persisted presentation and context. |
+| P0 | Ordinary transients can coexist in contradictory visible and keyboard states. | Opening Settings and then `[h]` leaves both `.zd-settings-plane` and `.zd-reference` mounted. Settings is at z-index 20, Reference at 1, focus remains on the chrome `[h]` button, and the first Escape dismisses the hidden Reference rather than the visible Settings. Command List, Settings, and Reference each keep independent module-local open state despite DESIGN §14 requiring exactly one ordinary transient. | One workbench transient coordinator owns open, replace, dismiss, focus return, and safety-confirmation priority. A requested ordinary plane visibly replaces the prior one; one Escape always dismisses exactly the plane the person can see. |
+| P1 | Settings presents a diagnostics panel as if it were the complete application Settings surface. | The rendered sheet contains only Local diagnostics and Attention. `settings.ts` mounts only `mountDiagnosticSettings`; preferences are separate storage keys rather than the versioned Settings owner named by DESIGN §15. Theme choices exist only as palette commands, while warmth, prose/code size, heading scale, Focus configuration, Typewriter, wrap, pane presentation, centre mode, and region sizes have no complete Settings UI. | Implement the Appearance, Reading, Workbench, Attention, and Diagnostics groups from the current contract, with immediate durable application and local failure text. Keep Shortcuts exclusively in `[h]`. |
+| P1 | Thread actions are split between a hover-only symbol strip and an incomplete menu. | `row-actions.ts` paints `✎` and `×`; secondary-click opens a different menu containing only the three second-line choices. The result has two action vocabularies, hidden destructive reachability, and no words for the row's primary maintenance actions, contrary to DESIGN §§10 and 18. | One secondary-click/keyboard menu contains Rename, the Second line radio group, and the single lifecycle-aware Remove action. Inline rename remains the editor, but entry is from the semantic menu/command rather than a persistent glyph strip. |
+| P1 | Project disclosure visibly and accessibly promises an operation that does not exist. | Every project row paints `▾` and hard-codes `aria-expanded="true"`; primary activation only changes the active project. There is no per-project expansion state, no Left/Right disclosure, and no test for persistence across pane or project round trips. | Either implement truthful per-project disclosure or remove the chevron and expanded state. The preferred hierarchy behavior is disclosure that preserves active project, selection, thread sessions, and pane state. |
+| P2 | The compact Shortcut Reference is still a scan-inefficient registry dump. | The populated workbench renders 30 consecutive rows with no group labels or filter. Unavailable project slots and mode-specific commands interrupt the primary scan, and every non-global row reserves a Reset control even when disabled. Editing and type scale are fixed; information architecture is not. | Add stable command categories and a small filter to the same live registry-backed table. Keep all commands discoverable, separate unavailable results quietly, and show Reset only for an overridden binding. |
+| P2 | Menu keyboard behavior depends on which feature happened to build the menu. | Files implements Arrow Up/Down and Home/End locally; Projects and Threads implement only first-item focus, pointer-away dismissal, and Escape. Three independent owners repeat placement and one-open-menu mechanics. | Share only the earned menu mechanics—placement, one-open coordination, roving focus, Arrow/Home/End, Escape, outside dismissal, and focus return—while each feature continues to own its actions and safety. |
 
-The first three findings are trust failures: visible content or running work may not match what the
-person believes the interface is doing. They must land before visual refinement.
+The two P0 findings are navigation and state-truth failures. They land before expanding Settings or
+refining information architecture.
 
 ## Interaction decisions
 
-### Files tree
+### Responsive regions
 
-Direct intent is distinct from incidental selection:
+Responsive presentation is temporary and must not rewrite durable preference state.
 
-- Primary-clicking any visible part of a directory row selects and toggles it. A second primary
-  click toggles it back.
-- `Enter` and `Space` perform the same select-and-toggle action. `Right` expands or enters the first
-  child; `Left` collapses or selects the parent.
-- Secondary-click selects the target and opens its menu without toggling it. `Shift+F10` and the
-  Context Menu key do the same.
-- Refresh, watcher reconciliation, Files hide/show, project round trips, filter dismissal, and
-  programmatic restoration may update or restore selection but never infer disclosure intent.
-- A directory with no known children remains selectable and may receive new children through its
-  context menu; it must not pretend to expand before content exists.
+- At and below the Files suppression threshold, Files/Changes is absent from the persistent grid,
+  but `[f]` and `files.toggleVisibility` open it as a full-height replacement plane over the centre.
+  The plane keeps the existing FILES/CHANGES tabs and their mounted feature state; it is not a new
+  explorer or a cloned tree.
+- Invoking `[f]` again or Escape closes that temporary plane. Selecting a file or comparison may
+  close it only when the centre has successfully adopted the target; failure stays local and leaves
+  the plane available.
+- The temporary plane preserves tab, selection, expansion, filter, horizontal/vertical scroll,
+  active file, drafts, and logical tree window. It must not change the persisted visible/hidden
+  preference merely because media geometry changes.
+- At and below the Projects-collapse threshold, the actual region mode becomes responsive-collapsed
+  for presentation. It shows project monograms and labelled thread type/status icons as DESIGN §10
+  specifies; names appear on hover or keyboard focus without widening the entire region.
+- At the lower hide threshold, focus leaves Projects before it disappears. Widening restores the
+  person's last durable full/collapsed choice, width, scroll, selection, and live sessions.
+- Media queries may express geometry, but they must not be the second owner of semantic visibility
+  or collapsed content.
 
-The file-operation menu is intentionally limited:
+### Transient ownership
 
-| Target | Actions, in order |
-| --- | --- |
-| File | Open, Rename, Copy Relative Path, Copy Full Path, Move to Trash… |
-| Directory | New File…, New Folder…, Rename, Copy Relative Path, Copy Full Path, Move to Trash… |
-| Empty/root area | New File…, New Folder… |
+Introduce one small workbench-level coordinator for Command List, Settings, Quick Open, Outline,
+Shortcut Reference, and confirmations as each surface joins it.
 
-`Duplicate`, Cut/Copy/Paste of file contents, drag-to-move, Reveal in Finder/Explorer, archive
-operations, and Git actions are not part of this goal.
+- `open(id, mount, returnFocus)` replaces any ordinary transient through its normal cleanup before
+  mounting the requested plane. Ordinary planes never stack and never exist invisibly behind one
+  another.
+- A safety confirmation may displace an ordinary plane and blocks another ordinary plane until the
+  safety decision is resolved. It names and preserves the owning operation.
+- The coordinator is the single high-priority `workbench.escape` target. One press closes the one
+  visible top plane; feature-local Escape behavior resumes on the next press.
+- Focus enters the requested surface, is trapped only while its modal semantics require it, and
+  returns to the last connected non-inert origin on dismissal. Top chrome must not retain focus
+  behind an `aria-modal` plane.
+- Each transient still owns its content and feature commands. The coordinator owns only lifecycle,
+  ordering, focus return, and safety priority.
 
-New and renamed names are edited inline at the affected tree position. `Enter` commits and `Escape`
-cancels without changing selection or expansion. Invalid names, collisions, unavailable grants, and
-filesystem failures remain in the row as specific text; they do not dismiss the edit or optimistically
-rewrite the tree.
+### Settings
 
-Deletion means the operating system's recoverable Trash/Recycle Bin when supported. The confirmation
-names the exact project-relative target and whether it contains children. A dirty or pending-write
-file cannot be removed through a generic confirmation: the current-file owner must present its
-existing save/discard safety before the native operation can run. The worktree root and protected
-repository metadata cannot be renamed or removed.
+Settings remains one calm typographic plane with these groups in order:
 
-Every mutation crosses a narrow native request containing approved project/worktree identities and
-validated relative paths. Native code validates the existing parent, rejects parent and symbolic-link
-escape, refuses collisions, and returns a structured outcome. The webview does not receive generic
-filesystem authority. Successful rename/create/delete transitions update open-file and draft
-identities through the root state owner, then reconcile the watcher snapshot without collapsing or
-reordering unrelated rows.
+1. **Appearance:** theme/system behavior, warmth, prose size, code size, heading scale.
+2. **Reading:** Focus on/off, dim level, granularity, Typewriter Mode, Word Wrap.
+3. **Workbench:** Projects full/collapsed/hidden, Files visible/hidden, overlap/side by side, pane
+   widths, and centre split.
+4. **Attention:** the existing desktop and sound choices.
+5. **Diagnostics:** opt-in state, storage/retention truth, and Reveal.
 
-### Threads
+Use inline words for choices, explicit `on`/`off`, and text values beside continuous tracks. Every
+change applies to the live state owner immediately and persists through a versioned preference
+schema with validated migration/defaults. There is no Apply/Cancel state. Unsupported or clamped
+choices remain visible and explain why beside the relevant row.
 
-The row exposes one secondary-click/keyboard menu:
+The `[h]` Shortcut Reference is the only shortcut editor. Settings may link to it with a text action
+if useful, but must not mount or copy its rows.
+
+### Hierarchy actions and menus
+
+The thread menu order is:
 
 1. `Rename`
-2. a `Second line` radio group: App/status, Current directory, Branch/worktree
-3. `Remove Thread…`, or `Terminate and Remove Thread…` while its process is live
+2. `Second line` heading with App/status, Current directory, and Branch/worktree radio items
+3. `Remove Thread…`, or `Terminate and Remove Thread…` for a live process
 
-Remove is one workbench transaction, even if native termination and durable-state removal require
-ordered internal steps. A failed termination leaves the thread record visible with a specific local
-recovery action. Removal never deletes a project, worktree, file, draft, or terminal transcript from
-outside the owned session. `closeThread` may remain an internal lifecycle operation, but it is not a
-separate user-facing command or glyph.
+Rename opens the existing inline field, commits with Enter, cancels with Escape, and restores row
+focus. Removal keeps the existing one-transaction lifecycle and failure recovery. The hover symbol
+strip is removed; selection geometry does not change when a menu opens.
 
-Remove the three-symbol hover strip. Inline rename remains the editor for the name, but it is entered
-from the menu or command registry. The selected row's wash, focus hairline, and width do not change
-when the menu opens.
+Project disclosure is separate from activation. The chevron, primary disclosure target, Enter,
+Space, Left, and Right update one per-project expanded state and truthful `aria-expanded`. Activating
+the name changes project context without inferring collapse. Collapsing a group hides only its
+thread rows and never terminates or recreates sessions.
 
-The state dot and type glyph share the title line's optical centre. Use the real bundled font metrics
-and row geometry rather than matching the glyph's CSS box alone. The second line must begin below the
-glyph and remain readable in Current Light, Dark, and Dracula.
+Shared menu mechanics remain deliberately small. They do not own command labels, availability,
+filesystem operations, thread lifecycle, project removal, confirmation content, or error recovery.
 
-### Shortcuts
+### Shortcut scan path
 
-`[h]`, `Cmd+.` / `Ctrl+.`, and the Settings Shortcuts group use one reusable registry-backed table.
-The transient remains a quiet replacement plane and uses this compact structure:
+Extend the current compact table rather than replacing it:
 
-```text
-SHORTCUTS                         Filter shortcuts
-Command                                  Shortcut
-Workbench
-Command List                              ⇧⌘P
-Show or hide Files and Changes            ⇧⌘B
-Editor
-Find in the current file                    ⌘F
-```
-
-Requirements:
-
-- Use visible `Command` and `Shortcut` column headings, stable category groups, a 20–24 px row
-  rhythm, and aligned shortcut notation. The table remains within the sanctioned transient measure.
-- Keep every production command discoverable, but order available commands first within their
-  group and move unavailable commands into a clearly labelled quiet subsection rather than appending
-  a long availability sentence to the primary scan path.
-- Selecting a non-global binding cell starts capture in place. Escape cancels capture before it can
-  dismiss the surface. A second Escape dismisses the surface.
-- Conflicts identify the existing command and do not alter either binding. Successful capture
-  applies immediately, persists locally, and updates command dispatch, Command List labels, the
-  Shortcut table, and Settings from the same registry state.
-- A text `Reset` action appears only for an overridden binding. Unassigned commands are assignable.
-  Native global shortcuts say `System managed` and are not presented as editable.
-- Repeated `[h]` or its chord closes the surface and restores the exact prior focus and scroll state.
-
-### Project hierarchy and menus
-
-The project chevron toggles only that project's thread children. Clicking the project name activates
-the project without collapsing it. Keyboard `Left`/`Right` provide the same disclosure behavior and
-`aria-expanded` reports the real state. Expansion persists per project across activation and panel
-hide/show; collapsing a project never stops its threads.
-
-Introduce one small shared context-menu behavior module only after the Files menu requirements prove
-the common cut point. It owns viewport placement, one-open-menu coordination, roving focus, Arrow
-Up/Down, Home/End, optional first-letter movement, Escape, pointer-away dismissal, and focus return.
-Projects, Threads, and Files continue to own labels, availability, confirmations, and operations.
-
-## Approaches considered
-
-1. **Patch each current menu and view independently.** This minimizes the first diff but repeats
-   focus, placement, and dismissal bugs as file operations expand.
-2. **Build a generic explorer/action framework.** This could model every future operation, but it
-   adds a broad abstraction before the product has earned it.
-3. **Chosen: share interaction mechanics, keep semantics deep and local.** Add one small menu
-   behavior module and one shortcut-table renderer. Keep tree state in Files, lifecycle in Threads,
-   context in the workbench owner, and filesystem authority in narrow native operations.
-
-This middle path improves consistency without inventing a new application framework.
+- Add category metadata to the production command registry: Workbench, Projects/Threads, Files,
+  Editor/Reading, Appearance, and Help/System.
+- Put a single filter row above the fixed columns. Search matches independent words across action,
+  command id, category, and displayed chord.
+- Within each category show available commands first, then an explicitly labelled unavailable
+  subsection. Do not remove unavailable commands from the complete Reference.
+- Preserve the 20–24 px row rhythm and one type size. Show `Reset` only when a durable override
+  exists and `System managed` for global bindings.
+- Shortcut capture, conflict refusal, immediate dispatch, persistence, toggle-close, prior focus,
+  and prior scroll behavior remain as currently fixed.
 
 ## Implementation sequence
 
-### Phase 0 — Lock regressions and update the contract
+### Phase 0 — Pin the reproduced failures and reconcile the contract
 
-1. For each reported defect, add the smallest failing unit or browser test and record the red result
-   before changing production code.
-2. Update `DESIGN.md` to distinguish direct directory-row disclosure from incidental selection and
-   to specify the one thread removal action and editable compact Shortcut table.
-3. Preserve current state-owner, grant, draft, watcher, command-registry, and theme boundaries.
+1. Add browser tests that fail on the 760 px clipped Projects rail, the 920 px unreachable Files
+   plane, and Settings-plus-Reference hidden transient stack.
+2. Add focused DOM/unit tests for Settings group composition, thread/project menu semantics, and
+   truthful project disclosure before their production changes.
+3. Update DESIGN to state that `[h]` is the one shortcut editor and Settings may only link to it.
+   Preserve the existing direct folder-row and one-thread-removal decisions.
 
-### Phase 1 — Restore trust in file navigation
+### Phase 1 — Make responsive navigation truthful
 
-1. Re-render the virtual window when Files regains measurable geometry, using a bounded resize or
-   explicit visibility signal rather than polling.
-2. Implement direct folder-row toggle while ensuring secondary-click and restoration do not toggle.
-3. Make project disclosure state truthful and durable.
-4. Prove repeated panel and project round trips preserve logical tree state.
+1. Model responsive Files suppression and Projects responsive-collapse as explicit presentation
+   state derived beside the root region owner, not as CSS-only semantic state.
+2. Reuse the mounted Files/Changes feature in one temporary replacement plane.
+3. Render the real collapsed Projects vocabulary and restore durable context on widening.
 
-### Phase 2 — Add bounded file operations
+### Phase 2 — Give transients one lifecycle owner
 
-1. Define structured native create-directory, create-file, rename, and move-to-trash requests and
-   their validation/failure results.
-2. Add root/file/directory menu composition and the shared keyboard menu mechanics.
-3. Add inline create/rename and one safety-confirmation path for removal.
-4. Reconcile active files, drafts, selection, expansion, and watcher results after success.
+1. Add the narrow coordinator and migrate Command List, Settings, and Shortcut Reference first.
+2. Route Escape, open/replace, focus entry, and focus return through it.
+3. Migrate existing confirmations and remaining ordinary planes incrementally without changing
+   their feature semantics.
 
-### Phase 3 — Simplify thread actions
+### Phase 3 — Complete Settings without duplicating Shortcuts
 
-1. Replace Close/Remove UI with one safe Remove transaction and one context menu.
-2. Retain inline rename and second-line configuration within that menu.
-3. Correct optical alignment and validate all lifecycle/attention states.
+1. Introduce a versioned workbench-preference schema around existing durable values.
+2. Add Appearance, Reading, and Workbench controls; reuse Attention and Diagnostics.
+3. Prove live application, persistence, migration/default handling, unavailable explanations, and
+   failure locality.
 
-### Phase 4 — Make shortcuts compact and editable
+### Phase 4 — Unify hierarchy actions
 
-1. Add command categories as registry metadata and build the shared compact table from live entries.
-2. Move capture, conflict, reset, and global-state presentation into the shared table.
-3. Reuse it in the Shortcut Reference and Settings without creating another shortcut inventory.
+1. Move thread Rename and the existing one removal command into the thread context menu.
+2. Add truthful project disclosure with durable per-project state.
+3. Extract and adopt the small shared menu mechanics in Files, Projects, and Threads.
 
-### Phase 5 — Integrated interaction audit
+### Phase 5 — Improve Shortcut information architecture and audit the whole flow
 
-Run the complete keyboard, theme, scaling, state-restoration, native-safety, and performance checks
-below. Update user documentation only after the corresponding behavior is proven.
+1. Add registry categories, filtering, unavailable grouping, and conditional Reset presentation.
+2. Run the focused and integrated verification below at wide and compact geometries.
 
 ## Acceptance evidence
 
 ### Automated
 
-- A full-workbench browser test expands a hierarchy larger than one viewport, selects and scrolls to
-  a nested file, toggles `[f]` off/on at least three times, and proves the same expansion set,
-  selection, active file, scroll position, total logical row count, and correct visible row window
-  immediately after every restore without clicking the tree.
-- Unit and browser tests prove folder primary-click/Enter/Space toggle, while right-click, watcher
-  refresh, filter dismissal, project switching, and Files visibility changes preserve expansion.
-- File-operation tests cover file, directory, and root menus; keyboard invocation/navigation; inline
-  commit/cancel; collision and invalid-name refusal; dirty-file safety; watcher reconciliation; and
-  exact selection/open-file/draft state after create, rename, and trash.
-- Native tests prove grant ownership, parent traversal refusal, symbolic-link escape refusal,
-  worktree-root protection, collision refusal, recoverable deletion behavior, and no mutation on
-  failed validation.
-- Thread tests expose one destructive UI action and prove stopped removal, confirmed live
-  termination-plus-removal, failed termination recovery, focus restoration, and no worktree/file
-  side effects.
-- Shortcut tests prove compact grouping, live registry completeness, in-place capture, conflict
-  refusal, reset, unassigned assignment, global read-only state, one-Escape-per-layer behavior, and
-  immediate dispatch/label persistence.
-- Project/menu tests prove truthful `aria-expanded`, persistent disclosure, Arrow/Home/End menu
-  movement, keyboard context invocation, Escape focus return, and only one open menu.
-- Browser geometry tests measure thread dot/icon/title relationships and prevent overlap with the
-  secondary line. Capture deterministic visual evidence in all three built-in themes at 1× and at
-  one fractional scale.
+- At 760 px, browser tests prove the Projects pane exposes project monograms and labelled
+  thread/status icons—not clipped full-mode text—and that pointer, Tab, and arrow navigation reach
+  every logical row. At 600 px it releases focus before hiding; widening restores the exact prior
+  presentation and selection.
+- At 920 px, `[f]`, its registered chord, and Command List action each open the same usable
+  Files/Changes replacement plane. Three open/close and narrow/wide round trips preserve tab,
+  expansion set, selection, active file, filter, both scroll axes, and logical/visible row counts.
+- Tests open every pair of ordinary transients in both orders and prove only one plane is mounted,
+  visible, and modal. One Escape closes that plane, does not alter the surface beneath, and restores
+  focus to a connected non-inert origin. Safety confirmation tests prove ordinary commands cannot
+  displace it.
+- Settings tests cover every required group, immediate live updates, reload persistence, schema
+  migration/fallback, clamping, and local errors. They also prove no Shortcut table is mounted in
+  Settings and the `[h]` editor remains complete.
+- Thread tests prove menu order, keyboard invocation, inline rename commit/cancel, live and stopped
+  removal labels, failure recovery, and absence of the hover action strip.
+- Project tests prove real `aria-expanded`, pointer and Left/Right/Enter/Space parity, persistence
+  through activation and pane round trips, and no session/process change on collapse.
+- Menu tests prove Arrow Up/Down, Home/End, Escape, pointer-away dismissal, viewport bounding, focus
+  return, and only one open context menu across Files, Projects, and Threads.
+- Shortcut tests prove category order, independent-word filtering, available/unavailable grouping,
+  conditional Reset, registry completeness, and all existing capture/conflict/dispatch behavior.
+- Run the complete unit, browser, type, lint, and formatting checks without regressing file safety,
+  draft recovery, virtualization, terminal lifecycle, editor semantics, or idle work.
 
 ### Manual application checks
 
-- On macOS, verify native secondary-click no longer appears over file or directory rows and Trash
-  contains a removed test item. On Windows, verify the corresponding Recycle Bin behavior when a
-  native runtime is available; otherwise retain native automated coverage without claiming a manual
-  run.
-- Navigate and mutate a real small Git repository with mouse only, keyboard only, and mixed input.
-  Confirm no unexpected folder collapse, centre-surface switch, terminal termination, or draft loss.
-- Review Current Light, Dark, Dracula, the warmest setting, 125%, 150%, and 175% scaling. Menus and
-  the shortcut table must remain readable, bounded to the viewport, and geometrically stable.
-- Compare the Projects/Threads rhythm with the approved workbench and thread references. Match their
-  information hierarchy and calm density, not their branding, colours, or decorative chrome.
+- In the packaged macOS application, resize slowly across every threshold with Files and Projects
+  focused in turn. Confirm there is never clipped pseudo-content, unreachable navigation, retained
+  hidden focus, a blank centre, or a change to the saved layout choice.
+- Open Settings, Reference, Command List, a context menu, and a destructive confirmation in varied
+  orders using mouse and keyboard. At every step visible focus and Escape must agree on the top
+  owner.
+- Change every Settings value, restart, and check Current Light, Dark, Dracula, the warmest setting,
+  125%, 150%, and 175% scaling. Controls remain calm text-led rows with no reflow-induced loss of
+  editor, terminal, tree, or scroll context.
+- Review the shortcut table and hierarchy menus using pointer only, keyboard only, and mixed input.
+  The common actions should be learnable from words without memorizing hover symbols.
 
 ## Performance and safety limits
 
-- No polling is added. Hidden regions do no continuous layout or filesystem work.
-- One operation produces at most one explicit refresh plus coalesced watcher reconciliation.
-- Large-tree virtualization remains bounded; context-menu and inline-edit state do not require
-  rendering the entire logical tree.
-- Diagnostics contain operation kind and stable IDs, never full paths, filenames, document content,
-  or terminal output.
-- Destructive confirmation is scoped to the exact file or thread and cannot widen into project or
-  worktree deletion.
+- No polling, duplicate feature tree, duplicate shortcut inventory, or second persistent state
+  owner is added.
+- Responsive presentation reuses existing mounted features or their explicit state snapshots; it
+  does not remount large trees on every resize event.
+- Transient replacement performs one cleanup and one mount. Hidden ordinary planes do not remain
+  alive, retain focus, or run background layout work.
+- Preference migration is bounded, versioned, and local. Invalid data falls back to a usable value
+  and cannot weaken native grants or file/thread safety.
+- Menu unification cannot widen native filesystem authority or merge project, thread, and file
+  destructive semantics.
 
 ## Non-goals
 
-- Editor tabs, split-file editing, breadcrumbs, minimap, language servers, diagnostics, autocomplete,
-  refactoring, debugger, or general IDE chrome.
-- Git staging, commit, branch, merge, fetch, push, or conflict-resolution operations.
-- File content clipboard operations, drag-to-move, bulk selection, bulk rename, duplicate, archive,
-  reveal-in-system-file-manager, or arbitrary shell commands.
-- A new state owner, generic filesystem IPC, executable extension system, or replacement design
-  system.
-- Redesigning Markdown typography, terminal output, quick access, themes, notifications, or Changes.
+- Tabs, breadcrumbs, minimap, language servers, autocomplete, editor diagnostics/gutters,
+  refactoring, debugger, or other general IDE chrome.
+- New Git mutation workflows, terminal transcript redesign, Markdown typography changes, or quick
+  access redesign.
+- A generic overlay framework, component library, explorer framework, plugin settings system, or
+  new filesystem IPC.
+- Returning Shortcut configuration to Settings, inventing a second command registry, or assigning
+  default chords to palette-only commands.
+- Bulk file operations, drag-to-move, system-file-manager reveal, arbitrary shell actions, or any
+  expansion of the completed bounded file-operation set.
 
 ## Terminal condition
 
-This goal is complete when the Files pane always restores a truthful virtualized view; direct folder
-intent is predictable and incidental events preserve disclosure; the bounded file operations work
-from pointer and keyboard through safe native authority; Threads exposes one understandable removal
-model; the Shortcut Reference is a compact editable view of the live registry; project disclosure
-and all context menus report and operate their real state; thread geometry is visually verified; and
-the focused plus integrated checks above pass without regressions to drafts, active context, live
-terminal sessions, accessibility, themes, or idle performance.
+This goal is complete when narrow windows retain usable Projects and Files navigation; exactly one
+visible transient owns focus and Escape; Settings exposes the contracted appearance, reading,
+workbench, attention, and diagnostics choices without duplicating Shortcuts; thread and project
+actions are word-led, keyboard-complete, and truthful; the Shortcut Reference is fast to scan; and
+all focused plus integrated checks pass without regressions to current file safety, drafts, active
+context, live terminal sessions, accessibility, themes, or idle performance.
