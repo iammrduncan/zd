@@ -33,31 +33,35 @@ export function renderThreadActions(
   const renameForm = document.createElement("form");
   renameForm.className = "zd-thread-rename";
   renameForm.dataset.threadRenameForm = thread.id;
+  renameForm.dataset.threadRenameInline = "true";
   renameForm.hidden = true;
   const name = document.createElement("input");
   name.value = thread.name;
   name.required = true;
   name.maxLength = 160;
   name.setAttribute("aria-label", `New name for ${thread.name}`);
-  const save = document.createElement("button");
-  save.type = "submit";
-  save.textContent = "Save";
-  const cancel = document.createElement("button");
-  cancel.type = "button";
-  cancel.textContent = "Cancel";
-  renameForm.append(name, save, cancel);
+  renameForm.append(name);
 
   rename.addEventListener("click", () => {
+    name.value = thread.name;
     renameForm.hidden = false;
     name.focus();
     name.select();
   });
-  cancel.addEventListener("click", () => {
+  name.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    name.value = thread.name;
     renameForm.hidden = true;
+    rename.focus();
   });
   renameForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    void performThreadAction(status, () => controller.renameThread(thread.id, name.value));
+    const nextName = name.value.trim();
+    if (!nextName) return;
+    renameForm.hidden = true;
+    if (nextName === thread.name) return;
+    void performThreadAction(status, () => controller.renameThread(thread.id, nextName));
   });
   close.addEventListener("click", () => {
     void performThreadAction(status, () => controller.closeThread(thread.id));

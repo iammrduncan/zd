@@ -260,20 +260,30 @@ describe("the Threads region", () => {
     });
   });
 
-  it("renames, closes, and removes threads through separate compact controls", async () => {
+  it("renames inline without opening a save/cancel row", async () => {
     const workbench = adapter();
     const host = document.createElement("div");
     mountProjectThreads(host, new ThreadsController(workbench), "alpha");
 
     host.querySelector<HTMLButtonElement>('[data-thread-rename="review"]')!.click();
     const rename = host.querySelector<HTMLFormElement>('[data-thread-rename-form="review"]')!;
+    expect(rename.dataset.threadRenameInline).toBe("true");
+    expect(rename.querySelectorAll("button")).toHaveLength(0);
     rename.querySelector<HTMLInputElement>("input")!.value = "Reviewed changes";
     rename.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
+
+    expect(workbench.renameThread).toHaveBeenCalledExactlyOnceWith("review", "Reviewed changes");
+  });
+
+  it("closes and removes threads through separate compact controls", async () => {
+    const workbench = adapter();
+    const host = document.createElement("div");
+    mountProjectThreads(host, new ThreadsController(workbench), "alpha");
+
     host.querySelector<HTMLButtonElement>('[data-thread-close="review"]')!.click();
     host.querySelector<HTMLButtonElement>('[data-thread-remove="shell"]')!.click();
     await settle();
 
-    expect(workbench.renameThread).toHaveBeenCalledExactlyOnceWith("review", "Reviewed changes");
     expect(workbench.closeThread).toHaveBeenCalledExactlyOnceWith("review");
     expect(workbench.removeThread).toHaveBeenCalledExactlyOnceWith("shell");
   });
