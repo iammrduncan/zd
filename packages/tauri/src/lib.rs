@@ -7,6 +7,7 @@
 mod cli;
 mod clipboard_images;
 mod file_tree;
+mod file_tree_watch;
 mod fs;
 mod git;
 #[path = "git/process.rs"]
@@ -63,6 +64,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(launch)
+        .manage(file_tree_watch::FileTreeWatchState::default())
         .manage(quick_access::QuickAccessState::default())
         .manage(terminal_runtime::TerminalState::default())
         .setup(|app| {
@@ -85,6 +87,8 @@ pub fn run() {
             accept_open_request,
             clipboard_images::save_clipboard_image,
             file_tree::file_tree_snapshot,
+            file_tree_watch::start_file_tree_watch,
+            file_tree_watch::stop_file_tree_watch,
             git::git_status,
             git::git_history_page,
             git::git_compare,
@@ -150,6 +154,9 @@ pub fn run() {
                 .shutdown();
             app_handle
                 .state::<terminal_runtime::TerminalState>()
+                .shutdown();
+            app_handle
+                .state::<file_tree_watch::FileTreeWatchState>()
                 .shutdown();
         }
 

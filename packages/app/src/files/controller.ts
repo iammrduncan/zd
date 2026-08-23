@@ -38,6 +38,7 @@ interface ScopeMemory {
   ignoredTruncated: boolean;
   unreadableDirectories: number;
   treeNotice: string | null;
+  watchProblem: string | null;
   notice: string | null;
   refreshPromise: Promise<void> | null;
   refreshQueued: boolean;
@@ -72,6 +73,7 @@ function newMemory(scope: FileTreeScope, activePath: string | null): ScopeMemory
     ignoredTruncated: false,
     unreadableDirectories: 0,
     treeNotice: null,
+    watchProblem: null,
     notice: null,
     refreshPromise: null,
     refreshQueued: false,
@@ -166,6 +168,17 @@ export class FileTreeController {
     const memory = this.#current;
     if (!memory) return;
     memory.activePath = path;
+    this.#publish();
+  }
+
+  setWatchProblem(problem: string | null): void {
+    const memory = this.#current;
+    if (!memory || memory.watchProblem === problem) return;
+    const previousPersistentNotice = persistentNotice(memory);
+    memory.watchProblem = problem;
+    if (memory.notice === null || memory.notice === previousPersistentNotice) {
+      memory.notice = persistentNotice(memory);
+    }
     this.#publish();
   }
 
@@ -290,7 +303,7 @@ export class FileTreeController {
     });
     if (result.status === "committed") {
       memory.activePath = entry.relativePath;
-      memory.notice = null;
+      memory.notice = persistentNotice(memory);
     } else {
       memory.notice = result.reason;
     }
@@ -387,7 +400,7 @@ export class FileTreeController {
     memory.refreshing = false;
     if (result.status === "unchanged") {
       memory.revision = result.revision;
-      memory.notice = memory.treeNotice;
+      memory.notice = persistentNotice(memory);
       return;
     }
     if (result.status === "ready") {
@@ -402,7 +415,7 @@ export class FileTreeController {
       memory.ignoredTruncated = result.ignoredTruncated;
       memory.unreadableDirectories = result.unreadableDirectories;
       memory.treeNotice = treeNotice(result);
-      memory.notice = memory.treeNotice;
+      memory.notice = persistentNotice(memory);
       return;
     }
     memory.rawEntries = [];
@@ -411,7 +424,7 @@ export class FileTreeController {
     memory.ignoredTruncated = false;
     memory.unreadableDirectories = 0;
     memory.treeNotice = null;
-    memory.notice = null;
+    memory.notice = persistentNotice(memory);
     if (result.status === "empty") {
       memory.revision = result.revision;
       memory.state = "empty";
@@ -486,5 +499,12 @@ function treeNotice(result: Extract<FileTreeResult, { status: "ready" }>): strin
   if (result.truncated) notices.push("The project exceeds the bounded file-tree limit.");
   if (result.ignoredTruncated) notices.push("Additional ignored entries are hidden.");
   if (result.unreadableDirectories > 0) notices.push("Some folders could not be read.");
+  return notices.length > 0 ? notices.join(" ") : null;
+}
+
+function persistentNotice(memory: Pick<ScopeMemory, "treeNotice" | "watchProblem">): string | null {
+  const notices = [memory.treeNotice, memory.watchProblem].filter(
+    (notice): notice is string => notice !== null,
+  );
   return notices.length > 0 ? notices.join(" ") : null;
 }

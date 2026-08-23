@@ -30,6 +30,7 @@ function adapter(entries: readonly NativeFileTreeEntry[]): FileTreeAdapter {
       unreadableDirectories: 0,
       elapsedMicros: 1,
     }),
+    watch: () => () => {},
   };
 }
 
@@ -48,7 +49,10 @@ describe("Files tree view", () => {
     const pending = new Promise<FileTreeResult>((complete) => {
       resolve = complete;
     });
-    const controller = new FileTreeController({ snapshot: async () => pending });
+    const controller = new FileTreeController({
+      snapshot: async () => pending,
+      watch: () => () => {},
+    });
     const host = document.createElement("aside");
     mountFileTree(host, controller);
     const activation = controller.activate(scope);
@@ -149,7 +153,10 @@ describe("Files tree view", () => {
         : status === "unavailable"
           ? { ...scope, status, problem: expected }
           : { ...scope, status };
-    const controller = new FileTreeController({ snapshot: async () => result });
+    const controller = new FileTreeController({
+      snapshot: async () => result,
+      watch: () => () => {},
+    });
     const host = document.createElement("aside");
     mountFileTree(host, controller);
     await controller.activate(scope);

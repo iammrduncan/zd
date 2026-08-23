@@ -2,8 +2,8 @@
 //!
 //! The webview supplies only opaque grant identities. Traversal starts from the
 //! native grant store, never from a path supplied over IPC. Refresh is explicit
-//! and revisioned: callers can coalesce filesystem signals without leaving an
-//! idle watcher or polling loop behind.
+//! and revisioned: callers can coalesce debounced filesystem signals without a
+//! polling loop.
 
 use std::collections::{hash_map::DefaultHasher, HashSet};
 use std::hash::{Hash, Hasher};

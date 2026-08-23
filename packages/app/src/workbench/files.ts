@@ -5,6 +5,7 @@ import {
   type FileTreeMetric,
   type FileTreeRefreshReason,
   type FileTreeScope,
+  type FileTreeWatchEvent,
 } from "@/files";
 import { reconcileGitStatus, type GitAdapter, type GitStatusSnapshot } from "@/git";
 import type { DiagnosticOutcome, InstrumentationClient } from "@/instrumentation";
@@ -57,9 +58,11 @@ export class WorkbenchFilesRuntime {
   readonly controller: FileTreeController;
   readonly #gitSnapshots = new Map<string, GitStatusSnapshot>();
   readonly #listeners = new Set<(snapshot: GitStatusSnapshot | null) => void>();
+  readonly #fileTree: FileTreeAdapter;
   #activeKey: string | null = null;
   #attached = false;
   #generation = 0;
+  #stopDiskWatch: Unmount = () => {};
 
   constructor(
     readonly owner: WorkbenchStateOwner,
@@ -67,6 +70,7 @@ export class WorkbenchFilesRuntime {
     readonly instrumentation: InstrumentationClient,
     fileTree: FileTreeAdapter,
   ) {
+    this.#fileTree = fileTree;
     this.controller = new FileTreeController(
       fileTree,
       { activateFile: (resource) => owner.activateFile(resource) },
@@ -114,6 +118,8 @@ export class WorkbenchFilesRuntime {
       if (!this.#attached) return;
       this.#attached = false;
       this.#generation += 1;
+      this.#stopWatching();
+      this.#activeKey = null;
       stopDismissFilter();
       stopFilter();
       document.removeEventListener("visibilitychange", onVisibility);
@@ -143,6 +149,7 @@ export class WorkbenchFilesRuntime {
     if (!scope) {
       if (this.#activeKey !== null) {
         this.#generation += 1;
+        this.#stopWatching();
         this.#activeKey = null;
         this.controller.deactivate();
         this.#publishGit(null);
@@ -158,10 +165,49 @@ export class WorkbenchFilesRuntime {
 
     this.#generation += 1;
     const generation = this.#generation;
+    this.#stopWatching();
     this.#activeKey = key;
     this.#publishGit(this.#gitSnapshots.get(key) ?? null);
     void this.controller.activate(scope, activePath(state));
+    this.#startWatching(scope, generation);
     void this.#refreshGit(scope, generation);
+  }
+
+  #startWatching(scope: FileTreeScope, generation: number): void {
+    const handle = (event: FileTreeWatchEvent) => {
+      if (
+        !this.#attached ||
+        generation !== this.#generation ||
+        scopeKey(scope) !== this.#activeKey
+      ) {
+        return;
+      }
+      if (event.status === "ready") {
+        this.controller.setWatchProblem(null);
+        // Close the one-time gap between the activation snapshot and native
+        // watcher installation. Revision matching makes this a cheap no-op
+        // when the tree stayed unchanged.
+        void this.controller.refresh("disk");
+      } else if (event.status === "changed") {
+        void this.refresh("disk");
+      } else {
+        this.controller.setWatchProblem(event.problem);
+      }
+    };
+
+    try {
+      this.#stopDiskWatch = this.#fileTree.watch(scope, handle);
+    } catch {
+      handle({
+        status: "unavailable",
+        problem: "Automatic file-tree updates are unavailable.",
+      });
+    }
+  }
+
+  #stopWatching(): void {
+    this.#stopDiskWatch();
+    this.#stopDiskWatch = () => {};
   }
 
   async #refreshGit(scope: FileTreeScope, generation: number): Promise<void> {

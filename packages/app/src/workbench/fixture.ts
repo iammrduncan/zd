@@ -1,6 +1,6 @@
 import "@/design/index.css";
 
-import type { NativeFileTreeEntry } from "@/files";
+import type { FileTreeScope, FileTreeWatchEvent, NativeFileTreeEntry } from "@/files";
 import type { GitChangeEntry } from "@/git";
 import type { DiagnosticStatus } from "@/instrumentation";
 import { detectPlatform, type FileStamp, type Platform } from "@/platform";
@@ -120,11 +120,13 @@ function directory(relativePath: string, ignored = false): NativeFileTreeEntry {
   return { ...file(relativePath, ignored), kind: "directory", byteLength: null };
 }
 
-const fileEntries: readonly NativeFileTreeEntry[] = [
+let fileEntries: readonly NativeFileTreeEntry[] = [
   directory(".github"),
   directory(".github/workflows"),
   file(".github/workflows/release.yml"),
   directory("docs"),
+  directory("docs/screenshots"),
+  file("docs/screenshots/first.png"),
   directory("docs/user-facing-docs"),
   file("docs/user-facing-docs/README.md"),
   directory("packages"),
@@ -153,6 +155,18 @@ const fileEntries: readonly NativeFileTreeEntry[] = [
   file("README.md"),
   file("rust-toolchain.toml"),
 ];
+let fileTreeRevision = 1;
+const fileTreeWatchers = new Map<string, Set<(event: FileTreeWatchEvent) => void>>();
+
+function fileTreeScopeKey(scope: FileTreeScope): string {
+  return `${scope.projectId}\0${scope.worktreeId}`;
+}
+
+function publishFileTreeChange(scope: FileTreeScope): void {
+  fileTreeWatchers
+    .get(fileTreeScopeKey(scope))
+    ?.forEach((listener) => listener({ status: "changed" }));
+}
 
 const changes: readonly GitChangeEntry[] = [
   {
@@ -343,17 +357,44 @@ const platform: Platform = {
   },
   terminal,
   fileTree: {
-    snapshot: async (request) => ({
-      status: "ready",
-      projectId: request.projectId,
-      worktreeId: request.worktreeId,
-      revision: "fixture-tree-v1",
-      entries: request.projectId === activeProject.id ? fileEntries : [file("README.md")],
-      truncated: false,
-      ignoredTruncated: false,
-      unreadableDirectories: 0,
-      elapsedMicros: 240,
-    }),
+    snapshot: async (request) => {
+      const revision = `fixture-tree-v${fileTreeRevision}`;
+      if (request.previousRevision === revision) {
+        return {
+          status: "unchanged",
+          projectId: request.projectId,
+          worktreeId: request.worktreeId,
+          revision,
+          elapsedMicros: 40,
+        };
+      }
+      return {
+        status: "ready",
+        projectId: request.projectId,
+        worktreeId: request.worktreeId,
+        revision,
+        entries: request.projectId === activeProject.id ? fileEntries : [file("README.md")],
+        truncated: false,
+        ignoredTruncated: false,
+        unreadableDirectories: 0,
+        elapsedMicros: 240,
+      };
+    },
+    watch: (scope, listener) => {
+      const key = fileTreeScopeKey(scope);
+      const listeners = fileTreeWatchers.get(key) ?? new Set();
+      listeners.add(listener);
+      fileTreeWatchers.set(key, listeners);
+      let active = true;
+      queueMicrotask(() => {
+        if (active) listener({ status: "ready" });
+      });
+      return () => {
+        active = false;
+        listeners.delete(listener);
+        if (listeners.size === 0) fileTreeWatchers.delete(key);
+      };
+    },
   },
   git,
   workspaceFiles: async (projectId, worktreeId) => ({
@@ -404,6 +445,12 @@ void bootWorkbench(host, platform, async (mountHost, context) => {
         centre: { ...regions.centre, mode, split: 0.46 },
         focus: "file",
       });
+    },
+    createFile(relativePath: string) {
+      if (fileEntries.some((entry) => entry.relativePath === relativePath)) return;
+      fileEntries = [...fileEntries, file(relativePath)];
+      fileTreeRevision += 1;
+      publishFileTreeChange(resource);
     },
   };
   Object.assign(window, { workbenchDocumentationFixture: fixture });

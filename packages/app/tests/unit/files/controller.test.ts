@@ -51,6 +51,7 @@ function sequence(results: readonly (FileTreeResult | Error)[]): FileTreeAdapter
       if (result instanceof Error) throw result;
       return result;
     }),
+    watch: () => () => {},
   };
 }
 
@@ -120,6 +121,7 @@ describe("FileTreeController", () => {
           worktreeId: request.worktreeId,
         }),
       ),
+      watch: () => () => {},
     };
     const controller = new FileTreeController(adapter);
     await controller.activate(scope);
@@ -149,6 +151,7 @@ describe("FileTreeController", () => {
         .fn()
         .mockImplementationOnce(() => first)
         .mockResolvedValueOnce(ready("two", [entry("a.md"), entry("b.md")])),
+      watch: () => () => {},
     };
     const controller = new FileTreeController(adapter);
     const activation = controller.activate(scope);
@@ -224,6 +227,25 @@ describe("FileTreeController", () => {
     await controller.refresh("focus");
 
     expect(controller.snapshot().notice).toContain("bounded file-tree limit");
+  });
+
+  it("reports watcher failure without replacing rows or bounded-tree context", async () => {
+    const controller = new FileTreeController(
+      sequence([ready("one", [entry("notes.md")], { truncated: true })]),
+    );
+    await controller.activate(scope);
+
+    controller.setWatchProblem("Automatic updates are unavailable.");
+
+    expect(controller.snapshot()).toMatchObject({ state: "ready", revision: "one" });
+    expect(controller.snapshot().entries.map(({ relativePath }) => relativePath)).toEqual([
+      "notes.md",
+    ]);
+    expect(controller.snapshot().notice).toContain("bounded file-tree limit");
+    expect(controller.snapshot().notice).toContain("Automatic updates are unavailable.");
+
+    controller.setWatchProblem(null);
+    expect(controller.snapshot().notice).toBe("The project exceeds the bounded file-tree limit.");
   });
 
   it("adds Git state without status letters and records path-free measurements", async () => {

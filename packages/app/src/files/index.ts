@@ -24,6 +24,7 @@ export type {
   FileTreeScope,
   FileTreeScrollState,
   FileTreeViewSnapshot,
+  FileTreeWatchEvent,
   NativeFileTreeEntry,
   VisibleFileTreeRow,
 } from "./types";
