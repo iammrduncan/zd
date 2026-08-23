@@ -1,4 +1,5 @@
-import { chordLabel, commands, register, registerCommandTarget, type Command } from "./shortcuts";
+import { mountShortcutSettings } from "./shortcut-settings";
+import { register, registerCommandTarget } from "./shortcuts";
 
 /**
  * The Shortcut Reference — vision §7.1, DESIGN.md §7.8, finding F02.
@@ -25,58 +26,7 @@ const SHEET = "zd-reference";
 
 /** The open sheet, or null. §6.2 allows exactly one transient at a time. */
 let sheet: HTMLElement | null = null;
-
-/**
- * What an unavailable row says.
- *
- * Words rather than only a shade, because §9 requires state to survive "without
- * colour" and a greyed row with nothing else is exactly "displayed as working"
- * to anyone who cannot see the grey. Prose rather than a badge or a pill, because
- * §7.10 forbids both.
- */
-const UNAVAILABLE_NOTE = "not available here";
-
-function row(command: Command): HTMLElement {
-  const line = document.createElement("div");
-  line.className = "zd-reference-row";
-  line.setAttribute("role", "row");
-
-  /*
-   * F16, the half the registry cannot keep on its own: "Unavailable commands must
-   * be identified honestly rather than displayed as working shortcuts."
-   *
-   * Read at render time from the same `available()` that `dispatch` reads, so the
-   * row and the key can never disagree — the drift F16 describes is exactly what
-   * happens when a display and a behaviour each get their own idea of state.
-   *
-   * Listed, never omitted: a Reference that hides what it cannot run is one you
-   * cannot trust to be complete.
-   */
-  const available = command.available ? command.available() : true;
-  line.dataset.available = String(available);
-  if (!available) line.setAttribute("aria-disabled", "true");
-
-  const chord = document.createElement("kbd");
-  chord.className = "zd-reference-chord";
-  chord.setAttribute("role", "cell");
-  chord.textContent = command.chord ? chordLabel(command.chord) : "Unassigned";
-
-  const description = document.createElement("span");
-  description.className = "zd-reference-description";
-  description.setAttribute("role", "cell");
-  description.textContent = command.description;
-
-  line.append(chord, description);
-
-  if (!available) {
-    const note = document.createElement("span");
-    note.className = "zd-reference-note";
-    note.textContent = UNAVAILABLE_NOTE;
-    description.append(" ", note);
-  }
-
-  return line;
-}
+let stopSheet: () => void = () => {};
 
 /** Is the Reference on screen? */
 export function isReferenceOpen(): boolean {
@@ -102,8 +52,6 @@ export function openReference(host: HTMLElement): void {
 
   const column = document.createElement("div");
   column.className = "zd-reference-column";
-  column.setAttribute("role", "table");
-  column.setAttribute("aria-label", "Keyboard shortcuts");
   plane.append(column);
 
   /*
@@ -117,8 +65,7 @@ export function openReference(host: HTMLElement): void {
    */
   sheet = plane;
   host.append(plane);
-
-  for (const command of commands()) column.append(row(command));
+  stopSheet = mountShortcutSettings(column, { heading: false, reference: true });
 }
 
 /**
@@ -130,6 +77,8 @@ export function openReference(host: HTMLElement): void {
  * doing so is how a round trip starts losing state.
  */
 export function closeReference(): void {
+  stopSheet();
+  stopSheet = () => {};
   sheet?.remove();
   sheet = null;
 }

@@ -38,20 +38,20 @@
   margin-inline: auto;
 }
 
+.zd-reference .zd-shortcut-settings {
+  padding: 0;
+  border: 0;
+}
+
 /*
- * A row of the two-column table §7.1 asks for: "platform-correct key notation on
- * the left and the action name on the right", with "consistent row rhythm".
+ * A row of the compact editable table §7.1 asks for: platform-correct key
+ * notation, the command name, and the reset action, with consistent row rhythm.
  *
  * Grid keeps the key column aligned down the whole semantic table. Navigation
  * typography and a 24 px rhythm make the full binding set scannable at once.
  */
 .zd-reference-row {
-  display: grid;
-  grid-template-columns: var(--transient-key-column) minmax(0, 1fr);
-  column-gap: var(--space-3);
-  align-items: baseline;
-  min-block-size: 24px;
-  padding-block: 1px;
+  grid-template-columns: minmax(6.5rem, var(--transient-key-column)) minmax(0, 1fr) auto;
 }
 
 /* Key notation is compact, aligned, and quiet. */
@@ -61,6 +61,11 @@
   line-height: var(--type-navigation-line);
   color: var(--text-secondary);
   text-align: right;
+}
+
+.zd-reference-chord .zd-shortcut-setting-binding {
+  color: inherit;
+  font: inherit;
 }
 
 /* Actions share the same dense table rhythm as their keys. */

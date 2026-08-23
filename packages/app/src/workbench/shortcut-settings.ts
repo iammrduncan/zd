@@ -10,6 +10,11 @@ import {
 import { clearShortcutBinding, setShortcutBinding, shortcutBindings } from "./preferences";
 import type { Unmount } from "./runtime";
 
+export interface ShortcutSettingsOptions {
+  readonly heading?: boolean;
+  readonly reference?: boolean;
+}
+
 /** Apply durable bindings after every production command has registered. */
 export function restoreShortcutBindings(): readonly string[] {
   const notices: string[] = [];
@@ -21,7 +26,10 @@ export function restoreShortcutBindings(): readonly string[] {
 }
 
 /** Mount immediate shortcut editing from the same live registry the app dispatches. */
-export function mountShortcutSettings(host: HTMLElement): Unmount {
+export function mountShortcutSettings(
+  host: HTMLElement,
+  options: ShortcutSettingsOptions = {},
+): Unmount {
   const section = document.createElement("section");
   section.className = "zd-shortcut-settings";
   section.dataset.shortcutSettings = "true";
@@ -29,23 +37,56 @@ export function mountShortcutSettings(host: HTMLElement): Unmount {
   heading.textContent = "SHORTCUTS";
   const list = document.createElement("div");
   list.className = "zd-shortcut-settings-list";
+  list.setAttribute("role", "table");
+  list.setAttribute("aria-label", "Keyboard shortcuts");
   const status = document.createElement("p");
   status.className = "zd-shortcut-settings-status";
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
-  section.append(heading, list, status);
+  if (options.heading !== false) section.append(heading);
+  section.append(list, status);
   host.append(section);
 
   const render = (): void => {
     const persisted = shortcutBindings();
     list.replaceChildren();
+    const header = document.createElement("div");
+    header.className = "zd-shortcut-setting-header";
+    header.setAttribute("role", "row");
+    for (const label of ["Shortcut", "Command", "Action"]) {
+      const column = document.createElement("span");
+      column.setAttribute("role", "columnheader");
+      column.textContent = label;
+      header.append(column);
+    }
+    list.append(header);
     for (const command of commands()) {
       const row = document.createElement("div");
-      row.className = "zd-shortcut-setting-row";
+      row.className = options.reference
+        ? "zd-shortcut-setting-row zd-reference-row"
+        : "zd-shortcut-setting-row";
+      row.setAttribute("role", "row");
+      const available = command.available ? command.available() : true;
+      row.dataset.available = String(available);
+      if (!available) row.setAttribute("aria-disabled", "true");
+      const chordCell = document.createElement("span");
+      chordCell.className = options.reference
+        ? "zd-shortcut-setting-chord zd-reference-chord"
+        : "zd-shortcut-setting-chord";
+      chordCell.setAttribute("role", "cell");
       const description = document.createElement("span");
+      description.className = options.reference ? "zd-reference-description" : "";
+      description.setAttribute("role", "cell");
       description.textContent = command.description;
-      const controls = document.createElement("span");
-      controls.className = "zd-shortcut-setting-controls";
+      if (!available) {
+        const note = document.createElement("span");
+        note.className = "zd-reference-note";
+        note.textContent = "not available here";
+        description.append(" ", note);
+      }
+      const actionCell = document.createElement("span");
+      actionCell.className = "zd-shortcut-setting-action";
+      actionCell.setAttribute("role", "cell");
       const binding = document.createElement("button");
       const currentBinding = command.chord ? chordLabel(command.chord) : "Unassigned";
       binding.type = "button";
@@ -87,7 +128,7 @@ export function mountShortcutSettings(host: HTMLElement): Unmount {
         status.textContent = `${command.description} now uses ${chordLabel(chord)}.`;
         render();
       });
-      controls.append(binding);
+      chordCell.append(binding);
 
       if (command.scope !== "global") {
         const reset = document.createElement("button");
@@ -106,10 +147,15 @@ export function mountShortcutSettings(host: HTMLElement): Unmount {
           status.textContent = `${command.description} restored to its default.`;
           render();
         });
-        controls.append(reset);
+        actionCell.append(reset);
+      } else {
+        const managed = document.createElement("span");
+        managed.className = "zd-shortcut-setting-managed";
+        managed.textContent = "System";
+        actionCell.append(managed);
       }
 
-      row.append(description, controls);
+      row.append(chordCell, description, actionCell);
       list.append(row);
     }
   };

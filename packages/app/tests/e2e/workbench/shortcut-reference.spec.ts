@@ -78,7 +78,7 @@ test("the key and action columns use compact dense rows", async ({ page }) => {
   await expect(table).toHaveCount(1);
   expect(await table.getByRole("row").count()).toBeGreaterThan(0);
 
-  const rows = await table.getByRole("row").evaluateAll((list) =>
+  const rows = await table.locator(".zd-reference-row").evaluateAll((list) =>
     list.map((row) => {
       const chord = row.querySelector<HTMLElement>(".zd-reference-chord")!;
       const description = row.querySelector<HTMLElement>(".zd-reference-description")!;
@@ -98,6 +98,23 @@ test("the key and action columns use compact dense rows", async ({ page }) => {
   expect(Math.max(...rows.map(({ chordSize }) => chordSize))).toBeLessThanOrEqual(13);
   expect(Math.max(...rows.map(({ descriptionSize }) => descriptionSize))).toBeLessThanOrEqual(13);
   expect(Math.min(...rows.map(({ columnGap }) => columnGap))).toBeGreaterThanOrEqual(8);
+});
+
+test("the compact reference edits a shortcut in place", async ({ page }) => {
+  await open(page);
+  const sheet = page.getByRole("dialog", { name: "Shortcut Reference" });
+  const binding = sheet.getByRole("button", {
+    name: /Change shortcut for Find in the current file/u,
+  });
+
+  await expect(binding).toBeVisible();
+  await binding.click();
+  await binding.press("ControlOrMeta+Alt+k");
+
+  await expect(sheet.getByRole("status")).toContainText("Find in the current file now uses");
+  await expect(
+    sheet.getByRole("button", { name: /Change shortcut for Find in the current file/u }),
+  ).toContainText(/K/u);
 });
 
 test("every row shows a key and a description, and no row is empty", async ({ page }) => {

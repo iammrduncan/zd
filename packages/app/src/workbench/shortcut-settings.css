@@ -13,26 +13,65 @@
   display: grid;
 }
 
+.zd-shortcut-setting-header,
 .zd-shortcut-setting-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-  min-block-size: 30px;
+  grid-template-columns: minmax(6.5rem, auto) minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: var(--space-3);
+}
+
+.zd-shortcut-setting-header {
+  min-block-size: 22px;
+  color: var(--text-muted);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+}
+
+.zd-shortcut-setting-header > :first-child,
+.zd-shortcut-setting-header > :last-child {
+  text-align: right;
+}
+
+.zd-shortcut-setting-row {
+  box-sizing: border-box;
+  block-size: 24px;
+  padding-block: 1px;
   border-block-end: var(--hairline) solid var(--line-quiet);
 }
 
-.zd-shortcut-setting-controls {
+.zd-shortcut-setting-row > [role="cell"] {
+  min-width: 0;
+}
+
+.zd-shortcut-setting-chord,
+.zd-shortcut-setting-action {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+}
+
+.zd-shortcut-setting-chord {
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.zd-shortcut-setting-action {
+  justify-content: flex-end;
+}
+
+.zd-shortcut-setting-row > [role="cell"]:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .zd-shortcut-setting-binding,
 .zd-shortcut-setting-reset {
   border: 0;
   border-radius: 0;
-  padding: var(--space-1);
+  min-block-size: 20px;
+  padding: 0;
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
@@ -55,6 +94,12 @@
 .zd-shortcut-setting-reset:disabled {
   color: var(--text-muted);
   text-decoration: none;
+}
+
+.zd-shortcut-setting-managed {
+  color: var(--text-muted);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
 }
 
 .zd-shortcut-settings-status {
