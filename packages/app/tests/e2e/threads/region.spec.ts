@@ -29,7 +29,7 @@ async function mountFixture(page: Page, threadCount = 3): Promise<void> {
       projectId: index % 2 === 0 ? "alpha" : "beta",
       worktree: {
         id: index % 2 === 0 ? "alpha-root" : "beta-feature",
-        label: index % 2 === 0 ? "project root" : "feature/browser",
+        label: index % 2 === 0 ? "main" : "feature/browser",
         root: index % 2 === 0 ? "/workspace/alpha" : "/workspace/beta-feature",
         kind: index % 2 === 0 ? "project-root" : "worktree",
         availability: "available",
@@ -192,6 +192,7 @@ test("thread context settings choose the secondary line", async ({ page }) => {
   await page.getByRole("menuitemradio", { name: "Branch / worktree" }).click();
 
   await expect(thread.locator(".zd-thread-secondary")).toHaveText("feature/browser");
+  await expect(page.locator('[data-thread-id="thread-0"] .zd-thread-secondary')).toHaveText("main");
   await expect(menu).toHaveCount(0);
 });
 
