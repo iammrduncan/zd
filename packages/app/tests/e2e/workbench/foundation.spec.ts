@@ -171,6 +171,20 @@ test("a new disk file appears in the expanded tree without refocusing", async ({
   );
 });
 
+test("the file filter has a visible close action that restores tree navigation", async ({ page }) => {
+  const primary = await page.evaluate(() =>
+    /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",
+  );
+  await page.keyboard.press(`${primary}+p`);
+  const filter = page.locator(".zd-file-tree-filter");
+  await expect(filter.getByRole("searchbox", { name: /Filter project files/u })).toBeFocused();
+
+  await filter.getByRole("button", { name: "Close file filter" }).click();
+
+  await expect(filter).toBeHidden();
+  await expect(page.getByRole("tree", { name: "Project files" })).toBeFocused();
+});
+
 test("pasting a screenshot into Markdown saves it before inserting a relative link", async ({
   page,
 }) => {

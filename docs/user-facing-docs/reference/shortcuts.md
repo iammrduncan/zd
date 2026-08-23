@@ -26,6 +26,9 @@ A context-dependent shortcut falls through when its target is unavailable. The g
 unavailable when the operating system refuses registration or another application owns the chord;
 ordinary launch still works.
 
+After opening the file filter, use its visible close action or press `Escape` to return focus to the
+file tree without losing its expansion, selection, or scroll position.
+
 To change a window shortcut, open **Settings**, choose its current binding under **Shortcuts**, and
 press the replacement chord. A chord already used by another command is refused. **Reset** restores
 the registered default. The global summon shortcut remains managed by the operating system. The

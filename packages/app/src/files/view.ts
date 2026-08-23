@@ -14,6 +14,7 @@ interface FileTreeElements {
   readonly filter: HTMLElement;
   readonly filterInput: HTMLInputElement;
   readonly filterCount: HTMLElement;
+  readonly filterClose: HTMLButtonElement;
   readonly viewport: HTMLElement;
   readonly spacer: HTMLElement;
   readonly layer: HTMLElement;
@@ -39,7 +40,13 @@ function elements(): FileTreeElements {
   const filterCount = document.createElement("span");
   filterCount.className = "zd-file-tree-filter-count";
   filterCount.setAttribute("aria-live", "polite");
-  filter.append(filterInput, filterCount);
+  const filterClose = document.createElement("button");
+  filterClose.type = "button";
+  filterClose.className = "zd-file-tree-filter-close";
+  filterClose.dataset.fileFilterClose = "true";
+  filterClose.setAttribute("aria-label", "Close file filter");
+  filterClose.textContent = "×";
+  filter.append(filterInput, filterCount, filterClose);
 
   const viewport = document.createElement("div");
   viewport.className = "zd-file-tree-viewport";
@@ -61,7 +68,18 @@ function elements(): FileTreeElements {
   notice.className = "zd-file-tree-notice";
   notice.setAttribute("role", "status");
   root.append(filter, viewport, status, notice);
-  return { root, filter, filterInput, filterCount, viewport, spacer, layer, status, notice };
+  return {
+    root,
+    filter,
+    filterInput,
+    filterCount,
+    filterClose,
+    viewport,
+    spacer,
+    layer,
+    status,
+    notice,
+  };
 }
 
 function stateDescription(snapshot: FileTreeViewSnapshot, rowCount: number): string {
@@ -222,18 +240,23 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
     if (snapshot.filterOpen && document.activeElement !== ui.filterInput) ui.filterInput.focus();
   };
 
+  const dismissFilter = (): void => {
+    controller.dismissFilter();
+    restoreTreeFocus(ui, controller.snapshot().selectedPath, renderRows);
+  };
+
   ui.filterInput.addEventListener("input", () => controller.setFilter(ui.filterInput.value));
   ui.filterInput.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       event.preventDefault();
-      controller.dismissFilter();
-      restoreTreeFocus(ui, controller.snapshot().selectedPath, renderRows);
+      dismissFilter();
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
       const selected = controller.snapshot().selectedPath ?? controller.selectBoundary("first");
       focusSelected(ui, controller, selected, renderRows);
     }
   });
+  ui.filterClose.addEventListener("click", dismissFilter);
   ui.viewport.addEventListener("scroll", () => {
     controller.setScroll({ top: ui.viewport.scrollTop, left: ui.viewport.scrollLeft });
     renderRows();

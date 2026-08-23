@@ -19,11 +19,31 @@
 
 .zd-file-tree-filter {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto var(--space-4);
   align-items: center;
   min-block-size: 24px;
   border-block-end: var(--hairline) solid var(--line-quiet);
   padding-inline: var(--space-2);
+}
+
+.zd-file-tree-filter-close {
+  block-size: var(--space-4);
+  inline-size: var(--space-4);
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  line-height: 1;
+}
+
+.zd-file-tree-filter-close:is(:hover, :focus-visible) {
+  color: var(--text-primary);
+  outline: none;
+  text-decoration: underline;
+  text-decoration-color: var(--line-focus);
+  text-underline-offset: var(--space-1);
 }
 
 .zd-file-tree-filter[hidden] {
