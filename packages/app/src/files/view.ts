@@ -399,6 +399,9 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
     focusSelected(ui, controller, next, renderRows);
   });
   window.addEventListener("resize", renderRows);
+  const viewportObserver =
+    typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => renderRows());
+  viewportObserver?.observe(ui.viewport);
   const unsubscribe = controller.subscribe(render);
   render(current);
 
@@ -407,6 +410,7 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
     active = false;
     dismissFileMenu();
     unsubscribe();
+    viewportObserver?.disconnect();
     window.removeEventListener("resize", renderRows);
     ui.root.remove();
   };
