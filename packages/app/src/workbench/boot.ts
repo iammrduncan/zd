@@ -6,6 +6,7 @@ import { registerReference } from "./reference";
 import { attachShortcuts } from "./shortcuts";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "./state";
 import { attachWorkbenchCommands } from "./commands";
+import { mountCommandList } from "./command-list";
 import { attachWorkbenchDiagnostics } from "./diagnostics";
 import { diagnosticsEnabled, setDiagnosticsEnabled } from "./preferences";
 import { mountWorkbenchFeatures } from "./features";
@@ -106,6 +107,7 @@ export async function bootWorkbench(
   });
   const runtime = { launch, platform, state, instrumentation };
   const rootCommands = attachWorkbenchCommands(host, runtime);
+  const detachCommandList = mountCommandList(host);
   const detachReference = registerReference(host);
 
   let unmount: Unmount;
@@ -116,6 +118,7 @@ export async function bootWorkbench(
     await instrumentation.disable();
     detachDiagnostics();
     rootCommands.detach();
+    detachCommandList();
     detachThemeSelectionOwner();
     detachThemeState();
     theme.dispose();
@@ -136,6 +139,7 @@ export async function bootWorkbench(
     detachThemeState();
     theme.dispose();
     detachReference();
+    detachCommandList();
     rootCommands.detach();
     detachShortcuts();
     detachOpenRequests();

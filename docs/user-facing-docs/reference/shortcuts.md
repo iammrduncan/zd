@@ -9,6 +9,8 @@ the current context.
 | Find in the current file or terminal | `Cmd+F` | `Ctrl+F` |
 | Toggle Focus Mode | `Cmd+Shift+F` | `Ctrl+Shift+F` |
 | Filter the active file tree | `Cmd+P` | `Ctrl+P` |
+| Open the searchable Command List | `Cmd+Shift+P` | `Ctrl+Shift+P` |
+| Open Settings | `Cmd+,` | `Ctrl+,` |
 | Activate project 1 through 9 | `Cmd+1` … `Cmd+9` | `Ctrl+1` … `Ctrl+9` |
 | Switch between the current thread and file | `Cmd+J` | `Ctrl+J` |
 | Summon or hide the workbench globally | `Cmd+Shift+Space` | `Ctrl+Shift+Space` |

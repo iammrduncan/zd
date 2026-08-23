@@ -8,6 +8,7 @@ import {
 } from "@/instrumentation";
 import { clearCommands, commands, dispatch, registerCommandTarget } from "@/workbench/shortcuts";
 import { attachWorkbenchCommands } from "@/workbench/commands";
+import { mountCommandList } from "@/workbench/command-list";
 import { homeLaunch, type ProjectGrant } from "@/workbench/resources";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";
 
@@ -92,6 +93,43 @@ beforeEach(clearCommands);
 afterEach(clearCommands);
 
 describe("root workbench commands", () => {
+  it("opens the command list and runs its selected production command", async () => {
+    const host = document.createElement("main");
+    document.body.append(host);
+    const native = setupPlatform();
+    const attached = attachWorkbenchCommands(host, context(native.platform));
+    const openSettings = vi.fn(() => true);
+    const removeSettings = registerCommandTarget({
+      id: "test-settings",
+      commandId: "settings.open",
+      available: () => true,
+      run: openSettings,
+    });
+    const stopList = mountCommandList(host);
+    await attached.ready;
+
+    expect(
+      commands()
+        .find(({ id }) => id === "command.list")
+        ?.run(),
+    ).toBe(true);
+    const dialog = host.querySelector<HTMLElement>("[data-command-list]");
+    const query = dialog?.querySelector<HTMLInputElement>("input");
+    expect(dialog?.getAttribute("role")).toBe("dialog");
+    expect(query).toBe(document.activeElement);
+
+    query!.value = "settings";
+    query!.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    query!.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(openSettings).toHaveBeenCalledOnce();
+    expect(host.querySelector("[data-command-list]")).toBeNull();
+
+    stopList();
+    removeSettings();
+    attached.detach();
+  });
+
   it("records successful dispatch through the one command registry", async () => {
     const record = vi.fn(async () => ({ recorded: true, problem: null }));
     const instrumentation = createInstrumentationClient(() => ({
