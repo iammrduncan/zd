@@ -58,12 +58,16 @@ test("loads the bundled iA Writer faces", async ({ page }) => {
   expect(families).toContain("iA Writer Mono/400/normal");
 });
 
-test("keeps Settings transient and optional without a desktop shell", async ({ page }) => {
+test("keeps Settings command-driven and out of the thread hierarchy", async ({ page }) => {
   await page.goto("/");
   const threads = page.locator('[data-region="threads"]');
   await expect(threads.locator("[data-diagnostic-settings]")).toHaveCount(0);
+  await expect(threads.locator("[data-settings-trigger]")).toHaveCount(0);
 
-  await threads.getByRole("button", { name: "Open Settings" }).click();
+  const primary = await page.evaluate(() =>
+    /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",
+  );
+  await page.keyboard.press(`${primary}+,`);
   const sheet = page.locator("[data-workbench-settings]");
   const settings = sheet.locator("[data-diagnostic-settings]");
 

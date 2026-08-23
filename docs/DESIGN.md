@@ -329,10 +329,11 @@ restoration. A hidden region cannot retain keyboard focus.
 Threads is a project/thread hierarchy, not a dashboard.
 
 - Region heading: `THREADS` in quiet navigation text.
+- The heading and quiet `Open` project action share one header row; neither becomes a separate
+  hierarchy level.
 - Project rows use a small disclosure chevron and slightly stronger text.
-- Thread rows are indented beneath their project and use compact 22 px rows.
-- A thread row shows name, terminal/agent type, visible lifecycle text, state dot, and worktree when
-  it differs from the project root.
+- Thread rows are indented beneath their project and use compact two-line rows: the name first,
+  then terminal/agent type, visible lifecycle, and differing worktree in supporting text.
 - The selected row uses `surface.selection`, primary text, and a 2 px inset `line.focus` hairline.
 - Hover uses a reduced selection wash and never changes metrics.
 - Project and thread order is stable while status updates arrive.
@@ -529,6 +530,9 @@ hand-maintained shortcut inventory.
 
 Settings is one transient typographic sheet. Values apply immediately and persist through the
 versioned settings owner. There is no Apply, Save, Cancel, or advanced accordion.
+
+Settings opens from the command list or `Cmd+,` / `Ctrl+,`. It is not a persistent row in the
+Threads hierarchy.
 
 Initial groups are:
 

@@ -6,24 +6,13 @@ import { mountDiagnosticSettings } from "./diagnostics";
 import type { Unmount } from "./runtime";
 import { registerCommandTarget } from "./shortcuts";
 
-/** Mount the quiet entry point for the workbench's one transient Settings plane. */
+/** Register the workbench's one command-driven transient Settings plane. */
 export function mountWorkbenchSettings(
-  navigationHost: HTMLElement,
   planeHost: HTMLElement,
   instrumentation: InstrumentationClient,
   revealDiagnostics: () => Promise<void>,
   attention: AttentionSettingsController,
 ): Unmount {
-  const trigger = document.createElement("button");
-  trigger.type = "button";
-  trigger.className = "zd-workbench-settings-trigger";
-  trigger.dataset.settingsTrigger = "true";
-  trigger.setAttribute("aria-label", "Open Settings");
-  trigger.setAttribute("aria-expanded", "false");
-  trigger.setAttribute("aria-controls", "zd-workbench-settings");
-  trigger.textContent = "Settings";
-  navigationHost.append(trigger);
-
   let plane: HTMLElement | null = null;
   let stopControls: Unmount = () => {};
   let returnFocus: HTMLElement | null = null;
@@ -34,7 +23,6 @@ export function mountWorkbenchSettings(
     stopControls = () => {};
     plane.remove();
     plane = null;
-    trigger.setAttribute("aria-expanded", "false");
     if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     returnFocus = null;
     return true;
@@ -42,7 +30,8 @@ export function mountWorkbenchSettings(
 
   const open = (): boolean => {
     if (plane) return true;
-    returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : trigger;
+    returnFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : planeHost;
 
     const nextPlane = document.createElement("section");
     nextPlane.id = "zd-workbench-settings";
@@ -80,13 +69,10 @@ export function mountWorkbenchSettings(
       const summary = diagnosticSettings.querySelector("summary");
       if (summary) summary.hidden = true;
     }
-    trigger.setAttribute("aria-expanded", "true");
     dismiss.focus();
     return true;
   };
 
-  const onTrigger = () => open();
-  trigger.addEventListener("click", onTrigger);
   const stopOpenCommand = registerCommandTarget({
     id: "workbench.settings.open",
     commandId: "settings.open",
@@ -106,7 +92,5 @@ export function mountWorkbenchSettings(
     close();
     stopDismissCommand();
     stopOpenCommand();
-    trigger.removeEventListener("click", onTrigger);
-    trigger.remove();
   };
 }

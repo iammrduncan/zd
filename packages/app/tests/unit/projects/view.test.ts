@@ -164,6 +164,11 @@ describe("the Projects list", () => {
     });
 
     const groups = [...host.querySelectorAll<HTMLElement>("[data-project-id]")];
+    const navigationHeader = host.querySelector<HTMLElement>(".zd-project-toolbar")!;
+    expect(navigationHeader.querySelector("h2")?.textContent).toBe("THREADS");
+    expect(
+      navigationHeader.querySelector<HTMLButtonElement>("[data-project-add]")?.textContent,
+    ).toBe("Open");
     expect(groups.map(({ dataset }) => dataset.projectId)).toEqual(["alpha", "beta"]);
     expect(groups[0]!.querySelector(".zd-project-children")?.textContent).toBe("codex · waiting");
     expect(groups[1]!.querySelector(".zd-project-children")?.textContent).toBe("shell · idle");

@@ -47,13 +47,6 @@ async function mountRegions(
   };
 }
 
-function heading(text: string): HTMLHeadingElement {
-  const element = document.createElement("h2");
-  element.className = "zd-region-heading";
-  element.textContent = text;
-  return element;
-}
-
 function quietState(text: string): HTMLParagraphElement {
   const element = document.createElement("p");
   element.className = "zd-region-empty";
@@ -185,7 +178,7 @@ export async function mountWorkbenchShell(
   const threadsPanel = document.createElement("div");
   threadsPanel.dataset.workbenchSlot = "threads";
   threadsPanel.append(quietState("No projects open."));
-  threads.append(heading("THREADS"), threadsPanel);
+  threads.append(threadsPanel);
 
   const threadsResizer = separator("threads");
 
