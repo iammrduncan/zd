@@ -171,7 +171,9 @@ test("a new disk file appears in the expanded tree without refocusing", async ({
   );
 });
 
-test("the file filter has a visible close action that restores tree navigation", async ({ page }) => {
+test("the file filter has a visible close action that restores tree navigation", async ({
+  page,
+}) => {
   const primary = await page.evaluate(() =>
     /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",
   );
@@ -318,4 +320,20 @@ test("Settings edits a window shortcut and restores it after reload", async ({ p
   await page.locator(".current-file .cm-editor").waitFor();
   await page.keyboard.press(`${primary}+Alt+k`);
   await expect(editor).toHaveAttribute("data-focus-mode", "true");
+});
+
+test("the command list selects the dark theme and restores it after reload", async ({ page }) => {
+  const primary = await page.evaluate(() =>
+    /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",
+  );
+
+  await page.keyboard.press(`${primary}+Shift+p`);
+  const commandList = page.getByRole("dialog", { name: "Command List" });
+  await commandList.getByRole("textbox", { name: "Filter commands" }).fill("theme dark");
+  await commandList.getByRole("option", { name: /Theme: Dark/u }).click();
+
+  await expect(page.locator("html")).toHaveAttribute("data-theme-name", "dark");
+  await page.reload();
+  await page.locator(".zd-workbench").waitFor();
+  await expect(page.locator("html")).toHaveAttribute("data-theme-name", "dark");
 });

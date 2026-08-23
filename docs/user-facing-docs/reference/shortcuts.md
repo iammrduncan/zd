@@ -33,3 +33,7 @@ To change a window shortcut, open **Settings**, choose its current binding under
 press the replacement chord. A chord already used by another command is refused. **Reset** restores
 the registered default. The global summon shortcut remains managed by the operating system. The
 `[h]` action in the top drag strip opens the live Shortcut Reference.
+
+To change the theme, open the Command List, type `theme`, and choose **Theme: Follow System**,
+**Theme: Current Light**, **Theme: Dark**, **Theme: Dracula**, or a validated installed theme. The
+selection applies immediately and is restored the next time zd starts.

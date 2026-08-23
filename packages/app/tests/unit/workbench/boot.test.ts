@@ -7,8 +7,8 @@ import { unavailableGitAdapter } from "@/git";
 import { unavailableTerminalAdapter } from "@/terminal";
 import { bootWorkbench, type WorkbenchMount } from "@/workbench/boot";
 import { homeLaunch, type ProjectGrant } from "@/workbench/resources";
-import { clearCommands, commands } from "@/workbench/shortcuts";
-import { forgetPreferences, setDiagnosticsEnabled } from "@/workbench/preferences";
+import { clearCommands, commands, executeCommand } from "@/workbench/shortcuts";
+import { forgetPreferences, setDiagnosticsEnabled, themePreference } from "@/workbench/preferences";
 
 const project: ProjectGrant = {
   id: "project-test",
@@ -459,6 +459,19 @@ describe("one workbench boot", () => {
     expect(document.documentElement.dataset.themeName).toBe("dracula");
     expect(document.documentElement.style.getPropertyValue("--surface-canvas")).toBe("#282a36");
     expect(state!.snapshot().theme).toEqual({ selected: "dracula", lastValid: "dracula" });
+    teardown();
+  });
+
+  it("publishes every loaded theme as a palette-only command and persists its selection", async () => {
+    const host = document.createElement("div");
+    const teardown = await bootWorkbench(host, stubPlatform(), () => () => {});
+    const dark = commands().find(({ id }) => id === "theme.select.dark")!;
+
+    expect(dark.description).toBe("Theme: Dark");
+    expect(dark.chord).toBeUndefined();
+    expect(executeCommand(dark)).toBe(true);
+    expect(document.documentElement.dataset.themeName).toBe("dark");
+    expect(themePreference()).toEqual({ selected: "dark", lastValid: "dark" });
     teardown();
   });
 

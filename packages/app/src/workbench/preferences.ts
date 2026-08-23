@@ -30,6 +30,7 @@ const ATTENTION_SOUND = "zd.attentionSound";
 const ATTENTION_MUTED = "zd.attentionMuted";
 const ATTENTION_VOLUME = "zd.attentionVolume";
 const SHORTCUT_BINDINGS = "zd.shortcutBindings.v1";
+const THEME_SELECTION = "zd.themeSelection.v1";
 
 function attentionSoundKey(agent: SupportedAttentionAgent): string {
   return `zd.attentionSound.${agent}`;
@@ -174,6 +175,37 @@ export function clearShortcutBinding(commandId: string): void {
   const next = { ...shortcutBindings() };
   delete next[commandId];
   write(SHORTCUT_BINDINGS, JSON.stringify(next));
+}
+
+export interface ThemePreference {
+  readonly selected: string;
+  readonly lastValid: string;
+}
+
+/** Durable theme identity; catalog validation still belongs to the theme owner. */
+export function themePreference(): ThemePreference {
+  const stored = read(THEME_SELECTION);
+  if (!stored) return { selected: "system", lastValid: "current-light" };
+  try {
+    const parsed = JSON.parse(stored) as Partial<ThemePreference>;
+    if (
+      typeof parsed.selected !== "string" ||
+      parsed.selected.length === 0 ||
+      parsed.selected.length > 64 ||
+      typeof parsed.lastValid !== "string" ||
+      parsed.lastValid.length === 0 ||
+      parsed.lastValid.length > 64
+    ) {
+      return { selected: "system", lastValid: "current-light" };
+    }
+    return { selected: parsed.selected, lastValid: parsed.lastValid };
+  } catch {
+    return { selected: "system", lastValid: "current-light" };
+  }
+}
+
+export function setThemePreference(preference: ThemePreference): void {
+  write(THEME_SELECTION, JSON.stringify(preference));
 }
 
 /**

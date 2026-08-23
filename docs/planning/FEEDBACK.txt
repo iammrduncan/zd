@@ -1,9 +1,9 @@
 # Rule: Work on each feedback item until resolved. Once resolved move it to below the Feedback Addressed Line. Mark it with "\" while feedback is in progress. One line per feedback item in this file.
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
-we need a dark theme and a theme slector in the command pallete (Which we need command pallete to actually work (the cmd+shift+p thing)).
 right click file should allow me to copy relative path or full path to clipboard.
 === Feedback Addressed ===
+we need a dark theme and a theme slector in the command pallete (Which we need command pallete to actually work (the cmd+shift+p thing)).
 no way to close filter files input after opening it.
 unable to hide/collapse files/changes pane.
 its not clear this less than sign actually collapses the projects pane... ![Screenshot](../screenshots/screenshot-1787463955949593000.png)

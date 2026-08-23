@@ -63,12 +63,12 @@ export function mountCommandList(host: HTMLElement): Unmount {
     };
 
     const render = (): void => {
-      const needle = query.value.trim().toLocaleLowerCase();
-      visible = commands().filter((command) =>
-        `${command.description} ${command.id} ${chordLabel(command.chord)}`
-          .toLocaleLowerCase()
-          .includes(needle),
-      );
+      const terms = query.value.trim().toLocaleLowerCase().split(/\s+/u).filter(Boolean);
+      visible = commands().filter((command) => {
+        const haystack =
+          `${command.description} ${command.id} ${command.chord ? chordLabel(command.chord) : ""}`.toLocaleLowerCase();
+        return terms.every((term) => haystack.includes(term));
+      });
       selected = Math.min(selected, Math.max(visible.length - 1, 0));
       results.replaceChildren();
 
@@ -94,7 +94,7 @@ export function mountCommandList(host: HTMLElement): Unmount {
         const description = document.createElement("span");
         description.textContent = command.description;
         const binding = document.createElement("kbd");
-        binding.textContent = chordLabel(command.chord);
+        binding.textContent = command.chord ? chordLabel(command.chord) : "";
         option.append(description, binding);
         option.addEventListener("pointermove", () => {
           if (selected === index) return;
