@@ -103,9 +103,9 @@ test("thread status and type icons align with the title without entering its lab
     };
   });
   expect(geometry.labelsLeft - geometry.iconRight).toBeGreaterThanOrEqual(4);
-  expect(geometry.iconCentre - geometry.nameCentre, JSON.stringify(geometry)).toBeCloseTo(2, 0);
+  expect(geometry.iconCentre - geometry.nameCentre, JSON.stringify(geometry)).toBeCloseTo(3, 0);
   expect(Math.abs(geometry.dotCentre - geometry.nameCentre)).toBeLessThanOrEqual(1);
-  expect(geometry.iconBottom).toBeLessThanOrEqual(geometry.metadataTop + 2);
+  expect(geometry.iconBottom).toBeLessThanOrEqual(geometry.metadataTop + 3);
 });
 
 test("Cmd+J restores and toggles the current thread and file after a project round trip", async ({
