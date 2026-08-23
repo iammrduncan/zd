@@ -38,6 +38,9 @@
 .md-editor td {
   text-align: start;
   vertical-align: baseline;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
   padding-block: var(--gap-list-item);
   padding-inline: 0 var(--gap-paragraph);
   border-block-end: var(--hairline) solid var(--line-quiet);

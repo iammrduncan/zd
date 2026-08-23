@@ -238,3 +238,27 @@ test("a rendered cell edits the underlying Markdown without leaving reader mode"
     .toContain("| Table | Editable hairlines |");
   await expect(page.locator(".md-editor table")).toHaveCount(1);
 });
+
+test("a multi-column table never stacks an unspaced header one character per line", async ({
+  page,
+}) => {
+  const markdown = [
+    "| Priority | Finding | Concrete evidence | Required outcome |",
+    "| --- | --- | --- | --- |",
+    "| P0 | Missing rows | The restored tree is incomplete. | Render every valid row. |",
+  ].join("\n");
+  const content = page.locator(".cm-content");
+  await content.click();
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.insertText(markdown);
+
+  const header = page.locator(".md-editor th", { hasText: "Priority" });
+  await expect(header).toBeVisible();
+  const lineCount = await header.evaluate((cell) => {
+    const range = document.createRange();
+    range.selectNodeContents(cell);
+    return range.getClientRects().length;
+  });
+
+  expect(lineCount).toBe(1);
+});
