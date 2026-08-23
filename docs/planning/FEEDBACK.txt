@@ -3,6 +3,12 @@
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
 === Feedback Addressed ===
+please think harder on the subheader for a thread and the branch/worktree... this screenshot shows clearly the branch is `feat/global-use` yet the thread says `zd`... ![Screenshot](../screenshots/screenshot-1787523388247455000.png)
+what are these differing font sizes in the hotkeys menu? ![Screenshot](../screenshots/screenshot-1787523448008455000.png)
+we have shortcut config on hotkeys menu... don't need it also on the settings menue.
+projects and file panel both have too large of padding at the top of their panels. ![Screenshot](../screenshots/screenshot-1787523483677470000.png)
+weird rendering on a table: ![Screenshot](../screenshots/screenshot-1787523552044612000.png)
+after finish other feedback, launch another ux reviewer... an expert in application design, ide/editors, desktop apps, and clis... Have them re-review and update docs/planning/goals/ux-review/goal.md.
 What is difference from close/remove thread? ![Screenshot](../screenshots/screenshot-1787507542075062000.png) I would only expect a single action that kills that thread/terminal if that is removed... not two...
 there is no right click context menu for filetree... there should be...![Screenshot](../screenshots/screenshot-1787507236542125000.png) currently we get the system right click. I expect right click on files and folders to offer typical things like "new folder", "new file", "copy full path", "copy relative path", "rename", "delete", etc. File tree in general should allow many file operations in it just like any other ide/editor.
 File tree sometimes doesn't show all files... click mhide file panel then click show, and it many of the files are gone... Click a file and they show back up. Before: ![Screenshot](../screenshots/screenshot-1787507457655360000.png), After: ![Screenshot](../screenshots/screenshot-1787507488085537000.png)
