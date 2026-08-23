@@ -133,8 +133,11 @@ describe("the Projects list", () => {
     const host = document.createElement("div");
 
     mountProjectList(host, new ProjectsController(workbench), {
-      renderChildren: (project, childHost) => {
+      renderChildren: (project, childHost, actionHost) => {
         childHost.textContent = project.id === "alpha" ? "codex · waiting" : "shell · idle";
+        const action = document.createElement("button");
+        action.dataset.projectThreadAction = project.id;
+        actionHost.append(action);
       },
     });
 
@@ -142,6 +145,9 @@ describe("the Projects list", () => {
     expect(groups.map(({ dataset }) => dataset.projectId)).toEqual(["alpha", "beta"]);
     expect(groups[0]!.querySelector(".zd-project-children")?.textContent).toBe("codex · waiting");
     expect(groups[1]!.querySelector(".zd-project-children")?.textContent).toBe("shell · idle");
+    expect(
+      groups[0]!.querySelector(".zd-project-heading [data-project-thread-action='alpha']"),
+    ).not.toBeNull();
   });
 
   it("exposes active, root, and unavailable state without relying on colour", () => {

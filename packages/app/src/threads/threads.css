@@ -56,9 +56,7 @@
 .zd-thread-row,
 .zd-thread-text-action,
 .zd-thread-actions button,
-.zd-thread-create-owner button,
-.zd-thread-create-owner input,
-.zd-thread-create-owner select,
+.zd-thread-create-action,
 .zd-thread-rename button,
 .zd-thread-rename input {
   appearance: none;
@@ -107,9 +105,7 @@
   grid-column: 1 / -1;
 }
 
-.zd-thread-rename[hidden],
-.zd-thread-create[hidden],
-.zd-thread-worktree-fields[hidden] {
+.zd-thread-rename[hidden] {
   display: none;
 }
 
@@ -120,9 +116,7 @@
   padding: var(--space-1) var(--space-2);
 }
 
-.zd-thread-rename input,
-.zd-thread-create-owner input,
-.zd-thread-create-owner select {
+.zd-thread-rename input {
   min-inline-size: 0;
   border: var(--hairline) solid var(--line-quiet);
   background: var(--surface-canvas);
@@ -130,47 +124,16 @@
 }
 
 .zd-thread-rename button,
-.zd-thread-create-owner button {
+.zd-thread-create-action {
   min-block-size: 24px;
-  padding-inline: var(--space-2);
+  inline-size: var(--space-4);
+  padding: 0;
   color: var(--text-secondary);
 }
 
-.zd-thread-create-owner {
-  display: grid;
-  border-block-end: var(--hairline) solid var(--line-quiet);
-}
-
-.zd-thread-create-toggle {
-  justify-self: end;
-}
-
-.zd-thread-create {
-  display: grid;
-  gap: var(--space-1);
-  padding: var(--space-2);
-  background: var(--surface-transient);
-}
-
-.zd-thread-create-field {
-  display: grid;
-  grid-template-columns: 4.5em minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--text-secondary);
-  font-family: var(--type-supporting-family);
-  font-size: var(--type-supporting-size);
-}
-
-.zd-thread-worktree-fields {
-  display: grid;
-  gap: var(--space-1);
-}
-
-.zd-thread-create-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-1);
+.zd-thread-create-action:hover {
+  background: var(--surface-selection);
+  color: var(--text-primary);
 }
 
 .zd-thread-row:hover {
@@ -293,7 +256,7 @@
 [data-thread-region-mode="collapsed"] .zd-thread-project-name,
 [data-thread-region-mode="collapsed"] .zd-thread-empty,
 [data-thread-region-mode="collapsed"] .zd-thread-actions,
-[data-thread-region-mode="collapsed"] .zd-thread-create-owner,
+[data-thread-region-mode="collapsed"] .zd-thread-create-action,
 [data-thread-region-mode="collapsed"] .zd-thread-rename,
 [data-thread-region-mode="collapsed"] .zd-thread-recovery {
   position: absolute;

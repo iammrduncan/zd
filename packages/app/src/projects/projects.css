@@ -21,8 +21,13 @@
 
 .zd-project-heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--space-4);
+  grid-template-columns: minmax(0, 1fr) var(--space-4) var(--space-4);
   align-items: stretch;
+}
+
+.zd-project-actions {
+  display: flex;
+  min-inline-size: 0;
 }
 
 .zd-project-row,
