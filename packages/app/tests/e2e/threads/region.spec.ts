@@ -149,17 +149,31 @@ test("renders a dense accessible project/thread hierarchy", async ({ page }) => 
   await expect(selected).toContainText("waiting");
   await expect(page.locator('[data-thread-id="thread-1"]')).toContainText("feature/browser");
 
+  await page.mouse.move(800, 400);
   const metrics = await selected.evaluate((row) => ({
     height: row.getBoundingClientRect().height,
     family: getComputedStyle(row).fontFamily,
     background: getComputedStyle(row).backgroundColor,
     dot: getComputedStyle(row.querySelector(".zd-thread-state-dot")!).backgroundColor,
+    nameTop: row.querySelector(".zd-thread-name")!.getBoundingClientRect().top,
+    lifecycleTop: row.querySelector(".zd-thread-lifecycle")!.getBoundingClientRect().top,
+    actionsOpacity: getComputedStyle(
+      row.closest(".zd-thread-item")!.querySelector(".zd-thread-actions")!,
+    ).opacity,
   }));
-  expect(metrics.height).toBeGreaterThanOrEqual(22);
-  expect(metrics.height).toBeLessThanOrEqual(28);
+  expect(metrics.height).toBeGreaterThanOrEqual(30);
+  expect(metrics.height).toBeLessThanOrEqual(44);
   expect(metrics.family).toContain("iA Writer Mono");
   expect(metrics.background).not.toBe("rgba(0, 0, 0, 0)");
   expect(metrics.dot).not.toBe(metrics.background);
+  expect(metrics.lifecycleTop).toBeGreaterThan(metrics.nameTop);
+  expect(metrics.actionsOpacity).toBe("0");
+
+  await selected.hover();
+  await expect(selected.locator("xpath=..").locator(".zd-thread-actions")).toHaveCSS(
+    "opacity",
+    "1",
+  );
 });
 
 test("pointer and keyboard activation use the same transaction request", async ({ page }) => {
@@ -182,11 +196,13 @@ test("compact controls create directly, rename, close, and remove through the ad
   page,
 }) => {
   await mountFixture(page);
+  await page.locator('[data-thread-id="thread-0"]').hover();
   await page.getByRole("button", { name: "Rename Thread 0" }).click();
   const rename = page.getByRole("textbox", { name: "New name for Thread 0" });
   await rename.fill("Renamed thread");
   await rename.press("Enter");
   await page.getByRole("button", { name: "Close Thread 0" }).click();
+  await page.locator('[data-thread-id="thread-2"]').hover();
   await page.getByRole("button", { name: "Remove Thread 2" }).click();
 
   await page.evaluate(() => window.threadFixture.mountProjectCreator());

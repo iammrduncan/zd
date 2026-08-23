@@ -31,13 +31,16 @@ export function mountProjectList(
 
   const toolbar = document.createElement("div");
   toolbar.className = "zd-project-toolbar";
+  const navigationHeading = document.createElement("h2");
+  navigationHeading.className = "zd-project-region-heading";
+  navigationHeading.textContent = "THREADS";
   const addProject = document.createElement("button");
   addProject.type = "button";
   addProject.className = "zd-project-add";
   addProject.dataset.projectAdd = "true";
   addProject.setAttribute("aria-label", "Open project folder");
-  addProject.textContent = "+ Project";
-  toolbar.append(addProject);
+  addProject.textContent = "Open";
+  toolbar.append(navigationHeading, addProject);
 
   const list = document.createElement("div");
   list.className = "zd-project-list";

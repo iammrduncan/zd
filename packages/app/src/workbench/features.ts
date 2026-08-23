@@ -60,7 +60,6 @@ function threadsNavigationMount(
         }),
     });
     const stopSettings = mountWorkbenchSettings(
-      host,
       host.closest<HTMLElement>(".zd-workbench") ?? host,
       context.instrumentation,
       context.platform.revealDiagnostics,
