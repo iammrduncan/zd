@@ -140,8 +140,19 @@ export class AttentionSettingsController {
   }
 
   setAgentSound(agent: SupportedAttentionAgent, sound: CompletionSound): void {
+    const before = this.#state.settings;
     setAttentionAgentSound(agent, sound);
     this.#refreshSettings();
+    if (
+      before.agentSounds[agent] !== sound &&
+      before.soundEnabled &&
+      !before.muted &&
+      before.volume > 0
+    ) {
+      void this.#adapter.playSound({ sound, volume: before.volume }).catch(() => {
+        // Preview failure cannot prevent the durable selection from applying.
+      });
+    }
   }
 
   reportRoutingProblem(problem: NotificationRoutingProblem): void {

@@ -53,9 +53,10 @@ visible with a specific recovery action instead of switching to a partial contex
 
 ## Configure completion attention
 
-Open **Settings** under the project list. Desktop completion notifications and sounds are both off
-by default. Native notifications and completion sounds are currently available on macOS; other
-platforms show the controls as unavailable.
+Press `Cmd+,` on macOS or `Ctrl+,` elsewhere to open **Settings**. Desktop completion notifications
+and sounds are both off by default. Native notifications and completion sounds are currently
+available on macOS; other platforms show the controls as unavailable. When sound is on, changing a
+per-agent sound plays the new choice once at the selected volume.
 
 When enabled, one supported-agent transition from busy to waiting may show one notification. **View**
 returns to the ordinary workbench and activates that exact thread. Notification text contains only
