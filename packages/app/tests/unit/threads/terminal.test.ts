@@ -180,6 +180,27 @@ describe("the terminal-backed thread session", () => {
     expect(outputBytes).toEqual([bytes]);
   });
 
+  it("waits for an asynchronous output consumer before reading the next batch", async () => {
+    const releaseFirst = deferred<void>();
+    const adapter = fakeAdapter([output([1]), output([2], 1)]);
+    const terminal = TerminalThreadSession.attach(adapter, session);
+    const delivered: number[][] = [];
+    terminal.subscribeOutput(async (chunk) => {
+      delivered.push([...chunk]);
+      if (delivered.length === 1) await releaseFirst.promise;
+    });
+
+    const first = terminal.refresh();
+    const second = terminal.refresh();
+    await vi.waitFor(() => expect(delivered).toEqual([[1]]));
+    expect(adapter.read).toHaveBeenCalledOnce();
+
+    releaseFirst.resolve();
+    await Promise.all([first, second]);
+    expect(delivered).toEqual([[1], [2]]);
+    expect(adapter.read).toHaveBeenCalledTimes(2);
+  });
+
   it("replays bounded raw output that arrived before the emulator attached", async () => {
     const bytes = [...new TextEncoder().encode("\u001b[2Jready")];
     const terminal = TerminalThreadSession.attach(fakeAdapter([output(bytes)]), session);
@@ -188,7 +209,7 @@ describe("the terminal-backed thread session", () => {
     const replayed: number[][] = [];
     terminal.subscribeOutput((chunk) => replayed.push([...chunk]));
 
-    expect(replayed).toEqual([bytes]);
+    await vi.waitFor(() => expect(replayed).toEqual([bytes]));
   });
 
   it("forwards binary terminal input without UTF-8 re-encoding", async () => {
@@ -222,7 +243,7 @@ describe("the terminal-backed thread session", () => {
 
     await terminal.refresh();
 
-    expect(yieldForOutput).toHaveBeenCalledTimes(2);
+    expect(yieldForOutput).toHaveBeenCalledTimes(9);
     expect(terminal.snapshot().rows[0]).toHaveLength(600_000);
   });
 

@@ -23,7 +23,7 @@ import type { ThreadLifecycle, ThreadLifecycleSignal } from "../types";
 
 const MAX_WRITE_BYTES = 64 * 1_024;
 const MAX_READ_BYTES = 16 * 1_024 * 1_024;
-const OUTPUT_RENDER_CHUNK_BYTES = 256 * 1_024;
+const OUTPUT_RENDER_CHUNK_BYTES = 64 * 1_024;
 const MAX_PENDING_EMULATOR_BYTES = 4 * 1_024 * 1_024;
 
 function validByte(value: number): boolean {
@@ -48,7 +48,7 @@ function defaultYieldForOutput(): Promise<void> {
 
 export class TerminalThreadSession {
   readonly #listeners = new Set<(snapshot: TerminalThreadSnapshot) => void>();
-  readonly #outputListeners = new Set<(bytes: Uint8Array) => void>();
+  readonly #outputListeners = new Set<(bytes: Uint8Array) => unknown | Promise<unknown>>();
   readonly #transcript: TerminalTranscriptBuffer;
   readonly scrollbackRows: number;
   #disposed = false;
@@ -57,6 +57,7 @@ export class TerminalThreadSession {
   #handle: TerminalSessionHandle | null = null;
   #lifecycleRevision = 0;
   #nextOffset: number | null = null;
+  #outputDeliveryTail: Promise<void> = Promise.resolve();
   #pendingOutput: Uint8Array[] = [];
   #pendingOutputBytes = 0;
   #readError: string | null = null;
@@ -110,13 +111,13 @@ export class TerminalThreadSession {
   }
 
   /** Raw PTY bytes for a terminal emulator; content is never persisted in root state. */
-  subscribeOutput(listener: (bytes: Uint8Array) => void): () => void {
+  subscribeOutput(listener: (bytes: Uint8Array) => unknown | Promise<unknown>): () => void {
     this.#outputListeners.add(listener);
     if (this.#outputListeners.size === 1 && this.#pendingOutput.length > 0) {
       const pending = this.#pendingOutput;
       this.#pendingOutput = [];
       this.#pendingOutputBytes = 0;
-      for (const chunk of pending) listener(chunk.slice());
+      for (const chunk of pending) void this.#deliverOutput(chunk).catch(() => undefined);
     }
     return () => this.#outputListeners.delete(listener);
   }
@@ -189,7 +190,7 @@ export class TerminalThreadSession {
         const end = Math.min(batch.bytes.length, offset + OUTPUT_RENDER_CHUNK_BYTES);
         const chunk = Uint8Array.from(batch.bytes.slice(offset, end));
         this.#transcript.append(chunk);
-        this.#publishOutput(chunk);
+        await this.#publishOutput(chunk);
         this.#observeAgent(this.options.detector?.observeOutput(chunk) ?? null);
         if (end < batch.bytes.length) {
           this.#publish();
@@ -307,15 +308,24 @@ export class TerminalThreadSession {
     this.#publish();
   }
 
-  #publishOutput(chunk: Uint8Array): void {
+  #deliverOutput(chunk: Uint8Array): Promise<void> {
+    const delivery = this.#outputDeliveryTail.then(async () => {
+      await Promise.all(
+        [...this.#outputListeners].map((listener) => Promise.resolve(listener(chunk.slice()))),
+      );
+    });
+    this.#outputDeliveryTail = delivery.catch(() => undefined);
+    return delivery;
+  }
+
+  #publishOutput(chunk: Uint8Array): Promise<void> {
     if (this.#outputListeners.size > 0) {
-      for (const listener of this.#outputListeners) listener(chunk.slice());
-      return;
+      return this.#deliverOutput(chunk);
     }
     if (chunk.length >= MAX_PENDING_EMULATOR_BYTES) {
       this.#pendingOutput = [chunk.slice(-MAX_PENDING_EMULATOR_BYTES)];
       this.#pendingOutputBytes = MAX_PENDING_EMULATOR_BYTES;
-      return;
+      return Promise.resolve();
     }
     this.#pendingOutput.push(chunk.slice());
     this.#pendingOutputBytes += chunk.length;
@@ -324,6 +334,7 @@ export class TerminalThreadSession {
       if (!released) break;
       this.#pendingOutputBytes -= released.length;
     }
+    return Promise.resolve();
   }
 
   #attachedHandle(): TerminalSessionHandle {

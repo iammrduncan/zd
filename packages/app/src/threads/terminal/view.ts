@@ -247,7 +247,9 @@ export function mountTerminalThreadSurface(
   refreshTheme();
   render(terminal.snapshot());
   const unsubscribeState = terminal.subscribe(render);
-  const unsubscribeOutput = terminal.subscribeOutput((bytes) => emulator.write(bytes));
+  const unsubscribeOutput = terminal.subscribeOutput((bytes) =>
+    emulator.write(bytes).catch(reportFailure),
+  );
   const unsubscribeData = emulator.onData(writeText);
   const unsubscribeBinary = emulator.onBinary(writeBinary);
   const unsubscribeSearch = emulator.onSearchResults(({ resultIndex, resultCount }) => {

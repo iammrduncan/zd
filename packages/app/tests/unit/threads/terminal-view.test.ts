@@ -59,7 +59,7 @@ class FakeEmulator implements TerminalEmulator {
     this.mounted = host;
   }
 
-  write(bytes: Uint8Array): void {
+  async write(bytes: Uint8Array): Promise<void> {
     this.writes.push(bytes.slice());
   }
 
