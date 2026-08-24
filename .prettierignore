@@ -13,3 +13,5 @@ coverage
 playwright-report
 test-results
 packages/app/tests/fixtures
+.agents
+.claude

@@ -4,6 +4,8 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     ignores: [
+      ".agents",
+      ".claude",
       "packages/app/dist",
       "packages/website/.next",
       "packages/website/out",

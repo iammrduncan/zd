@@ -11,7 +11,7 @@ Planning records sequence or inform work. They never override current human dire
 | --- | --- |
 | [Goals](goals/) | Active cross-objective execution contracts and dependency plans |
 | [Objectives](objectives/) | Executable work queues, bounded work groups, workflow state, and completion records |
-| [Ideas](ideas/) | Non-authoritative research, alternatives, and product exploration |
+| [Ideas](ideas.md) | Non-authoritative research, alternatives, and product exploration |
 
 The current product expansion is coordinated by the
 [expanded-scope execution plan](goals/expanded-scope/goal.md).

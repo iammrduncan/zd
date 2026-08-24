@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 
 test("lays out the persistent workbench regions at their default geometry", async ({ page }) => {
   await page.setViewportSize({ width: 1300, height: 800 });
-  await page.goto("/");
+  await page.goto("/dev/workbench.html");
 
   const threads = page.locator('[data-region="threads"]');
   const centre = page.locator('[data-region="centre"]');
@@ -33,7 +33,7 @@ test("lays out the persistent workbench regions at their default geometry", asyn
 
 test("keeps the file tree visible at the native window's default width", async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 760 });
-  await page.goto("/");
+  await page.goto("/dev/workbench.html");
 
   const files = page.locator('[data-region="files"]');
   await expect(files).toBeVisible();
@@ -41,7 +41,7 @@ test("keeps the file tree visible at the native window's default width", async (
 });
 
 test("keeps both sidebar headers close to the title strip", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/dev/workbench.html");
 
   const offsets = await page.evaluate(() => {
     const projects = document.querySelector<HTMLElement>('[data-region="threads"]')!;
@@ -59,7 +59,7 @@ test("keeps both sidebar headers close to the title strip", async ({ page }) => 
 
 test("lets the Files viewport use the full remaining sidebar height", async ({ page }) => {
   await page.setViewportSize({ width: 1300, height: 800 });
-  await page.goto("/");
+  await page.goto("/dev/workbench.html");
 
   const gap = await page.evaluate(() => {
     const region = document.querySelector<HTMLElement>('[data-region="files"]')!;
@@ -72,7 +72,7 @@ test("lets the Files viewport use the full remaining sidebar height", async ({ p
 
 test("resizes both navigation panes at the native window width", async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 760 });
-  await page.goto("/");
+  await page.goto("/dev/workbench.html");
 
   const threads = page.locator('[data-region="threads"]');
   const centre = page.locator('[data-region="centre"]');
@@ -203,7 +203,7 @@ test("hides and restores Files and Changes from the top chrome", async ({ page }
 
 test("applies responsive regions in the specified suppression order", async ({ page }) => {
   await page.setViewportSize({ width: 1260, height: 800 });
-  await page.goto("/");
+  await page.goto("/dev/workbench.html");
 
   const shell = page.locator(".zd-workbench");
   const threads = page.locator('[data-region="threads"]');

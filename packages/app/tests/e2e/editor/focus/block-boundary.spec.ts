@@ -125,18 +125,17 @@ test.describe("the editing surface", () => {
      * one" passes both tests above and fails here — §7.6 pairs with a code block
      * specifically, because two paragraphs in a row are two thoughts.
      */
+    await materializeEditorTarget(
+      page,
+      page.locator(".md-editor .cm-line", { hasText: UNPAIRED }),
+      "the unpaired prose paragraph",
+    );
     await page.evaluate((prose) => {
       const lines = window.zdEditor!.text().split("\n");
       const number = lines.findIndex((line) => line.startsWith(prose)) + 1;
       const start = lines.slice(0, number - 1).reduce((total, l) => total + l.length + 1, 0);
       window.zdEditor!.setCaret(start + 5);
     }, UNPAIRED);
-
-    await materializeEditorTarget(
-      page,
-      page.locator(".md-editor .cm-line", { hasText: UNPAIRED }),
-      "the unpaired prose paragraph",
-    );
     await expect.poll(async () => rowState(await editorRows(page), UNPAIRED)).toBe("target");
 
     const rows = await editorRows(page);

@@ -244,6 +244,18 @@ describe("static website", () => {
   });
 });
 
+describe("local agent tooling", () => {
+  it("stays outside the repository lint and format boundaries", () => {
+    const eslint = readFileSync(resolve(ROOT, "eslint.config.js"), "utf8");
+    const prettier = readFileSync(resolve(ROOT, ".prettierignore"), "utf8");
+
+    expect(eslint).toContain('".agents"');
+    expect(eslint).toContain('".claude"');
+    expect(prettier).toMatch(/^\.agents$/m);
+    expect(prettier).toMatch(/^\.claude$/m);
+  });
+});
+
 function htmlUnder(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
