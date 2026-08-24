@@ -278,6 +278,23 @@ describe("the repository documentation map", () => {
     expect(websiteLayout).toContain("https://discord.gg/3Qs2uejUf9");
   });
 
+  it("uses full homepage navigations for published docs and links the maintainer profiles", () => {
+    const website = page("packages/website/app/page.tsx");
+    const websiteLayout = page("packages/website/app/layout.tsx");
+
+    for (const href of [
+      "/docs/explanation/markdown-reading-surface/",
+      "/docs/how-to/manage-projects-and-threads/",
+      "/docs/explanation/architecture/",
+      "/docs/explanation/why-zd-is-minimal/",
+    ]) {
+      expect(website).toContain(`<a className="text-link" href="${href}">`);
+    }
+    expect(website).toContain('href="https://discord.gg/3Qs2uejUf9"');
+    expect(website).toContain('href="https://x.com/iamMrDuncan"');
+    expect(websiteLayout).toContain('href="https://x.com/iamMrDuncan"');
+  });
+
   it("keeps current product context on the workbench naming contract", () => {
     const currentPages = [
       ...PUBLIC_PAGES,

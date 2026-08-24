@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 
 import workbenchScreenshot from "../../../docs/user-facing-docs/assets/zd-workbench.png";
@@ -33,9 +32,9 @@ export default function Home() {
           <a className="button button-primary" href={RELEASE_URL}>
             Download latest release
           </a>
-          <Link className="button" href="/docs/">
+          <a className="button" href="/docs/">
             Read the docs
-          </Link>
+          </a>
         </div>
         <p className="platform-note">Available for macOS and Windows · local by default</p>
       </section>
@@ -71,9 +70,9 @@ export default function Home() {
             </figcaption>
           </figure>
         </div>
-        <Link className="text-link" href="/docs/explanation/markdown-reading-surface/">
+        <a className="text-link" href="/docs/explanation/markdown-reading-surface/">
           Explore the Markdown surface <span aria-hidden="true">→</span>
-        </Link>
+        </a>
       </section>
 
       <section className="features" aria-label="Markdown workflow highlights">
@@ -151,9 +150,9 @@ export default function Home() {
             keeps terminal output beside the selected source while Files and Changes remain on the
             right.
           </p>
-          <Link className="text-link" href="/docs/how-to/manage-projects-and-threads/">
+          <a className="text-link" href="/docs/how-to/manage-projects-and-threads/">
             Manage projects and threads <span aria-hidden="true">→</span>
-          </Link>
+          </a>
         </div>
         <figure className="sidekick-shot">
           <img
@@ -175,9 +174,9 @@ export default function Home() {
             approved scope, Git operations are fixed and read-only, remote images stay blocked, and
             local diagnostics are opt-in.
           </p>
-          <Link className="text-link" href="/docs/explanation/architecture/">
+          <a className="text-link" href="/docs/explanation/architecture/">
             Understand the architecture <span aria-hidden="true">→</span>
-          </Link>
+          </a>
         </div>
         <div className="detail-shot">
           <img
@@ -198,11 +197,14 @@ export default function Home() {
           daily driver. It may not fit everyone, and it is not trying to become a universal IDE.
         </p>
         <div className="philosophy-links">
-          <Link className="text-link" href="/docs/explanation/why-zd-is-minimal/">
+          <a className="text-link" href="/docs/explanation/why-zd-is-minimal/">
             Read why zd is minimal <span aria-hidden="true">→</span>
-          </Link>
+          </a>
           <a className="text-link" href="https://discord.gg/3Qs2uejUf9">
             Join the Discord <span aria-hidden="true">→</span>
+          </a>
+          <a className="text-link" href="https://x.com/iamMrDuncan">
+            Follow on X <span aria-hidden="true">→</span>
           </a>
         </div>
       </section>
@@ -214,9 +216,9 @@ export default function Home() {
           <a className="button button-primary" href={RELEASE_URL}>
             Get zd
           </a>
-          <Link className="button" href="/docs/">
+          <a className="button" href="/docs/">
             Browse documentation
-          </Link>
+          </a>
           <a className="button" href="https://discord.gg/3Qs2uejUf9">
             Join Discord
           </a>
