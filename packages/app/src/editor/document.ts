@@ -17,7 +17,7 @@ import { isTypewriter, setTypewriter, typewriterMode } from "./typewriter";
 import { MARKDOWN_DOCUMENT, type DocumentLanguage } from "./language";
 import { listIndentation } from "./markdown/lists";
 import { jumpFocusBlock, settledMotion } from "./motion";
-import { markdownNotation } from "./markdown/notation";
+import { markdownNotation, type MarkdownImageResolver } from "./markdown/notation";
 import { autoPairing } from "./pairing";
 import { isRaw, rawModeState, setRaw } from "./markdown/raw";
 import { hiddenNotationRows } from "./markdown/notation/rows";
@@ -183,6 +183,8 @@ export interface EditorOptions {
   onPasteImage?: (image: ClipboardImage) => Promise<string>;
   /** Present a failed or refused image paste without changing the document. */
   onPasteImageProblem?: (message: string) => void;
+  /** Resolve one document-relative Markdown image without giving the editor a path. */
+  resolveMarkdownImage?: MarkdownImageResolver;
   /**
    * Called when the document crosses between saved and unsaved, and only then —
    * not on every keystroke.
@@ -379,7 +381,7 @@ export function createEditor(
         keymap.of([...defaultKeymap, ...historyKeymap]),
         language.markdown
           ? [
-              markdownNotation(),
+              markdownNotation(options.resolveMarkdownImage),
               // Separate from the notation plugin because a table is a block
               // decoration and CodeMirror only accepts those from a StateField.
               // See table.ts.

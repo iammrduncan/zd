@@ -518,12 +518,14 @@ describe("the Tauri window boundary", () => {
 
     await platform.readTextFile(resource);
     await platform.readBoundedFile(resource);
+    await platform.readProjectImage(resource);
     await platform.writeTextFile(resource, "updated");
     await platform.fileStamp(resource);
 
     expect(invoke.mock.calls).toEqual([
       ["read_text_file", { resource }],
       ["read_bounded_file", { resource }],
+      ["read_project_image", { resource }],
       ["write_text_file", { resource, contents: "updated" }],
       ["file_stamp", { resource }],
     ]);

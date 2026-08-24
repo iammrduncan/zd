@@ -69,6 +69,12 @@ export interface SavedClipboardImage {
   readonly relativePath: string;
 }
 
+/** Validated raster bytes read below one native-approved project/worktree. */
+export interface ProjectImage {
+  readonly mediaType: ClipboardImageMediaType;
+  readonly bytes: readonly number[];
+}
+
 export interface WorkspaceFile {
   resource: FileResource;
   relative: string;
@@ -205,6 +211,8 @@ export interface Platform {
   readTextFile(resource: FileResource): Promise<string>;
   /** Classify and read at most one bounded text file without guessing an encoding. */
   readBoundedFile(resource: FileResource): Promise<BoundedFileRead>;
+  /** Read one bounded, signature-validated raster image through native project authority. */
+  readProjectImage(resource: FileResource): Promise<ProjectImage>;
   /** Markdown files inside one already-approved project/worktree root. */
   workspaceFiles(projectId: string, worktreeId: string): Promise<WorkspaceListing>;
   /**
@@ -440,6 +448,7 @@ const tauri: Platform = {
     invoke<WorkspaceListing>("workspace_files", { projectId, worktreeId }),
   readTextFile: (resource) => invoke<string>("read_text_file", { resource }),
   readBoundedFile: (resource) => invoke<BoundedFileRead>("read_bounded_file", { resource }),
+  readProjectImage: (resource) => invoke<ProjectImage>("read_project_image", { resource }),
   writeTextFile: (resource, contents) => invoke<void>("write_text_file", { resource, contents }),
   saveClipboardImage: (request) => invoke<SavedClipboardImage>("save_clipboard_image", { request }),
   fileStamp: (resource) => invoke<FileStamp | null>("file_stamp", { resource }),
@@ -548,6 +557,9 @@ const browser: Platform = {
     status: "unavailable",
     problem: "bounded file reads require the desktop shell",
   }),
+  readProjectImage: async (resource) => {
+    throw new Error(`project image reads require the desktop shell: ${resource.relativePath}`);
+  },
   writeTextFile: async (resource) => {
     throw new Error(`no filesystem in the browser shell: ${resource.relativePath}`);
   },

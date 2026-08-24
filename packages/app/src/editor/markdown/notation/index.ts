@@ -1,6 +1,6 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { syntaxTree } from "@codemirror/language";
-import type { EditorState, Extension } from "@codemirror/state";
+import { Facet, type EditorState, type Extension } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 
 import { codeHighlighting, codeLanguages } from "../../language";
@@ -14,6 +14,20 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
+
+export interface ResolvedMarkdownImage {
+  readonly url: string;
+  release(): void;
+}
+
+export type MarkdownImageResolver = (source: string) => Promise<ResolvedMarkdownImage | null>;
+
+const markdownImageResolver = Facet.define<
+  MarkdownImageResolver,
+  MarkdownImageResolver | undefined
+>({
+  combine: (resolvers) => resolvers.at(-1),
+});
 
 /**
  * Markdown notation on the editing surface.
@@ -195,19 +209,62 @@ const EMPHASIS_MARK = Decoration.mark({ class: "md-emphasis-mark" });
  * announce that it had been opened.
  */
 class ImageWidget extends WidgetType {
-  constructor(private readonly source: string) {
+  private released = false;
+  private release: (() => void) | null = null;
+
+  constructor(
+    private readonly source: string,
+    private readonly resolveImage: MarkdownImageResolver | undefined,
+  ) {
     super();
   }
 
   eq(other: ImageWidget): boolean {
-    return other.source === this.source;
+    return other.source === this.source && other.resolveImage === this.resolveImage;
   }
 
   toDOM(): HTMLElement {
     const host = document.createElement("span");
     host.className = "md-image";
-    host.append(renderInlineMarkdown(this.source));
+    const fragment = renderInlineMarkdown(this.source);
+    const image = fragment.querySelector<HTMLImageElement>("img");
+    const source = image?.getAttribute("src") ?? "";
+    if (!image || !this.resolveImage || /^(?:data|blob):/i.test(source)) {
+      host.append(fragment);
+      return host;
+    }
+
+    const placeholder = document.createElement("span");
+    placeholder.className = "md-image-unavailable";
+    placeholder.textContent = image.getAttribute("alt")?.trim() || "image";
+    placeholder.dataset.imageStatus = "loading";
+    host.append(placeholder);
+    void this.resolveImage(source).then(
+      (resolved) => {
+        if (!resolved) {
+          placeholder.dataset.imageStatus = "unavailable";
+          return;
+        }
+        if (this.released) {
+          resolved.release();
+          return;
+        }
+        this.release = resolved.release;
+        image.src = resolved.url;
+        placeholder.replaceWith(image);
+      },
+      () => {
+        // Missing and refused local images remain quiet, but retain an inspectable state.
+        placeholder.dataset.imageStatus = "unavailable";
+      },
+    );
     return host;
+  }
+
+  destroy(): void {
+    this.released = true;
+    this.release?.();
+    this.release = null;
   }
 
   /** Not editable content. The source is reachable through raw mode (§7.4). */
@@ -293,6 +350,7 @@ interface Notation {
 function notationLines(view: EditorView): Notation {
   const state = view.state;
   const tree = syntaxTree(state);
+  const resolveImage = state.facet(markdownImageResolver);
 
   // Line decorations are collected as the decoration itself rather than as a
   // name, because a list line's depth is part of which decoration it gets and
@@ -617,7 +675,10 @@ function notationLines(view: EditorView): Notation {
     const key = `image:${from}:${to}`;
     if (placed.has(key)) continue;
     placed.add(key);
-    const range = Decoration.replace({ widget: new ImageWidget(source) }).range(from, to);
+    const range = Decoration.replace({ widget: new ImageWidget(source, resolveImage) }).range(
+      from,
+      to,
+    );
     ranges.push(range);
     // A picture is one thing to step past, not one thing per character of the
     // `![alt](url)` it was built from.
@@ -691,7 +752,7 @@ const atomicNotation = EditorView.atomicRanges.of(
  * quietly answer a question that session is meant to ask. Parsing is what is
  * needed today, so parsing is all that is turned on.
  */
-export function markdownNotation(): Extension {
+export function markdownNotation(resolveImage?: MarkdownImageResolver): Extension {
   /*
    * GFM, not bare CommonMark. `markdown()` defaults to `commonmarkLanguage`,
    * which has no `Table` node at all — the reader parses with markdown-it and
@@ -700,6 +761,7 @@ export function markdownNotation(): Extension {
    * which is the same dialect the reader already reads.
    */
   return [
+    resolveImage ? markdownImageResolver.of(resolveImage) : [],
     markdown({
       base: markdownLanguage,
       addKeymap: false,

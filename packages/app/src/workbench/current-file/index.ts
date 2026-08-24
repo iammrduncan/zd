@@ -47,6 +47,39 @@ function emptyFile(host: HTMLElement): void {
   host.replaceChildren(message);
 }
 
+/** Resolve Markdown URL syntax without letting a document escape its approved project. */
+function markdownImageResource(document: FileResource, source: string): FileResource | null {
+  const pathWithEncoding = source.trim().split(/[?#]/, 1)[0] ?? "";
+  if (
+    !pathWithEncoding ||
+    pathWithEncoding.startsWith("/") ||
+    /^[a-z][a-z\d+.-]*:/i.test(pathWithEncoding)
+  ) {
+    return null;
+  }
+
+  let path: string;
+  try {
+    path = decodeURIComponent(pathWithEncoding);
+  } catch {
+    return null;
+  }
+  if (!path || path.includes("\\") || path.includes("\0")) return null;
+
+  const segments = document.relativePath.split("/").slice(0, -1);
+  for (const segment of path.split("/")) {
+    if (!segment || segment === ".") continue;
+    if (segment === "..") {
+      if (segments.length === 0) return null;
+      segments.pop();
+      continue;
+    }
+    segments.push(segment);
+  }
+  if (segments.length === 0) return null;
+  return { ...document, relativePath: segments.join("/") };
+}
+
 /** Own the one active editor buffer behind the root workbench's File surface. */
 export async function mountCurrentFile(
   host: HTMLElement,
@@ -194,6 +227,17 @@ export async function mountCurrentFile(
       },
       ...(savedText === undefined ? {} : { savedText }),
       ...reviewBinding.options,
+      resolveMarkdownImage: async (source) => {
+        const imageResource = markdownImageResource(resource, source);
+        if (!imageResource) return null;
+        const image = await context.platform.readProjectImage(imageResource);
+        const bytes = Uint8Array.from(image.bytes);
+        const url = URL.createObjectURL(new Blob([bytes], { type: image.mediaType }));
+        return {
+          url,
+          release: () => URL.revokeObjectURL(url),
+        };
+      },
       onTextChange: (text, isDirty) => {
         dirty = isDirty;
         if (isDirty) drafts.save(resource, text);

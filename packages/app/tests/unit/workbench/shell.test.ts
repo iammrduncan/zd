@@ -69,6 +69,9 @@ function context(): WorkbenchRuntimeContext {
     },
     readTextFile: async () => "",
     readBoundedFile: async () => ({ status: "unavailable", problem: "unused test boundary" }),
+    readProjectImage: async () => {
+      throw new Error("unused test boundary");
+    },
     writeTextFile: async () => {},
     saveClipboardImage: async () => ({ relativePath: "docs/screenshots/test.png" }),
     fileStamp: async () => null,

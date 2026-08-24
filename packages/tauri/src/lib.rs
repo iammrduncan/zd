@@ -106,6 +106,7 @@ pub fn run() {
             worktrees::create_thread_worktree,
             fs::read_text_file,
             fs::read_bounded_file,
+            fs::read_project_image,
             fs::workspace_files,
             fs::write_text_file,
             fs::file_stamp,

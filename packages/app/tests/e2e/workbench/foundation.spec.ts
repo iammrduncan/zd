@@ -58,6 +58,15 @@ test("a file-tree selection takes the overlap centre back from an active thread"
   expect(pageErrors).toEqual([]);
 });
 
+test("a project-relative Markdown image renders through the open document", async ({ page }) => {
+  await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
+  const image = page.locator('.current-file .md-image img[alt="A small local image"]');
+
+  await expect(image).toBeVisible();
+  await expect(image).toHaveAttribute("src", /^blob:/);
+  await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.naturalWidth)).toBe(1);
+});
+
 test("the active project header remains visually distinct from its active thread", async ({
   page,
 }) => {
