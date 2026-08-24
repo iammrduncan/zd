@@ -64,6 +64,8 @@ export function mountDiagnosticSettings(
 
   const body = document.createElement("div");
   body.className = "zd-diagnostic-settings-body";
+  const heading = document.createElement("h3");
+  heading.textContent = "Diagnostics";
   const label = document.createElement("label");
   label.className = "zd-diagnostic-toggle";
   const toggle = document.createElement("input");
@@ -85,7 +87,13 @@ export function mountDiagnosticSettings(
   revealButton.className = "zd-diagnostic-reveal";
   revealButton.dataset.diagnosticsReveal = "true";
   revealButton.textContent = "Reveal logs";
-  body.append(label, status, revealButton);
+  const storage = document.createElement("p");
+  storage.className = "zd-diagnostic-detail";
+  storage.textContent = "Storage location: local application diagnostics directory.";
+  const retention = document.createElement("p");
+  retention.className = "zd-diagnostic-detail";
+  retention.textContent = "Retention: bounded local log files for explicit diagnostic sessions.";
+  body.append(heading, label, status, storage, retention, revealButton);
   const stopAttention = attention ? mountAttentionSettings(body, attention) : () => {};
   settings.append(summary, body);
   host.append(settings);

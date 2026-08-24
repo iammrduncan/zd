@@ -356,6 +356,104 @@ test("Settings leaves shortcut editing to the Shortcut Reference", async ({ page
   await expect(settings.getByRole("button", { name: /Change shortcut/u })).toHaveCount(0);
 });
 
+test("Settings presents every durable preference group", async ({ page }) => {
+  await page.keyboard.press("ControlOrMeta+,");
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  await expect(settings.getByRole("heading", { level: 3 })).toHaveText([
+    "Appearance",
+    "Reading",
+    "Workbench",
+    "Attention",
+    "Diagnostics",
+  ]);
+});
+
+test("Settings applies representative appearance, reading, and workbench values immediately and after restart", async ({
+  page,
+}) => {
+  await page.keyboard.press("ControlOrMeta+,");
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  await settings.getByRole("slider", { name: "Warmth" }).fill("0.75");
+  await settings.getByRole("slider", { name: "Prose size" }).fill("20");
+  await settings.getByRole("slider", { name: "Code size" }).fill("16");
+  await settings.getByRole("slider", { name: "Heading scale" }).fill("1.15");
+  await settings.getByRole("switch", { name: "Focus" }).click();
+  await settings.getByRole("slider", { name: "Dim level" }).fill("0.5");
+  await settings.getByRole("radio", { name: "Section" }).click();
+  await settings.getByRole("radio", { name: "Collapsed" }).click();
+  await settings.getByRole("radio", { name: "Side by side" }).click();
+
+  const applied = await page.evaluate(() => ({
+    warmth: getComputedStyle(document.documentElement).getPropertyValue("--warmth").trim(),
+    prose: getComputedStyle(document.documentElement).getPropertyValue("--type-prose-size").trim(),
+    code: getComputedStyle(document.documentElement).getPropertyValue("--type-code-size").trim(),
+    heading: getComputedStyle(document.documentElement)
+      .getPropertyValue("--type-heading-scale")
+      .trim(),
+  }));
+  expect(applied).toEqual({ warmth: "0.75", prose: "20px", code: "16px", heading: "1.15" });
+  await expect(page.locator(".current-file .md-editor")).toHaveAttribute("data-focus-mode", "true");
+  await expect(page.locator(".current-file .md-editor")).toHaveAttribute(
+    "data-granularity",
+    "section",
+  );
+  await expect(page.locator(".zd-workbench")).toHaveAttribute(
+    "data-threads-visibility",
+    "collapsed",
+  );
+  await expect(page.locator(".zd-workbench")).toHaveAttribute("data-centre-mode", "side-by-side");
+
+  await page.reload();
+  await page.locator(".current-file .cm-editor").waitFor();
+  await expect(page.locator(".current-file .md-editor")).toHaveAttribute("data-focus-mode", "true");
+  await expect(page.locator(".current-file .md-editor")).toHaveAttribute(
+    "data-granularity",
+    "section",
+  );
+  await expect(page.locator(".zd-workbench")).toHaveAttribute(
+    "data-threads-visibility",
+    "collapsed",
+  );
+  await expect(page.locator(".zd-workbench")).toHaveAttribute("data-centre-mode", "side-by-side");
+});
+
+test("ordinary workbench transients replace each other and Escape dismisses the visible one", async ({
+  page,
+}) => {
+  await page.keyboard.press("ControlOrMeta+,");
+  await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+
+  await page.keyboard.press("ControlOrMeta+Period");
+  await expect(page.getByRole("dialog", { name: "Settings" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Shortcut Reference" })).toBeVisible();
+
+  await page.keyboard.press("ControlOrMeta+,");
+  await expect(page.getByRole("dialog", { name: "Shortcut Reference" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Settings" })).toHaveCount(0);
+});
+
+test("a safety confirmation blocks ordinary transient replacement until resolved", async ({
+  page,
+}) => {
+  const row = page.getByRole("treeitem", { name: "README.md, Markdown file, modified" });
+  await row.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Move to Trash…" }).click();
+  const confirmation = page.getByRole("alertdialog", { name: "Move README.md to Trash" });
+  await expect(confirmation).toBeVisible();
+
+  await page.keyboard.press("ControlOrMeta+,");
+  await expect(page.getByRole("dialog", { name: "Settings" })).toHaveCount(0);
+  await expect(confirmation).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(confirmation).toHaveCount(0);
+  await page.keyboard.press("ControlOrMeta+,");
+  await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+});
+
 test("the command list selects the dark theme and restores it after reload", async ({ page }) => {
   const primary = await page.evaluate(() =>
     /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",

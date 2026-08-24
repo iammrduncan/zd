@@ -205,7 +205,7 @@ export function mountAttentionSettings(
   section.className = "zd-attention-settings";
   section.dataset.attentionSettings = "true";
   const heading = document.createElement("h3");
-  heading.textContent = "ATTENTION";
+  heading.textContent = "Attention";
 
   const desktop = checkbox("notificationsToggle");
   const sound = checkbox("soundToggle");

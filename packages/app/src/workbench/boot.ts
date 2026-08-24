@@ -11,12 +11,13 @@ import { restoreShortcutBindings } from "./shortcut-settings";
 import { mountWindowChrome } from "./chrome";
 import { registerThemeCommands } from "./theme-commands";
 import { attachWorkbenchDiagnostics } from "./diagnostics";
-import { diagnosticsEnabled, setDiagnosticsEnabled } from "./preferences";
+import { diagnosticsEnabled, setDiagnosticsEnabled, setWordWrap } from "./preferences";
 import { setThemePreference, themePreference } from "./preferences";
 import { mountWorkbenchFeatures } from "./features";
 import { attachOpenRequests } from "./open-requests";
 import type { Unmount, WorkbenchMount } from "./runtime";
 import { TransientCoordinator } from "./transients";
+import { applyWorkbenchSettings, workbenchSettingsPreferences } from "./settings-preferences";
 
 export type { WorkbenchMount } from "./runtime";
 
@@ -90,6 +91,9 @@ export async function bootWorkbench(
   ]);
   const initialState = workbenchStateFromGrants(grants, launch);
   const state = createWorkbenchStateOwner({ ...initialState, theme: themePreference() });
+  const storedSettings = workbenchSettingsPreferences();
+  setWordWrap(storedSettings.reading.wordWrap);
+  applyWorkbenchSettings(storedSettings, state);
   const detachDiagnostics = attachWorkbenchDiagnostics(state, instrumentation);
   const catalog = loadThemeCatalog(themeFiles.files);
   const localNotices = catalog.notices.map(({ source, problem }) => `Theme ${source}: ${problem}`);
@@ -103,6 +107,7 @@ export async function bootWorkbench(
     onChange: ({ selected, lastValid }) => {
       state.setThemeSelection(selected, lastValid);
       setThemePreference({ selected, lastValid });
+      queueMicrotask(() => applyWorkbenchSettings(workbenchSettingsPreferences()));
     },
   });
   const detachThemeState = state.subscribe(({ theme: selection }) => {

@@ -74,3 +74,81 @@
   gap: var(--space-2);
   padding: var(--space-3) 0;
 }
+
+.zd-settings-group,
+.zd-attention-settings,
+.zd-diagnostic-settings-body {
+  display: grid;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  border-block-end: var(--hairline) solid var(--line-quiet);
+}
+
+.zd-settings-group h3,
+.zd-settings-plane .zd-attention-settings h3,
+.zd-settings-plane .zd-diagnostic-settings h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: var(--type-h3-weight);
+}
+
+.zd-settings-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(0, 2fr);
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--space-4);
+}
+
+.zd-settings-choices,
+.zd-settings-range {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 0;
+}
+
+.zd-settings-choices button,
+.zd-settings-toggle {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+}
+
+.zd-settings-choices button[aria-checked="true"],
+.zd-settings-toggle[aria-checked="true"] {
+  color: var(--text-primary);
+  font-weight: var(--type-navigation-weight);
+  text-decoration: underline;
+  text-decoration-color: var(--line-focus);
+  text-underline-offset: var(--space-1);
+}
+
+.zd-settings-choices button:focus-visible,
+.zd-settings-toggle:focus-visible,
+.zd-settings-range input:focus-visible {
+  outline: var(--hairline) solid var(--line-focus);
+  outline-offset: var(--hairline);
+}
+
+.zd-settings-range input {
+  min-inline-size: 0;
+  flex: 1;
+  accent-color: var(--text-primary);
+}
+
+.zd-settings-range output {
+  min-inline-size: 4ch;
+  color: var(--text-secondary);
+  font-family: var(--type-code-family);
+  text-align: end;
+}
+
+.zd-settings-problem {
+  margin: var(--space-2) 0 0;
+  color: var(--state-error);
+}
