@@ -358,7 +358,7 @@ describe("the root Files and Git coordinator", () => {
     ).toBe("unsaved");
 
     await expect(runtime.controller.trashEntry("draft.md")).resolves.toBe(false);
-    expect(runtime.controller.snapshot().notice).toContain("Save or discard");
+    expect(runtime.controller.snapshot().notice).toContain("Save or close");
     expect(mutate).toHaveBeenCalledTimes(2);
 
     drafts.clear({
@@ -376,6 +376,138 @@ describe("the root Files and Git coordinator", () => {
       operation: "trash",
       relativePath: "draft.md",
     });
+    detach();
+  });
+
+  it("reconciles every open file and draft below a moved directory", async () => {
+    const owner = createWorkbenchStateOwner(workbenchStateFromGrants([alpha], launch(alpha)));
+    await owner.activateFile({
+      projectId: alpha.id,
+      worktreeId: alpha.worktrees[0]!.id,
+      relativePath: "src/main.ts",
+    });
+    await owner.activateFile({
+      projectId: alpha.id,
+      worktreeId: alpha.worktrees[0]!.id,
+      relativePath: "src/nested/notes.md",
+    });
+    const drafts = new FileDraftStore(window.localStorage);
+    drafts.save(
+      {
+        projectId: alpha.id,
+        worktreeId: alpha.worktrees[0]!.id,
+        relativePath: "src/main.ts",
+      },
+      "changed main",
+    );
+    drafts.save(
+      {
+        projectId: alpha.id,
+        worktreeId: alpha.worktrees[0]!.id,
+        relativePath: "src/nested/notes.md",
+      },
+      "changed notes",
+    );
+    let moved = false;
+    const mutate = vi.fn(
+      async (request: FileTreeMutationRequest): Promise<FileTreeMutationResult> => {
+        if (request.operation === "move") moved = true;
+        return { status: "committed" };
+      },
+    );
+    const files: FileTreeAdapter = {
+      snapshot: vi.fn(async () => {
+        const root = moved ? "archive/src" : "src";
+        return {
+          status: "ready" as const,
+          projectId: alpha.id,
+          worktreeId: alpha.worktrees[0]!.id,
+          revision: moved ? "moved" : "initial",
+          entries: [
+            {
+              relativePath: "archive",
+              parentPath: null,
+              name: "archive",
+              kind: "directory" as const,
+              ignored: false,
+              byteLength: null,
+              modified: 1,
+            },
+            {
+              relativePath: root,
+              parentPath: moved ? "archive" : null,
+              name: "src",
+              kind: "directory" as const,
+              ignored: false,
+              byteLength: null,
+              modified: 1,
+            },
+            {
+              relativePath: `${root}/main.ts`,
+              parentPath: root,
+              name: "main.ts",
+              kind: "file" as const,
+              ignored: false,
+              byteLength: 10,
+              modified: 1,
+            },
+            {
+              relativePath: `${root}/nested/notes.md`,
+              parentPath: `${root}/nested`,
+              name: "notes.md",
+              kind: "file" as const,
+              ignored: false,
+              byteLength: 10,
+              modified: 1,
+            },
+          ],
+          truncated: false,
+          ignoredTruncated: false,
+          unreadableDirectories: 0,
+          elapsedMicros: 1,
+        };
+      }),
+      watch: () => () => {},
+      mutate,
+    };
+    const runtime = createWorkbenchFilesRuntime(
+      owner,
+      files,
+      gitAdapter(async () => gitResult(alpha, "modified")),
+      createUnavailableInstrumentationClient(),
+      drafts,
+    );
+    const detach = runtime.attach();
+    await vi.waitFor(() => expect(runtime.controller.snapshot().state).toBe("ready"));
+
+    await expect(runtime.controller.transferPaths(["src"], "archive", "move")).resolves.toBe(true);
+
+    expect(mutate).toHaveBeenCalledWith({
+      projectId: alpha.id,
+      worktreeId: alpha.worktrees[0]!.id,
+      operation: "move",
+      relativePath: "src",
+      destinationPath: "archive/src",
+    });
+    expect(owner.snapshot().openFiles.map(({ relativePath }) => relativePath)).toEqual([
+      "README.md",
+      "archive/src/main.ts",
+      "archive/src/nested/notes.md",
+    ]);
+    expect(
+      drafts.get({
+        projectId: alpha.id,
+        worktreeId: alpha.worktrees[0]!.id,
+        relativePath: "archive/src/main.ts",
+      })?.text,
+    ).toBe("changed main");
+    expect(
+      drafts.get({
+        projectId: alpha.id,
+        worktreeId: alpha.worktrees[0]!.id,
+        relativePath: "archive/src/nested/notes.md",
+      })?.text,
+    ).toBe("changed notes");
     detach();
   });
 

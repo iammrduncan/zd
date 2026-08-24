@@ -5,6 +5,8 @@ import {
   type FileTreeFilterRestore,
 } from "./filter-state";
 import { copyFilePath } from "./path-copy";
+import { reconcileFileTreeSelection, selectFileTreePaths } from "./selection";
+import { fileTreeTransferPlan, selectionRoots, type FileTreeClipboard } from "./transfers";
 import { createFileTreeEntry, renameFileTreeEntry, trashFileTreeEntry } from "./mutations";
 import {
   entriesWithGitOverlay,
@@ -24,6 +26,8 @@ import type {
   FileTreeResult,
   FileTreeScope,
   FileTreeScrollState,
+  FileTreeSelectionMode,
+  FileTreeTransferOperation,
   FileTreeViewSnapshot,
   NativeFileTreeEntry,
   VisibleFileTreeRow,
@@ -37,6 +41,8 @@ interface ScopeMemory {
   entries: readonly FileTreeEntry[];
   expandedPaths: Set<string>;
   selectedPath: string | null;
+  selectedPaths: Set<string>;
+  selectionAnchorPath: string | null;
   activePath: string | null;
   filterOpen: boolean;
   filterQuery: string;
@@ -72,6 +78,8 @@ function newMemory(scope: FileTreeScope, activePath: string | null): ScopeMemory
     entries: [],
     expandedPaths: new Set(),
     selectedPath: activePath,
+    selectedPaths: new Set(activePath ? [activePath] : []),
+    selectionAnchorPath: activePath,
     activePath,
     filterOpen: false,
     filterQuery: "",
@@ -99,6 +107,7 @@ export class FileTreeController {
   readonly #gitStates = new Map<string, ReadonlyMap<string, FileGitState>>();
   #current: ScopeMemory | null = null;
   #dirtyPaths: ReadonlySet<string> = new Set();
+  #clipboard: FileTreeClipboard | null = null;
 
   constructor(
     readonly adapter: FileTreeAdapter,
@@ -116,6 +125,7 @@ export class FileTreeController {
         entries: [],
         expandedPaths: new Set(),
         selectedPath: null,
+        selectedPaths: new Set(),
         activePath: null,
         dirtyPaths: new Set(),
         filterOpen: false,
@@ -135,6 +145,7 @@ export class FileTreeController {
       entries: memory.entries,
       expandedPaths: new Set(memory.expandedPaths),
       selectedPath: memory.selectedPath,
+      selectedPaths: new Set(memory.selectedPaths),
       activePath: memory.activePath,
       dirtyPaths: new Set(this.#dirtyPaths),
       filterOpen: memory.filterOpen,
@@ -225,14 +236,133 @@ export class FileTreeController {
     return memory.refreshPromise;
   }
 
-  select(path: string | null): void {
+  select(path: string | null, mode: FileTreeSelectionMode = "replace"): void {
     const memory = this.#current;
-    if (!memory || memory.selectedPath === path) return;
-    memory.selectedPath = path;
+    if (!memory) return;
+    const next = selectFileTreePaths(
+      this.rows(),
+      {
+        selectedPath: memory.selectedPath,
+        selectedPaths: memory.selectedPaths,
+        anchorPath: memory.selectionAnchorPath,
+      },
+      path,
+      mode,
+    );
+    memory.selectedPath = next.selectedPath;
+    memory.selectedPaths = new Set(next.selectedPaths);
+    memory.selectionAnchorPath = next.anchorPath;
     this.#publish();
   }
 
-  moveSelection(offset: -1 | 1): string | null {
+  markSelection(operation: "copy" | "cut"): boolean {
+    const memory = this.#current;
+    if (!memory) return false;
+    const paths = selectionRoots(memory.selectedPaths);
+    if (paths.length === 0) return false;
+    this.#clipboard = {
+      operation: operation === "copy" ? "copy" : "move",
+      scope: { ...memory.scope },
+      paths,
+    };
+    memory.notice = `${operation === "copy" ? "Copied" : "Cut"} ${paths.length} ${paths.length === 1 ? "item" : "items"}.`;
+    this.#publish();
+    return true;
+  }
+
+  hasClipboard(): boolean {
+    return this.#clipboard !== null;
+  }
+
+  async pasteSelection(destinationDirectory: string | null): Promise<boolean> {
+    return this.#transfer(this.#clipboard, destinationDirectory);
+  }
+
+  async transferSelection(
+    destinationDirectory: string | null,
+    operation: FileTreeTransferOperation,
+  ): Promise<boolean> {
+    const memory = this.#current;
+    if (!memory) return false;
+    return this.transferPaths([...memory.selectedPaths], destinationDirectory, operation);
+  }
+
+  async transferPaths(
+    paths: readonly string[],
+    destinationDirectory: string | null,
+    operation: FileTreeTransferOperation,
+  ): Promise<boolean> {
+    const memory = this.#current;
+    if (!memory) return false;
+    return this.#transfer(
+      { operation, scope: { ...memory.scope }, paths: selectionRoots(paths) },
+      destinationDirectory,
+    );
+  }
+
+  async trashSelection(): Promise<boolean> {
+    const memory = this.#current;
+    if (!memory) return false;
+    const paths = selectionRoots(memory.selectedPaths);
+    if (paths.length === 0) return false;
+    if (!this.actions.trashEntries) {
+      return paths.length === 1 ? this.trashEntry(paths[0]!) : false;
+    }
+    try {
+      await this.actions.trashEntries(
+        paths.map((relativePath) => ({ ...memory.scope, relativePath })),
+      );
+      if (this.#current !== memory) return false;
+      this.select(null);
+      memory.notice = `Moved ${paths.length} ${paths.length === 1 ? "item" : "items"} to Trash.`;
+      this.#publish();
+      return true;
+    } catch (cause) {
+      if (this.#current !== memory) return false;
+      memory.notice =
+        cause instanceof Error ? cause.message : "The selection could not be moved to Trash.";
+      this.#publish();
+      return false;
+    }
+  }
+
+  async #transfer(
+    clipboard: FileTreeClipboard | null,
+    destinationDirectory: string | null,
+  ): Promise<boolean> {
+    const memory = this.#current;
+    if (!memory || !clipboard || !this.actions.transferEntries) return false;
+    const plan = fileTreeTransferPlan(
+      memory.entries,
+      clipboard,
+      destinationDirectory,
+      memory.scope,
+    );
+    if (plan.problem || plan.transfers.length === 0) {
+      memory.notice = plan.problem ?? "There is nothing to transfer.";
+      this.#publish();
+      return false;
+    }
+    try {
+      await this.actions.transferEntries(plan.transfers, clipboard.operation);
+      if (this.#current !== memory) return false;
+      memory.selectedPaths = new Set(plan.transfers.map(({ destinationPath }) => destinationPath));
+      memory.selectedPath = plan.transfers.at(-1)?.destinationPath ?? null;
+      memory.selectionAnchorPath = memory.selectedPath;
+      memory.notice = `${clipboard.operation === "copy" ? "Copied" : "Moved"} ${plan.transfers.length} ${plan.transfers.length === 1 ? "item" : "items"}.`;
+      if (clipboard.operation === "move" && this.#clipboard === clipboard) this.#clipboard = null;
+      this.#publish();
+      return true;
+    } catch (cause) {
+      if (this.#current !== memory) return false;
+      memory.notice =
+        cause instanceof Error ? cause.message : "The selection could not be transferred.";
+      this.#publish();
+      return false;
+    }
+  }
+
+  moveSelection(offset: -1 | 1, extend = false): string | null {
     const memory = this.#current;
     if (!memory) return null;
     const rows = this.rows();
@@ -245,7 +375,7 @@ export class FileTreeController {
           : rows.length - 1
         : Math.max(0, Math.min(rows.length - 1, current + offset));
     const path = rows[next]!.entry.relativePath;
-    this.select(path);
+    this.select(path, extend ? "range" : "replace");
     return path;
   }
 
@@ -471,6 +601,17 @@ export class FileTreeController {
         result.entries,
         this.#gitStates.get(scopeKey(memory.scope)),
       );
+      const selection = reconcileFileTreeSelection(
+        new Set(memory.entries.map((entry) => entry.relativePath)),
+        {
+          selectedPath: memory.selectedPath,
+          selectedPaths: memory.selectedPaths,
+          anchorPath: memory.selectionAnchorPath,
+        },
+      );
+      memory.selectedPath = selection.selectedPath;
+      memory.selectedPaths = new Set(selection.selectedPaths);
+      memory.selectionAnchorPath = selection.anchorPath;
       memory.revision = result.revision;
       memory.state = "ready";
       memory.truncated = result.truncated;
@@ -482,6 +623,9 @@ export class FileTreeController {
     }
     memory.rawEntries = [];
     memory.entries = [];
+    memory.selectedPath = null;
+    memory.selectedPaths.clear();
+    memory.selectionAnchorPath = null;
     memory.truncated = false;
     memory.ignoredTruncated = false;
     memory.unreadableDirectories = 0;

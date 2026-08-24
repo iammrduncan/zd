@@ -41,6 +41,7 @@ async function mounted(entries: readonly NativeFileTreeEntry[]) {
     createEntry: vi.fn(async () => {}),
     renameEntry: vi.fn(async () => {}),
     trashEntry: vi.fn(async () => {}),
+    transferEntries: vi.fn(async () => {}),
   };
   const controller = new FileTreeController(adapter(entries), actions);
   const host = document.createElement("aside");
@@ -185,11 +186,58 @@ describe("Files tree view", () => {
     ).toEqual([
       "New File…",
       "New Folder…",
+      "Cut",
+      "Copy",
       "Rename…",
       "Copy Relative Path",
       "Copy Full Path",
       "Move to Trash…",
     ]);
+  });
+
+  it("marks multiple rows and pastes their internal copy into a selected directory", async () => {
+    const fixture = await mounted([
+      entry("docs", "directory"),
+      entry("docs/a.md"),
+      entry("docs/b.md"),
+      entry("archive", "directory"),
+    ]);
+    fixture.controller.expand("docs");
+    fixture.host.querySelector<HTMLElement>('[data-file-path="docs/a.md"]')!.click();
+    fixture.host
+      .querySelector<HTMLElement>('[data-file-path="docs/b.md"]')!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    expect(
+      fixture.host
+        .querySelector<HTMLElement>('[data-file-path="docs/a.md"]')!
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    const second = fixture.host.querySelector<HTMLElement>('[data-file-path="docs/b.md"]')!;
+    expect(second.getAttribute("aria-selected")).toBe("true");
+
+    second.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, ctrlKey: true, key: "c" }));
+    fixture.host
+      .querySelector<HTMLElement>('[data-file-path="archive"]')!
+      .dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    [...fixture.host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
+      .find(({ textContent }) => textContent === "Paste")!
+      .click();
+
+    await vi.waitFor(() =>
+      expect(fixture.actions.transferEntries).toHaveBeenCalledWith(
+        [
+          {
+            source: { ...scope, relativePath: "docs/a.md" },
+            destinationPath: "archive/a.md",
+          },
+          {
+            source: { ...scope, relativePath: "docs/b.md" },
+            destinationPath: "archive/b.md",
+          },
+        ],
+        "copy",
+      ),
+    );
   });
 
   it("captures names and confirms Trash before dispatching file operations", async () => {

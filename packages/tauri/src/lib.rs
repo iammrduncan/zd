@@ -89,7 +89,7 @@ pub fn run() {
             file_tree::file_tree_snapshot,
             file_tree_watch::start_file_tree_watch,
             file_tree_watch::stop_file_tree_watch,
-            fs::mutate_file_tree,
+            fs::mutations::mutate_file_tree,
             git::git_status,
             git::git_history_page,
             git::git_compare,

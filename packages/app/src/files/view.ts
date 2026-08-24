@@ -276,12 +276,18 @@ export function mountFileTree(
       return;
     }
     safetyActive = Boolean(transients);
+    const selectedPaths = [...controller.snapshot().selectedPaths];
+    const count = selectedPaths.length;
     const confirmation = document.createElement("div");
     confirmation.className = "zd-file-tree-operation";
     confirmation.setAttribute("role", "alertdialog");
-    confirmation.setAttribute("aria-label", `Move ${name} to Trash`);
+    confirmation.setAttribute(
+      "aria-label",
+      count === 1 ? `Move ${name} to Trash` : `Move ${count} items to Trash`,
+    );
     const question = document.createElement("p");
-    question.textContent = `Move ${path} to Trash?`;
+    question.textContent =
+      count === 1 ? `Move ${path} to Trash?` : `Move ${count} selected items to Trash?`;
     const problem = document.createElement("span");
     problem.className = "zd-file-tree-operation-problem";
     problem.setAttribute("role", "status");
@@ -297,7 +303,7 @@ export function mountFileTree(
     confirm.addEventListener("click", () => {
       confirm.disabled = true;
       void (async () => {
-        if (await controller.trashEntry(path)) {
+        if (await controller.trashSelection()) {
           dismissFileMenu();
           return;
         }
@@ -320,7 +326,7 @@ export function mountFileTree(
     blockStart: number,
   ): void => {
     dismissFileMenu();
-    if (path) controller.select(path);
+    if (path && !controller.snapshot().selectedPaths.has(path)) controller.select(path);
     const entry = path
       ? controller.snapshot().entries.find((candidate) => candidate.relativePath === path)
       : null;
@@ -354,6 +360,24 @@ export function mountFileTree(
     }
 
     if (entry && entry.kind !== "symlink") {
+      action("Cut", () => {
+        controller.markSelection("cut");
+        dismissFileMenu(true);
+      });
+      action("Copy", () => {
+        controller.markSelection("copy");
+        dismissFileMenu(true);
+      });
+    }
+
+    if ((!entry || entry.kind === "directory") && controller.hasClipboard()) {
+      action("Paste", () => {
+        dismissFileMenu(true);
+        void controller.pasteSelection(path);
+      });
+    }
+
+    if (entry && entry.kind !== "symlink" && controller.snapshot().selectedPaths.size === 1) {
       action("Rename…", () => openNameEditor("rename", path, name, inlineStart, blockStart));
     }
 
@@ -458,10 +482,75 @@ export function mountFileTree(
       event.clientY,
     );
   });
+  const destinationDirectory = (path: string | null): string | null => {
+    if (!path) return null;
+    const entry = controller
+      .snapshot()
+      .entries.find((candidate) => candidate.relativePath === path);
+    return entry?.kind === "directory" ? path : (entry?.parentPath ?? null);
+  };
+  const clearDropTarget = (): void => {
+    ui.layer.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((row) => {
+      delete row.dataset.dropTarget;
+    });
+  };
+  let draggedPaths: readonly string[] = [];
+  ui.viewport.addEventListener("dragstart", (event) => {
+    const target = (event.target as HTMLElement).closest<HTMLElement>("[data-file-path]");
+    const path = target?.dataset.filePath;
+    if (!path || !event.dataTransfer) return;
+    const selection = controller.snapshot().selectedPaths;
+    draggedPaths = selection.has(path) ? [...selection] : [path];
+    event.dataTransfer.effectAllowed = "copyMove";
+    event.dataTransfer.setData("application/x-zd-file-tree", "selection");
+  });
+  ui.viewport.addEventListener("dragover", (event) => {
+    if (!event.dataTransfer?.types.includes("application/x-zd-file-tree")) return;
+    event.preventDefault();
+    clearDropTarget();
+    const target = (event.target as HTMLElement).closest<HTMLElement>("[data-file-path]");
+    if (target) target.dataset.dropTarget = "true";
+    event.dataTransfer.dropEffect = event.altKey ? "copy" : "move";
+  });
+  ui.viewport.addEventListener("dragleave", (event) => {
+    if (event.relatedTarget instanceof Node && ui.viewport.contains(event.relatedTarget)) return;
+    clearDropTarget();
+  });
+  ui.viewport.addEventListener("drop", (event) => {
+    if (!event.dataTransfer?.types.includes("application/x-zd-file-tree")) return;
+    event.preventDefault();
+    const target = (event.target as HTMLElement).closest<HTMLElement>("[data-file-path]");
+    clearDropTarget();
+    void controller.transferPaths(
+      draggedPaths,
+      destinationDirectory(target?.dataset.filePath ?? null),
+      event.altKey ? "copy" : "move",
+    );
+    draggedPaths = [];
+  });
+  ui.viewport.addEventListener("dragend", () => {
+    draggedPaths = [];
+    clearDropTarget();
+  });
   ui.viewport.addEventListener("keydown", (event) => {
     const eventPath = (event.target as HTMLElement).dataset.filePath ?? null;
     if (eventPath && controller.snapshot().selectedPath !== eventPath) controller.select(eventPath);
     const selected = eventPath ?? controller.snapshot().selectedPath;
+    if (event.metaKey || event.ctrlKey) {
+      if (event.key.toLowerCase() === "c" && controller.markSelection("copy")) {
+        event.preventDefault();
+        return;
+      }
+      if (event.key.toLowerCase() === "x" && controller.markSelection("cut")) {
+        event.preventDefault();
+        return;
+      }
+      if (event.key.toLowerCase() === "v" && controller.hasClipboard()) {
+        event.preventDefault();
+        void controller.pasteSelection(destinationDirectory(selected));
+        return;
+      }
+    }
     if (selected && (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey))) {
       const target = fileRow(selected);
       if (target) {
@@ -479,10 +568,10 @@ export function mountFileTree(
     let next: string | null = selected;
     switch (event.key) {
       case "ArrowDown":
-        next = controller.moveSelection(1);
+        next = controller.moveSelection(1, event.shiftKey);
         break;
       case "ArrowUp":
-        next = controller.moveSelection(-1);
+        next = controller.moveSelection(-1, event.shiftKey);
         break;
       case "ArrowRight":
         if (selected) next = controller.selectChild(selected);

@@ -418,6 +418,34 @@ const platform: Platform = {
             name: relativePath.slice(childSlash + 1),
           };
         });
+      } else if (request.operation === "copy" || request.operation === "move") {
+        if (exists(request.destinationPath)) {
+          return { status: "refused" as const, reason: "That destination already exists." };
+        }
+        const transferred = fileEntries
+          .filter(
+            ({ relativePath }) =>
+              relativePath === request.relativePath ||
+              relativePath.startsWith(`${request.relativePath}/`),
+          )
+          .map((entry) => {
+            const relativePath = `${request.destinationPath}${entry.relativePath.slice(request.relativePath.length)}`;
+            const childSlash = relativePath.lastIndexOf("/");
+            return {
+              ...entry,
+              relativePath,
+              parentPath: childSlash < 0 ? null : relativePath.slice(0, childSlash),
+              name: relativePath.slice(childSlash + 1),
+            };
+          });
+        if (request.operation === "move") {
+          fileEntries = fileEntries.filter(
+            ({ relativePath }) =>
+              relativePath !== request.relativePath &&
+              !relativePath.startsWith(`${request.relativePath}/`),
+          );
+        }
+        fileEntries = [...fileEntries, ...transferred];
       } else {
         fileEntries = fileEntries.filter(
           ({ relativePath }) =>

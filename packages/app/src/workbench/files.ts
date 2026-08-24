@@ -8,6 +8,8 @@ import {
   type FileTreeMutationRequest,
   type FileTreeRefreshReason,
   type FileTreeScope,
+  type FileTreeTransfer,
+  type FileTreeTransferOperation,
   type FileTreeWatchEvent,
 } from "@/files";
 import { reconcileGitStatus, type GitAdapter, type GitStatusSnapshot } from "@/git";
@@ -101,6 +103,8 @@ export class WorkbenchFilesRuntime {
         createEntry: (resource, kind) => this.#createEntry(resource, kind),
         renameEntry: (resource, newName) => this.#renameEntry(resource, newName),
         trashEntry: (resource) => this.#trashEntry(resource),
+        transferEntries: (transfers, operation) => this.#transferEntries(transfers, operation),
+        trashEntries: (resources) => this.#trashEntries(resources),
       },
       { record: (metric) => this.#recordFileMetric(metric) },
     );
@@ -253,12 +257,38 @@ export class WorkbenchFilesRuntime {
   }
 
   async #trashEntry(resource: FileResource): Promise<void> {
-    if (this.drafts.hasPath(resource)) {
-      throw new Error("Save or discard unsaved changes before moving this item to Trash.");
+    await this.#trashEntries([resource]);
+  }
+
+  async #transferEntries(
+    transfers: readonly FileTreeTransfer[],
+    operation: FileTreeTransferOperation,
+  ): Promise<void> {
+    try {
+      for (const { source, destinationPath } of transfers) {
+        await this.#mutate({ ...source, operation, destinationPath });
+        if (operation === "move") {
+          this.drafts.movePath(source, destinationPath);
+          this.owner.renameFilePath(source, destinationPath);
+        }
+      }
+    } finally {
+      await this.controller.refresh("manual");
     }
-    await this.#mutate({ ...resource, operation: "trash" });
-    this.owner.removeFilePath(resource);
-    await this.controller.refresh("manual");
+  }
+
+  async #trashEntries(resources: readonly FileResource[]): Promise<void> {
+    if (resources.some((resource) => this.drafts.hasPath(resource))) {
+      throw new Error("Save or close unsaved files before moving this selection to Trash.");
+    }
+    try {
+      for (const resource of resources) {
+        await this.#mutate({ ...resource, operation: "trash" });
+        this.owner.removeFilePath(resource);
+      }
+    } finally {
+      await this.controller.refresh("manual");
+    }
   }
 
   #startWatching(scope: FileTreeScope, generation: number): void {

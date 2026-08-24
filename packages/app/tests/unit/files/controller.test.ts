@@ -113,6 +113,164 @@ describe("FileTreeController", () => {
     });
   });
 
+  it("supports additive and range selection over the visible hierarchy", async () => {
+    const controller = new FileTreeController(
+      sequence([
+        ready("one", [
+          entry("docs", "directory"),
+          entry("docs/a.md"),
+          entry("docs/b.md"),
+          entry("docs/c.md"),
+        ]),
+      ]),
+    );
+    await controller.activate(scope);
+    controller.expand("docs");
+
+    controller.select("docs/a.md");
+    controller.select("docs/c.md", "range");
+    expect(controller.snapshot().selectedPaths).toEqual(
+      new Set(["docs/a.md", "docs/b.md", "docs/c.md"]),
+    );
+
+    controller.select("docs/b.md", "toggle");
+    expect(controller.snapshot().selectedPath).toBe("docs/b.md");
+    expect(controller.snapshot().selectedPaths).toEqual(new Set(["docs/a.md", "docs/c.md"]));
+  });
+
+  it("copies or moves the marked roots into one directory and trashes the full selection", async () => {
+    const actions: FileTreeActions = {
+      activateFile: vi.fn(async () => ({ status: "committed" as const })),
+      transferEntries: vi.fn(async () => {}),
+      trashEntries: vi.fn(async () => {}),
+    };
+    const controller = new FileTreeController(
+      sequence([
+        ready("one", [
+          entry("docs", "directory"),
+          entry("docs/a.md"),
+          entry("docs/b.md"),
+          entry("archive", "directory"),
+        ]),
+      ]),
+      actions,
+    );
+    await controller.activate(scope);
+    controller.expand("docs");
+    controller.select("docs/a.md");
+    controller.select("docs/b.md", "toggle");
+
+    controller.markSelection("copy");
+    await expect(controller.pasteSelection("archive")).resolves.toBe(true);
+    expect(actions.transferEntries).toHaveBeenLastCalledWith(
+      [
+        {
+          source: { ...scope, relativePath: "docs/a.md" },
+          destinationPath: "archive/a.md",
+        },
+        {
+          source: { ...scope, relativePath: "docs/b.md" },
+          destinationPath: "archive/b.md",
+        },
+      ],
+      "copy",
+    );
+
+    controller.select("docs/a.md");
+    controller.select("docs/b.md", "toggle");
+    controller.markSelection("cut");
+    await expect(controller.pasteSelection("archive")).resolves.toBe(true);
+    expect(actions.transferEntries).toHaveBeenLastCalledWith(
+      [
+        {
+          source: { ...scope, relativePath: "docs/a.md" },
+          destinationPath: "archive/a.md",
+        },
+        {
+          source: { ...scope, relativePath: "docs/b.md" },
+          destinationPath: "archive/b.md",
+        },
+      ],
+      "move",
+    );
+
+    controller.select("docs/a.md");
+    controller.select("docs/b.md", "toggle");
+    await expect(controller.trashSelection()).resolves.toBe(true);
+    expect(actions.trashEntries).toHaveBeenCalledWith([
+      { ...scope, relativePath: "docs/a.md" },
+      { ...scope, relativePath: "docs/b.md" },
+    ]);
+  });
+
+  it("transfers explicit drag paths without changing selection before the operation", async () => {
+    const actions: FileTreeActions = {
+      activateFile: vi.fn(async () => ({ status: "committed" as const })),
+      transferEntries: vi.fn(async () => {}),
+    };
+    const controller = new FileTreeController(
+      sequence([
+        ready("one", [
+          entry("docs", "directory"),
+          entry("docs/a.md"),
+          entry("archive", "directory"),
+        ]),
+      ]),
+      actions,
+    );
+    await controller.activate(scope);
+    controller.select("archive");
+
+    await expect(controller.transferPaths(["docs/a.md"], "archive", "move")).resolves.toBe(true);
+    expect(actions.transferEntries).toHaveBeenCalledWith(
+      [
+        {
+          source: { ...scope, relativePath: "docs/a.md" },
+          destinationPath: "archive/a.md",
+        },
+      ],
+      "move",
+    );
+  });
+
+  it("uses stable copy names and refuses destructive transfer destinations", async () => {
+    const actions: FileTreeActions = {
+      activateFile: vi.fn(async () => ({ status: "committed" as const })),
+      transferEntries: vi.fn(async () => {}),
+    };
+    const controller = new FileTreeController(
+      sequence([
+        ready("one", [
+          entry("docs", "directory"),
+          entry("docs/a.md"),
+          entry("docs/nested", "directory"),
+          entry("archive", "directory"),
+          entry("archive/a.md"),
+          entry("archive/a copy.md"),
+        ]),
+      ]),
+      actions,
+    );
+    await controller.activate(scope);
+
+    await expect(controller.transferPaths(["docs/a.md"], "archive", "copy")).resolves.toBe(true);
+    expect(actions.transferEntries).toHaveBeenLastCalledWith(
+      [
+        {
+          source: { ...scope, relativePath: "docs/a.md" },
+          destinationPath: "archive/a copy 2.md",
+        },
+      ],
+      "copy",
+    );
+
+    await expect(controller.transferPaths(["docs"], "docs/nested", "move")).resolves.toBe(false);
+    expect(controller.snapshot().notice).toBe("A folder cannot be transferred into itself.");
+    await expect(controller.transferPaths(["docs/a.md"], "archive", "move")).resolves.toBe(false);
+    expect(controller.snapshot().notice).toBe("archive/a.md already exists.");
+    expect(actions.transferEntries).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps independent view memory when projects switch", async () => {
     const adapter: FileTreeAdapter = {
       snapshot: vi.fn(async (request) =>

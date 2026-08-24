@@ -151,6 +151,10 @@
   background: var(--surface-selection);
 }
 
+.zd-file-tree-row[data-drop-target="true"] {
+  box-shadow: inset 0 calc(var(--hairline) * -2) var(--line-focus);
+}
+
 .zd-file-tree-row:focus-visible {
   outline: 0;
   text-decoration: underline;
