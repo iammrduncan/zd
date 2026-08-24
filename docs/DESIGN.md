@@ -484,8 +484,10 @@ metadata. Diff navigation never marks the live file dirty.
 
 Markdown and code use one CodeMirror owner and one uninterrupted `surface.canvas`. A file does not
 sit on a card and does not receive a tab strip, breadcrumb, or editor toolbar. One quiet subchrome
-row identifies the current relative path and owns the explicit Discard and Close actions. It is
-file identity and lifecycle control, not a second navigation surface.
+row identifies the current relative path and owns one `×` close action. A clean file closes
+immediately. A dirty file asks for Cancel or Close without Saving; confirming removes its draft and
+leaves no file active rather than switching to another open file. The row is file identity and
+lifecycle control, not a second navigation surface.
 
 The editor opens without a caret. First pointer or keyboard intent places one. Selection, caret,
 undo, save truth, Find, Focus, and viewport restoration derive from one document state.
@@ -679,7 +681,8 @@ includes prompt, response, terminal output, document content, or file path. View
 that summons and activates the exact target. Close only dismisses the operating-system notification.
 
 Completion sound is off by default. Enabled sounds are short, non-overlapping, and rate-limited.
-The workbench does not play ambient audio.
+Changing enablement, mute, volume, or an agent's selected chime previews the resulting sound with
+the resulting settings. The workbench does not play ambient audio.
 
 When the target thread is already visible and focused, the row state updates but desktop
 presentation and sound are suppressed.

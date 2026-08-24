@@ -3,6 +3,11 @@
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
 === Feedback Addressed ===
+Close on a file should actually close that file. Thats different than switching context to another file. So we don't need a "discard" and a "close" file... buton. We can just have an 'x' and if we close with unsaved we prompt for confirmation. We did similar for markdown files on our old vision/editor.
+on sound settings changes, if changed we should hear preview of the new. if volume increased we should hear sound at new volume, if sound chime changed we should hear new chime thats played.
+filetree is still missing a lot of file options... like drag and drop, copy and paste files, multiple file selection, etc... look at other ide file tree systems and think about what we should do there.
+I am still unable to expand the docs/screenshots folder in file tree. why? can you fix that?
+option+down-arrow in markdown takes us to the "next block" for reading and focus mode. On a table a "block" should be the whole table if it fits in the viewport, or it should be a single row of the table if the table extends beyond the viewport or takes up more than 70% of the viewport vertical space.
 when switching to new branch or worktree the tagged subheading on the panel doesn't change. In this case I created and switched branches but it still says feat/global-use on it... ![Screenshot](../screenshots/screenshot-1787526819901104000.png)
 why is this statement here? ![Screenshot](../screenshots/screenshot-1787526856469699000.png)
 scrollable window for file list doesn't fill full height.
