@@ -140,31 +140,62 @@ impl ActionRouter {
 
 pub struct NotificationState {
     store: Arc<ActionStore>,
-    platform_problem: Option<String>,
+    capabilities: NativeAttentionCapabilities,
+}
+
+#[derive(Clone, Debug, Default)]
+struct NativeAttentionCapabilities {
+    notification_problem: Option<String>,
+    sound_problem: Option<String>,
+}
+
+impl NativeAttentionCapabilities {
+    fn with_notification_problem(problem: String) -> Self {
+        Self {
+            notification_problem: Some(problem),
+            sound_problem: None,
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    fn unsupported(problem: String) -> Self {
+        Self {
+            notification_problem: Some(problem.clone()),
+            sound_problem: Some(problem),
+        }
+    }
+
+    fn notification_problem(&self) -> Option<&str> {
+        self.notification_problem.as_deref()
+    }
+
+    fn sound_problem(&self) -> Option<&str> {
+        self.sound_problem.as_deref()
+    }
 }
 
 impl NotificationState {
     pub fn new(app: tauri::AppHandle) -> Self {
         let store = Arc::new(ActionStore::default());
         #[cfg(target_os = "macos")]
-        let platform_problem = macos::install(Arc::new(ActionRouter {
+        let capabilities = macos::install(Arc::new(ActionRouter {
             app,
             store: Arc::clone(&store),
         }))
-        .err();
+        .err()
+        .map(NativeAttentionCapabilities::with_notification_problem)
+        .unwrap_or_default();
         #[cfg(not(target_os = "macos"))]
-        let platform_problem = {
+        let capabilities = {
             let _ = app;
-            Some("actionable desktop notifications are unavailable on this platform".into())
+            NativeAttentionCapabilities::unsupported(
+                "desktop attention is unavailable on this platform".into(),
+            )
         };
         Self {
             store,
-            platform_problem,
+            capabilities,
         }
-    }
-
-    fn unavailable(&self) -> Option<&str> {
-        self.platform_problem.as_deref()
     }
 }
 
@@ -312,7 +343,7 @@ async fn platform_request_permission() -> NotificationPermission {
 pub async fn notification_permission(
     state: tauri::State<'_, NotificationState>,
 ) -> Result<NotificationPermission, String> {
-    if state.unavailable().is_some() {
+    if state.capabilities.notification_problem().is_some() {
         return Ok(NotificationPermission::Unsupported);
     }
     Ok(platform_permission().await)
@@ -322,7 +353,7 @@ pub async fn notification_permission(
 pub async fn notification_request_permission(
     state: tauri::State<'_, NotificationState>,
 ) -> Result<NotificationPermission, String> {
-    if state.unavailable().is_some() {
+    if state.capabilities.notification_problem().is_some() {
         return Ok(NotificationPermission::Unsupported);
     }
     Ok(platform_request_permission().await)
@@ -333,7 +364,7 @@ pub fn show_thread_notification(
     state: tauri::State<'_, NotificationState>,
     request: ThreadNotificationRequestV1,
 ) -> NotificationPresentationResult {
-    if let Some(problem) = state.unavailable() {
+    if let Some(problem) = state.capabilities.notification_problem() {
         return NotificationPresentationResult {
             status: NotificationPresentationStatus::Unsupported,
             problem: Some(problem.into()),
@@ -384,7 +415,7 @@ pub async fn play_completion_sound(
             problem: Some(problem),
         });
     }
-    if let Some(problem) = state.unavailable() {
+    if let Some(problem) = state.capabilities.sound_problem() {
         return Ok(CompletionSoundResult {
             status: CompletionSoundStatus::Unsupported,
             problem: Some(problem.into()),
@@ -405,4 +436,19 @@ pub async fn play_completion_sound(
             problem: Some(problem),
         },
     })
+}
+
+#[cfg(test)]
+mod capability_tests {
+    use super::NativeAttentionCapabilities;
+
+    #[test]
+    fn notification_install_failure_does_not_disable_completion_sounds() {
+        let capabilities = NativeAttentionCapabilities::with_notification_problem(
+            "notifications require an application bundle".into(),
+        );
+
+        assert!(capabilities.notification_problem().is_some());
+        assert_eq!(capabilities.sound_problem(), None);
+    }
 }
