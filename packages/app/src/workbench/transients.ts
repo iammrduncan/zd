@@ -14,6 +14,10 @@ export class TransientCoordinator {
     return this.active?.id === id;
   }
 
+  hasActive(): boolean {
+    return this.active !== null;
+  }
+
   open(id: string, kind: TransientKind, close: (restoreFocus: boolean) => void): boolean {
     if (this.active?.id === id) return true;
     if (this.active?.kind === "safety") return false;

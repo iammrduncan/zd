@@ -5,7 +5,6 @@ import {
   type ClipboardImage,
   type MountedEditorBuffer,
 } from "@/editor";
-import { setGranularity } from "@/editor/focus";
 import { screenshotLink } from "./clipboard-image";
 import { closeConfirmation } from "./close-confirmation";
 import { FileDraftStore } from "./drafts";
@@ -16,10 +15,8 @@ import { setWordWrap } from "../preferences";
 import type { Unmount, WorkbenchRuntimeContext } from "../runtime";
 import { register, registerCommandTarget } from "../shortcuts";
 import type { TransitionRecovery, WorkbenchState } from "../state";
-import {
-  workbenchSettingsPreferences,
-  type WorkbenchSettingsPreferences,
-} from "../settings-preferences";
+import { workbenchSettingsPreferences } from "../settings-preferences";
+import { attachReadingSettings } from "./reading-settings";
 import "./styles.css";
 
 export interface MountCurrentFileOptions {
@@ -67,21 +64,7 @@ export async function mountCurrentFile(
   surface.className = "current-file";
   host.replaceChildren(surface);
 
-  const applyReadingSettings = (preferences: WorkbenchSettingsPreferences): void => {
-    const editor = mounted?.editor;
-    if (!editor) return;
-    if (editor.isFocusMode() !== preferences.reading.focus) editor.toggleFocus();
-    if (editor.isTypewriter() !== preferences.reading.typewriter) editor.toggleTypewriter();
-    if (editor.isWrapped() !== preferences.reading.wordWrap) editor.toggleWrap();
-    const column = surface.querySelector<HTMLElement>(".md-editor");
-    if (column) setGranularity(column, preferences.reading.granularity);
-  };
-  const onSettingsChange = (event: Event) => {
-    applyReadingSettings(
-      (event as CustomEvent<WorkbenchSettingsPreferences>).detail ?? workbenchSettingsPreferences(),
-    );
-  };
-  window.addEventListener("zd-workbench-settings-change", onSettingsChange);
+  const readingSettings = attachReadingSettings(surface, () => mounted?.editor ?? null);
 
   const showNotice = (
     message: string,
@@ -250,7 +233,7 @@ export async function mountCurrentFile(
     notice.setAttribute("role", "status");
     notice.setAttribute("aria-live", "polite");
     surface.append(notice);
-    applyReadingSettings(workbenchSettingsPreferences());
+    readingSettings.apply();
     if (focus) mounted.focus();
   };
 
@@ -441,7 +424,11 @@ export async function mountCurrentFile(
     fileId = state.active.fileId;
     void open(activeResource(state));
   });
-  const confirmation = closeConfirmation(host, () => void context.platform.closeWindow());
+  const confirmation = closeConfirmation(
+    host,
+    () => void context.platform.closeWindow(),
+    context.transients,
+  );
   const stopClose = context.platform.onCloseRequested(() => {
     if (pendingImageSaves > 0) {
       showNotice("Wait for the pasted screenshot to finish saving before closing.", "warning");
@@ -509,7 +496,7 @@ export async function mountCurrentFile(
     reconciliation += 1;
     host.removeEventListener("focus", focusCurrentFile);
     window.removeEventListener("focus", onFocus);
-    window.removeEventListener("zd-workbench-settings-change", onSettingsChange);
+    readingSettings.dispose();
     stopClose();
     confirmation.dismiss();
     stopState();

@@ -78,14 +78,14 @@ test("keeps Settings command-driven and out of the thread hierarchy", async ({ p
   );
   await page.keyboard.press(`${primary}+,`);
   const sheet = page.locator("[data-workbench-settings]");
-  const settings = sheet.locator("[data-diagnostic-settings]");
 
   await expect(sheet).toBeVisible();
-  await expect(settings.locator("[data-attention-settings]")).toBeVisible();
-  await expect(settings.locator("[data-attention-status]")).toContainText("unavailable");
-  await expect(settings.locator("[data-notifications-toggle]")).toBeDisabled();
-  await expect(settings.locator("[data-sound-toggle]")).not.toBeChecked();
-  await expect(settings.locator("[data-sound-volume]")).toHaveValue("50");
+  const attention = sheet.locator("[data-attention-settings]");
+  await expect(attention).toBeVisible();
+  await expect(attention.locator("[data-attention-status]")).toContainText("unavailable");
+  await expect(attention.locator("[data-notifications-toggle]")).toBeDisabled();
+  await expect(attention.locator("[data-sound-toggle]")).not.toBeChecked();
+  await expect(attention.locator("[data-sound-volume]")).toHaveValue("50");
 
   await page.keyboard.press("Escape");
   await expect(sheet).toHaveCount(0);

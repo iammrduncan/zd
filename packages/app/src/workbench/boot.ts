@@ -131,7 +131,7 @@ export async function bootWorkbench(
     id: "workbench.transient.dismiss",
     commandId: "workbench.escape",
     priority: 2_000,
-    available: () => true,
+    available: () => transients.hasActive(),
     run: () => transients.dismiss(),
   });
   const detachChrome = mountWindowChrome();

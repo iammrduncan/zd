@@ -10,3 +10,11 @@
 .zd-file-context-surface[hidden] {
   display: none;
 }
+
+.zd-file-context.current-file {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.zd-file-context.current-file > .zd-file-context-surface {
+  grid-area: 1 / 1;
+}

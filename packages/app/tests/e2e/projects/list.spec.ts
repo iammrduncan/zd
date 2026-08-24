@@ -246,6 +246,29 @@ test("renders a compact accessible hierarchy with a selected project", async ({ 
   }
 });
 
+test("project disclosure is separate from activation and persists without destroying children", async ({
+  page,
+}) => {
+  await mountFixture(page);
+  const disclosure = page.getByRole("button", { name: "Collapse Alpha" });
+  const children = page.locator('[data-project-id="alpha"] .zd-project-children');
+  await expect(children).toContainText("alpha thread · idle");
+  await disclosure.click();
+  await expect(page.getByRole("button", { name: "Expand Alpha" })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+  await expect(children).toBeHidden();
+  expect(await page.evaluate(() => window.projectFixture.calls)).not.toContain("activate:alpha");
+
+  await mountFixture(page);
+  await expect(page.getByRole("button", { name: "Expand Alpha" })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+  await expect(page.locator('[data-project-id="alpha"] .zd-project-children')).toBeHidden();
+});
+
 test("ordinary, modified-pointer, and keyboard activation share one transition", async ({
   page,
 }) => {
