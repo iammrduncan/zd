@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import workbenchScreenshot from "../../../docs/user-facing-docs/assets/zd-workbench.png";
+import darkWorkbenchScreenshot from "../../../docs/user-facing-docs/assets/zd-workbench-dark.png";
+import draculaWorkbenchScreenshot from "../../../docs/user-facing-docs/assets/zd-workbench-dracula.png";
 import sideBySideScreenshot from "../../../docs/user-facing-docs/assets/zd-workbench-side-by-side.png";
 import { pageMetadata, RELEASE_URL, SITE_DESCRIPTION, softwareApplicationJsonLd } from "@/lib/site";
 
@@ -20,13 +22,13 @@ export default function Home() {
       <section className="hero">
         <p className="eyebrow">ZenSuite · local agent workbench</p>
         <h1>
-          Keep every thread.
+          Run every agent.
           <br />
-          Keep the context.
+          Keep every thread.
         </h1>
         <p className="hero-copy">
-          <code>zd</code> keeps projects, terminal-backed agent threads, files, and Git in one calm
-          local workbench.
+          <code>zd</code> keeps Codex, Claude Code, OpenCode, shells, source files, and Git in one
+          calm local workbench.
         </p>
         <div className="hero-actions">
           <a className="button button-primary" href={RELEASE_URL}>
@@ -41,18 +43,39 @@ export default function Home() {
 
       <section className="product" aria-labelledby="product-heading">
         <div className="section-heading">
-          <p className="eyebrow">One workbench</p>
-          <h2 id="product-heading">Projects and agent sessions stay visible together.</h2>
+          <p className="eyebrow">One view, three themes</p>
+          <h2 id="product-heading">See the agents and the code they are changing.</h2>
         </div>
-        <figure className="app-frame">
-          <img
-            src={workbenchScreenshot.src}
-            width={1440}
-            height={900}
-            alt="The light zd workbench with projects and terminal threads on the left, an editable file in the centre, and Files on the right"
-          />
+        <figure className="theme-stack">
+          <div className="theme-card" data-theme-card="light">
+            <span>Current Light</span>
+            <img
+              src={workbenchScreenshot.src}
+              width={1440}
+              height={900}
+              alt="The Current Light zd workbench with a Codex terminal running beside source code"
+            />
+          </div>
+          <div className="theme-card" data-theme-card="dark">
+            <span>Dark</span>
+            <img
+              src={darkWorkbenchScreenshot.src}
+              width={1440}
+              height={900}
+              alt="The Dark zd workbench with a Codex terminal running beside source code"
+            />
+          </div>
+          <div className="theme-card" data-theme-card="dracula">
+            <span>Dracula</span>
+            <img
+              src={draculaWorkbenchScreenshot.src}
+              width={1440}
+              height={900}
+              alt="The Dracula zd workbench with a Codex terminal running beside source code"
+            />
+          </div>
           <figcaption>
-            Project-scoped threads, the current file, and the compact file tree share one state.
+            Real workbench captures. Theme changes never move the project, thread, or file context.
           </figcaption>
         </figure>
       </section>
@@ -60,26 +83,26 @@ export default function Home() {
       <section className="features" aria-label="Product highlights">
         <article>
           <span className="feature-number">01</span>
-          <h2>Several projects</h2>
+          <h2>Move between projects</h2>
           <p>
-            Add only the folders you approve. Switch projects without tearing down inactive files or
-            terminal sessions.
+            Keep several approved folders open and jump to the previous or next project without
+            stopping inactive terminal sessions.
           </p>
         </article>
         <article>
           <span className="feature-number">02</span>
-          <h2>Terminal-backed threads</h2>
+          <h2>Start a thread here</h2>
           <p>
-            Organize shells, Codex, Claude Code, and OpenCode sessions by project root or Git
-            worktree.
+            Create a terminal in the current project root with one shortcut, then run the agent or
+            shell the work needs.
           </p>
         </article>
         <article>
           <span className="feature-number">03</span>
-          <h2>Files and Git</h2>
+          <h2>Keep source beside output</h2>
           <p>
-            Edit Markdown and code, filter a dense file tree, and inspect status, history,
-            comparisons, and read-only diffs.
+            Pair a terminal thread with the selected source while Files and read-only Git views stay
+            available on the right.
           </p>
         </article>
       </section>

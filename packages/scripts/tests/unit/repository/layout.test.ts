@@ -191,7 +191,10 @@ describe("static website", () => {
     expect(home).toContain("/docs/");
     expect(home).toContain("RELEASE_URL");
     expect(home).toContain("docs/user-facing-docs/assets/zd-workbench.png");
+    expect(home).toContain("docs/user-facing-docs/assets/zd-workbench-dark.png");
+    expect(home).toContain("docs/user-facing-docs/assets/zd-workbench-dracula.png");
     expect(home).toContain("docs/user-facing-docs/assets/zd-workbench-side-by-side.png");
+    expect(home).toContain('className="theme-stack"');
     expect(existsSync(resolve(WEBSITE, "public/screenshots"))).toBe(false);
   });
 

@@ -7,6 +7,8 @@ import { describe, expect, it } from "vitest";
 const ROOT = resolve(process.cwd());
 const SCREENSHOT = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench.png");
 const SIDE_BY_SIDE = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-side-by-side.png");
+const DARK = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-dark.png");
+const DRACULA = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-dracula.png");
 const SOCIAL_CARD = resolve(ROOT, "docs/user-facing-docs/assets/zd-social-card.png");
 
 function pngDimensions(path: string) {
@@ -40,14 +42,32 @@ describe("the workbench promotional kit", () => {
     expect(readme).toMatch(/!\[[^\]]*workbench[^\]]*\]/i);
   });
 
+  it("captures the current one-click thread flow in all three bundled themes", () => {
+    const capture = readFileSync(
+      resolve(ROOT, "packages/scripts/release/capture-workbench.mjs"),
+      "utf8",
+    );
+
+    expect(capture).not.toMatch(/data-thread-create(?!-toggle)/);
+    expect(existsSync(DARK)).toBe(true);
+    expect(existsSync(DRACULA)).toBe(true);
+    expect(pngDimensions(DARK)).toEqual({ width: 1440, height: 900 });
+    expect(pngDimensions(DRACULA)).toEqual({ width: 1440, height: 900 });
+  });
+
   it("provides a social preview at the exact sharing-card size", () => {
     const manifest = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
       scripts: Record<string, string>;
     };
+    const renderer = readFileSync(
+      resolve(ROOT, "packaging/macos/render-social-card.swift"),
+      "utf8",
+    );
 
     expect(existsSync(SOCIAL_CARD)).toBe(true);
     expect(pngDimensions(SOCIAL_CARD)).toEqual({ width: 1200, height: 630 });
     expect(manifest.scripts["promo:render"]).toContain("render-social-card.swift");
+    expect(renderer).toContain("Run every agent. Keep every thread.");
   });
 
   it("keeps honest release limits beside the public download guidance", () => {
