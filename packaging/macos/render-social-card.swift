@@ -87,8 +87,8 @@ context.setFillColor(accent)
 context.fill(CGRect(x: 0, y: 0, width: 12, height: height))
 
 drawText("zd", font: bold, color: ink, x: 72, baseline: 538)
-drawText("Run every agent. Keep every thread.", font: prose, color: quiet, x: 74, baseline: 488)
-drawText("ZenSuite  ·  local agent workbench  ·  MIT", font: mono, color: accent, x: 75, baseline: 447)
+drawText("Markdown, rendered and editable.", font: prose, color: quiet, x: 74, baseline: 488)
+drawText("ZenSuite  ·  local Markdown and agent workbench  ·  MIT", font: mono, color: accent, x: 75, baseline: 447)
 
 context.interpolationQuality = .high
 context.draw(icon, in: CGRect(x: 1032, y: 470, width: 104, height: 104))

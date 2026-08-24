@@ -94,6 +94,20 @@ const platform = detectPlatform();
 
 void bootWorkbench(host, platform);
 `;
+const markdownSource = `# Markdown stays readable
+
+Plans, notes, and agent-written documents render with a quiet measure and clear hierarchy while
+remaining directly editable.
+
+## Review in context
+
+Select the exact text that needs work, leave a comment beside it, and hand the next person one
+precise feedback file.
+
+- Edit rendered tables in place.
+- Paste screenshots without leaving the document.
+- Reveal every delimiter with Raw Mode.
+`;
 let contents = source;
 let stamp: FileStamp = { modified: 1, length: new TextEncoder().encode(contents).byteLength };
 let diagnostics: DiagnosticStatus = {
@@ -504,13 +518,20 @@ const platform: Platform = {
     ],
   }),
   readTextFile: async () => contents,
-  readBoundedFile: async (selected) => ({
-    status: "text",
-    text:
-      selected.relativePath === resource.relativePath ? contents : `# ${selected.relativePath}\n`,
-    byteLength: new TextEncoder().encode(contents).byteLength,
-    writable: true,
-  }),
+  readBoundedFile: async (selected) => {
+    const text =
+      selected.relativePath === resource.relativePath
+        ? contents
+        : selected.relativePath === "README.md"
+          ? markdownSource
+          : `# ${selected.relativePath}\n`;
+    return {
+      status: "text",
+      text,
+      byteLength: new TextEncoder().encode(text).byteLength,
+      writable: true,
+    };
+  },
   writeTextFile: async (_resource, next) => {
     contents = next;
     stamp = {

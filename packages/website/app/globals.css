@@ -129,10 +129,12 @@ footer a:hover,
 }
 
 .hero,
+.markdown-story,
 .product,
 .features,
 .sidekick,
 .detail,
+.philosophy,
 .closing {
   margin: 0 auto;
   max-width: var(--measure);
@@ -237,6 +239,44 @@ code {
 
 .product {
   padding-bottom: 118px;
+}
+
+.markdown-story {
+  padding-bottom: 130px;
+}
+
+.markdown-showcase {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+}
+
+.markdown-showcase figure {
+  align-self: start;
+  margin: 0;
+  overflow: hidden;
+  background: var(--transient);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 22px 60px light-dark(rgb(36 37 34 / 8%), rgb(0 0 0 / 22%));
+}
+
+.markdown-showcase figure:nth-child(2) {
+  margin-top: 92px;
+}
+
+.markdown-showcase img {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.markdown-showcase figcaption {
+  border-top: 1px solid var(--line);
+  color: var(--secondary);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 13px 16px;
 }
 
 .section-heading {
@@ -461,6 +501,35 @@ code {
   text-align: center;
 }
 
+.philosophy {
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  padding-bottom: 100px;
+  padding-top: 100px;
+}
+
+.philosophy h2 {
+  font-size: clamp(2rem, 4.5vw, 3.8rem);
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.philosophy > p:not(.eyebrow) {
+  color: var(--secondary);
+  font-size: 18px;
+  margin: 30px 0 0;
+  max-width: 750px;
+}
+
+.philosophy-links,
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
 .closing .hero-actions {
   justify-content: center;
 }
@@ -487,6 +556,7 @@ footer {
   }
 
   .section-heading,
+  .markdown-showcase,
   .sidekick,
   .detail {
     grid-template-columns: 1fr;
@@ -496,6 +566,10 @@ footer {
     grid-template-columns: 1fr;
     padding-bottom: 40px;
     padding-top: 40px;
+  }
+
+  .markdown-showcase figure:nth-child(2) {
+    margin-top: 0;
   }
 
   .features article {

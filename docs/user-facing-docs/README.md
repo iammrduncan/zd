@@ -1,7 +1,8 @@
 # zd documentation
 
-`zd` keeps approved projects, terminal-backed agent threads, files, and Git context in one local
-workbench. Start with the task you want to finish.
+`zd` is an intentionally minimal, local Markdown and agent workbench. Read and edit rendered
+Markdown, leave precise feedback, paste screenshots, and keep the related project, terminal thread,
+files, and Git state in one place. Start with the task you want to finish.
 
 ## Tutorial
 
@@ -14,6 +15,10 @@ workbench. Start with the task you want to finish.
 - [Install on Windows](how-to/install-windows.md) to verify and run the x64 release installer.
 - [Manage projects and threads](how-to/manage-projects-and-threads.md) to organize terminal sessions
   across project roots and Git worktrees.
+- [Review Markdown with comments](how-to/review-markdown-with-comments.md) to turn selected text into
+  an inline note and a `zd-feedback.txt` handoff.
+- [Paste a screenshot into a document](how-to/paste-screenshots.md) to save a clipboard image and
+  insert its relative Markdown link.
 - [Inspect Git changes](how-to/inspect-changes.md) to review working-tree changes, history,
   comparisons, and read-only diffs.
 - [Develop zd](how-to/develop.md) to run the browser surface or native shell and choose a useful
@@ -30,8 +35,7 @@ workbench. Start with the task you want to finish.
 
 - [Architecture](explanation/architecture.md) explains the one-state workbench, native authority,
   and local security boundaries.
-
-## Documentation contributors
-
-Read the [documentation standards](DOCUMENTATION_STANDARDS_A.md) before adding or substantially
-changing a user-facing page. Planning records and release operations belong outside this folder.
+- [The Markdown reading surface](explanation/markdown-reading-surface.md) explains how rendered
+  Markdown stays directly editable.
+- [Why zd is intentionally minimal](explanation/why-zd-is-minimal.md) explains the daily workflow,
+  product fit, and deliberate exclusions.

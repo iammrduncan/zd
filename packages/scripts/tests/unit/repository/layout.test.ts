@@ -195,6 +195,8 @@ describe("static website", () => {
     expect(home).toContain("docs/user-facing-docs/assets/zd-workbench-dark.png");
     expect(home).toContain("docs/user-facing-docs/assets/zd-workbench-dracula.png");
     expect(home).toContain("docs/user-facing-docs/assets/zd-workbench-side-by-side.png");
+    expect(home).toContain("docs/user-facing-docs/assets/zd-reader.jpeg");
+    expect(home).toContain("docs/user-facing-docs/assets/zd-comments.png");
     expect(home).toContain('className="theme-stack"');
     expect(existsSync(resolve(WEBSITE, "public/screenshots"))).toBe(false);
   });
@@ -218,6 +220,7 @@ describe("static website", () => {
     expect(site).toContain("metadataBase");
     expect(layout).toContain("rootMetadata");
     expect(home).toContain('type="application/ld+json"');
+    expect(layout).toContain("https://discord.gg/3Qs2uejUf9");
     expect(robots).toContain('dynamic = "force-static"');
     expect(robots).toContain("sitemap.xml");
     expect(sitemap).toContain('dynamic = "force-static"');

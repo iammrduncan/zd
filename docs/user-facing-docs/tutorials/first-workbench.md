@@ -45,6 +45,11 @@ Markdown remains directly editable, including cells inside rendered tables. Pres
 `Ctrl+E` when you need to edit the table delimiters or other literal Markdown source. Code and
 configuration files use the same editor with a filename-derived language mode.
 
+You can also paste a clipboard image directly into this Markdown file. `zd` saves it below
+`docs/screenshots` and inserts the relative image link at the caret. Select text when you want to
+attach a review comment; the resulting inline note is also written to `zd-feedback.txt` at the
+worktree root.
+
 To copy a file path for a command or note, right-click the file under **Files**. Choose **Copy
 Relative Path** for a path from the worktree root, such as `notes.md`, or **Copy Full Path** for its
 absolute path on your computer. You can open the same menu from the keyboard with `Shift+F10` or the
@@ -63,4 +68,6 @@ the full width.
 
 You have completed the core loop: project, thread, file, and Git state stayed in one workbench. See
 [Manage projects and threads](../how-to/manage-projects-and-threads.md) to add another repository or
-worktree, and [Inspect Git changes](../how-to/inspect-changes.md) for history comparisons.
+worktree, [Review Markdown with comments](../how-to/review-markdown-with-comments.md) for a precise
+handoff, [Paste a screenshot](../how-to/paste-screenshots.md) for visual context, and
+[Inspect Git changes](../how-to/inspect-changes.md) for history comparisons.

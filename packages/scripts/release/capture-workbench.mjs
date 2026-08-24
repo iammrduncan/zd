@@ -13,6 +13,8 @@ const LIGHT = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench.png");
 const SIDE_BY_SIDE = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-side-by-side.png");
 const DARK = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-dark.png");
 const DRACULA = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-dracula.png");
+const READER = resolve(ROOT, "docs/user-facing-docs/assets/zd-reader.jpeg");
+const COMMENTS = resolve(ROOT, "docs/user-facing-docs/assets/zd-comments.png");
 
 async function waitForServer() {
   const deadline = Date.now() + 60_000;
@@ -128,10 +130,27 @@ try {
   await page.locator('[data-centre-surface="thread"]').waitFor();
   await page.screenshot({ path: SIDE_BY_SIDE, animations: "disabled" });
 
+  await page.locator('[data-file-path="README.md"]').click();
+  await page.locator(".current-file-path:visible", { hasText: "README.md" }).waitFor();
+  await page.locator(".zd-file-surface .cm-line:visible").first().waitFor();
+  await page.screenshot({ path: READER, animations: "disabled", quality: 92 });
+
+  const editor = page.locator(".current-file .cm-content:visible");
+  await editor.click();
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+a" : "Control+a");
+  const composer = page.locator(".md-comment-composer");
+  await composer.waitFor();
+  await composer.getByRole("textbox", { name: "Comment" }).fill("Name the owner and due date.");
+  await composer.getByRole("button", { name: "Add comment" }).click();
+  await page.locator(".md-comment-tag").waitFor();
+  await page.screenshot({ path: COMMENTS, animations: "disabled" });
+
   console.log(`captured ${LIGHT}`);
   console.log(`captured ${DARK}`);
   console.log(`captured ${DRACULA}`);
   console.log(`captured ${SIDE_BY_SIDE}`);
+  console.log(`captured ${READER}`);
+  console.log(`captured ${COMMENTS}`);
 } catch (cause) {
   if (serverOutput.trim()) console.error(serverOutput.trim());
   throw cause;

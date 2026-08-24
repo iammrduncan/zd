@@ -6,9 +6,9 @@ import websitePackage from "../package.json";
 
 export const SITE_URL = new URL("https://getzensuite.com");
 export const SITE_NAME = "zd";
-export const HOME_TITLE = "zd — A fast, local agent workbench";
+export const HOME_TITLE = "zd — Rendered Markdown and a local agent workbench";
 export const SITE_DESCRIPTION =
-  "Run terminal-backed coding agents beside their projects, source files, and Git in one fast, local workbench.";
+  "Read and edit rendered Markdown beside local terminal agents, projects, files, and Git in one fast, intentionally minimal workbench.";
 export const REPOSITORY_URL = "https://github.com/iammrduncan/zd";
 export const RELEASE_URL = `${REPOSITORY_URL}/releases/latest`;
 
@@ -33,7 +33,7 @@ export function pageMetadata({ description, path, title }: PageMetadata): Metada
       description,
       images: [
         {
-          alt: "zd — Keep projects, agent threads, files, and Git in one local workbench.",
+          alt: "zd — Rendered, editable Markdown with local agent threads, files, and Git.",
           height: 630,
           url: socialCard.src,
           width: 1200,
@@ -65,6 +65,9 @@ export const rootMetadata: Metadata = {
   },
   keywords: [
     "agent workbench",
+    "Markdown reader",
+    "Markdown editor",
+    "Markdown review",
     "terminal threads",
     "local developer tools",
     "Git workbench",
