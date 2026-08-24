@@ -80,8 +80,11 @@ test("rendering an image does not change the document", async ({ page }) => {
 });
 
 test("raw mode shows the image source again", async ({ page }) => {
-  await page.locator(".cm-line").first().click();
+  await page.locator(".cm-content").focus();
   await page.keyboard.press("ControlOrMeta+e");
+  await expect.poll(() => page.evaluate(() => window.zdEditor!.isRaw())).toBe(true);
+  await page.keyboard.press("ControlOrMeta+f");
+  await page.locator(".editor-find-query").fill("![a dot]");
   const line = await materializeEditorTarget(
     page,
     page.locator(".md-editor .cm-line", { hasText: "A local one renders" }),

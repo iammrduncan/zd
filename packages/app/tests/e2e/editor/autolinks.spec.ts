@@ -72,8 +72,11 @@ test("the address is marked as a link, not left as prose", async ({ page }) => {
 });
 
 test("raw mode brings the brackets back", async ({ page }) => {
-  await page.locator(".cm-line").first().click();
+  await page.locator(".cm-content").focus();
   await page.keyboard.press("ControlOrMeta+e");
+  await expect.poll(() => page.evaluate(() => window.zdEditor!.isRaw())).toBe(true);
+  await page.keyboard.press("ControlOrMeta+f");
+  await page.locator(".editor-find-query").fill("<https://example.com/autolink>");
 
   const line = await materializeEditorTarget(
     page,

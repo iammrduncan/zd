@@ -56,20 +56,19 @@ test("the four-space marker is not drawn and relative indentation survives", asy
 });
 
 test("it starts on the same edge a fenced block does", async ({ page }) => {
-  const edges = await page.evaluate(() => {
-    const lines = [...document.querySelectorAll<HTMLElement>(".cm-line")];
-    const indented = lines.find((el) => el.textContent?.includes("zd md README.md"))!;
-    const fenced = lines.find((el) => el.textContent?.includes("npm run dev"))!;
-    return {
-      indented: indented.getBoundingClientRect().left,
-      fenced: fenced.getBoundingClientRect().left,
-    };
-  });
+  const indented = page.locator(".md-editor .cm-line", { hasText: "zd md README.md" });
+  const indentedLeft = await indented.evaluate((line) => line.getBoundingClientRect().left);
+  const fenced = await materializeEditorTarget(
+    page,
+    page.locator(".md-editor .cm-line", { hasText: "npm run dev" }),
+    "the fenced code comparison row",
+  );
+  const fencedLeft = await fenced.evaluate((line) => line.getBoundingClientRect().left);
 
   // The reason the indent is hidden rather than left in place: two ways of writing
   // the same construct must not sit at two different origins.
-  expect(edges.indented, "indented code sits at a different origin from fenced").toBeCloseTo(
-    edges.fenced,
+  expect(indentedLeft, "indented code sits at a different origin from fenced").toBeCloseTo(
+    fencedLeft,
     0,
   );
 });

@@ -7,7 +7,7 @@ const ROOT = resolve(process.cwd());
 
 describe("bounded objective work groups", () => {
   it("keeps the top-level todo as a short queue of work groups", () => {
-    const todos = readFileSync(resolve(ROOT, "docs/planning/objectives/todo.txt"), "utf8")
+    const todos = readFileSync(resolve(ROOT, "docs/planning/todo.txt"), "utf8")
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
