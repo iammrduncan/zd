@@ -130,7 +130,7 @@ describe("the release version synchronizer", () => {
   });
 });
 
-describe("the 0.2.1 release", () => {
+describe("the 0.2.2 release", () => {
   it("uses package.json as the version source everywhere", () => {
     const manifest = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
       version: string;
@@ -138,7 +138,7 @@ describe("the 0.2.1 release", () => {
       engines: Record<string, string>;
     };
 
-    expect(manifest.version).toBe("0.2.1");
+    expect(manifest.version).toBe("0.2.2");
     expect(manifest.scripts.version).toBe("node packages/scripts/release/sync-version.mjs");
     expect(manifest.scripts["version:bump"]).toBe("npm version --no-git-tag-version");
     expect(manifest.scripts["version:check"]).toBe(
@@ -146,7 +146,7 @@ describe("the 0.2.1 release", () => {
     );
     expect(manifest.engines.node).toBe("^22.22.2 || ^24.15.0 || >=26.0.0");
     expect(readFileSync(resolve(ROOT, "CHANGELOG.md"), "utf8")).toContain(
-      "## [0.2.1] - 2026-08-24",
+      "## [0.2.2] - 2026-08-24",
     );
   });
 });
