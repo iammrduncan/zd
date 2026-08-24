@@ -3,6 +3,9 @@
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
 === Feedback Addressed ===
+images don't render on markdown page. ![Screenshot](../screenshots/screenshot-1787612677772071000.png)
+can you create a demo.md in docs/markdown-demos/demo.md etc that show various markdown renderings and stuff for us to manually and visually check as humans when we look/use this thing. For example code fences for various languages, tables, headers, inline code, etc... mermaid, etc... image embeds etc..
+home page project list does not scroll and is cut off at end of screen. ![Screenshot](../screenshots/screenshot-1787613190890564000.png)
 I want to be able to select different themes for different parts of the app. Threads, Panels, Code, Markdown, File Panel, Settings/Meta panels.
 I want a new theme for homebrew theme that matches macos terminal homebrewe profile/theme.
 dracula should have MIT license notice on it if it doesn't alread.
