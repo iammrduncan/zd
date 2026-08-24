@@ -1,0 +1,145 @@
+/* Markdown review UI surrounding the document-local selection and tag extensions. */
+.md-comment-composer {
+  --md-comment-left: var(--space-3);
+  --md-comment-top: var(--space-5);
+
+  position: fixed;
+  z-index: 12;
+  inset-block-start: min(var(--md-comment-top), calc(100vh - 14rem));
+  inset-inline-start: clamp(var(--space-3), var(--md-comment-left), calc(100vw - 22rem));
+  display: flex;
+  align-items: end;
+  inline-size: min(21rem, calc(100vw - (2 * var(--space-3))));
+  gap: var(--space-2);
+  padding: var(--space-2);
+  color: var(--text-primary);
+  background: var(--surface-transient);
+  border: var(--hairline) solid var(--line-quiet);
+  transform: translateY(var(--space-2));
+}
+
+.md-comment-composer[hidden] {
+  display: none;
+}
+
+.md-comment-composer textarea {
+  min-width: 0;
+  flex: 1;
+  resize: vertical;
+  padding: var(--space-1);
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  border-radius: 0;
+  font-family: var(--type-action-family);
+  font-size: var(--type-action-size);
+  line-height: var(--type-action-line);
+}
+
+.md-comment-composer textarea:focus {
+  border-block-end-color: var(--line-focus);
+  outline: none;
+}
+
+.md-comment-composer button,
+.md-feedback-comment button,
+.md-feedback-actions button {
+  appearance: none;
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  border-radius: 0;
+  font-family: var(--type-action-family);
+  font-size: var(--type-action-size);
+  line-height: var(--type-action-line);
+  cursor: pointer;
+}
+
+.md-comment-composer button:focus-visible,
+.md-feedback-comment button:focus-visible,
+.md-feedback-actions button:focus-visible {
+  border-block-end-color: var(--line-focus);
+  outline: none;
+}
+
+.md-feedback-view {
+  position: fixed;
+  z-index: 12;
+  inset: 0;
+  overflow-y: auto;
+  padding: var(--transient-inset-top) var(--transient-inset-x) var(--transient-inset-bottom);
+  color: var(--text-primary);
+  background: var(--surface-transient);
+}
+
+.md-feedback-column {
+  max-width: var(--transient-measure);
+  margin-inline: auto;
+}
+
+.md-feedback-column h2 {
+  margin: 0;
+  font-family: var(--type-h2-family);
+  font-size: var(--type-h2-size);
+  font-weight: var(--type-h2-weight);
+  line-height: var(--type-h2-line);
+}
+
+.md-feedback-file,
+.md-feedback-status {
+  color: var(--text-secondary);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+}
+
+.md-feedback-file {
+  display: block;
+  margin-block-start: var(--space-2);
+}
+
+.md-feedback-comments {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.md-feedback-comment {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+}
+
+.md-feedback-comment-text {
+  color: var(--text-secondary);
+  font-family: var(--type-navigation-family);
+  font-size: var(--type-navigation-size);
+  line-height: var(--type-navigation-line);
+  overflow-wrap: anywhere;
+}
+
+.md-feedback-output {
+  margin-block: var(--space-4);
+  padding-inline-start: var(--space-3);
+  overflow-x: auto;
+  color: var(--text-primary);
+  background: transparent;
+  border-inline-start: var(--hairline) solid var(--line-quiet);
+  font-family: var(--type-code-family);
+  font-size: var(--type-code-size);
+  line-height: var(--type-code-line);
+  white-space: pre-wrap;
+}
+
+.md-feedback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: baseline;
+}

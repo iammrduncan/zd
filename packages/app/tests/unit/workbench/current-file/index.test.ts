@@ -39,11 +39,11 @@ const resource = (relativePath: string): FileResource => ({
   relativePath,
 });
 
-function context(read: BoundedFileRead) {
+function context(read: BoundedFileRead, relativePath = "src/main.ts") {
   const launch = {
     project,
     worktreeId: "worktree-a",
-    relativePath: "src/main.ts",
+    relativePath,
     problem: null,
   };
   let currentRead = read;
@@ -146,6 +146,49 @@ describe("the root current-file owner", () => {
     expect(host.querySelector(".md-editor")?.getAttribute("data-focus-mode")).toBe("true");
     unmount();
     expect(host.children).toHaveLength(0);
+    host.remove();
+  });
+
+  it("turns a Markdown selection into a durable review comment", async () => {
+    const fixture = context(
+      {
+        status: "text",
+        text: "# Plan\n\nShip this slice.",
+        byteLength: 24,
+        writable: true,
+      },
+      "docs/plan.md",
+    );
+    const host = document.createElement("div");
+    document.body.append(host);
+    const coordinates = vi.spyOn(EditorView.prototype, "coordsAtPos").mockReturnValue({
+      left: 120,
+      right: 160,
+      top: 200,
+      bottom: 220,
+    });
+    const unmount = await mountCurrentFile(host, fixture.runtime);
+    const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".md-editor")!)!;
+
+    expect(host.querySelector('[aria-label="View Markdown feedback"]')).not.toBeNull();
+    view.dispatch({ selection: { anchor: 8, head: 24 } });
+    await vi.waitFor(() =>
+      expect(host.querySelector<HTMLFormElement>(".md-comment-composer")?.hidden).toBe(false),
+    );
+    const composer = host.querySelector<HTMLFormElement>(".md-comment-composer")!;
+    composer.querySelector<HTMLTextAreaElement>("textarea")!.value = "Name the owner.";
+    composer.requestSubmit();
+
+    await vi.waitFor(() =>
+      expect(fixture.writeTextFile).toHaveBeenCalledWith(
+        resource("zd-feedback.txt"),
+        "[docs/plan.md][LN3:LN3] [Ship this slice.] Name the owner.\n",
+      ),
+    );
+    expect(host.querySelector(".md-comment-tag")?.textContent).toBe("Name the owner.");
+
+    unmount();
+    coordinates.mockRestore();
     host.remove();
   });
 
