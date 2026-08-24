@@ -164,6 +164,37 @@ fn ignored_directories_expose_bounded_children_for_expansion() {
 }
 
 #[test]
+fn generated_screenshots_remain_expandable_when_other_ignored_trees_exhaust_the_budget() {
+    let scratch = Scratch::new("ignored-screenshots");
+    std::fs::create_dir_all(scratch.join("docs/screenshots")).unwrap();
+    std::fs::create_dir_all(scratch.join("node_modules")).unwrap();
+    std::fs::write(scratch.join("docs/screenshots/capture.png"), "generated").unwrap();
+    std::fs::write(
+        scratch.join(".gitignore"),
+        "docs/screenshots\nnode_modules\n",
+    )
+    .unwrap();
+    for index in 0..300 {
+        std::fs::write(
+            scratch.join(&format!("node_modules/dependency-{index:03}.js")),
+            "generated",
+        )
+        .unwrap();
+    }
+
+    let (_, entries, _, ignored_truncated) = ready(snapshot_in(
+        scratch.path(),
+        &request(None),
+        generous_limits(),
+    ));
+
+    assert!(ignored_truncated);
+    assert!(entries
+        .iter()
+        .any(|entry| entry.relative_path == "docs/screenshots/capture.png"));
+}
+
+#[test]
 fn ignored_outlines_have_their_own_hard_limit() {
     let scratch = Scratch::new("ignored-limit");
     std::fs::write(scratch.join(".gitignore"), "ignored-*\n").unwrap();

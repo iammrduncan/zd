@@ -382,7 +382,17 @@ fn scan_tree(root: &Path, limits: TreeLimits) -> std::io::Result<Scan> {
                 let entry = tree_entry(root, &path, true)?;
                 hash_entry(&mut hasher, &entry, &path);
                 if entry.kind == FileTreeEntryKind::Directory {
-                    included_directories.push(path.clone());
+                    // Clipboard images always land below this product-owned directory. Keep its
+                    // descendants ahead of broad ignored trees such as node_modules, otherwise
+                    // those trees can consume the ignored-entry budget while the visible
+                    // screenshots disclosure still has no children to reveal.
+                    if entry.relative_path == "docs/screenshots"
+                        || entry.relative_path.starts_with("docs/screenshots/")
+                    {
+                        included_directories.insert(directory_index, path.clone());
+                    } else {
+                        included_directories.push(path.clone());
+                    }
                 }
                 included.insert(path);
                 entries.push(entry);
