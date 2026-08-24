@@ -265,6 +265,17 @@ test("responsive suppression exposes real Projects rail and temporary Files plan
   await expect(shell).toHaveAttribute("data-responsive-files-open", "true");
   await expect(files).toBeVisible();
   await expect(files.getByRole("tab", { name: "FILES" })).toBeFocused();
+  const [shellBox, projectsBox, filesBox] = await Promise.all([
+    shell.boundingBox(),
+    projects.boundingBox(),
+    files.boundingBox(),
+  ]);
+  expect(shellBox).not.toBeNull();
+  expect(projectsBox).not.toBeNull();
+  expect(filesBox).not.toBeNull();
+  expect(filesBox?.y).toBe(shellBox?.y);
+  expect(filesBox?.height).toBe(shellBox?.height);
+  expect(filesBox?.x).toBe(projectsBox!.x + projectsBox!.width + 1);
 
   await page.keyboard.press("Escape");
   await expect(files).toBeHidden();

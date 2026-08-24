@@ -10,6 +10,7 @@ describe("workbench transient coordination", () => {
     const closeSafety = vi.fn();
 
     expect(transients.open("settings", "ordinary", closeSettings)).toBe(true);
+    expect(transients.hasActive()).toBe(true);
     expect(transients.open("reference", "ordinary", closeReference)).toBe(true);
     expect(closeSettings).toHaveBeenCalledExactlyOnceWith(false);
     expect(transients.open("trash", "safety", closeSafety)).toBe(true);
@@ -17,5 +18,6 @@ describe("workbench transient coordination", () => {
     expect(transients.open("settings", "ordinary", closeSettings)).toBe(false);
     expect(transients.dismiss()).toBe(true);
     expect(closeSafety).toHaveBeenCalledExactlyOnceWith(true);
+    expect(transients.hasActive()).toBe(false);
   });
 });

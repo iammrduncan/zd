@@ -232,9 +232,16 @@
   }
 
   .zd-workbench[data-responsive-files-open="true"] > .zd-workbench-files {
+    position: absolute;
     z-index: 4;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    inset-block: 0;
+    inset-inline-start: calc(
+      var(--workbench-threads-responsive-width) + var(--workbench-threads-divider)
+    );
+    inset-inline-end: 0;
     display: grid;
-    grid-area: 1 / 3 / 2 / 6;
     inline-size: auto;
     border-inline-start: var(--hairline) solid var(--line-quiet);
   }

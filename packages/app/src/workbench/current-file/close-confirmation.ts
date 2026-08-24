@@ -1,3 +1,5 @@
+import type { TransientCoordinator } from "../transients";
+
 /**
  * The one destructive window choice the current-file owner presents.
  *
@@ -6,15 +8,23 @@
  * dialog with real buttons: WebKit did not present `window.confirm` in the app,
  * which left a refused Cmd+W with nothing visible to act on.
  */
-export function closeConfirmation(host: HTMLElement, closeWindow: () => void) {
+export function closeConfirmation(
+  host: HTMLElement,
+  closeWindow: () => void,
+  transients?: TransientCoordinator,
+) {
   let open: HTMLDialogElement | null = null;
+  let returnFocus: HTMLElement | null = null;
 
-  const dismiss = () => {
+  const dismiss = (restoreFocus = true) => {
     if (!open) return;
     const dialog = open;
     open = null;
     dialog.close();
     dialog.remove();
+    transients?.closed("close-window-confirmation");
+    if (restoreFocus && returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+    returnFocus = null;
   };
 
   const show = () => {
@@ -22,6 +32,15 @@ export function closeConfirmation(host: HTMLElement, closeWindow: () => void) {
       open.querySelector<HTMLButtonElement>('[data-close-choice="cancel"]')?.focus();
       return;
     }
+    if (
+      transients &&
+      !transients.open("close-window-confirmation", "safety", (restoreFocus) =>
+        dismiss(restoreFocus),
+      )
+    ) {
+      return;
+    }
+    returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : host;
 
     const dialog = document.createElement("dialog");
     dialog.className = "current-file-close-confirmation";
@@ -45,7 +64,7 @@ export function closeConfirmation(host: HTMLElement, closeWindow: () => void) {
     cancel.type = "button";
     cancel.dataset.closeChoice = "cancel";
     cancel.textContent = "Cancel";
-    cancel.addEventListener("click", dismiss);
+    cancel.addEventListener("click", () => dismiss());
 
     const close = document.createElement("button");
     close.type = "button";

@@ -9,6 +9,7 @@ import { attachOpenRequests } from "@/workbench/open-requests";
 import type { LaunchRequest } from "@/workbench/resources";
 import type { FileResource, ProjectGrant } from "@/workbench/resources";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";
+import { TransientCoordinator } from "@/workbench/transients";
 import {
   clearCommands,
   commands,
@@ -219,7 +220,10 @@ describe("the root current-file owner", () => {
     });
     const host = document.createElement("div");
     document.body.append(host);
-    const unmount = await mountCurrentFile(host, fixture.runtime);
+    const transients = new TransientCoordinator();
+    const closeOrdinary = vi.fn();
+    transients.open("settings", "ordinary", closeOrdinary);
+    const unmount = await mountCurrentFile(host, { ...fixture.runtime, transients });
     const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".md-editor")!)!;
     view.dispatch({ changes: { from: view.state.doc.length, insert: "\nconst mine = 2;" } });
 
@@ -229,10 +233,13 @@ describe("the root current-file owner", () => {
     expect(dialog?.open).toBe(true);
     expect(dialog?.textContent).toContain("This document has unsaved changes");
     expect(fixture.closeWindow).not.toHaveBeenCalled();
+    expect(closeOrdinary).toHaveBeenCalledExactlyOnceWith(false);
+    expect(transients.open("reference", "ordinary", vi.fn())).toBe(false);
 
     dialog?.querySelector<HTMLButtonElement>('[data-close-choice="cancel"]')?.click();
     expect(host.querySelector('[role="alertdialog"]')).toBeNull();
     expect(fixture.closeWindow).not.toHaveBeenCalled();
+    expect(transients.open("reference", "ordinary", vi.fn())).toBe(true);
 
     fixture.requestClose();
     host.querySelector<HTMLButtonElement>('[data-close-choice="close"]')?.click();
