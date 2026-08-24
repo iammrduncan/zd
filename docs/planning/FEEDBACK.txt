@@ -3,6 +3,10 @@
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
 === Feedback Addressed ===
+I want to be able to select different themes for different parts of the app. Threads, Panels, Code, Markdown, File Panel, Settings/Meta panels.
+I want a new theme for homebrew theme that matches macos terminal homebrewe profile/theme.
+dracula should have MIT license notice on it if it doesn't alread.
+docs should show how to create/update themes or do a theme override.
 review hotkeys, make sure they make sense.
 add hotkeys for next/previous project
 add hotkey to start new thread in current open project.
