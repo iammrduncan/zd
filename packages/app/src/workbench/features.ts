@@ -103,6 +103,7 @@ function threadsNavigationMount(
       context.instrumentation,
       context.platform.revealDiagnostics,
       attention,
+      context.transients,
     );
     return () => {
       stopSettings();
@@ -267,7 +268,7 @@ export async function mountWorkbenchFeatures(
         mountActiveThread(threadHost, threadContext, threadsAdapter),
       file: (fileHost, fileContext) =>
         mountCurrentFileWithChanges(fileHost, fileContext, changes.controller, drafts),
-      files: (filesHost) => mountFileTree(filesHost, files.controller),
+      files: (filesHost) => mountFileTree(filesHost, files.controller, context.transients),
       changes: (changesHost) => mountChanges(changesHost, changes.controller),
     });
   } catch (cause) {

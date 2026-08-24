@@ -8,23 +8,29 @@ import {
   type Command,
 } from "./shortcuts";
 import type { Unmount } from "./runtime";
+import { TransientCoordinator } from "./transients";
 
 /** Mount the command registry's searchable, executable transient surface. */
-export function mountCommandList(host: HTMLElement): Unmount {
+export function mountCommandList(
+  host: HTMLElement,
+  transients = new TransientCoordinator(),
+): Unmount {
   let plane: HTMLElement | null = null;
   let returnFocus: HTMLElement | null = null;
 
-  const close = (): boolean => {
+  const close = (restoreFocus = true): boolean => {
     if (!plane) return false;
     plane.remove();
     plane = null;
-    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+    transients.closed("command-list");
+    if (restoreFocus && returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     returnFocus = null;
     return true;
   };
 
   const open = (): boolean => {
     if (plane) return true;
+    if (!transients.open("command-list", "ordinary", close)) return false;
     returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : host;
 
     const nextPlane = document.createElement("section");
@@ -139,17 +145,8 @@ export function mountCommandList(host: HTMLElement): Unmount {
     available: () => plane === null,
     run: open,
   });
-  const stopDismiss = registerCommandTarget({
-    id: "workbench.command-list.dismiss",
-    commandId: "workbench.escape",
-    priority: 500,
-    available: () => plane !== null,
-    run: close,
-  });
-
   return () => {
     close();
-    stopDismiss();
     stopOpen();
   };
 }

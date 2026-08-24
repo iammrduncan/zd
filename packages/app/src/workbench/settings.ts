@@ -5,6 +5,7 @@ import type { AttentionSettingsController } from "./attention";
 import { mountDiagnosticSettings } from "./diagnostics";
 import type { Unmount } from "./runtime";
 import { registerCommandTarget } from "./shortcuts";
+import { TransientCoordinator } from "./transients";
 
 /** Register the workbench's one command-driven transient Settings plane. */
 export function mountWorkbenchSettings(
@@ -12,24 +13,27 @@ export function mountWorkbenchSettings(
   instrumentation: InstrumentationClient,
   revealDiagnostics: () => Promise<void>,
   attention: AttentionSettingsController,
+  transients = new TransientCoordinator(),
 ): Unmount {
   let plane: HTMLElement | null = null;
   let stopControls: Unmount = () => {};
   let returnFocus: HTMLElement | null = null;
 
-  const close = (): boolean => {
+  const close = (restoreFocus = true): boolean => {
     if (!plane) return false;
     stopControls();
     stopControls = () => {};
     plane.remove();
     plane = null;
-    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+    transients.closed("settings");
+    if (restoreFocus && returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     returnFocus = null;
     return true;
   };
 
   const open = (): boolean => {
     if (plane) return true;
+    if (!transients.open("settings", "ordinary", close)) return false;
     returnFocus =
       document.activeElement instanceof HTMLElement ? document.activeElement : planeHost;
 
@@ -53,7 +57,7 @@ export function mountWorkbenchSettings(
     dismiss.className = "zd-settings-dismiss";
     dismiss.setAttribute("aria-label", "Close Settings");
     dismiss.textContent = "×";
-    dismiss.addEventListener("click", close);
+    dismiss.addEventListener("click", () => close());
     header.append(title, dismiss);
     column.append(header);
     nextPlane.append(column);
@@ -86,17 +90,8 @@ export function mountWorkbenchSettings(
     available: () => true,
     run: () => (plane ? close() : open()),
   });
-  const stopDismissCommand = registerCommandTarget({
-    id: "workbench.settings.dismiss",
-    commandId: "workbench.escape",
-    priority: 400,
-    available: () => plane !== null,
-    run: close,
-  });
-
   return () => {
     close();
-    stopDismissCommand();
     stopToggleCommand();
   };
 }

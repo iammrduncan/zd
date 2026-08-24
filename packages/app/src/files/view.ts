@@ -8,6 +8,7 @@ import type { FileTreeController } from "./controller";
 import type { FileTreeViewSnapshot } from "./types";
 import { FILE_TREE_ROW_HEIGHT, fileTreeWindow } from "./virtualizer";
 import { closeContextMenu, openContextMenu } from "@/workbench/context-menu";
+import type { TransientCoordinator } from "@/workbench/transients";
 
 const FALLBACK_VIEWPORT_HEIGHT = 240;
 
@@ -132,7 +133,11 @@ function restoreTreeFocus(
 }
 
 /** Mount the Files hierarchy. The controller survives tab unmount/remount. */
-export function mountFileTree(host: HTMLElement, controller: FileTreeController): () => void {
+export function mountFileTree(
+  host: HTMLElement,
+  controller: FileTreeController,
+  transients?: TransientCoordinator,
+): () => void {
   const ui = elements();
   host.append(ui.root);
   let current = controller.snapshot();
@@ -140,6 +145,7 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
   let active = true;
   let fileMenu: HTMLElement | null = null;
   let fileMenuPath: string | null = null;
+  let safetyActive = false;
   const fileRow = (path: string): HTMLElement | undefined =>
     [...ui.layer.querySelectorAll<HTMLElement>("[data-file-path]")].find(
       (candidate) => candidate.dataset.filePath === path,
@@ -151,6 +157,10 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
     else fileMenu?.remove();
     fileMenu = null;
     fileMenuPath = null;
+    if (safetyActive) {
+      safetyActive = false;
+      transients?.closed("file-trash-confirmation");
+    }
     document.removeEventListener("pointerdown", dismissFileMenuFromPointer);
     document.removeEventListener("keydown", dismissFileMenuFromKeyboard);
     if (!restoreFocus || !path) return;
@@ -257,6 +267,15 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
     blockStart: number,
   ): void => {
     dismissFileMenu();
+    if (
+      transients &&
+      !transients.open("file-trash-confirmation", "safety", (restoreFocus) =>
+        dismissFileMenu(restoreFocus),
+      )
+    ) {
+      return;
+    }
+    safetyActive = Boolean(transients);
     const confirmation = document.createElement("div");
     confirmation.className = "zd-file-tree-operation";
     confirmation.setAttribute("role", "alertdialog");
