@@ -11,6 +11,7 @@ import { closeContextMenu, openContextMenu } from "@/workbench/context-menu";
 import type { TransientCoordinator } from "@/workbench/transients";
 
 const FALLBACK_VIEWPORT_HEIGHT = 240;
+const DRAG_EXPAND_DELAY_MS = 600;
 
 interface FileTreeElements {
   readonly root: HTMLElement;
@@ -146,6 +147,9 @@ export function mountFileTree(
   let fileMenu: HTMLElement | null = null;
   let fileMenuPath: string | null = null;
   let safetyActive = false;
+  let dropTargetPath: string | null = null;
+  let hoverExpandPath: string | null = null;
+  let hoverExpandTimer: ReturnType<typeof setTimeout> | null = null;
   const fileRow = (path: string): HTMLElement | undefined =>
     [...ui.layer.querySelectorAll<HTMLElement>("[data-file-path]")].find(
       (candidate) => candidate.dataset.filePath === path,
@@ -419,6 +423,10 @@ export function mountFileTree(
     rows.slice(window.start, window.end).forEach((row, index) => {
       const element = createFileTreeRow(row, current, controller);
       if (current.selectedPath === null && window.start + index === 0) element.tabIndex = 0;
+      if (row.entry.relativePath === dropTargetPath) {
+        element.dataset.dropTarget = "true";
+        element.dataset.dropPosition = row.entry.kind === "directory" ? "inside" : "parent";
+      }
       fragment.append(element);
     });
     ui.spacer.style.height = `${window.totalHeight}px`;
@@ -490,9 +498,32 @@ export function mountFileTree(
     return entry?.kind === "directory" ? path : (entry?.parentPath ?? null);
   };
   const clearDropTarget = (): void => {
+    dropTargetPath = null;
+    hoverExpandPath = null;
+    if (hoverExpandTimer !== null) clearTimeout(hoverExpandTimer);
+    hoverExpandTimer = null;
     ui.layer.querySelectorAll<HTMLElement>("[data-drop-target]").forEach((row) => {
       delete row.dataset.dropTarget;
+      delete row.dataset.dropPosition;
     });
+  };
+  const setDropTarget = (path: string | null): void => {
+    if (path === dropTargetPath) return;
+    clearDropTarget();
+    dropTargetPath = path;
+    if (!path) return;
+    const target = fileRow(path);
+    const row = controller.rows().find(({ entry }) => entry.relativePath === path);
+    if (target) {
+      target.dataset.dropTarget = "true";
+      target.dataset.dropPosition = row?.entry.kind === "directory" ? "inside" : "parent";
+    }
+    if (!row || row.entry.kind !== "directory" || !row.hasChildren || row.expanded) return;
+    hoverExpandPath = path;
+    hoverExpandTimer = setTimeout(() => {
+      hoverExpandTimer = null;
+      if (hoverExpandPath === path && dropTargetPath === path) controller.expand(path);
+    }, DRAG_EXPAND_DELAY_MS);
   };
   let draggedPaths: readonly string[] = [];
   ui.viewport.addEventListener("dragstart", (event) => {
@@ -507,9 +538,8 @@ export function mountFileTree(
   ui.viewport.addEventListener("dragover", (event) => {
     if (!event.dataTransfer?.types.includes("application/x-zd-file-tree")) return;
     event.preventDefault();
-    clearDropTarget();
     const target = (event.target as HTMLElement).closest<HTMLElement>("[data-file-path]");
-    if (target) target.dataset.dropTarget = "true";
+    setDropTarget(target?.dataset.filePath ?? null);
     event.dataTransfer.dropEffect = event.altKey ? "copy" : "move";
   });
   ui.viewport.addEventListener("dragleave", (event) => {
@@ -605,6 +635,7 @@ export function mountFileTree(
   return () => {
     if (!active) return;
     active = false;
+    clearDropTarget();
     dismissFileMenu();
     unsubscribe();
     viewportObserver?.disconnect();

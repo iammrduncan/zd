@@ -117,6 +117,44 @@ describe("Files tree view", () => {
     expect(notes.getAttribute("aria-label")).toContain("unsaved");
   });
 
+  it("shows an inside insertion line and expands a collapsed folder while dragging over it", async () => {
+    vi.useFakeTimers();
+    try {
+      const fixture = await mounted([
+        entry("docs", "directory"),
+        entry("docs/guide.md"),
+        entry("notes.md"),
+      ]);
+      const transfer = {
+        types: ["application/x-zd-file-tree"],
+        effectAllowed: "none",
+        dropEffect: "none",
+        setData: vi.fn(),
+      };
+      const dispatchDrag = (target: Element, type: string) => {
+        const event = new Event(type, { bubbles: true, cancelable: true });
+        Object.defineProperty(event, "dataTransfer", { value: transfer });
+        target.dispatchEvent(event);
+      };
+
+      dispatchDrag(fixture.host.querySelector('[data-file-path="notes.md"]')!, "dragstart");
+      const docs = fixture.host.querySelector<HTMLElement>('[data-file-path="docs"]')!;
+      dispatchDrag(docs, "dragover");
+
+      expect(docs.dataset.dropPosition).toBe("inside");
+      expect(docs.getAttribute("aria-expanded")).toBe("false");
+
+      await vi.advanceTimersByTimeAsync(650);
+
+      expect(
+        fixture.host.querySelector('[data-file-path="docs"]')?.getAttribute("aria-expanded"),
+      ).toBe("true");
+      expect(fixture.host.querySelector('[data-file-path="docs/guide.md"]')).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("copies a file's relative or full path from its context menu", async () => {
     const fixture = await mounted([entry("docs", "directory"), entry("docs/notes.md")]);
     fixture.controller.expand("docs");
