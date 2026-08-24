@@ -13,10 +13,18 @@ function makeFixture(version = "1.2.3"): string {
   const root = mkdtempSync(join(tmpdir(), "zd-release-version-"));
   fixtures.push(root);
   mkdirSync(join(root, "packages/tauri"), { recursive: true });
-  writeFileSync(join(root, "package.json"), `${JSON.stringify({ name: "zd", version })}\n`);
+  mkdirSync(join(root, "packages/website"), { recursive: true });
+  writeFileSync(
+    join(root, "package.json"),
+    `${JSON.stringify({ name: "zd", version, workspaces: ["packages/website"] })}\n`,
+  );
+  writeFileSync(
+    join(root, "packages/website/package.json"),
+    '{"name":"@zd/website","version":"0.9.0"}\n',
+  );
   writeFileSync(
     join(root, "package-lock.json"),
-    '{"name":"zd","version":"0.9.0","packages":{"":{"name":"zd","version":"0.9.0"}}}\n',
+    '{"name":"zd","version":"0.9.0","packages":{"":{"name":"zd","version":"0.9.0"},"packages/website":{"name":"@zd/website","version":"0.9.0"}}}\n',
   );
   writeFileSync(
     join(root, "packages/tauri/Cargo.toml"),
@@ -60,7 +68,7 @@ describe("the release version synchronizer", () => {
     expect(result.status, result.stdout + result.stderr).toBe(0);
   });
 
-  it("copies the package version into lockfiles and native metadata", () => {
+  it("copies the package version into workspace, lockfile, and native metadata", () => {
     const root = makeFixture();
 
     const result = run(root);
@@ -75,6 +83,10 @@ describe("the release version synchronizer", () => {
     ) as { version: string };
     expect(packageLock.version).toBe("1.2.3");
     expect(packageLock.packages[""]?.version).toBe("1.2.3");
+    expect(packageLock.packages["packages/website"]?.version).toBe("1.2.3");
+    expect(
+      JSON.parse(readFileSync(join(root, "packages/website/package.json"), "utf8")),
+    ).toHaveProperty("version", "1.2.3");
     expect(cargoVersion(join(root, "packages/tauri/Cargo.toml"))).toBe("1.2.3");
     expect(cargoVersion(join(root, "packages/tauri/Cargo.lock"))).toBe("1.2.3");
     expect(tauri.version).toBe("../../package.json");
@@ -118,7 +130,7 @@ describe("the release version synchronizer", () => {
   });
 });
 
-describe("the 0.1.0 release", () => {
+describe("the 0.2.0 release", () => {
   it("uses package.json as the version source everywhere", () => {
     const manifest = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
       version: string;
@@ -126,7 +138,7 @@ describe("the 0.1.0 release", () => {
       engines: Record<string, string>;
     };
 
-    expect(manifest.version).toBe("0.1.0");
+    expect(manifest.version).toBe("0.2.0");
     expect(manifest.scripts.version).toBe("node packages/scripts/release/sync-version.mjs");
     expect(manifest.scripts["version:bump"]).toBe("npm version --no-git-tag-version");
     expect(manifest.scripts["version:check"]).toBe(
@@ -134,7 +146,7 @@ describe("the 0.1.0 release", () => {
     );
     expect(manifest.engines.node).toBe("^22.22.2 || ^24.15.0 || >=26.0.0");
     expect(readFileSync(resolve(ROOT, "CHANGELOG.md"), "utf8")).toContain(
-      "## [0.1.0] - 2026-08-05",
+      "## [0.2.0] - 2026-08-24",
     );
   });
 });

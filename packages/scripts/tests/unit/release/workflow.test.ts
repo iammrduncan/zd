@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd());
 const WORKFLOW = resolve(ROOT, ".github/workflows/release.yml");
-const RELEASE_GUIDE = resolve(ROOT, "docs/planning/objectives/_internal/releasing.md");
+const RELEASE_GUIDE = resolve(ROOT, "docs/_internal/releasing.md");
 const workflow = () => readFileSync(WORKFLOW, "utf8");
 
 describe("the tagged release workflow", () => {

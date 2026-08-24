@@ -13,11 +13,13 @@ workbench, and command are named `zd`; the name is complete and is not expanded 
 | Accepted architecture | [Architecture Decision Records](adr/README.md) |
 | Released product guidance | [User documentation](user-facing-docs/README.md) |
 | Active execution | [Planning](planning/README.md) |
+| Objective workflow state | [Objectives](planning/objectives/) |
+| Ideas and research | [Ideas](planning/ideas.md) |
 | Current expanded-scope plan | [Expanded-scope goal](planning/goals/expanded-scope/goal.md) |
 | Frontend implementation owners | [App source map](../packages/app/src/README.md) |
 | Native implementation owners | [Native source map](../packages/tauri/src/README.md) |
 | Product and architecture proposals | [ZenSuite Improvement Proposals](zsip/README.md) |
-| Release operations | [Releasing `zd`](planning/objectives/_internal/releasing.md) |
+| Release operations | [Releasing `zd`](_internal/releasing.md) |
 
 ## Document types
 

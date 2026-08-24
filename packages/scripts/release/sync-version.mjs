@@ -46,13 +46,23 @@ if (typeof version !== "string" || !semver.test(version)) {
   process.exit(1);
 }
 
+const websitePackagePath = resolve(root, "packages/website/package.json");
+const websitePackage = readJson(websitePackagePath);
+const websitePackageSynchronized = websitePackage.version === version;
+websitePackage.version = version;
+
 const packageLockPath = resolve(root, "package-lock.json");
 const packageLock = readJson(packageLockPath);
+const websiteLockPackage = packageLock.packages?.["packages/website"];
+if (!websiteLockPackage) throw new Error("package-lock.json has no website workspace package");
 const packageLockSynchronized =
-  packageLock.version === version && packageLock.packages?.[""]?.version === version;
+  packageLock.version === version &&
+  packageLock.packages?.[""]?.version === version &&
+  websiteLockPackage.version === version;
 packageLock.version = version;
 if (!packageLock.packages?.[""]) throw new Error("package-lock.json has no root package");
 packageLock.packages[""].version = version;
+websiteLockPackage.version = version;
 
 const cargoManifestPath = resolve(root, "packages/tauri/Cargo.toml");
 const cargoLockPath = resolve(root, "packages/tauri/Cargo.lock");
@@ -71,6 +81,7 @@ const tauriSynchronized = tauri.version === "../../package.json";
 tauri.version = "../../package.json";
 
 const updates = [
+  [websitePackagePath, formatJson(websitePackage), websitePackageSynchronized],
   [packageLockPath, formatJson(packageLock), packageLockSynchronized],
   [cargoManifestPath, cargoManifestUpdated, cargoManifestSource === cargoManifestUpdated],
   [cargoLockPath, cargoLockUpdated, cargoLockSource === cargoLockUpdated],

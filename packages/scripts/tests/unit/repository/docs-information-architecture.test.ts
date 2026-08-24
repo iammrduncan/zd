@@ -13,8 +13,8 @@ const DOC_AREAS = [
   "planning",
   "planning/goals",
   "planning/objectives",
-  "planning/objectives/_internal",
-  "planning/ideas",
+  "_internal",
+  "planning/ideas.md",
 ];
 const PUBLIC_PAGES = [
   "README.md",
@@ -47,13 +47,10 @@ const EXPANDED_GOALS = [
   "goal-threads.md",
   "goal-notifications.md",
 ];
-const MAINTAINED_CONTEXT_ROOTS = [
-  ".agents/skills",
-  ".claude/commands",
-  "packages/scripts",
-  "packages/app/src",
-];
+const MAINTAINED_CONTEXT_ROOTS = ["packages/scripts", "packages/app/src"];
 const SKIP_CONTEXT_DIRECTORIES = new Set([
+  ".agents",
+  ".claude",
   ".git",
   "dist",
   "node_modules",
@@ -123,7 +120,7 @@ describe("the repository documentation map", () => {
     expect(hub).toContain("zsip/README.md");
     expect(hub).toContain("user-facing-docs/README.md");
     expect(hub).toContain("planning/README.md");
-    expect(hub).toContain("planning/objectives/_internal/releasing.md");
+    expect(hub).toContain("_internal/releasing.md");
     expect(hub).toContain("planning/objectives/");
   });
 
@@ -155,14 +152,14 @@ describe("the repository documentation map", () => {
     }
   });
 
-  it("keeps maintained workflow consumers on the sole planning objective root", () => {
+  it("keeps maintained workflow consumers off retired objective roots", () => {
     const offenders = MAINTAINED_CONTEXT_ROOTS.flatMap((root) => filesUnder(resolve(ROOT, root)))
       .filter((path) => /docs\/(?:_internal\/)?objectives(?:\/|$)/.test(readFileSync(path, "utf8")))
       .map((path) => path.slice(ROOT.length + 1));
 
     expect(offenders).toEqual([]);
-    expect(existsSync(resolve(ROOT, "docs/planning/objectives/FEEDBACK.md"))).toBe(true);
-    expect(existsSync(resolve(ROOT, "docs/planning/objectives/agent-findings.md"))).toBe(true);
+    expect(existsSync(resolve(ROOT, "docs/planning/objectives/FEEDBACK.md"))).toBe(false);
+    expect(existsSync(resolve(ROOT, "docs/planning/objectives/agent-findings.md"))).toBe(false);
   });
 
   it("removes the retired source-extension boundary from contributor context", () => {
