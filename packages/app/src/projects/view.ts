@@ -4,6 +4,8 @@ import type { TransitionRecovery } from "@/workbench/state";
 import { orderedProjects } from "./model";
 import type { ProjectsController } from "./controller";
 import type { ProjectActionResult, ProjectListItem, ProjectWorkbenchSnapshot } from "./types";
+import { closeContextMenu, openContextMenu } from "@/workbench/context-menu";
+import { projectExpanded, setProjectExpanded } from "@/workbench/preferences";
 
 export type ProjectChildUnmount = () => void;
 
@@ -66,30 +68,11 @@ export function mountProjectList(
   let draggedProjectId: string | null = null;
   let childCleanups: ProjectChildUnmount[] = [];
   let projectMenu: HTMLElement | null = null;
-  let projectMenuAnchor: HTMLButtonElement | null = null;
 
   const dismissProjectMenu = (restoreFocus = false) => {
-    const anchor = projectMenuAnchor;
-    anchor?.removeAttribute("aria-controls");
-    projectMenu?.remove();
+    if (projectMenu) closeContextMenu(projectMenu, restoreFocus);
     projectMenu = null;
-    projectMenuAnchor = null;
-    document.removeEventListener("pointerdown", dismissProjectMenuFromPointer);
-    document.removeEventListener("keydown", dismissProjectMenuFromKeyboard);
-    if (restoreFocus) anchor?.focus();
   };
-
-  function dismissProjectMenuFromPointer(event: PointerEvent): void {
-    if (projectMenu?.contains(event.target as Node)) return;
-    dismissProjectMenu();
-  }
-
-  function dismissProjectMenuFromKeyboard(event: KeyboardEvent): void {
-    if (event.key !== "Escape" || !projectMenu) return;
-    event.preventDefault();
-    event.stopPropagation();
-    dismissProjectMenu(true);
-  }
 
   const clearStatus = () => {
     status.replaceChildren();
@@ -154,19 +137,8 @@ export function mountProjectList(
       void perform(() => controller.removeProject(project.id));
     });
     menu.append(close);
-    root.append(menu);
-
-    const bounds = menu.getBoundingClientRect();
-    const boundedInlineStart = Math.max(0, Math.min(inlineStart, window.innerWidth - bounds.width));
-    const boundedBlockStart = Math.max(0, Math.min(blockStart, window.innerHeight - bounds.height));
-    menu.style.left = `${boundedInlineStart}px`;
-    menu.style.top = `${boundedBlockStart}px`;
-    row.setAttribute("aria-controls", menu.id);
     projectMenu = menu;
-    projectMenuAnchor = row;
-    document.addEventListener("pointerdown", dismissProjectMenuFromPointer);
-    document.addEventListener("keydown", dismissProjectMenuFromKeyboard);
-    close.focus();
+    openContextMenu({ host: root, menu, anchor: row, inlineStart, blockStart, initialFocus: close });
   };
 
   const render = (snapshot: ProjectWorkbenchSnapshot) => {
@@ -196,22 +168,48 @@ export function mountProjectList(
       const projectActions = document.createElement("div");
       projectActions.className = "zd-project-actions";
 
+      const children = document.createElement("div");
+      children.className = "zd-project-children";
+      children.id = `zd-project-children-${projectIndex}`;
+      children.setAttribute("role", "group");
+      children.setAttribute("aria-label", `${project.name} threads`);
+      let expanded = projectExpanded(project.id);
+
+      const disclosure = document.createElement("button");
+      disclosure.type = "button";
+      disclosure.className = "zd-project-disclosure";
+      disclosure.dataset.projectDisclosure = project.id;
+      disclosure.setAttribute("aria-controls", children.id);
+      const applyDisclosure = () => {
+        disclosure.setAttribute("aria-expanded", String(expanded));
+        disclosure.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${project.name}`);
+        disclosure.textContent = expanded ? "▾" : "▸";
+        children.hidden = !expanded;
+      };
+      const changeDisclosure = (next: boolean) => {
+        if (next === expanded) return;
+        expanded = next;
+        setProjectExpanded(project.id, expanded);
+        applyDisclosure();
+      };
+      disclosure.addEventListener("click", () => changeDisclosure(!expanded));
+      disclosure.addEventListener("keydown", (event) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        changeDisclosure(event.key === "ArrowRight");
+      });
+      applyDisclosure();
+
       const row = document.createElement("button");
       row.type = "button";
       row.className = "zd-project-row";
       row.id = `zd-project-row-${projectIndex}`;
       row.draggable = true;
-      row.setAttribute("aria-expanded", "true");
       row.setAttribute("aria-haspopup", "menu");
       row.setAttribute("aria-label", projectLabel(project));
       row.title = project.root;
       if (snapshot.active?.projectId === project.id) row.setAttribute("aria-current", "true");
       group.setAttribute("aria-labelledby", row.id);
-
-      const disclosure = document.createElement("span");
-      disclosure.className = "zd-project-disclosure";
-      disclosure.setAttribute("aria-hidden", "true");
-      disclosure.textContent = "▾";
 
       const name = document.createElement("span");
       name.className = "zd-project-name";
@@ -220,7 +218,7 @@ export function mountProjectList(
       icon.className = "zd-project-icon";
       icon.setAttribute("aria-hidden", "true");
       icon.textContent = project.name.trim().charAt(0).toLocaleUpperCase() || "•";
-      row.append(disclosure, icon, name);
+      row.append(icon, name);
 
       row.addEventListener("click", (event) => {
         event.preventDefault();
@@ -259,7 +257,7 @@ export function mountProjectList(
         const insertionIndex = projectIndex + (insertAfter ? 1 : 0);
         void perform(() => controller.moveProject(movedId, insertionIndex));
       });
-      projectHeading.append(row, projectActions);
+      projectHeading.append(disclosure, row, projectActions);
       group.append(projectHeading);
 
       if (project.recovery) {
@@ -283,10 +281,6 @@ export function mountProjectList(
         group.append(recovery);
       }
 
-      const children = document.createElement("div");
-      children.className = "zd-project-children";
-      children.setAttribute("role", "group");
-      children.setAttribute("aria-label", `${project.name} threads`);
       group.append(children);
       const cleanup = options.renderChildren?.(project, children, projectActions);
       if (cleanup) childCleanups.push(cleanup);

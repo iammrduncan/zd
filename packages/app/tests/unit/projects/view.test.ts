@@ -177,6 +177,41 @@ describe("the Projects list", () => {
     ).not.toBeNull();
   });
 
+  it("truthfully discloses children without activating or destroying their sessions", async () => {
+    const workbench = adapter();
+    const host = document.createElement("div");
+    mountProjectList(host, new ProjectsController(workbench), {
+      renderChildren: (project, childHost) => {
+        childHost.textContent = `${project.name} thread`;
+      },
+    });
+
+    const row = host.querySelector<HTMLButtonElement>('[data-project-id="alpha"] .zd-project-row')!;
+    const disclosure = host.querySelector<HTMLButtonElement>(
+      '[data-project-id="alpha"] [data-project-disclosure]',
+    )!;
+    const children = host.querySelector<HTMLElement>(
+      '[data-project-id="alpha"] .zd-project-children',
+    )!;
+    expect(disclosure.getAttribute("aria-expanded")).toBe("true");
+    expect(children.hidden).toBe(false);
+
+    disclosure.click();
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+    expect(children.hidden).toBe(true);
+    expect(workbench.activateProject).not.toHaveBeenCalled();
+    expect(children.textContent).toBe("Alpha thread");
+
+    disclosure.focus();
+    disclosure.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(disclosure.getAttribute("aria-expanded")).toBe("true");
+    expect(children.hidden).toBe(false);
+
+    row.click();
+    await settle();
+    expect(workbench.activateProject).toHaveBeenCalledExactlyOnceWith("alpha");
+  });
+
   it("mounts one pane action in the Projects footer and tears it down", () => {
     const host = document.createElement("div");
     const stopAction = vi.fn();
@@ -199,8 +234,8 @@ describe("the Projects list", () => {
     const host = document.createElement("div");
     mountProjectList(host, new ProjectsController(adapter()));
 
-    const alpha = host.querySelector<HTMLButtonElement>('[data-project-id="alpha"] button')!;
-    const beta = host.querySelector<HTMLButtonElement>('[data-project-id="beta"] button')!;
+    const alpha = host.querySelector<HTMLButtonElement>('[data-project-id="alpha"] .zd-project-row')!;
+    const beta = host.querySelector<HTMLButtonElement>('[data-project-id="beta"] .zd-project-row')!;
 
     expect(alpha.getAttribute("aria-current")).toBe("true");
     expect(alpha.getAttribute("aria-label")).toContain("/work/alpha");
@@ -214,7 +249,7 @@ describe("the Projects list", () => {
     const workbench = adapter();
     const host = document.createElement("div");
     mountProjectList(host, new ProjectsController(workbench));
-    const beta = host.querySelector<HTMLButtonElement>('[data-project-id="beta"] button')!;
+    const beta = host.querySelector<HTMLButtonElement>('[data-project-id="beta"] .zd-project-row')!;
 
     beta.click();
     beta.dispatchEvent(
@@ -243,7 +278,7 @@ describe("the Projects list", () => {
     const host = document.createElement("div");
     mountProjectList(host, new ProjectsController(workbench));
 
-    host.querySelector<HTMLButtonElement>('[data-project-id="beta"] button')!.click();
+    host.querySelector<HTMLButtonElement>('[data-project-id="beta"] .zd-project-row')!.click();
     await settle();
 
     expect(host.querySelector('[role="status"]')?.textContent).toContain(
@@ -265,7 +300,7 @@ describe("the Projects list", () => {
     const host = document.createElement("div");
     mountProjectList(host, new ProjectsController(workbench));
 
-    host.querySelector<HTMLButtonElement>('[data-project-id="beta"] button')!.click();
+    host.querySelector<HTMLButtonElement>('[data-project-id="beta"] .zd-project-row')!.click();
     await settle();
 
     const status = host.querySelector<HTMLElement>(".zd-project-status")!;

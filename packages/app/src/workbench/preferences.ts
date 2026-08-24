@@ -32,6 +32,7 @@ const ATTENTION_VOLUME = "zd.attentionVolume";
 const SHORTCUT_BINDINGS = "zd.shortcutBindings.v1";
 const THEME_SELECTION = "zd.themeSelection.v1";
 const THREAD_SECONDARY_LINE = "zd.threadSecondaryLine.v1";
+const PROJECT_DISCLOSURE = "zd.projectDisclosure.v1";
 
 export type ThreadSecondaryLine = "app" | "directory" | "worktree";
 
@@ -219,6 +220,31 @@ export function threadSecondaryLine(): ThreadSecondaryLine {
 
 export function setThreadSecondaryLine(line: ThreadSecondaryLine): void {
   write(THREAD_SECONDARY_LINE, line);
+}
+
+function projectDisclosure(): Readonly<Record<string, boolean>> {
+  const stored = read(PROJECT_DISCLOSURE);
+  if (!stored) return {};
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        ([projectId, expanded]) =>
+          projectId.length > 0 && projectId.length <= 128 && typeof expanded === "boolean",
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+export function projectExpanded(projectId: string): boolean {
+  return projectDisclosure()[projectId] !== false;
+}
+
+export function setProjectExpanded(projectId: string, expanded: boolean): void {
+  write(PROJECT_DISCLOSURE, JSON.stringify({ ...projectDisclosure(), [projectId]: expanded }));
 }
 
 /**

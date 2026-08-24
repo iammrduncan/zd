@@ -4,7 +4,7 @@ import "@vscode/codicons/dist/codicon.css";
 import { orderedProjectThreads } from "./model";
 import type { ThreadsController } from "./controller";
 import { createThreadAction, type ProjectThreadsOptions } from "./create-view";
-import { renderThreadActions } from "./row-actions";
+import { renderThreadRename, type ThreadRenameControl } from "./row-actions";
 import type { ThreadProjectGroup, ThreadRecord, ThreadWorkbenchSnapshot } from "./types";
 import { performThreadAction } from "./view-actions";
 import {
@@ -12,6 +12,7 @@ import {
   threadSecondaryLine,
   type ThreadSecondaryLine,
 } from "@/workbench/preferences";
+import { closeContextMenu, openContextMenu } from "@/workbench/context-menu";
 
 export type { ProjectThreadsOptions } from "./create-view";
 
@@ -63,6 +64,7 @@ interface RenderContext {
   openSettings(
     thread: ThreadRecord,
     row: HTMLButtonElement,
+    rename: ThreadRenameControl,
     inlineStart: number,
     blockStart: number,
   ): void;
@@ -170,13 +172,13 @@ function renderThreadRows(
     });
     row.addEventListener("contextmenu", (event) => {
       event.preventDefault();
-      context.openSettings(thread, row, event.clientX, event.clientY);
+      context.openSettings(thread, row, rename, event.clientX, event.clientY);
     });
     row.addEventListener("keydown", (event) => {
       if (event.key !== "ContextMenu" && !(event.key === "F10" && event.shiftKey)) return;
       event.preventDefault();
       const bounds = row.getBoundingClientRect();
-      context.openSettings(thread, row, bounds.left, bounds.bottom);
+      context.openSettings(thread, row, rename, bounds.left, bounds.bottom);
     });
     installKeyboardNavigation(row, context.root);
 
@@ -200,7 +202,7 @@ function renderThreadRows(
     });
 
     wrapper.append(row);
-    renderThreadActions(wrapper, thread, context.controller, context.status);
+    const rename = renderThreadRename(wrapper, thread, context.controller, context.status);
     const recovery = renderRecovery(thread, index, context.controller, context.status);
     if (recovery) {
       row.setAttribute("aria-describedby", recovery.id);
@@ -303,29 +305,14 @@ function mountThreadView(
   host.append(root);
 
   let settingsMenu: HTMLElement | null = null;
-  let settingsAnchor: HTMLButtonElement | null = null;
   const dismissSettings = (restoreFocus = false): void => {
-    settingsMenu?.remove();
+    if (settingsMenu) closeContextMenu(settingsMenu, restoreFocus);
     settingsMenu = null;
-    document.removeEventListener("pointerdown", dismissSettingsFromPointer);
-    document.removeEventListener("keydown", dismissSettingsFromKeyboard);
-    if (restoreFocus) settingsAnchor?.focus();
-    settingsAnchor?.removeAttribute("aria-controls");
-    settingsAnchor = null;
   };
-  function dismissSettingsFromPointer(event: PointerEvent): void {
-    if (settingsMenu?.contains(event.target as Node)) return;
-    dismissSettings();
-  }
-  function dismissSettingsFromKeyboard(event: KeyboardEvent): void {
-    if (event.key !== "Escape" || !settingsMenu) return;
-    event.preventDefault();
-    event.stopPropagation();
-    dismissSettings(true);
-  }
   const openSettings = (
     thread: ThreadRecord,
     row: HTMLButtonElement,
+    rename: ThreadRenameControl,
     inlineStart: number,
     blockStart: number,
   ): void => {
@@ -336,13 +323,23 @@ function mountThreadView(
     menu.id = `zd-thread-settings-${thread.id}`;
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", `${thread.name} thread settings`);
+    const renameAction = document.createElement("button");
+    renameAction.type = "button";
+    renameAction.className = "zd-thread-settings-action";
+    renameAction.dataset.threadRename = thread.id;
+    renameAction.setAttribute("role", "menuitem");
+    renameAction.textContent = "Rename";
+    renameAction.addEventListener("click", () => {
+      dismissSettings();
+      rename.begin(row);
+    });
     const heading = document.createElement("p");
     heading.className = "zd-thread-settings-heading";
     heading.textContent = "Second line";
-    menu.append(heading);
+    menu.append(renameAction, heading);
     const selected = threadSecondaryLine();
     for (const [value, label] of [
-      ["app", "App running"],
+      ["app", "App / status"],
       ["directory", "Current directory"],
       ["worktree", "Branch / worktree"],
     ] as const satisfies readonly (readonly [ThreadSecondaryLine, string])[]) {
@@ -360,16 +357,29 @@ function mountThreadView(
       });
       menu.append(action);
     }
-    root.append(menu);
-    const bounds = menu.getBoundingClientRect();
-    menu.style.left = `${Math.max(0, Math.min(inlineStart, window.innerWidth - bounds.width))}px`;
-    menu.style.top = `${Math.max(0, Math.min(blockStart, window.innerHeight - bounds.height))}px`;
-    row.setAttribute("aria-controls", menu.id);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "zd-thread-settings-action zd-thread-settings-remove";
+    remove.dataset.threadRemove = thread.id;
+    remove.setAttribute("role", "menuitem");
+    remove.textContent =
+      thread.backing.availability === "ready" || thread.backing.availability === "starting"
+        ? "Terminate and Remove Thread…"
+        : "Remove Thread…";
+    remove.addEventListener("click", () => {
+      dismissSettings(true);
+      void performThreadAction(status, () => controller.removeThread(thread.id));
+    });
+    menu.append(remove);
     settingsMenu = menu;
-    settingsAnchor = row;
-    document.addEventListener("pointerdown", dismissSettingsFromPointer);
-    document.addEventListener("keydown", dismissSettingsFromKeyboard);
-    menu.querySelector<HTMLButtonElement>('[role="menuitemradio"]')?.focus();
+    openContextMenu({
+      host: root,
+      menu,
+      anchor: row,
+      inlineStart,
+      blockStart,
+      initialFocus: renameAction,
+    });
   };
 
   const context: RenderContext = {
