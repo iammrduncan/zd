@@ -64,6 +64,8 @@ describe("the workbench promotional kit", () => {
     expect(capture).toContain('name: "Show or hide Files and Changes"');
     expect(capture).toContain("setFocusMode(true)");
     expect(capture).toContain('data-focus-mode="true"');
+    expect(capture).toContain('hasText: "Select the exact text that needs work"');
+    expect(capture).not.toContain('hasText: "Review in context"');
     expect(fixture).toContain("setFocusMode(enabled: boolean)");
     expect(capture).toContain("zd-comments.png");
     expect(pngDimensions(READER_DARK)).toEqual({ width: 1440, height: 900 });

@@ -153,7 +153,7 @@ try {
   await page.locator('[data-centre-surface="file"]:visible').waitFor();
 
   const focusLine = page.locator(".current-file .cm-line:visible", {
-    hasText: "Review in context",
+    hasText: "Select the exact text that needs work",
   });
   await focusLine.click();
   await page.evaluate(() => {
