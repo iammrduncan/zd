@@ -97,6 +97,7 @@ export function attachWorkbenchCommands(
   cleanups.push(
     register({
       id: "file.find",
+      category: "Editor/Reading",
       chord: { key: "f", mod: true },
       description: "Find in the current file",
       available: () => commandTargetAvailable("file.find"),
@@ -104,6 +105,7 @@ export function attachWorkbenchCommands(
     }),
     register({
       id: "focus.toggle",
+      category: "Editor/Reading",
       chord: { key: "f", mod: true, shift: true },
       description: "Turn Focus Mode on or off",
       available: () => commandTargetAvailable("focus.toggle"),
@@ -111,6 +113,7 @@ export function attachWorkbenchCommands(
     }),
     register({
       id: "files.filter",
+      category: "Files",
       chord: { key: "p", mod: true },
       description: "Filter the active file tree",
       available: () => commandTargetAvailable("files.filter"),
@@ -118,6 +121,7 @@ export function attachWorkbenchCommands(
     }),
     register({
       id: "files.toggleVisibility",
+      category: "Files",
       chord: { key: "b", mod: true, shift: true },
       description: "Show or hide Files and Changes",
       available: () => commandTargetAvailable("files.toggleVisibility"),
@@ -125,12 +129,14 @@ export function attachWorkbenchCommands(
     }),
     register({
       id: "projects.toggleVisibility",
+      category: "Projects/Threads",
       description: "Show or hide Projects",
       available: () => commandTargetAvailable("projects.toggleVisibility"),
       run: () => runCommandTarget("projects.toggleVisibility"),
     }),
     register({
       id: "settings.open",
+      category: "Workbench",
       chord: { key: ",", mod: true },
       description: "Open or close Settings",
       available: () => commandTargetAvailable("settings.open"),
@@ -143,6 +149,7 @@ export function attachWorkbenchCommands(
     cleanups.push(
       register({
         id: `project.activate.${number}`,
+        category: "Projects/Threads",
         chord: { key: String(number), mod: true },
         description: `Activate project ${number}`,
         available: () => projectId(context, projectIndex) !== null,
@@ -159,6 +166,7 @@ export function attachWorkbenchCommands(
   cleanups.push(
     register({
       id: "centre.toggle",
+      category: "Workbench",
       chord: { key: "j", mod: true },
       description: "Switch between the current thread and file",
       available: () => centreToggleTarget(context) !== null,
@@ -174,6 +182,7 @@ export function attachWorkbenchCommands(
     }),
     register({
       id: "command.list",
+      category: "Workbench",
       chord: { key: "p", mod: true, shift: true },
       description: "Open the Command List",
       available: () => commandTargetAvailable("command.list"),
@@ -181,6 +190,7 @@ export function attachWorkbenchCommands(
     }),
     register({
       id: "window.summon",
+      category: "Help/System",
       chord: { key: " ", mod: true, shift: true },
       scope: "global",
       description: "Summon or hide the workbench",
@@ -195,6 +205,7 @@ export function attachWorkbenchCommands(
     }),
     register({
       id: "workbench.escape",
+      category: "Workbench",
       chord: { key: "Escape" },
       description: "Dismiss the active transient or leave the current mode",
       available: () => commandTargetAvailable("workbench.escape"),

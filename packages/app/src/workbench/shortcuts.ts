@@ -29,6 +29,17 @@ export interface Chord {
   readonly alt?: boolean;
 }
 
+export const commandCategories = [
+  "Workbench",
+  "Projects/Threads",
+  "Files",
+  "Editor/Reading",
+  "Appearance",
+  "Help/System",
+] as const;
+
+export type CommandCategory = (typeof commandCategories)[number];
+
 export interface Command {
   /** Stable dotted name, e.g. `document.save`. Not shown to anyone. */
   readonly id: string;
@@ -36,6 +47,8 @@ export interface Command {
   readonly chord?: Chord;
   /** Global bindings are displayed here but dispatched by the native registrar. */
   readonly scope?: "window" | "global";
+  /** Stable Reference group. Production commands always declare one. */
+  readonly category?: CommandCategory;
   /** Prose for the Reference. What it does, not which key does it. */
   readonly description: string;
   /**

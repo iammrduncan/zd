@@ -286,6 +286,7 @@ const editor = createEditor(column, source, {
  */
 register({
   id: "document.save",
+  category: "Editor/Reading",
   chord: { key: "s", mod: true },
   description: "Save the document",
   run: () => {
@@ -296,6 +297,7 @@ register({
 
 register({
   id: "document.raw",
+  category: "Editor/Reading",
   /*
    * Provisional until the Shortcut Reference receives a dedicated product review.
    * Neither vision §6.1 nor DESIGN.md §12 names a chord for raw mode — both
@@ -313,6 +315,7 @@ register({
 
 register({
   id: "file.find",
+  category: "Editor/Reading",
   chord: { key: "f", mod: true },
   description: "Find in the current file",
   available: () => true,
@@ -324,6 +327,7 @@ register({
 
 register({
   id: "workbench.escape",
+  category: "Workbench",
   chord: { key: "Escape" },
   description: "Dismiss the active transient or leave the current mode",
   available: () => commandTargetAvailable("workbench.escape"),
@@ -340,6 +344,7 @@ registerCommandTarget({
 
 register({
   id: "document.wrap",
+  category: "Editor/Reading",
   /*
    * `Mod-Alt-z` — the chord the first prototype used, and the one VS Code uses for
    * the same command, so it is looked up rather than invented like `Mod-e` was.
@@ -359,6 +364,7 @@ register({
 
 register({
   id: "document.typewriter",
+  category: "Editor/Reading",
   /*
    * Provisional, like `Mod-e` — neither vision §6.1 nor DESIGN.md §12
    * names a chord for this one. Paired with word wrap's `Mod-Alt-z` above on
@@ -380,6 +386,7 @@ register({
  */
 register({
   id: "document.jumpNext",
+  category: "Editor/Reading",
   chord: { key: "ArrowDown", alt: true },
   description: "Jump to the next focus block",
   // §4.1 makes placing a caret a one-way door, so a motion key does not cross it.
@@ -389,6 +396,7 @@ register({
 
 register({
   id: "document.jumpPrevious",
+  category: "Editor/Reading",
   chord: { key: "ArrowUp", alt: true },
   description: "Jump to the previous focus block",
   available: () => editor.hasCaret(),

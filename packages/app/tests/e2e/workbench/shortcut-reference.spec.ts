@@ -82,16 +82,13 @@ test("the key and action columns use compact dense rows", async ({ page }) => {
     list.map((row) => {
       const chord = row.querySelector<HTMLElement>(".zd-reference-chord")!;
       const description = row.querySelector<HTMLElement>(".zd-reference-description")!;
-      const action = row.querySelector<HTMLElement>(
-        ".zd-shortcut-setting-reset, .zd-shortcut-setting-managed",
-      )!;
       const chordBox = chord.getBoundingClientRect();
       const descriptionBox = description.getBoundingClientRect();
       return {
         height: row.getBoundingClientRect().height,
         chordSize: Number.parseFloat(getComputedStyle(chord).fontSize),
         descriptionSize: Number.parseFloat(getComputedStyle(description).fontSize),
-        actionSize: Number.parseFloat(getComputedStyle(action).fontSize),
+        actionSize: Number.parseFloat(getComputedStyle(row).fontSize),
         columnGap: descriptionBox.left - chordBox.right,
       };
     }),
@@ -128,6 +125,77 @@ test("the compact reference edits a shortcut in place", async ({ page }) => {
   await expect(
     sheet.getByRole("button", { name: /Change shortcut for Find in the current file/u }),
   ).toContainText(/K/u);
+});
+
+test("filter words independently match action, id, category, and chord", async ({ page }) => {
+  await open(page);
+  const sheet = page.getByRole("dialog", { name: "Shortcut Reference" });
+  const filter = sheet.getByRole("searchbox", { name: "Filter shortcuts" });
+  await filter.fill("editor wrap");
+  await expect(sheet.locator(".zd-reference-row")).toHaveCount(1);
+  await expect(sheet.locator(".zd-reference-row")).toContainText("Word wrap");
+
+  await filter.fill("document.wrap z");
+  await expect(sheet.locator(".zd-reference-row")).toHaveCount(1);
+  await expect(sheet.locator(".zd-reference-row")).toContainText("Word wrap");
+});
+
+test("Reset appears only after a window binding has an override", async ({ page }) => {
+  await open(page);
+  const sheet = page.getByRole("dialog", { name: "Shortcut Reference" });
+  const row = sheet.locator(".zd-reference-row", { hasText: "Find in the current file" });
+  await expect(row.getByRole("button", { name: /Reset shortcut/u })).toHaveCount(0);
+  const binding = row.getByRole("button", { name: /Change shortcut/u });
+  await binding.click();
+  await binding.press("ControlOrMeta+Alt+k");
+  await expect(row.getByRole("button", { name: /Reset shortcut/u })).toBeVisible();
+});
+
+test("each category orders available commands before explicitly unavailable commands", async ({
+  page,
+}) => {
+  await page.evaluate(() => {
+    window.zdTest!.register({
+      id: "test.unavailable-first",
+      category: "Help/System",
+      chord: { key: "F8" },
+      description: "Unavailable first registration",
+      available: () => false,
+      run: () => true,
+    });
+    window.zdTest!.register({
+      id: "test.available-second",
+      category: "Help/System",
+      chord: { key: "F9" },
+      description: "Available second registration",
+      available: () => true,
+      run: () => true,
+    });
+  });
+  await open(page);
+  const rows = await page
+    .locator('.zd-reference-row[data-category="Help/System"]')
+    .evaluateAll((items) => items.map((item) => item.getAttribute("data-available")));
+  const firstUnavailable = rows.indexOf("false");
+  expect(firstUnavailable).toBeGreaterThan(-1);
+  expect(rows.slice(firstUnavailable)).not.toContain("true");
+});
+
+test("global commands are labelled System managed", async ({ page }) => {
+  await page.evaluate(() => {
+    window.zdTest!.register({
+      id: "test.global",
+      category: "Help/System",
+      scope: "global",
+      chord: { key: "F10" },
+      description: "A system command",
+      run: () => true,
+    });
+  });
+  await open(page);
+  await expect(page.locator(".zd-reference-row", { hasText: "A system command" })).toContainText(
+    "System managed",
+  );
 });
 
 test("every row shows a key and a description, and no row is empty", async ({ page }) => {
