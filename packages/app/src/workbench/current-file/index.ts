@@ -5,10 +5,12 @@ import {
   type ClipboardImage,
   type MountedEditorBuffer,
 } from "@/editor";
+import { activeResource } from "./active-resource";
 import { screenshotLink } from "./clipboard-image";
 import { closeConfirmation } from "./close-confirmation";
 import { FileDraftStore } from "./drafts";
 import { fileCloseAction } from "./file-close";
+import { markdownImageResolver } from "./markdown-image";
 import { reconcile, saveWouldClobber } from "./reconcile";
 import { createReviewBinding } from "./review-binding";
 import type { FileStamp } from "@/platform";
@@ -16,7 +18,7 @@ import type { FileResource } from "../resources";
 import { setWordWrap } from "../preferences";
 import type { Unmount, WorkbenchRuntimeContext } from "../runtime";
 import { register, registerCommandTarget } from "../shortcuts";
-import type { TransitionRecovery, WorkbenchState } from "../state";
+import type { TransitionRecovery } from "../state";
 import { workbenchSettingsPreferences } from "../settings-preferences";
 import { attachReadingSettings } from "./reading-settings";
 import { mountReview } from "../review";
@@ -29,55 +31,11 @@ export interface MountCurrentFileOptions {
   readonly drafts?: FileDraftStore;
 }
 
-function activeResource(state: WorkbenchState): FileResource | null {
-  const file = state.openFiles.find(({ id }) => id === state.active.fileId);
-  return file
-    ? {
-        projectId: file.projectId,
-        worktreeId: file.worktreeId,
-        relativePath: file.relativePath,
-      }
-    : null;
-}
-
 function emptyFile(host: HTMLElement): void {
   const message = document.createElement("p");
   message.className = "zd-region-empty";
   message.textContent = "No file selected.";
   host.replaceChildren(message);
-}
-
-/** Resolve Markdown URL syntax without letting a document escape its approved project. */
-function markdownImageResource(document: FileResource, source: string): FileResource | null {
-  const pathWithEncoding = source.trim().split(/[?#]/, 1)[0] ?? "";
-  if (
-    !pathWithEncoding ||
-    pathWithEncoding.startsWith("/") ||
-    /^[a-z][a-z\d+.-]*:/i.test(pathWithEncoding)
-  ) {
-    return null;
-  }
-
-  let path: string;
-  try {
-    path = decodeURIComponent(pathWithEncoding);
-  } catch {
-    return null;
-  }
-  if (!path || path.includes("\\") || path.includes("\0")) return null;
-
-  const segments = document.relativePath.split("/").slice(0, -1);
-  for (const segment of path.split("/")) {
-    if (!segment || segment === ".") continue;
-    if (segment === "..") {
-      if (segments.length === 0) return null;
-      segments.pop();
-      continue;
-    }
-    segments.push(segment);
-  }
-  if (segments.length === 0) return null;
-  return { ...document, relativePath: segments.join("/") };
 }
 
 /** Own the one active editor buffer behind the root workbench's File surface. */
@@ -227,17 +185,7 @@ export async function mountCurrentFile(
       },
       ...(savedText === undefined ? {} : { savedText }),
       ...reviewBinding.options,
-      resolveMarkdownImage: async (source) => {
-        const imageResource = markdownImageResource(resource, source);
-        if (!imageResource) return null;
-        const image = await context.platform.readProjectImage(imageResource);
-        const bytes = Uint8Array.from(image.bytes);
-        const url = URL.createObjectURL(new Blob([bytes], { type: image.mediaType }));
-        return {
-          url,
-          release: () => URL.revokeObjectURL(url),
-        };
-      },
+      resolveMarkdownImage: markdownImageResolver(context.platform, resource),
       onTextChange: (text, isDirty) => {
         dirty = isDirty;
         if (isDirty) drafts.save(resource, text);
