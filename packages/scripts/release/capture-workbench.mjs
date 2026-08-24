@@ -9,8 +9,10 @@ import { chromium } from "@playwright/test";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const BASE_URL = "http://127.0.0.1:1420";
-const OVERLAP = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench.png");
+const LIGHT = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench.png");
 const SIDE_BY_SIDE = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-side-by-side.png");
+const DARK = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-dark.png");
+const DRACULA = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-dracula.png");
 
 async function waitForServer() {
   const deadline = Date.now() + 60_000;
@@ -26,14 +28,21 @@ async function waitForServer() {
   throw new Error("Timed out waiting for the workbench capture server");
 }
 
-async function createThread(page, projectId, name, agent) {
+async function createThread(page, projectId, name, agent, task) {
   const group = page.locator(`[data-project-id="${projectId}"]`);
   await group.locator(".zd-project-row").click();
+  const threadCount = await group.locator("[data-thread-id]").count();
+  await page.evaluate(
+    (scene) => globalThis.workbenchDocumentationFixture.queueTerminalScene(scene),
+    { agent, task },
+  );
   await group.locator(`[data-thread-create-toggle="${projectId}"]`).click();
-  const form = group.locator(`[data-thread-create="${projectId}"]`);
-  await form.locator('input[name="thread-name"]').fill(name);
-  await form.locator('select[name="thread-agent"]').selectOption(agent);
-  await form.getByRole("button", { name: "Create", exact: true }).click();
+  await group.locator("[data-thread-id]").nth(threadCount).waitFor();
+  await page.evaluate(
+    ({ targetProjectId, targetName }) =>
+      globalThis.workbenchDocumentationFixture.renameLatestThread(targetProjectId, targetName),
+    { targetProjectId: projectId, targetName: name },
+  );
   await group.locator("[data-thread-id]", { hasText: name }).waitFor();
 }
 
@@ -42,11 +51,11 @@ async function prepareWorkbench(page) {
   await page.locator('html[data-workbench-ready="true"]').waitFor();
   await page.evaluate(() => globalThis.document.fonts.ready);
 
-  await createThread(page, "project-zd", "Build", "codex");
-  await createThread(page, "project-zd", "Review", "shell");
-  await createThread(page, "project-notes", "Notes", "claude-code");
-  await createThread(page, "project-website", "Site", "opencode");
-  await createThread(page, "project-infra", "Release", "shell");
+  await createThread(page, "project-zd", "Build", "codex", "Implement project navigation");
+  await createThread(page, "project-zd", "Review", "shell", "Run the release checks");
+  await createThread(page, "project-notes", "Docs", "claude-code", "Audit the user documentation");
+  await createThread(page, "project-website", "Site", "opencode", "Refresh the release site");
+  await createThread(page, "project-infra", "Release", "shell", "Package version 0.2.0");
 
   const project = page.locator('[data-project-id="project-zd"]');
   await project.locator(".zd-project-row").click();
@@ -89,18 +98,39 @@ try {
   await prepareWorkbench(page);
 
   await page.evaluate(() => {
-    globalThis.workbenchDocumentationFixture.setCentreMode("overlap");
+    globalThis.workbenchDocumentationFixture.setTheme("current-light");
   });
-  await page.locator('[data-centre-surface="file"]').waitFor();
-  await page.screenshot({ path: OVERLAP, animations: "disabled" });
-
+  await page.locator('html[data-theme-name="current-light"]').waitFor();
   await page.evaluate(() => {
     globalThis.workbenchDocumentationFixture.setCentreMode("side-by-side");
   });
   await page.locator('[data-centre-surface="thread"]').waitFor();
+  await page.locator('[data-centre-surface="file"]').waitFor();
+  await page.screenshot({ path: LIGHT, animations: "disabled" });
+
+  await page.evaluate(() => {
+    globalThis.workbenchDocumentationFixture.setTheme("dark");
+  });
+  await page.locator('html[data-theme-name="dark"]').waitFor();
+  await page.screenshot({ path: DARK, animations: "disabled" });
+
+  await page.evaluate(() => {
+    globalThis.workbenchDocumentationFixture.setTheme("dracula");
+  });
+  await page.locator('html[data-theme-name="dracula"]').waitFor();
+  await page.screenshot({ path: DRACULA, animations: "disabled" });
+
+  await page.evaluate(() => {
+    globalThis.workbenchDocumentationFixture.setTheme("current-light");
+    globalThis.workbenchDocumentationFixture.setCentreMode("side-by-side");
+  });
+  await page.locator('html[data-theme-name="current-light"]').waitFor();
+  await page.locator('[data-centre-surface="thread"]').waitFor();
   await page.screenshot({ path: SIDE_BY_SIDE, animations: "disabled" });
 
-  console.log(`captured ${OVERLAP}`);
+  console.log(`captured ${LIGHT}`);
+  console.log(`captured ${DARK}`);
+  console.log(`captured ${DRACULA}`);
   console.log(`captured ${SIDE_BY_SIDE}`);
 } catch (cause) {
   if (serverOutput.trim()) console.error(serverOutput.trim());

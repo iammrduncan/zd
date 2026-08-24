@@ -256,27 +256,74 @@ code {
   margin: 0;
 }
 
-.app-frame {
-  background: var(--transient);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: 0 26px 70px light-dark(rgb(36 37 34 / 10%), rgb(0 0 0 / 25%));
+.theme-stack {
+  height: clamp(360px, 70vw, 760px);
+  isolation: isolate;
   margin: 0;
-  overflow: hidden;
+  position: relative;
 }
 
-.app-frame img {
+.theme-card {
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 10px;
+  box-shadow: 0 26px 70px rgb(0 0 0 / 28%);
+  overflow: hidden;
+  position: absolute;
+  width: 72%;
+}
+
+.theme-card > span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 8px 11px;
+}
+
+.theme-card img {
   display: block;
   height: auto;
   width: 100%;
 }
 
-.app-frame figcaption {
-  border-top: 1px solid var(--line);
+.theme-card[data-theme-card="light"] {
+  background: #f5f5f1;
+  border-color: #d6d7d1;
+  color: #242522;
+  left: 0;
+  top: 0;
+  transform: rotate(-1.8deg);
+  z-index: 1;
+}
+
+.theme-card[data-theme-card="dark"] {
+  background: #1b1d1b;
+  color: #e5e2d9;
+  right: 0;
+  top: 13%;
+  transform: rotate(1.8deg);
+  z-index: 2;
+}
+
+.theme-card[data-theme-card="dracula"] {
+  background: #282a36;
+  color: #f8f8f2;
+  left: 14%;
+  top: 28%;
+  transform: rotate(-0.4deg);
+  z-index: 3;
+}
+
+.theme-stack figcaption {
+  bottom: 0;
   color: var(--secondary);
   font-family: var(--mono);
   font-size: 11px;
-  padding: 13px 16px;
+  position: absolute;
+  right: 0;
+  text-align: right;
+  width: min(46%, 460px);
+  z-index: 4;
 }
 
 .features {
@@ -476,6 +523,24 @@ footer {
   .closing {
     border-radius: 0;
     margin-bottom: 40px;
+  }
+
+  .theme-card {
+    width: 86%;
+  }
+
+  .theme-card[data-theme-card="dark"] {
+    top: 16%;
+  }
+
+  .theme-card[data-theme-card="dracula"] {
+    left: 7%;
+    top: 32%;
+  }
+
+  .theme-stack figcaption {
+    text-align: left;
+    width: 100%;
   }
 }
 

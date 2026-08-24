@@ -218,24 +218,45 @@ const changes: readonly GitChangeEntry[] = [
 
 const browser = detectPlatform();
 const terminalOutput = new Map<string, Uint8Array>();
+type FixtureAgent = "claude-code" | "codex" | "opencode" | "shell";
+type TerminalScene = { readonly agent: FixtureAgent; readonly task: string };
+const terminalScenes: TerminalScene[] = [];
 let terminalSequence = 0;
-const terminal: Platform["terminal"] = {
-  start: async (request) => {
-    const sessionId = `fixture-terminal-${++terminalSequence}`;
-    const project = projects.find(({ id }) => id === request.projectId);
-    const transcript = [
-      `zd · ${project?.name ?? "project"}`,
-      "$ git status --short",
-      " M README.md",
-      " M src/main.ts",
-      "?? src/notifications.ts",
-      "",
+
+function terminalTranscript(scene: TerminalScene | undefined, projectName: string): string {
+  if (!scene || scene.agent === "shell") {
+    return [
+      `zd · ${projectName}`,
       "$ npm run check",
       "types · lint · unit",
       "all checks passed",
       "",
       "$ ",
     ].join("\r\n");
+  }
+  const labels: Record<Exclude<FixtureAgent, "shell">, string> = {
+    "claude-code": "Claude Code",
+    codex: "Codex",
+    opencode: "OpenCode",
+  };
+  return [
+    `${labels[scene.agent]} · ${projectName}`,
+    `› ${scene.task}`,
+    "",
+    "  Reading the project context",
+    "  Working through the implementation",
+    "  Running focused verification",
+    "",
+    "✓ Ready for review",
+    "",
+  ].join("\r\n");
+}
+
+const terminal: Platform["terminal"] = {
+  start: async (request) => {
+    const sessionId = `fixture-terminal-${++terminalSequence}`;
+    const project = projects.find(({ id }) => id === request.projectId);
+    const transcript = terminalTranscript(terminalScenes.shift(), project?.name ?? "project");
     terminalOutput.set(sessionId, new TextEncoder().encode(transcript));
     return { projectId: request.projectId, worktreeId: request.worktreeId, sessionId };
   },
@@ -528,6 +549,20 @@ void bootWorkbench(host, platform, async (mountHost, context) => {
       fileEntries = [...fileEntries, file(relativePath)];
       fileTreeRevision += 1;
       publishFileTreeChange(resource);
+    },
+    queueTerminalScene(scene: TerminalScene) {
+      terminalScenes.push(scene);
+    },
+    async renameLatestThread(projectId: string, name: string) {
+      const thread = context.state
+        .snapshot()
+        .threads.filter((candidate) => candidate.projectId === projectId)
+        .sort((left, right) => right.order - left.order)[0];
+      if (!thread) throw new Error(`Project ${projectId} has no thread to rename`);
+      await context.state.renameThread(thread.id, name);
+    },
+    setTheme(theme: "current-light" | "dark" | "dracula") {
+      context.state.setThemeSelection(theme, theme);
     },
   };
   Object.assign(window, { workbenchDocumentationFixture: fixture });

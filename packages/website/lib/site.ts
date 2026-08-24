@@ -8,7 +8,7 @@ export const SITE_URL = new URL("https://getzensuite.com");
 export const SITE_NAME = "zd";
 export const HOME_TITLE = "zd — A fast, local agent workbench";
 export const SITE_DESCRIPTION =
-  "ZenSuite’s fast, local agent workbench for projects, threads, terminals, files, and Git.";
+  "Run terminal-backed coding agents beside their projects, source files, and Git in one fast, local workbench.";
 export const REPOSITORY_URL = "https://github.com/iammrduncan/zd";
 export const RELEASE_URL = `${REPOSITORY_URL}/releases/latest`;
 
