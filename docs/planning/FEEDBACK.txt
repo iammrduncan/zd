@@ -3,6 +3,11 @@
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
 === Feedback Addressed ===
+when working with multiple projects it should basically save this as a workspace setup.
+when launching zd without a path argument it should open to a project selection, or open folder, where it shows recent projects/workspaces opened.
+when dragging a file or files it should show a line, and expand folders etc on hover before release to allow showing where the file will land.
+no audio happens for audio stuff in settings...
+desktop notifications is greyed out in settings...
 Close on a file should actually close that file. Thats different than switching context to another file. So we don't need a "discard" and a "close" file... buton. We can just have an 'x' and if we close with unsaved we prompt for confirmation. We did similar for markdown files on our old vision/editor.
 on sound settings changes, if changed we should hear preview of the new. if volume increased we should hear sound at new volume, if sound chime changed we should hear new chime thats played.
 filetree is still missing a lot of file options... like drag and drop, copy and paste files, multiple file selection, etc... look at other ide file tree systems and think about what we should do there.
