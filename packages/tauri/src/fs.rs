@@ -349,7 +349,7 @@ pub struct FileStamp {
 /// cost either way, and because `fs::canonicalize` before writing resolves the
 /// symlink case for free — which is arriving anyway with the path scoping in
 /// audit M2. Revisit it there, not before.
-fn atomic_write(path: &Path, contents: &str) -> std::io::Result<()> {
+pub(crate) fn atomic_write(path: &Path, contents: &str) -> std::io::Result<()> {
     let directory = path.parent().unwrap_or_else(|| Path::new("."));
     let temporary = temporary_beside(path);
 

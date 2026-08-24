@@ -18,6 +18,7 @@ affects behavior or architecture.
 | [`workbench/state-core.ts`](workbench/state-core.ts) | Define state data, stable identities, parsing, and pure context helpers. |
 | [`workbench/state-owner.ts`](workbench/state-owner.ts) | Serialize guarded project, worktree, thread, and file transitions. |
 | [`workbench/resources.ts`](workbench/resources.ts) | Define ID-scoped launch and file resources shared with native grants. |
+| [`workbench/workspace-home.ts`](workbench/workspace-home.ts) | Present bare-launch project/recent-workspace selection and persist ordered project sets. |
 | [`platform.ts`](platform.ts) | Be the frontend's only importer of Tauri APIs and expose narrow typed adapters. |
 
 Treat `workbench/boot.ts`, the state facade, `platform.ts`, the command registry, and shared theme

@@ -18,6 +18,7 @@ import { attachOpenRequests } from "./open-requests";
 import type { Unmount, WorkbenchMount } from "./runtime";
 import { TransientCoordinator } from "./transients";
 import { applyWorkbenchSettings, workbenchSettingsPreferences } from "./settings-preferences";
+import { attachWorkspacePersistence } from "./workspace-home";
 
 export type { WorkbenchMount } from "./runtime";
 
@@ -158,6 +159,7 @@ export async function bootWorkbench(
   }
 
   const detachOpenRequests = attachOpenRequests(runtime);
+  const detachWorkspacePersistence = attachWorkspacePersistence(state, platform);
   await launchSpan?.end("ok");
 
   localNotices.push(...restoreShortcutBindings());
@@ -176,6 +178,7 @@ export async function bootWorkbench(
     detachThemeCommands();
     detachShortcuts();
     detachOpenRequests();
+    detachWorkspacePersistence();
     unmount();
     detachDiagnostics();
     void instrumentation.disable();

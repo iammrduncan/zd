@@ -20,6 +20,11 @@ function context(): WorkbenchRuntimeContext {
     pendingOpenRequest: async () => null,
     acceptOpenRequest: async () => null,
     projectGrants: async () => [],
+    recentWorkspaces: async () => [],
+    saveWorkspace: async () => {
+      throw new Error("no workspace persistence");
+    },
+    openWorkspace: async () => [],
     chooseProject: async () => null,
     recoverProjectGrant: async () => null,
     removeProjectGrant: async () => {

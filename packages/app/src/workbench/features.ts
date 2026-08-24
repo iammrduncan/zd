@@ -20,6 +20,7 @@ import { registerCommandTarget } from "./shortcuts";
 import { mountWorkbenchSettings } from "./settings";
 import { FileDraftStore } from "./current-file/drafts";
 import { createRootThreadsAdapter, type RootThreadsAdapter } from "./threads";
+import { mountWorkspaceHome } from "./workspace-home";
 
 function recordThreadAction(
   context: WorkbenchRuntimeContext,
@@ -264,6 +265,7 @@ export async function mountWorkbenchFeatures(
   let stopShell: Unmount;
   try {
     stopShell = await mountWorkbenchShell(host, context, {
+      home: (homeHost) => mountWorkspaceHome(homeHost, context.state, context.platform),
       threads: threadsNavigationMount(threads, attention.settings),
       thread: (threadHost, threadContext) =>
         mountActiveThread(threadHost, threadContext, threadsAdapter),

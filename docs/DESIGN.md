@@ -88,6 +88,12 @@ of those intents; the input source does not create different state semantics. Th
 remembered project/worktree/thread/file tuple, validates its ownership, runs transition guards, and
 publishes the complete context once.
 
+A launch without a path presents one central project selector before the workbench regions. It
+offers the native folder picker and a bounded recent list containing both single projects and
+multi-project workspaces. Every distinct ordered set of open projects is saved automatically as a
+workspace setup. The native shell persists and reapproves its roots; the webview stores and submits
+only opaque project or workspace identities.
+
 ### Local-first is behavioral
 
 There are no cloud badges, account avatars, telemetry prompts, or ambient sync states. Remote image
@@ -447,6 +453,10 @@ selection, while dragging another row moves only that row. Alt-drag copies inste
 stable `copy`, `copy 2`, and later suffixes when their original name is occupied. Cross-worktree
 transfers, moves into a selected directory's own descendants, repository metadata, symbolic links,
 and destination collisions are refused before native mutation.
+
+During a drag, one focus-colour hairline marks the effective destination. Hovering a collapsed
+directory opens it after a short delay so a deeper destination can be reached without ending the
+drag; leaving the target cancels the pending expansion.
 
 `Copy Relative Path` preserves the project-relative slash path. `Copy Full Path` joins that identity
 to the active native-approved worktree root without making absolute paths part of ordinary file
