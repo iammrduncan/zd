@@ -41,6 +41,31 @@ test("boots the styled workbench at the root route", async ({ page }) => {
   expect(emptyBox!.y).toBeGreaterThan(surfaceBox!.y);
 });
 
+test("the Home project list scrolls when recent workspaces exceed the window", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 560 });
+  await page.goto("/");
+  const home = page.locator('[data-centre-surface="home"]');
+  const recent = home.locator(".zd-workspace-home-recent");
+  await recent.evaluate((list) => {
+    for (let index = 1; index <= 20; index += 1) {
+      const row = document.createElement("button");
+      row.className = "zd-workspace-home-recent-row";
+      row.textContent = `Recent project ${index}`;
+      list.append(row);
+    }
+  });
+
+  expect(await home.evaluate((surface) => getComputedStyle(surface).overflowY)).toBe("auto");
+  expect(await home.evaluate((surface) => surface.scrollHeight)).toBeGreaterThan(
+    await home.evaluate((surface) => surface.clientHeight),
+  );
+  await home.evaluate((surface) => {
+    surface.scrollTop = surface.scrollHeight;
+  });
+  const last = recent.getByRole("button", { name: "Recent project 20" });
+  await expect(last).toBeInViewport();
+});
+
 test("applies the workbench design tokens rather than browser defaults", async ({ page }) => {
   await page.goto("/");
 
