@@ -27,10 +27,10 @@ private let hairline = CGColor(
     components: [222.0 / 255.0, 223.0 / 255.0, 217.0 / 255.0, 1.0]
 )!
 
-guard CommandLine.arguments.count == 7 else {
+guard CommandLine.arguments.count == 9 else {
     FileHandle.standardError.write(
         Data(
-            "usage: render-social-card.swift SCREENSHOT ICON PROSE_FONT BOLD_FONT MONO_FONT OUTPUT_PNG\n".utf8
+            "usage: render-social-card.swift LIGHT_SCREENSHOT DARK_SCREENSHOT DRACULA_SCREENSHOT ICON PROSE_FONT BOLD_FONT MONO_FONT OUTPUT_PNG\n".utf8
         )
     )
     exit(2)
@@ -52,11 +52,14 @@ func loadFont(_ path: String, size: CGFloat) -> CTFont? {
 }
 
 guard
-    let screenshot = loadImage(CommandLine.arguments[1]),
-    let icon = loadImage(CommandLine.arguments[2]),
-    let prose = loadFont(CommandLine.arguments[3], size: 27),
-    let bold = loadFont(CommandLine.arguments[4], size: 56),
-    let mono = loadFont(CommandLine.arguments[5], size: 18),
+    let lightScreenshot = loadImage(CommandLine.arguments[1]),
+    let darkScreenshot = loadImage(CommandLine.arguments[2]),
+    let draculaScreenshot = loadImage(CommandLine.arguments[3]),
+    let icon = loadImage(CommandLine.arguments[4]),
+    let prose = loadFont(CommandLine.arguments[5], size: 27),
+    let bold = loadFont(CommandLine.arguments[6], size: 56),
+    let mono = loadFont(CommandLine.arguments[7], size: 18),
+    let label = loadFont(CommandLine.arguments[7], size: 14),
     let context = CGContext(
         data: nil,
         width: width,
@@ -81,52 +84,78 @@ func drawText(_ text: String, font: CTFont, color: CGColor, x: CGFloat, baseline
     CTLineDraw(line, context)
 }
 
+func drawThemeCard(_ screenshot: CGImage, labelText: String, swatch: CGColor, frame: CGRect) {
+    context.setFillColor(swatch)
+    context.fillEllipse(in: CGRect(x: frame.minX, y: frame.maxY + 19, width: 8, height: 8))
+    drawText(labelText, font: label, color: quiet, x: frame.minX + 18, baseline: frame.maxY + 18)
+
+    let path = CGPath(
+        roundedRect: frame,
+        cornerWidth: 12,
+        cornerHeight: 12,
+        transform: nil
+    )
+    context.saveGState()
+    context.addPath(path)
+    context.clip()
+    context.interpolationQuality = .high
+    context.draw(screenshot, in: frame)
+    context.restoreGState()
+
+    context.addPath(path)
+    context.setStrokeColor(hairline)
+    context.setLineWidth(1)
+    context.strokePath()
+}
+
 context.setFillColor(paper)
 context.fill(CGRect(x: 0, y: 0, width: width, height: height))
 context.setFillColor(accent)
 context.fill(CGRect(x: 0, y: 0, width: 12, height: height))
 
-drawText("zd", font: bold, color: ink, x: 72, baseline: 538)
-drawText("Markdown, rendered and editable.", font: prose, color: quiet, x: 74, baseline: 488)
-drawText("ZenSuite  ·  local Markdown and agent workbench  ·  MIT", font: mono, color: accent, x: 75, baseline: 447)
+drawText("zd", font: bold, color: ink, x: 72, baseline: 530)
+drawText("Markdown, rendered and editable.", font: prose, color: quiet, x: 74, baseline: 477)
+drawText("ZenSuite  ·  local Markdown and agent workbench  ·  MIT", font: mono, color: accent, x: 75, baseline: 435)
 
 context.interpolationQuality = .high
-context.draw(icon, in: CGRect(x: 1032, y: 470, width: 104, height: 104))
+context.draw(icon, in: CGRect(x: 1032, y: 462, width: 104, height: 104))
 
-let panel = CGRect(x: 64, y: 40, width: 1072, height: 370)
-let panelPath = CGPath(
-    roundedRect: panel,
-    cornerWidth: 16,
-    cornerHeight: 16,
-    transform: nil
+let currentLightSwatch = CGColor(
+    colorSpace: CGColorSpaceCreateDeviceRGB(),
+    components: [40.0 / 255.0, 76.0 / 255.0, 91.0 / 255.0, 1.0]
 )
-context.saveGState()
-context.addPath(panelPath)
-context.clip()
-context.setFillColor(paper)
-context.fill(panel)
-
-let screenshotScale = panel.width / CGFloat(screenshot.width)
-let screenshotHeight = CGFloat(screenshot.height) * screenshotScale
-let sourceTopCrop: CGFloat = 54 * screenshotScale
-let screenshotRect = CGRect(
-    x: panel.minX,
-    y: panel.maxY + sourceTopCrop - screenshotHeight,
-    width: panel.width,
-    height: screenshotHeight
+let darkSwatch = CGColor(
+    colorSpace: CGColorSpaceCreateDeviceRGB(),
+    components: [25.0 / 255.0, 26.0 / 255.0, 25.0 / 255.0, 1.0]
 )
-context.draw(screenshot, in: screenshotRect)
-context.restoreGState()
+let draculaSwatch = CGColor(
+    colorSpace: CGColorSpaceCreateDeviceRGB(),
+    components: [189.0 / 255.0, 147.0 / 255.0, 249.0 / 255.0, 1.0]
+)
 
-context.addPath(panelPath)
-context.setStrokeColor(hairline)
-context.setLineWidth(1)
-context.strokePath()
+drawThemeCard(
+    lightScreenshot,
+    labelText: "CURRENT LIGHT",
+    swatch: currentLightSwatch!,
+    frame: CGRect(x: 64, y: 54, width: 344, height: 215)
+)
+drawThemeCard(
+    darkScreenshot,
+    labelText: "DARK",
+    swatch: darkSwatch!,
+    frame: CGRect(x: 428, y: 54, width: 344, height: 215)
+)
+drawThemeCard(
+    draculaScreenshot,
+    labelText: "DRACULA",
+    swatch: draculaSwatch!,
+    frame: CGRect(x: 792, y: 54, width: 344, height: 215)
+)
 
 guard
     let image = context.makeImage(),
     let destination = CGImageDestinationCreateWithURL(
-        URL(fileURLWithPath: CommandLine.arguments[6]) as CFURL,
+        URL(fileURLWithPath: CommandLine.arguments[8]) as CFURL,
         UTType.png.identifier as CFString,
         1,
         nil
