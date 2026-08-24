@@ -527,6 +527,16 @@
   transition: color var(--focus-ease-out) ease-out;
 }
 
+.md-editor[data-focus-mode="true"] table[data-focus="target"] tr[data-focus="target"] {
+  transition: none;
+}
+
+.md-editor[data-focus-mode="true"] table[data-focus="target"] tr[data-focus="context"],
+.md-editor[data-focus-mode="true"] table[data-focus="target"] tr[data-focus="context"] * {
+  color: var(--focus-context-text);
+  transition: color var(--focus-ease-out) ease-out;
+}
+
 /*
  * Line granularity, §7.6: "line means one laid-out visual line", and the target
  * "restores full role contrast only across that row".

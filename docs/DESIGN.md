@@ -564,7 +564,10 @@ The reading anchor sits roughly one-third down the visible editor. Before a care
 reading navigation may move the target. After a caret, scrolling for context does not move it.
 
 A paragraph followed immediately by a code block is one paragraph target. Line focus uses
-CodeMirror's actual visual rows, not character-count estimates.
+CodeMirror's actual visual rows, not character-count estimates. A rendered table is one paragraph
+target when its full height fits and occupies no more than 70% of the editor viewport. A taller
+table uses one rendered row per target; its hidden Markdown delimiter belongs to the header target
+and never becomes an invisible navigation stop.
 
 Typewriter Mode requires one active editor column and a caret. It pins that visual line to the
 vertical midpoint while typing or moving the caret. It suspends in side-by-side layouts that cannot

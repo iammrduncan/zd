@@ -181,6 +181,7 @@ class TableWidget extends WidgetType {
      */
     table.classList.add("md-rendered");
     table.dataset.tableFrom = String(this.table.from);
+    table.dataset.tableTo = String(this.table.to);
 
     const head = table.createTHead().insertRow();
     this.table.header.forEach((cell, column) => {
@@ -219,6 +220,7 @@ class TableWidget extends WidgetType {
     const nextCells = [this.table.header, ...this.table.rows].flat();
     if (cells.length !== nextCells.length) return false;
     dom.dataset.tableFrom = String(this.table.from);
+    dom.dataset.tableTo = String(this.table.to);
     cells.forEach((element, index) => {
       if (element === document.activeElement) return;
       element.replaceChildren(renderInlineMarkdown(nextCells[index]!.source));

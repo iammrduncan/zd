@@ -79,6 +79,58 @@ test("pressing it repeatedly walks block by block", async ({ page }) => {
   expect(visited, "the walk did not follow the fixture's blocks").toEqual([7, 11, 13, 16]);
 });
 
+test("a compact table that fits within 70 percent of the viewport stays one block", async ({
+  page,
+}) => {
+  const lines = await page.evaluate(() => window.zdEditor!.text().split("\n"));
+  const heading = lines.indexOf("## Tables") + 1;
+  const header = lines.findIndex((line) => line.startsWith("| Construct |")) + 1;
+  const afterTable = lines.indexOf("## Mermaid") + 1;
+  await caretOn(page, heading);
+
+  await page.keyboard.press("Alt+ArrowDown");
+  expect(await caretLine(page)).toBe(header);
+  await page.keyboard.press("Alt+ArrowDown");
+
+  expect(await caretLine(page), "the compact table was split into row blocks").toBe(afterTable);
+});
+
+test("a table taller than 70 percent of the viewport advances one rendered row at a time", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 700 });
+  await page.addStyleTag({ content: ".md-editor table tr { height: 120px; }" });
+  const lines = await page.evaluate(() => window.zdEditor!.text().split("\n"));
+  const heading = lines.indexOf("## Tables") + 1;
+  const header = lines.findIndex((line) => line.startsWith("| Construct |")) + 1;
+  const firstBodyRow = lines.findIndex((line) => line.startsWith("| Blockquote |")) + 1;
+  expect(
+    Math.min(heading, header, firstBodyRow),
+    "the fixture table source is missing",
+  ).toBeGreaterThan(0);
+  await caretOn(page, heading);
+
+  await page.keyboard.press("Alt+ArrowDown");
+  expect(await caretLine(page), "the first jump did not enter the table header").toBe(header);
+  await expect(page.locator(".md-editor table")).toBeVisible();
+  await page.keyboard.press("Alt+ArrowDown");
+
+  expect(await caretLine(page), "the tall table was treated as one viewport-sized block").toBe(
+    firstBodyRow,
+  );
+  await page.evaluate(() => {
+    if (!window.zdEditor!.isFocusMode()) window.zdEditor!.toggleFocus();
+  });
+  const rowFocus = await page
+    .locator(".md-editor table tr")
+    .evaluateAll((rows) => rows.map((row) => row.getAttribute("data-focus")));
+  expect(rowFocus.slice(0, 3), "focus mode did not isolate the current rendered row").toEqual([
+    "context",
+    "target",
+    "context",
+  ]);
+});
+
 test("option+up walks back the same way", async ({ page }) => {
   await caretOn(page, 16);
 
