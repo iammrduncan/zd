@@ -354,6 +354,7 @@ export async function mountCurrentFile(
     }),
     register({
       id: "document.save",
+      category: "Editor/Reading",
       chord: { key: "s", mod: true },
       description: "Save the current file",
       available: () => commandEditor() !== null,
@@ -366,6 +367,7 @@ export async function mountCurrentFile(
     }),
     register({
       id: "document.raw",
+      category: "Editor/Reading",
       chord: { key: "e", mod: true },
       description: "Raw mode: show literal Markdown or Mermaid source",
       available: () =>
@@ -384,6 +386,7 @@ export async function mountCurrentFile(
     }),
     register({
       id: "document.wrap",
+      category: "Editor/Reading",
       chord: { key: "z", mod: true, alt: true },
       description: "Turn line wrapping on or off",
       available: () => commandEditor() !== null,
@@ -396,6 +399,7 @@ export async function mountCurrentFile(
     }),
     register({
       id: "document.typewriter",
+      category: "Editor/Reading",
       chord: { key: "t", mod: true, alt: true },
       description: "Turn Typewriter Mode on or off",
       available: () => commandEditor()?.hasCaret() ?? false,
@@ -403,6 +407,7 @@ export async function mountCurrentFile(
     }),
     register({
       id: "document.jumpNext",
+      category: "Editor/Reading",
       chord: { key: "ArrowDown", alt: true },
       description: "Jump to the next focus block",
       available: () => commandEditor()?.hasCaret() ?? false,
@@ -410,6 +415,7 @@ export async function mountCurrentFile(
     }),
     register({
       id: "document.jumpPrevious",
+      category: "Editor/Reading",
       chord: { key: "ArrowUp", alt: true },
       description: "Jump to the previous focus block",
       available: () => commandEditor()?.hasCaret() ?? false,

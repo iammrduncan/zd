@@ -356,6 +356,21 @@ test("Settings leaves shortcut editing to the Shortcut Reference", async ({ page
   await expect(settings.getByRole("button", { name: /Change shortcut/u })).toHaveCount(0);
 });
 
+test("Shortcut Reference groups the production registry into the six command categories", async ({
+  page,
+}) => {
+  await page.keyboard.press("ControlOrMeta+Period");
+  const reference = page.getByRole("dialog", { name: "Shortcut Reference" });
+  await expect(reference.locator(".zd-shortcut-setting-category h3")).toHaveText([
+    "Workbench",
+    "Projects/Threads",
+    "Files",
+    "Editor/Reading",
+    "Appearance",
+    "Help/System",
+  ]);
+});
+
 test("Settings presents every durable preference group", async ({ page }) => {
   await page.keyboard.press("ControlOrMeta+,");
   const settings = page.getByRole("dialog", { name: "Settings" });

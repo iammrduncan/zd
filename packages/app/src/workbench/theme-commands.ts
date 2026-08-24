@@ -10,6 +10,7 @@ export function registerThemeCommands(
   const cleanups: Unmount[] = [
     register({
       id: "theme.select.system",
+      category: "Appearance",
       description: "Theme: Follow System",
       run: () => {
         select("system");
@@ -22,6 +23,7 @@ export function registerThemeCommands(
     cleanups.push(
       register({
         id: `theme.select.${definition.id}`,
+        category: "Appearance",
         description: `Theme: ${definition.config.name}`,
         run: () => {
           select(definition.id);

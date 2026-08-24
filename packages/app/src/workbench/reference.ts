@@ -43,10 +43,7 @@ export function isReferenceOpen(): boolean {
  * registry holds right now — a sheet cached at boot would be the drifting list
  * §7.1 forbids, just with extra steps.
  */
-export function openReference(
-  host: HTMLElement,
-  transients = new TransientCoordinator(),
-): void {
+export function openReference(host: HTMLElement, transients = new TransientCoordinator()): void {
   if (sheet) return;
   if (
     !transients.open("shortcut-reference", "ordinary", (restoreFocus) =>
@@ -122,6 +119,7 @@ export function registerReference(
   let shortcutDown = false;
   const remove = register({
     id: "help.shortcuts",
+    category: "Help/System",
     chord: { key: ".", mod: true },
     description: "Open or close the Shortcut Reference",
     run: () => {

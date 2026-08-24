@@ -13,6 +13,43 @@
   display: grid;
 }
 
+.zd-shortcut-settings-filter {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: var(--space-4);
+  margin-block-end: var(--space-2);
+  padding: var(--space-1) 0;
+  border: 0;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.zd-shortcut-settings-filter:focus {
+  border-block-end-color: var(--line-focus);
+  outline: none;
+}
+
+.zd-shortcut-setting-category {
+  display: grid;
+  min-block-size: 24px;
+  align-items: end;
+  padding-block-start: var(--space-1);
+}
+
+.zd-shortcut-settings .zd-shortcut-setting-category h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: var(--type-navigation-weight);
+}
+
+.zd-shortcut-settings-empty {
+  margin: var(--space-2) 0;
+  color: var(--text-muted);
+}
+
 .zd-shortcut-setting-header,
 .zd-shortcut-setting-row {
   display: grid;
