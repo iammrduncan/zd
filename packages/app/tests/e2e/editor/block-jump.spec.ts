@@ -121,14 +121,15 @@ test("a table taller than 70 percent of the viewport advances one rendered row a
   await page.evaluate(() => {
     if (!window.zdEditor!.isFocusMode()) window.zdEditor!.toggleFocus();
   });
-  const rowFocus = await page
-    .locator(".md-editor table tr")
-    .evaluateAll((rows) => rows.map((row) => row.getAttribute("data-focus")));
-  expect(rowFocus.slice(0, 3), "focus mode did not isolate the current rendered row").toEqual([
-    "context",
-    "target",
-    "context",
-  ]);
+  await expect
+    .poll(
+      () =>
+        page
+          .locator(".md-editor table tr")
+          .evaluateAll((rows) => rows.slice(0, 3).map((row) => row.getAttribute("data-focus"))),
+      { message: "focus mode did not isolate the current rendered row" },
+    )
+    .toEqual(["context", "target", "context"]);
 });
 
 test("option+up walks back the same way", async ({ page }) => {
