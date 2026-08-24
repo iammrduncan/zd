@@ -3,7 +3,11 @@ import { dirname, relative, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { getPublicDocs } from "../../../../website/lib/docs";
+import {
+  getPublicDoc,
+  getPublicDocStaticSlugs,
+  getPublicDocs,
+} from "../../../../website/lib/docs";
 
 const ROOT = resolve(process.cwd());
 const DOC_AREAS = [
@@ -21,6 +25,7 @@ const PUBLIC_PAGES = [
   "docs/README.md",
   "docs/user-facing-docs/README.md",
   "docs/user-facing-docs/tutorials/first-workbench.md",
+  "docs/user-facing-docs/tutorials/read-and-review-markdown.md",
   "docs/user-facing-docs/how-to/install-macos.md",
   "docs/user-facing-docs/how-to/install-windows.md",
   "docs/user-facing-docs/how-to/manage-projects-and-threads.md",
@@ -31,7 +36,6 @@ const PUBLIC_PAGES = [
   "docs/user-facing-docs/reference/cli.md",
   "docs/user-facing-docs/reference/shortcuts.md",
   "docs/user-facing-docs/explanation/architecture.md",
-  "docs/user-facing-docs/explanation/markdown-reading-surface.md",
   "docs/user-facing-docs/explanation/why-zd-is-minimal.md",
 ];
 const CONTRIBUTOR_PAGES = [
@@ -106,7 +110,7 @@ describe("the repository documentation map", () => {
     expect(readme).toContain("docs/user-facing-docs/how-to/inspect-changes.md");
     expect(readme).toContain("docs/user-facing-docs/reference/cli.md");
     expect(readme).toContain("docs/user-facing-docs/explanation/architecture.md");
-    expect(readme).toContain("docs/user-facing-docs/explanation/markdown-reading-surface.md");
+    expect(readme).toContain("docs/user-facing-docs/tutorials/read-and-review-markdown.md");
     expect(readme).toContain("CONTRIBUTING.md");
   });
 
@@ -259,7 +263,7 @@ describe("the repository documentation map", () => {
   it("covers the complete Markdown reading and review workflow", () => {
     const review = page("docs/user-facing-docs/how-to/review-markdown-with-comments.md");
     const screenshots = page("docs/user-facing-docs/how-to/paste-screenshots.md");
-    const reading = page("docs/user-facing-docs/explanation/markdown-reading-surface.md");
+    const reading = page("docs/user-facing-docs/tutorials/read-and-review-markdown.md");
     const fit = page("docs/user-facing-docs/explanation/why-zd-is-minimal.md");
     const website = page("packages/website/app/page.tsx");
     const websiteLayout = page("packages/website/app/layout.tsx");
@@ -269,6 +273,11 @@ describe("the repository documentation map", () => {
     expect(screenshots).toContain("docs/screenshots");
     expect(screenshots).toContain("16 MiB");
     expect(reading).toContain("directly editable");
+    expect(reading).toContain("Cmd+Shift+F");
+    expect(reading).toContain("Option+Down");
+    expect(reading).toContain("Option+Up");
+    expect(reading).toContain("Add comment");
+    expect(reading).toContain("zd-feedback.txt");
     expect(reading).toContain("Raw Mode");
     expect(reading).toContain("Typewriter Mode");
     expect(fit).toContain("daily driver");
@@ -278,12 +287,25 @@ describe("the repository documentation map", () => {
     expect(websiteLayout).toContain("https://discord.gg/3Qs2uejUf9");
   });
 
+  it("keeps the old Markdown reader URL as an unlisted compatibility path", () => {
+    const oldSlug = ["explanation", "markdown-reading-surface"];
+    const canonical = getPublicDoc(["tutorials", "read-and-review-markdown"]);
+    const compatibility = getPublicDoc(oldSlug);
+    const published = getPublicDocs().map((doc) => doc.slug.join("/"));
+    const staticSlugs = getPublicDocStaticSlugs().map((slug) => slug.join("/"));
+
+    expect(canonical).toBeDefined();
+    expect(compatibility?.href).toBe("/docs/tutorials/read-and-review-markdown/");
+    expect(staticSlugs).toContain(oldSlug.join("/"));
+    expect(published).not.toContain(oldSlug.join("/"));
+  });
+
   it("uses full homepage navigations for published docs and links the maintainer profiles", () => {
     const website = page("packages/website/app/page.tsx");
     const websiteLayout = page("packages/website/app/layout.tsx");
 
     for (const href of [
-      "/docs/explanation/markdown-reading-surface/",
+      "/docs/tutorials/read-and-review-markdown/",
       "/docs/how-to/manage-projects-and-threads/",
       "/docs/explanation/architecture/",
       "/docs/explanation/why-zd-is-minimal/",

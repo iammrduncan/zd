@@ -70,8 +70,8 @@ export default function Home() {
             </figcaption>
           </figure>
         </div>
-        <a className="text-link" href="/docs/explanation/markdown-reading-surface/">
-          Explore the Markdown surface <span aria-hidden="true">→</span>
+        <a className="text-link" href="/docs/tutorials/read-and-review-markdown/">
+          Learn the Markdown reader <span aria-hidden="true">→</span>
         </a>
       </section>
 

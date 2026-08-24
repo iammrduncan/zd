@@ -59,7 +59,7 @@ sound, desktop notifications, and local diagnostics are off by default.
 | If you want to… | Start here |
 | --- | --- |
 | Learn the core project, thread, file, and Git loop | [Start your first workbench](docs/user-facing-docs/tutorials/first-workbench.md) |
-| Understand rendered, directly editable Markdown | [The Markdown reading surface](docs/user-facing-docs/explanation/markdown-reading-surface.md) |
+| Learn to read, edit, and review rendered Markdown | [Read and review Markdown](docs/user-facing-docs/tutorials/read-and-review-markdown.md) |
 | Leave a precise Markdown review handoff | [Review Markdown with comments](docs/user-facing-docs/how-to/review-markdown-with-comments.md) |
 | Paste a clipboard image into a document | [Paste a screenshot](docs/user-facing-docs/how-to/paste-screenshots.md) |
 | Organize projects and terminal threads | [Manage projects and threads](docs/user-facing-docs/how-to/manage-projects-and-threads.md) |

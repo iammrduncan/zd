@@ -47,5 +47,5 @@ Comments are stored locally for the project and worktree. Moving only `zd-feedba
 handoff text, not the inline tags. Line references record the selection at the time you added the
 comment, so check them after reorganizing the document.
 
-See [The Markdown reading surface](../explanation/markdown-reading-surface.md) for how rendered
-Markdown remains directly editable.
+Start with [Read and review Markdown](../tutorials/read-and-review-markdown.md) to learn the complete
+focused reading and commenting loop.
