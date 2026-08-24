@@ -1,6 +1,8 @@
 import currentLightSource from "./builtins/current-light.theme.config?raw";
 import darkSource from "./builtins/dark.theme.config?raw";
 import draculaSource from "./builtins/dracula.theme.config?raw";
+import draculaLicense from "./builtins/dracula.LICENSE?raw";
+import homebrewSource from "./builtins/homebrew.theme.config?raw";
 
 import {
   THEME_COLOUR_ROLES,
@@ -19,6 +21,7 @@ export interface ThemeDefinition {
   readonly source: string;
   readonly config: ThemeConfigV1;
   readonly builtIn: boolean;
+  readonly licenseNotice?: string;
 }
 
 export interface ThemeConfigSource {
@@ -37,16 +40,29 @@ export interface ThemeCatalog {
   readonly notices: readonly ThemeNotice[];
 }
 
-function builtIn(id: string, fileName: string, source: string): ThemeDefinition {
+function builtIn(
+  id: string,
+  fileName: string,
+  source: string,
+  licenseNotice?: string,
+): ThemeDefinition {
   const parsed = parseThemeConfig(source, fileName);
   if (!parsed.ok) throw new Error(`invalid built-in theme: ${parsed.problem}`);
-  return Object.freeze({ id, fileName, source, config: parsed.value, builtIn: true });
+  return Object.freeze({
+    id,
+    fileName,
+    source,
+    config: parsed.value,
+    builtIn: true,
+    ...(licenseNotice ? { licenseNotice } : {}),
+  });
 }
 
 export const BUILT_IN_THEMES = Object.freeze([
   builtIn("current-light", "current-light.theme.config", currentLightSource),
   builtIn("dark", "dark.theme.config", darkSource),
-  builtIn("dracula", "dracula.theme.config", draculaSource),
+  builtIn("dracula", "dracula.theme.config", draculaSource, draculaLicense),
+  builtIn("homebrew", "homebrew.theme.config", homebrewSource),
 ]);
 
 const THEME_FILE = /^([a-z0-9][a-z0-9_-]{0,63})\.theme\.config$/i;
