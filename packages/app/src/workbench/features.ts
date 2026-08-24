@@ -104,6 +104,7 @@ function threadsNavigationMount(
       context.platform.revealDiagnostics,
       attention,
       context.transients,
+      context.state,
     );
     return () => {
       stopSettings();

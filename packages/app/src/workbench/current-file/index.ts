@@ -5,16 +5,21 @@ import {
   type ClipboardImage,
   type MountedEditorBuffer,
 } from "@/editor";
+import { setGranularity } from "@/editor/focus";
 import { screenshotLink } from "./clipboard-image";
 import { closeConfirmation } from "./close-confirmation";
 import { FileDraftStore } from "./drafts";
 import { reconcile, saveWouldClobber } from "./reconcile";
 import type { FileStamp } from "@/platform";
 import type { FileResource } from "../resources";
-import { setWordWrap, wordWrap } from "../preferences";
+import { setWordWrap } from "../preferences";
 import type { Unmount, WorkbenchRuntimeContext } from "../runtime";
 import { register, registerCommandTarget } from "../shortcuts";
 import type { TransitionRecovery, WorkbenchState } from "../state";
+import {
+  workbenchSettingsPreferences,
+  type WorkbenchSettingsPreferences,
+} from "../settings-preferences";
 import "./styles.css";
 
 export interface MountCurrentFileOptions {
@@ -61,6 +66,22 @@ export async function mountCurrentFile(
   const surface = document.createElement("div");
   surface.className = "current-file";
   host.replaceChildren(surface);
+
+  const applyReadingSettings = (preferences: WorkbenchSettingsPreferences): void => {
+    const editor = mounted?.editor;
+    if (!editor) return;
+    if (editor.isFocusMode() !== preferences.reading.focus) editor.toggleFocus();
+    if (editor.isTypewriter() !== preferences.reading.typewriter) editor.toggleTypewriter();
+    if (editor.isWrapped() !== preferences.reading.wordWrap) editor.toggleWrap();
+    const column = surface.querySelector<HTMLElement>(".md-editor");
+    if (column) setGranularity(column, preferences.reading.granularity);
+  };
+  const onSettingsChange = (event: Event) => {
+    applyReadingSettings(
+      (event as CustomEvent<WorkbenchSettingsPreferences>).detail ?? workbenchSettingsPreferences(),
+    );
+  };
+  window.addEventListener("zd-workbench-settings-change", onSettingsChange);
 
   const showNotice = (
     message: string,
@@ -154,7 +175,7 @@ export async function mountCurrentFile(
     const acceptsPastedImages =
       buffer.editable && (buffer.language.markdown || buffer.language.id === "plain-text");
     mounted = mountEditorBuffer(content, buffer, {
-      wrap: wordWrap(),
+      wrap: workbenchSettingsPreferences().reading.wordWrap,
       onSave: async (text) => {
         const save = context.instrumentation.startSpan("file.save", diagnosticContext);
         if (!active || openedGeneration !== generation) {
@@ -229,6 +250,7 @@ export async function mountCurrentFile(
     notice.setAttribute("role", "status");
     notice.setAttribute("aria-live", "polite");
     surface.append(notice);
+    applyReadingSettings(workbenchSettingsPreferences());
     if (focus) mounted.focus();
   };
 
@@ -481,6 +503,7 @@ export async function mountCurrentFile(
     reconciliation += 1;
     host.removeEventListener("focus", focusCurrentFile);
     window.removeEventListener("focus", onFocus);
+    window.removeEventListener("zd-workbench-settings-change", onSettingsChange);
     stopClose();
     confirmation.dismiss();
     stopState();

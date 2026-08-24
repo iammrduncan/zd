@@ -623,7 +623,8 @@ command.
 The Shortcut Reference is a compact editable table over the same registry. It never becomes a
 second hand-maintained shortcut inventory. Platform-correct key notation, the action name, and reset
 state use fixed columns with a dense row rhythm. Selecting a binding records a replacement
-immediately and reports conflicts in the surface; Settings reuses the same editor.
+immediately and reports conflicts in the surface. Shortcut editing belongs only to this Reference;
+Settings does not duplicate it.
 
 ## 15. Settings
 
@@ -642,10 +643,11 @@ Initial groups are:
    region sizes.
 4. **Attention:** desktop notification behavior, global sound off/on, per-agent sound, mute.
 5. **Diagnostics:** instrumentation off/on, storage location, retention, reveal diagnostics.
-6. **Shortcuts:** current bindings, editable window bindings, and native global registration state.
-   Capturing a new binding refuses conflicts, applies immediately, persists locally, and offers a
-   reset to the registered default. Native global bindings remain operating-system managed and do
-   not pretend to be editable.
+
+Shortcut bindings are edited only in the Shortcut Reference opened with `[h]`. Capturing a new
+binding refuses conflicts, applies immediately, persists locally, and offers a reset only when the
+binding differs from its registered default. Native global bindings remain operating-system managed
+and do not pretend to be editable.
 
 Choice controls are inline words. Continuous values use a minimal hairline track plus text value.
 Toggles use `on` and `off`. Active values use weight, underline, and accessible selected state.

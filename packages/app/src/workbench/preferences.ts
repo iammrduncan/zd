@@ -6,6 +6,7 @@ import {
   type SupportedAttentionAgent,
 } from "@/notifications";
 import type { Chord } from "./shortcuts";
+import { forgetWorkbenchSettingsPreferences } from "./settings-preferences";
 
 /**
  * Durable workbench preferences.
@@ -255,4 +256,5 @@ export function setProjectExpanded(projectId: string, expanded: boolean): void {
  */
 export function forgetPreferences(): void {
   session.clear();
+  forgetWorkbenchSettingsPreferences();
 }
