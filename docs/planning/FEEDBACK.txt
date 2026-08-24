@@ -3,6 +3,13 @@
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
 === Feedback Addressed ===
+review hotkeys, make sure they make sense.
+add hotkeys for next/previous project
+add hotkey to start new thread in current open project.
+validate performance and memory pressure, document this under docs/planning/performance.md and show how large binary is, how large memory it takes with multiple projects and threads open, cpu usage, etc...
+capture screenshots for website and updated website based on new functionality and features. I want to see a stacking photo showing the 3 themes with windows layered/tiled with each other. terminals open running agents, etc. look at herdr, warp, zed etc on their websites for examples of good stuff.
+update user-facing-docs... use your write-docs skill
+prepare all stuff for us to cut a v0.2.0 release with all these features, and update changelog.
 when working with multiple projects it should basically save this as a workspace setup.
 when launching zd without a path argument it should open to a project selection, or open folder, where it shows recent projects/workspaces opened.
 when dragging a file or files it should show a line, and expand folders etc on hover before release to allow showing where the file will land.
