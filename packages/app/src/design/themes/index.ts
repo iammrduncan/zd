@@ -66,6 +66,7 @@ export const BUILT_IN_THEMES = Object.freeze([
 ]);
 
 const THEME_FILE = /^([a-z0-9][a-z0-9_-]{0,63})\.theme\.config$/i;
+const RESERVED_THEME_IDS = new Set(["system", "workbench"]);
 
 function externalId(fileName: string): string | null {
   return THEME_FILE.exec(fileName)?.[1]?.toLowerCase() ?? null;
@@ -80,6 +81,10 @@ export function loadThemeCatalog(sources: readonly ThemeConfigSource[]): ThemeCa
     const id = externalId(source.fileName);
     if (!id) {
       notices.push({ source: source.fileName, problem: "theme file has an unsafe name" });
+      continue;
+    }
+    if (RESERVED_THEME_IDS.has(id)) {
+      notices.push({ source: source.fileName, problem: `theme id ${id} is reserved` });
       continue;
     }
     if (source.problem || source.contents == null) {

@@ -137,6 +137,21 @@ describe("validated theme configuration", () => {
     ]);
   });
 
+  it("rejects custom ids reserved for system following and surface inheritance", () => {
+    const source = sourceFromCurrent();
+    const catalog = loadThemeCatalog([
+      { fileName: "system.theme.config", contents: source },
+      { fileName: "workbench.theme.config", contents: source },
+    ]);
+
+    expect(catalog.themes.has("system")).toBe(false);
+    expect(catalog.themes.has("workbench")).toBe(false);
+    expect(catalog.notices.map(({ problem }) => problem)).toEqual([
+      "theme id system is reserved",
+      "theme id workbench is reserved",
+    ]);
+  });
+
   it("falls back to the last valid theme, then Current Light", () => {
     const root = document.createElement("div");
     const catalog = loadThemeCatalog([]);

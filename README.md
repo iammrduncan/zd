@@ -46,7 +46,7 @@ creates it on the first successful save.
 - Project-scoped terminal threads for a shell, Codex, Claude Code, or OpenCode workflow.
 - A compact file tree, common code/configuration editing, and bounded large-file states.
 - Read-only Git status, commit history, revision comparison, and file diffs.
-- Current Light, Dark, Dracula, and validated local theme files.
+- Current Light, Dark, Dracula, Homebrew, validated local theme files, and per-surface overrides.
 - A global quick-access shortcut that reuses the running workbench.
 - Optional local diagnostics. Desktop completion notifications and sounds are opt-in and currently
   available on macOS.

@@ -2,12 +2,9 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { parseThemeConfig } from "@/design/themes";
 
-import {
-  getPublicDoc,
-  getPublicDocStaticSlugs,
-  getPublicDocs,
-} from "../../../../website/lib/docs";
+import { getPublicDoc, getPublicDocStaticSlugs, getPublicDocs } from "../../../../website/lib/docs";
 
 const ROOT = resolve(process.cwd());
 const DOC_AREAS = [
@@ -33,8 +30,10 @@ const PUBLIC_PAGES = [
   "docs/user-facing-docs/how-to/paste-screenshots.md",
   "docs/user-facing-docs/how-to/inspect-changes.md",
   "docs/user-facing-docs/how-to/develop.md",
+  "docs/user-facing-docs/how-to/customize-themes.md",
   "docs/user-facing-docs/reference/cli.md",
   "docs/user-facing-docs/reference/shortcuts.md",
+  "docs/user-facing-docs/reference/theme-config.md",
   "docs/user-facing-docs/explanation/architecture.md",
   "docs/user-facing-docs/explanation/why-zd-is-minimal.md",
 ];
@@ -211,6 +210,34 @@ describe("the repository documentation map", () => {
     for (const path of PUBLIC_PAGES.slice(3)) {
       expect(hub).toContain(path.replace(/^docs\/user-facing-docs\//, ""));
     }
+  });
+
+  it("documents theme selection, per-surface overrides, and the complete config contract", () => {
+    const hub = page("docs/user-facing-docs/README.md");
+    const guide = page("docs/user-facing-docs/how-to/customize-themes.md");
+    const reference = page("docs/user-facing-docs/reference/theme-config.md");
+
+    expect(hub).toContain("how-to/customize-themes.md");
+    expect(hub).toContain("reference/theme-config.md");
+    for (const surface of [
+      "Threads",
+      "Projects panel",
+      "Code",
+      "Markdown",
+      "File panel",
+      "Settings / Meta",
+    ]) {
+      expect(guide).toContain(surface);
+    }
+    expect(guide).toContain("workbench theme");
+    expect(guide).toContain(".theme.config");
+    expect(reference).toContain("65,536 bytes");
+    expect(reference).toContain("schemaVersion");
+    expect(reference).toContain("surface.canvas");
+    expect(reference).toContain("punctuation");
+    const example = /```json\n([\s\S]+?)\n```/u.exec(reference)?.[1];
+    expect(example).toBeDefined();
+    expect(parseThemeConfig(example!, "documented.theme.config").ok).toBe(true);
   });
 
   it("publishes the canonical user documentation instead of keeping a website copy", () => {
