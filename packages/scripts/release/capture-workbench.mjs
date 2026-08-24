@@ -14,6 +14,8 @@ const SIDE_BY_SIDE = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-si
 const DARK = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-dark.png");
 const DRACULA = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-dracula.png");
 const READER = resolve(ROOT, "docs/user-facing-docs/assets/zd-reader.jpeg");
+const READER_DARK = resolve(ROOT, "docs/user-facing-docs/assets/zd-reader-dark.png");
+const READER_DRACULA = resolve(ROOT, "docs/user-facing-docs/assets/zd-reader-dracula.png");
 const COMMENTS = resolve(ROOT, "docs/user-facing-docs/assets/zd-comments.png");
 
 async function waitForServer() {
@@ -133,7 +135,52 @@ try {
   await page.locator('[data-file-path="README.md"]').click();
   await page.locator(".current-file-path:visible", { hasText: "README.md" }).waitFor();
   await page.locator(".zd-file-surface .cm-line:visible").first().waitFor();
+
+  await page.evaluate(() => {
+    globalThis.workbenchDocumentationFixture.setCentreMode("overlap");
+  });
+  const chrome = page.locator(".zd-window-drag-region");
+  await chrome.getByRole("button", { name: "Show or hide Projects" }).click();
+  await chrome.getByRole("button", { name: "Show or hide Files and Changes" }).click();
+  await page
+    .locator(
+      '.zd-workbench[data-threads-visibility="hidden"][data-files-visibility="hidden"][data-centre-mode="overlap"]',
+    )
+    .waitFor();
+  await page.evaluate(() => {
+    globalThis.workbenchDocumentationFixture.setCentreMode("overlap");
+  });
+  await page.locator('[data-centre-surface="file"]:visible').waitFor();
+
+  const focusLine = page.locator(".current-file .cm-line:visible", {
+    hasText: "Review in context",
+  });
+  await focusLine.click();
+  await page.evaluate(() => {
+    globalThis.workbenchDocumentationFixture.setFocusMode(true);
+  });
+  await page
+    .locator('.current-file .md-editor[data-focus-mode="true"]')
+    .waitFor({ state: "attached" });
+  await page.locator(".current-file .cm-line:visible").first().waitFor();
   await page.screenshot({ path: READER, animations: "disabled", quality: 92 });
+
+  await page.evaluate(() => {
+    globalThis.workbenchDocumentationFixture.setTheme("dark");
+  });
+  await page.locator('html[data-theme-name="dark"]').waitFor();
+  await page.screenshot({ path: READER_DARK, animations: "disabled" });
+
+  await page.evaluate(() => {
+    globalThis.workbenchDocumentationFixture.setTheme("dracula");
+  });
+  await page.locator('html[data-theme-name="dracula"]').waitFor();
+  await page.screenshot({ path: READER_DRACULA, animations: "disabled" });
+
+  await page.evaluate(() => {
+    globalThis.workbenchDocumentationFixture.setTheme("current-light");
+  });
+  await page.locator('html[data-theme-name="current-light"]').waitFor();
 
   const editor = page.locator(".current-file .cm-content:visible");
   await editor.click();
@@ -150,6 +197,8 @@ try {
   console.log(`captured ${DRACULA}`);
   console.log(`captured ${SIDE_BY_SIDE}`);
   console.log(`captured ${READER}`);
+  console.log(`captured ${READER_DARK}`);
+  console.log(`captured ${READER_DRACULA}`);
   console.log(`captured ${COMMENTS}`);
 } catch (cause) {
   if (serverOutput.trim()) console.error(serverOutput.trim());

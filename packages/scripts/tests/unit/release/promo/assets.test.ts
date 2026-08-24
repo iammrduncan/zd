@@ -11,6 +11,8 @@ const DARK = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-dark.png")
 const DRACULA = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-dracula.png");
 const SOCIAL_CARD = resolve(ROOT, "docs/user-facing-docs/assets/zd-social-card.png");
 const READER = resolve(ROOT, "docs/user-facing-docs/assets/zd-reader.jpeg");
+const READER_DARK = resolve(ROOT, "docs/user-facing-docs/assets/zd-reader-dark.png");
+const READER_DRACULA = resolve(ROOT, "docs/user-facing-docs/assets/zd-reader-dracula.png");
 const COMMENTS = resolve(ROOT, "docs/user-facing-docs/assets/zd-comments.png");
 
 function pngDimensions(path: string) {
@@ -49,11 +51,23 @@ describe("the workbench promotional kit", () => {
       resolve(ROOT, "packages/scripts/release/capture-workbench.mjs"),
       "utf8",
     );
+    const fixture = readFileSync(resolve(ROOT, "packages/app/src/workbench/fixture.ts"), "utf8");
 
     expect(existsSync(READER)).toBe(true);
+    expect(existsSync(READER_DARK)).toBe(true);
+    expect(existsSync(READER_DRACULA)).toBe(true);
     expect(existsSync(COMMENTS)).toBe(true);
     expect(capture).toContain("zd-reader.jpeg");
+    expect(capture).toContain("zd-reader-dark.png");
+    expect(capture).toContain("zd-reader-dracula.png");
+    expect(capture).toContain('name: "Show or hide Projects"');
+    expect(capture).toContain('name: "Show or hide Files and Changes"');
+    expect(capture).toContain("setFocusMode(true)");
+    expect(capture).toContain('data-focus-mode="true"');
+    expect(fixture).toContain("setFocusMode(enabled: boolean)");
     expect(capture).toContain("zd-comments.png");
+    expect(pngDimensions(READER_DARK)).toEqual({ width: 1440, height: 900 });
+    expect(pngDimensions(READER_DRACULA)).toEqual({ width: 1440, height: 900 });
     expect(pngDimensions(COMMENTS)).toEqual({ width: 1440, height: 900 });
   });
 
@@ -82,8 +96,8 @@ describe("the workbench promotional kit", () => {
     expect(existsSync(SOCIAL_CARD)).toBe(true);
     expect(pngDimensions(SOCIAL_CARD)).toEqual({ width: 1200, height: 630 });
     expect(manifest.scripts["promo:render"]).toContain("render-social-card.swift");
-    expect(manifest.scripts["promo:render"]).toContain("zd-workbench-dark.png");
-    expect(manifest.scripts["promo:render"]).toContain("zd-workbench-dracula.png");
+    expect(manifest.scripts["promo:render"]).toContain("zd-reader-dark.png");
+    expect(manifest.scripts["promo:render"]).toContain("zd-reader-dracula.png");
     expect(renderer).toContain("Markdown, rendered and editable.");
     expect(renderer).toContain('"CURRENT LIGHT"');
     expect(renderer).toContain('"DARK"');
