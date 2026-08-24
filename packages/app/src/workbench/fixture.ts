@@ -8,6 +8,7 @@ import type { TerminalOutputBatch, TerminalSessionHandle } from "@/terminal";
 import { bootWorkbench } from "./boot";
 import { mountWorkbenchFeatures } from "./features";
 import type { ProjectGrant } from "./resources";
+import { runCommandTarget } from "./shortcuts";
 import type { CentreMode } from "./state";
 
 const projects: readonly ProjectGrant[] = [
@@ -564,6 +565,19 @@ void bootWorkbench(host, platform, async (mountHost, context) => {
         centre: { ...regions.centre, mode, split: 0.46 },
         focus: "file",
       });
+    },
+    setFocusMode(enabled: boolean) {
+      const editor = document.querySelector<HTMLElement>(
+        '[data-centre-surface="file"]:not([hidden]) .md-editor',
+      );
+      if (!editor) throw new Error("The visible file surface has no Markdown editor");
+      if (editor.dataset.focusMode === String(enabled)) return;
+      if (!runCommandTarget("focus.toggle")) {
+        throw new Error("The visible Markdown editor did not accept Focus Mode");
+      }
+      if (editor.dataset.focusMode !== String(enabled)) {
+        throw new Error("The visible Markdown editor did not reach the requested Focus Mode state");
+      }
     },
     createFile(relativePath: string) {
       if (fileEntries.some((entry) => entry.relativePath === relativePath)) return;
