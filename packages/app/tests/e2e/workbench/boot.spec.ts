@@ -8,12 +8,13 @@ test("boots the styled workbench at the root route", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle("zd");
 
-  const surface = page.locator('[data-centre-surface="file"] > .current-file');
-  await expect(surface, "the root route did not mount the current-file owner").toBeVisible();
-  await expect(surface.locator(".zd-region-empty")).toContainText("No file selected.");
+  const surface = page.locator('[data-centre-surface="home"] > .zd-workspace-home');
+  await expect(surface, "the root route did not mount the project selector").toBeVisible();
+  await expect(surface.getByRole("heading", { name: "Open a project" })).toBeVisible();
+  await expect(surface.getByRole("button", { name: "Open Folder…" })).toBeVisible();
 
   const styled = await surface.evaluate((element) => {
-    const notice = element.querySelector<HTMLElement>(".zd-region-empty")!;
+    const notice = element.querySelector<HTMLElement>("p")!;
     const tokenProbe = document.createElement("div");
     tokenProbe.style.background = "var(--surface-canvas)";
     document.body.append(tokenProbe);
@@ -27,17 +28,17 @@ test("boots the styled workbench at the root route", async ({ page }) => {
     };
   });
   expect(styled.background, "the workbench canvas token was not applied").toBe(styled.canvas);
-  expect(styled.height, "the file surface did not fill the app window").toBeGreaterThan(0);
+  expect(styled.height, "the project selector did not fill the app window").toBeGreaterThan(0);
   expect(styled.noticeFamily).toContain("iA Writer Quattro");
 
   const [surfaceBox, emptyBox] = await Promise.all([
     surface.boundingBox(),
-    surface.locator(".zd-region-empty").boundingBox(),
+    surface.getByRole("heading", { name: "Open a project" }).boundingBox(),
   ]);
   expect(surfaceBox).not.toBeNull();
   expect(emptyBox).not.toBeNull();
-  expect(emptyBox!.x + emptyBox!.width / 2).toBeCloseTo(surfaceBox!.x + surfaceBox!.width / 2, 0);
-  expect(emptyBox!.y + emptyBox!.height / 2).toBeCloseTo(surfaceBox!.y + surfaceBox!.height / 2, 0);
+  expect(emptyBox!.x).toBeCloseTo(surfaceBox!.x, 0);
+  expect(emptyBox!.y).toBeGreaterThan(surfaceBox!.y);
 });
 
 test("applies the workbench design tokens rather than browser defaults", async ({ page }) => {

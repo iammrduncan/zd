@@ -31,6 +31,7 @@ import {
   type FileResource,
   type LaunchRequest,
   type ProjectGrant,
+  type RecentWorkspace,
 } from "@/workbench/resources";
 
 /**
@@ -152,6 +153,12 @@ export interface Platform {
   acceptOpenRequest(): Promise<LaunchRequest | null>;
   /** All roots approved by native launch/open/picker/worktree flows. */
   projectGrants(): Promise<readonly ProjectGrant[]>;
+  /** Recent native-owned single-project and multi-project workspace setups. */
+  recentWorkspaces(): Promise<readonly RecentWorkspace[]>;
+  /** Persist the ordered set of already-approved project identities as one setup. */
+  saveWorkspace(projectIds: readonly string[]): Promise<RecentWorkspace>;
+  /** Reapprove the native roots behind one previously issued workspace identity. */
+  openWorkspace(workspaceId: string): Promise<readonly ProjectGrant[]>;
   /** Open the native folder picker and mint or reuse one canonical project grant. */
   chooseProject(): Promise<ProjectGrant | null>;
   /** Locate an unavailable project through the native picker without changing its identity. */
@@ -279,6 +286,10 @@ const tauri: Platform = {
   pendingOpenRequest: () => invoke<LaunchRequest | null>("pending_open_request"),
   acceptOpenRequest: () => invoke<LaunchRequest | null>("accept_open_request"),
   projectGrants: () => invoke<readonly ProjectGrant[]>("project_grants"),
+  recentWorkspaces: () => invoke<readonly RecentWorkspace[]>("recent_workspaces"),
+  saveWorkspace: (projectIds) => invoke<RecentWorkspace>("save_workspace", { projectIds }),
+  openWorkspace: (workspaceId) =>
+    invoke<readonly ProjectGrant[]>("open_workspace", { workspaceId }),
   chooseProject: () => invoke<ProjectGrant | null>("choose_project"),
   recoverProjectGrant: (projectId) =>
     invoke<ProjectGrant | null>("recover_project_grant", { projectId }),
@@ -466,6 +477,13 @@ const browser: Platform = {
   pendingOpenRequest: async () => null,
   acceptOpenRequest: async () => null,
   projectGrants: async () => [],
+  recentWorkspaces: async () => [],
+  saveWorkspace: async () => {
+    throw new Error("workspace persistence requires the desktop shell");
+  },
+  openWorkspace: async () => {
+    throw new Error("recent workspaces require the desktop shell");
+  },
   chooseProject: async () => null,
   recoverProjectGrant: async () => null,
   createThreadWorktree: unavailableThreadWorktree,

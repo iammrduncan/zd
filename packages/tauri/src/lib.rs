@@ -20,6 +20,7 @@ mod quick_access;
 pub mod terminal;
 mod terminal_runtime;
 mod themes;
+mod workspaces;
 mod worktrees;
 
 #[cfg(target_os = "macos")]
@@ -70,7 +71,11 @@ pub fn run() {
         .manage(terminal_runtime::TerminalState::default())
         .setup(|app| {
             app.manage(notifications::NotificationState::new(app.handle().clone()));
-            let directory = app.path().app_config_dir()?.join("diagnostics");
+            let configuration = app.path().app_config_dir()?;
+            app.manage(workspaces::WorkspaceState::new(
+                configuration.join("workspaces-v1.json"),
+            ));
+            let directory = configuration.join("diagnostics");
             let diagnostics =
                 instrumentation::DiagnosticState::new(directory, env!("CARGO_PKG_VERSION"))
                     .map_err(std::io::Error::other)?;
@@ -82,6 +87,9 @@ pub fn run() {
             cli::project_grants,
             projects::choose_project,
             projects::recover_project_grant,
+            workspaces::recent_workspaces,
+            workspaces::save_workspace,
+            workspaces::open_workspace,
             cli::pending_open_request,
             cli::remove_project_grant,
             has_pending_open_request,

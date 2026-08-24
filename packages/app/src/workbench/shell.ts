@@ -195,6 +195,14 @@ export async function mountWorkbenchShell(
   centre.dataset.region = "centre";
   centre.setAttribute("aria-label", "Current content");
 
+  const homeSurface = document.createElement("section");
+  homeSurface.className = "zd-centre-surface zd-home-surface";
+  homeSurface.dataset.centreSurface = "home";
+  homeSurface.dataset.workbenchSlot = "home";
+  homeSurface.setAttribute("aria-label", "Open a project or workspace");
+  homeSurface.tabIndex = -1;
+  homeSurface.append(quietState("Choose a project to begin."));
+
   const threadSurface = document.createElement("section");
   threadSurface.className = "zd-centre-surface zd-thread-surface";
   threadSurface.dataset.centreSurface = "thread";
@@ -210,7 +218,7 @@ export async function mountWorkbenchShell(
   fileSurface.dataset.workbenchSlot = "file";
   fileSurface.setAttribute("aria-label", "Current file");
   fileSurface.tabIndex = -1;
-  centre.append(threadSurface, centreResizer, fileSurface);
+  centre.append(homeSurface, threadSurface, centreResizer, fileSurface);
 
   const filesResizer = separator("files");
   const files = document.createElement("aside");
@@ -264,7 +272,11 @@ export async function mountWorkbenchShell(
   const threadOwnsCentre = (regions: WorkbenchRegions) =>
     regions.focus === "thread" || regions.focus === "threads";
   const centreFocusTarget = (regions = context.state.snapshot().regions) =>
-    threadOwnsCentre(regions) ? threadSurface : fileSurface;
+    context.state.snapshot().projects.length === 0
+      ? homeSurface
+      : threadOwnsCentre(regions)
+        ? threadSurface
+        : fileSurface;
   let lastMeaningfulFocus: HTMLElement = centreFocusTarget();
   let lastProjectsVisibility =
     context.state.snapshot().regions.threads.visibility === "hidden"
@@ -278,17 +290,13 @@ export async function mountWorkbenchShell(
   };
   shell.addEventListener("focusin", rememberFocus);
 
-  const responsive = mountResponsiveRegions(
-    shell,
-    threads,
-    files,
-    filesTab,
-    centreFocusTarget,
-  );
+  const responsive = mountResponsiveRegions(shell, threads, files, filesTab, centreFocusTarget);
 
   const render = (state: WorkbenchState) => {
     regionState(shell, state);
     const { regions } = state;
+    const homeSelected = state.projects.length === 0;
+    shell.dataset.home = String(homeSelected);
     const filesSelected = regions.files.tab === "files";
     if (regions.threads.visibility !== "hidden") {
       lastProjectsVisibility = regions.threads.visibility;
@@ -302,9 +310,10 @@ export async function mountWorkbenchShell(
 
     const sideBySide = regions.centre.mode === "side-by-side";
     const threadSelected = threadOwnsCentre(regions);
-    threadSurface.hidden = !sideBySide && !threadSelected;
-    fileSurface.hidden = !sideBySide && threadSelected;
-    centreResizer.hidden = !sideBySide;
+    homeSurface.hidden = !homeSelected;
+    threadSurface.hidden = homeSelected || (!sideBySide && !threadSelected);
+    fileSurface.hidden = homeSelected || (!sideBySide && threadSelected);
+    centreResizer.hidden = homeSelected || !sideBySide;
 
     const active = document.activeElement;
     if (
@@ -457,6 +466,7 @@ export async function mountWorkbenchShell(
   let unmountRegions: Unmount;
   try {
     unmountRegions = await mountRegions(context, [
+      [homeSurface, mounts.home],
       [threadsPanel, mounts.threads],
       [threadSurface, mounts.thread],
       [fileSurface, mounts.file],

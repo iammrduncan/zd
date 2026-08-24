@@ -30,6 +30,14 @@ export interface LaunchRequest {
   readonly problem: string | null;
 }
 
+export interface RecentWorkspace {
+  readonly id: string;
+  readonly name: string;
+  readonly kind: "project" | "workspace";
+  readonly projectNames: readonly string[];
+  readonly lastOpened: number;
+}
+
 export function homeLaunch(): LaunchRequest {
   return { project: null, worktreeId: null, relativePath: null, problem: null };
 }

@@ -22,6 +22,7 @@ against approved grants; frontend callers do not supply arbitrary filesystem pat
 | [`file_tree_watch.rs`](file_tree_watch.rs) | Debounce native disk changes for one approved tree and emit path-free scope signals. |
 | [`git.rs`](git.rs) | Run the fixed read-only status, history, comparison, and diff operations. |
 | [`worktrees.rs`](worktrees.rs) | Create and approve one structured Git worktree without delete or prune authority. |
+| [`workspaces.rs`](workspaces.rs) | Persist bounded recent project sets and reopen their native-owned roots by opaque workspace ID. |
 | [`themes.rs`](themes.rs) | Discover bounded, direct-child theme configuration files. |
 | [`quick_access.rs`](quick_access.rs) | Own native summon registration and root-window presentation. |
 | [`instrumentation/`](instrumentation/) | Write, rotate, sample, and retain local opt-in diagnostics. |

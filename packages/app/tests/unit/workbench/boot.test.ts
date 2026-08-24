@@ -44,6 +44,15 @@ function stubPlatform(path: string | null = null): Platform {
     pendingOpenRequest: async () => null,
     acceptOpenRequest: async () => null,
     projectGrants: async () => [project],
+    recentWorkspaces: async () => [],
+    saveWorkspace: async () => ({
+      id: "workspace-test",
+      name: project.name,
+      kind: "project",
+      projectNames: [project.name],
+      lastOpened: 1,
+    }),
+    openWorkspace: async () => [project],
     chooseProject: async () => null,
     recoverProjectGrant: async () => null,
     removeProjectGrant: async () => project,
@@ -102,6 +111,30 @@ beforeEach(() => {
 });
 
 describe("one workbench boot", () => {
+  it("shows the project and workspace selector for a launch without a path", async () => {
+    const platform = stubPlatform();
+    platform.projectGrants = async () => [];
+    platform.recentWorkspaces = async () => [
+      {
+        id: "workspace-recent",
+        name: "work + notes",
+        kind: "workspace",
+        projectNames: ["work", "notes"],
+        lastOpened: 10,
+      },
+    ];
+    const host = document.createElement("div");
+
+    const teardown = await bootWorkbench(host, platform);
+
+    await vi.waitFor(() =>
+      expect(host.querySelector("[data-recent-workspace='workspace-recent']")).not.toBeNull(),
+    );
+    expect(host.querySelector("[data-open-project]")).not.toBeNull();
+    expect(host.querySelector<HTMLElement>(".zd-workbench")?.dataset.home).toBe("true");
+    teardown();
+  });
+
   it("does not construct diagnostic transport during an ordinary default-off boot", async () => {
     const platform = stubPlatform();
     platform.enableDiagnostics = vi.fn(platform.enableDiagnostics);

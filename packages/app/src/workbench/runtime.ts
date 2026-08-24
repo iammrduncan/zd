@@ -26,6 +26,7 @@ export type WorkbenchMount = (
 
 /** Optional feature mounts behind the shell's stable semantic region hosts. */
 export interface WorkbenchRegionMounts {
+  readonly home?: WorkbenchMount;
   readonly threads?: WorkbenchMount;
   readonly thread?: WorkbenchMount;
   readonly file: WorkbenchMount;

@@ -1,0 +1,93 @@
+.zd-workspace-home {
+  display: grid;
+  align-content: center;
+  inline-size: min(calc(100% - var(--space-5) - var(--space-5)), 34rem);
+  min-block-size: 100%;
+  margin-inline: auto;
+  padding-block: var(--space-5);
+  color: var(--text-primary);
+}
+
+.zd-workspace-home h1,
+.zd-workspace-home h2,
+.zd-workspace-home p {
+  margin: 0;
+}
+
+.zd-workspace-home h1 {
+  font-family: var(--type-h2-family);
+  font-size: var(--type-h2-size);
+  font-style: var(--type-h2-style);
+  font-weight: var(--type-h2-weight);
+  line-height: var(--type-h2-line);
+}
+
+.zd-workspace-home > p:first-of-type {
+  margin-block-start: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.zd-workspace-home-open {
+  justify-self: start;
+  margin-block: var(--space-5);
+  border: var(--hairline) solid var(--line-strong);
+  border-radius: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  font: inherit;
+}
+
+.zd-workspace-home h2 {
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  padding-block-end: var(--space-2);
+  color: var(--text-secondary);
+  font-family: var(--type-h6-family);
+  font-size: var(--type-h6-size);
+  font-style: var(--type-h6-style);
+  font-weight: var(--type-h6-weight);
+  line-height: var(--type-h6-line);
+  text-transform: uppercase;
+}
+
+.zd-workspace-home-recent {
+  display: grid;
+}
+
+.zd-workspace-home-recent-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  border: 0;
+  border-block-end: var(--hairline) solid var(--line-quiet);
+  border-radius: 0;
+  padding: var(--space-3) 0;
+  color: var(--text-primary);
+  background: transparent;
+  font: inherit;
+  text-align: start;
+}
+
+.zd-workspace-home-recent-row:is(:hover, :focus-visible),
+.zd-workspace-home-open:is(:hover, :focus-visible) {
+  outline: none;
+  color: var(--text-primary);
+  background: var(--surface-selection);
+}
+
+.zd-workspace-home-recent-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zd-workspace-home-recent-kind,
+.zd-workspace-home-empty,
+.zd-workspace-home-status {
+  color: var(--text-muted);
+}
+
+.zd-workspace-home-status:not(:empty) {
+  margin-block-start: var(--space-3);
+  color: var(--state-error);
+}

@@ -212,6 +212,28 @@ describe("the Tauri window boundary", () => {
     ]);
   });
 
+  it("persists and opens workspaces without accepting frontend roots", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    invoke.mockResolvedValue(null);
+    const platform = detectPlatform();
+
+    await platform.recentWorkspaces();
+    await platform.saveWorkspace(["project-a", "project-b"]);
+    await platform.openWorkspace("workspace-a");
+
+    expect(invoke.mock.calls).toEqual([
+      ["recent_workspaces"],
+      ["save_workspace", { projectIds: ["project-a", "project-b"] }],
+      ["open_workspace", { workspaceId: "workspace-a" }],
+    ]);
+    expect(invoke.mock.calls.flat()).not.toContainEqual(
+      expect.objectContaining({ root: expect.anything() }),
+    );
+  });
+
   it("treats project picking as unavailable in the browser shell", async () => {
     const platform = detectPlatform();
 
