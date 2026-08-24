@@ -78,6 +78,20 @@ test("the active project header remains visually distinct from its active thread
   expect(colours.project).not.toBe(colours.thread);
 });
 
+test("Mod+N starts a terminal thread in the active project", async ({ page }) => {
+  const primary = await page.evaluate(() =>
+    /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",
+  );
+  const project = page.locator('[data-project-id="project-notes"]');
+  await project.locator(".zd-project-row").click();
+
+  await page.keyboard.press(`${primary}+n`);
+
+  await expect(project.locator("[data-thread-id]", { hasText: "Terminal" })).toBeVisible();
+  await expect(project.locator('[data-thread-id][aria-current="true"]')).toContainText("Terminal");
+  await expect(page.locator('[data-project-id="project-zd"] [data-thread-id]')).toHaveCount(0);
+});
+
 test("thread status and type icons align with the title without entering its labels", async ({
   page,
 }) => {

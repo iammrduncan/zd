@@ -646,6 +646,12 @@ no invented default chord and remain assignable in Settings. Search treats white
 query words independently, so intent such as `theme dark` matches the displayed `Theme: Dark`
 command.
 
+Project navigation follows the vertical Projects hierarchy: `Cmd+Option+Up` / `Ctrl+Alt+Up`
+activates the previous project and `Cmd+Option+Down` / `Ctrl+Alt+Down` activates the next, wrapping
+at either end. `Cmd+N` / `Ctrl+N` starts an ordinary terminal thread at the active project's root.
+If fewer than two projects are open or the active project has no available workspace, the relevant
+command reports itself unavailable and the chord falls through.
+
 The Shortcut Reference is a compact editable table over the same registry. It never becomes a
 second hand-maintained shortcut inventory. Platform-correct key notation, the action name, and reset
 state use fixed columns with a dense row rhythm. Selecting a binding records a replacement

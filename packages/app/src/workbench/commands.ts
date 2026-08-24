@@ -17,6 +17,19 @@ function projectId(context: WorkbenchRuntimeContext, projectIndex: number): stri
   return context.state.snapshot().projects[projectIndex]?.id ?? null;
 }
 
+function relativeProjectId(context: WorkbenchRuntimeContext, direction: -1 | 1): string | null {
+  const state = context.state.snapshot();
+  if (state.projects.length < 2) return null;
+  const current = state.projects.findIndex(({ id }) => id === state.active.projectId);
+  const next =
+    current < 0
+      ? direction > 0
+        ? 0
+        : state.projects.length - 1
+      : (current + direction + state.projects.length) % state.projects.length;
+  return state.projects[next]?.id ?? null;
+}
+
 function updateRegionFocus(
   context: WorkbenchRuntimeContext,
   focus: WorkbenchRegions["focus"],
@@ -164,6 +177,40 @@ export function attachWorkbenchCommands(
   }
 
   cleanups.push(
+    register({
+      id: "project.previous",
+      category: "Projects/Threads",
+      chord: { key: "ArrowUp", mod: true, alt: true },
+      description: "Activate the previous project",
+      available: () => relativeProjectId(context, -1) !== null,
+      run: () => {
+        const target = relativeProjectId(context, -1);
+        if (!target) return false;
+        void context.state.activateProject(target);
+        return true;
+      },
+    }),
+    register({
+      id: "project.next",
+      category: "Projects/Threads",
+      chord: { key: "ArrowDown", mod: true, alt: true },
+      description: "Activate the next project",
+      available: () => relativeProjectId(context, 1) !== null,
+      run: () => {
+        const target = relativeProjectId(context, 1);
+        if (!target) return false;
+        void context.state.activateProject(target);
+        return true;
+      },
+    }),
+    register({
+      id: "thread.create",
+      category: "Projects/Threads",
+      chord: { key: "n", mod: true },
+      description: "Start a terminal thread in the active project",
+      available: () => commandTargetAvailable("thread.create"),
+      run: () => runCommandTarget("thread.create"),
+    }),
     register({
       id: "centre.toggle",
       category: "Workbench",
