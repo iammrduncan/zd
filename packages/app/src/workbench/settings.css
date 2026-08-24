@@ -109,6 +109,10 @@
   min-inline-size: 0;
 }
 
+.zd-settings-choices {
+  flex-wrap: wrap;
+}
+
 .zd-settings-choices button,
 .zd-settings-toggle {
   appearance: none;

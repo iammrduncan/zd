@@ -208,17 +208,26 @@ export function mountTerminalThreadSurface(
   const resizeObserver =
     typeof ResizeObserver === "undefined" ? null : new ResizeObserver(scheduleFit);
   resizeObserver?.observe(viewport);
-  const themeRoot = document.documentElement;
   const themeObserver =
     typeof MutationObserver === "undefined"
       ? null
       : new MutationObserver(() => {
           if (active) refreshTheme();
         });
-  themeObserver?.observe(themeRoot, {
-    attributes: true,
-    attributeFilter: ["style", "data-theme", "data-theme-name"],
-  });
+  if (themeObserver) {
+    const ancestors = new Set<HTMLElement>([document.documentElement]);
+    let ancestor = root.parentElement;
+    while (ancestor) {
+      ancestors.add(ancestor);
+      ancestor = ancestor.parentElement;
+    }
+    for (const element of ancestors) {
+      themeObserver.observe(element, {
+        attributes: true,
+        attributeFilter: ["style", "data-theme", "data-theme-name"],
+      });
+    }
+  }
 
   const openSearchPanel = () => {
     search.hidden = false;

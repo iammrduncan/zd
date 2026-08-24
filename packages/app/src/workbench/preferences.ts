@@ -32,6 +32,7 @@ const ATTENTION_MUTED = "zd.attentionMuted";
 const ATTENTION_VOLUME = "zd.attentionVolume";
 const SHORTCUT_BINDINGS = "zd.shortcutBindings.v1";
 const THEME_SELECTION = "zd.themeSelection.v1";
+const SURFACE_THEMES = "zd.surfaceThemes.v1";
 const THREAD_SECONDARY_LINE = "zd.threadSecondaryLine.v1";
 const PROJECT_DISCLOSURE = "zd.projectDisclosure.v1";
 
@@ -185,6 +186,53 @@ export function clearShortcutBinding(commandId: string): void {
 export interface ThemePreference {
   readonly selected: string;
   readonly lastValid: string;
+}
+
+export const SURFACE_THEME_IDS = [
+  "threads",
+  "panels",
+  "code",
+  "markdown",
+  "filePanel",
+  "meta",
+] as const;
+
+export type SurfaceThemeId = (typeof SURFACE_THEME_IDS)[number];
+export type SurfaceThemePreferences = Readonly<Partial<Record<SurfaceThemeId, string>>>;
+
+const SAFE_THEME_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
+
+/** Per-surface palette overrides. An absent key inherits the workbench theme. */
+export function surfaceThemePreferences(): SurfaceThemePreferences {
+  const stored = read(SURFACE_THEMES);
+  if (!stored) return {};
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const record = parsed as Record<string, unknown>;
+    return Object.fromEntries(
+      SURFACE_THEME_IDS.flatMap((surface) => {
+        const selection = record[surface];
+        return typeof selection === "string" && SAFE_THEME_ID.test(selection)
+          ? [[surface, selection]]
+          : [];
+      }),
+    );
+  } catch {
+    return {};
+  }
+}
+
+export function setSurfaceThemePreferences(preferences: SurfaceThemePreferences): void {
+  const safe = Object.fromEntries(
+    SURFACE_THEME_IDS.flatMap((surface) => {
+      const selection = preferences[surface];
+      return typeof selection === "string" && SAFE_THEME_ID.test(selection)
+        ? [[surface, selection]]
+        : [];
+    }),
+  );
+  write(SURFACE_THEMES, JSON.stringify(safe));
 }
 
 /** Durable theme identity; catalog validation still belongs to the theme owner. */

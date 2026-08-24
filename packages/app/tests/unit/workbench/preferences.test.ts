@@ -15,6 +15,8 @@ import {
   setWordWrap,
   shortcutBindings,
   setThemePreference,
+  setSurfaceThemePreferences,
+  surfaceThemePreferences,
   setThreadSecondaryLine,
   themePreference,
   threadSecondaryLine,
@@ -112,6 +114,34 @@ describe("theme selection", () => {
     forgetPreferences();
 
     expect(themePreference()).toEqual({ selected: "dark", lastValid: "dark" });
+  });
+
+  it("persists only safe theme overrides for known workbench surfaces", () => {
+    setSurfaceThemePreferences({
+      threads: "dracula",
+      panels: "homebrew",
+      code: "current-light",
+      markdown: "dark",
+      filePanel: "dracula",
+      meta: "homebrew",
+    });
+    forgetPreferences();
+
+    expect(surfaceThemePreferences()).toEqual({
+      threads: "dracula",
+      panels: "homebrew",
+      code: "current-light",
+      markdown: "dark",
+      filePanel: "dracula",
+      meta: "homebrew",
+    });
+
+    window.localStorage.setItem(
+      "zd.surfaceThemes.v1",
+      JSON.stringify({ threads: "https://bad.test", unknown: "dark", markdown: 12 }),
+    );
+    forgetPreferences();
+    expect(surfaceThemePreferences()).toEqual({});
   });
 });
 

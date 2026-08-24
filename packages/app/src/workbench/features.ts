@@ -130,6 +130,7 @@ function threadsNavigationMount(
       attention,
       context.transients,
       context.state,
+      context.themes,
     );
     return () => {
       stopSettings();

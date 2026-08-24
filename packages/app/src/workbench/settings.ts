@@ -4,7 +4,7 @@ import type { InstrumentationClient } from "@/instrumentation";
 import type { AttentionSettingsController } from "./attention";
 import { mountAttentionSettings } from "./attention";
 import { mountDiagnosticSettings } from "./diagnostics";
-import type { Unmount } from "./runtime";
+import type { Unmount, WorkbenchThemeRuntime } from "./runtime";
 import { registerCommandTarget } from "./shortcuts";
 import { TransientCoordinator } from "./transients";
 import type { WorkbenchStateOwner } from "./state";
@@ -16,6 +16,7 @@ import {
   workbenchSettingsPreferences,
   type WorkbenchSettingsPreferences,
 } from "./settings-preferences";
+import { SURFACE_THEME_OPTIONS } from "./surface-themes";
 
 function group(title: string): HTMLElement {
   const section = document.createElement("section");
@@ -124,6 +125,7 @@ export function mountWorkbenchSettings(
   attention: AttentionSettingsController,
   transients = new TransientCoordinator(),
   state?: WorkbenchStateOwner,
+  themes?: WorkbenchThemeRuntime,
 ): Unmount {
   let plane: HTMLElement | null = null;
   let stopControls: Unmount = () => {};
@@ -189,24 +191,25 @@ export function mountWorkbenchSettings(
     };
 
     const appearance = group("Appearance");
-    const theme = themePreference().selected;
+    const selectedTheme = themes?.globalSelection() ?? themePreference().selected;
+    const themeChoices =
+      themes?.choices.map(({ id, name }) => [id, name] as const) ??
+      ([
+        ["system", "System"],
+        ["light", "Light"],
+        ["dark", "Dark"],
+        ["dracula", "Dracula"],
+        ["homebrew", "Homebrew"],
+      ] as const);
     appearance.append(
       choices(
         "Theme",
-        [
-          ["system", "System"],
-          ["light", "Light"],
-          ["dark", "Dark"],
-          ["dracula", "Dracula"],
-        ] as const,
-        (theme === "current-light"
-          ? "light"
-          : theme === "dracula"
-            ? "dracula"
-            : theme === "dark"
-              ? "dark"
-              : "system") as Theme,
-        (selected) => setTheme(selected),
+        themeChoices,
+        themes ? selectedTheme : selectedTheme === "current-light" ? "light" : selectedTheme,
+        (selected) => {
+          if (themes) themes.setGlobalSelection(selected);
+          else setTheme(selected as Theme);
+        },
       ),
       range(
         "Warmth",
@@ -248,6 +251,24 @@ export function mountWorkbenchSettings(
           commit({ ...preferences, appearance: { ...preferences.appearance, headingScale } }),
       ),
     );
+    if (themes) {
+      const surfaceChoices = [
+        ["workbench", "Workbench"],
+        ...themes.choices
+          .filter(({ id }) => id !== "system")
+          .map(({ id, name }) => [id, name] as const),
+      ] as const;
+      for (const surface of SURFACE_THEME_OPTIONS) {
+        appearance.append(
+          choices(
+            `${surface.label} theme`,
+            surfaceChoices,
+            themes.surfaceSelection(surface.id),
+            (selected) => themes.setSurfaceSelection(surface.id, selected),
+          ),
+        );
+      }
+    }
 
     const reading = group("Reading");
     reading.append(
