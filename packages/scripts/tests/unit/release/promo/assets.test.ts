@@ -82,7 +82,12 @@ describe("the workbench promotional kit", () => {
     expect(existsSync(SOCIAL_CARD)).toBe(true);
     expect(pngDimensions(SOCIAL_CARD)).toEqual({ width: 1200, height: 630 });
     expect(manifest.scripts["promo:render"]).toContain("render-social-card.swift");
+    expect(manifest.scripts["promo:render"]).toContain("zd-workbench-dark.png");
+    expect(manifest.scripts["promo:render"]).toContain("zd-workbench-dracula.png");
     expect(renderer).toContain("Markdown, rendered and editable.");
+    expect(renderer).toContain('"CURRENT LIGHT"');
+    expect(renderer).toContain('"DARK"');
+    expect(renderer).toContain('"DRACULA"');
   });
 
   it("keeps honest release limits beside the public download guidance", () => {

@@ -33,7 +33,7 @@
     "install:macos": "bash packaging/macos/install.sh",
     "package:macos": "bash packaging/macos/package.sh",
     "promo:capture": "node packages/scripts/release/capture-workbench.mjs",
-    "promo:render": "swift packaging/macos/render-social-card.swift docs/user-facing-docs/assets/zd-workbench.png packaging/icon.png packages/app/assets/fonts/iAWriterQuattroV.ttf packages/app/assets/fonts/iAWriterQuattroS-Bold.ttf packages/app/assets/fonts/iAWriterMonoS-Regular.ttf docs/user-facing-docs/assets/zd-social-card.png",
+    "promo:render": "swift packaging/macos/render-social-card.swift docs/user-facing-docs/assets/zd-workbench.png docs/user-facing-docs/assets/zd-workbench-dark.png docs/user-facing-docs/assets/zd-workbench-dracula.png packaging/icon.png packages/app/assets/fonts/iAWriterQuattroV.ttf packages/app/assets/fonts/iAWriterQuattroS-Bold.ttf packages/app/assets/fonts/iAWriterMonoS-Regular.ttf docs/user-facing-docs/assets/zd-social-card.png",
     "tokens:unused": "node packages/scripts/audit/unused-tokens.mjs",
     "zdarchive": "node packages/scripts/objectives/archive.mjs",
     "zdloop": "node packages/scripts/session-loop/index.mjs",
