@@ -86,11 +86,7 @@ function colourRecord<K extends string>(
     if (typeof colour !== "string" || !HEX.test(colour)) {
       return { ok: false, problem: `${label}.${role} must be a #RRGGBB colour` };
     }
-    const normalized = colour.toLowerCase() as HexColour;
-    if (normalized === "#000000" || normalized === "#ffffff") {
-      return { ok: false, problem: `${label}.${role} cannot be pure black or pure white` };
-    }
-    colours[role] = normalized;
+    colours[role] = colour.toLowerCase() as HexColour;
   }
   return { ok: true, value: Object.freeze(colours as Record<K, HexColour>) };
 }
@@ -111,7 +107,7 @@ function contrast(left: HexColour, right: HexColour): number {
 
 function contrastProblem(colours: ThemeConfigV1["colours"]): string | null {
   const pairs = [
-    ["text.primary", "surface.canvas", 7, 15],
+    ["text.primary", "surface.canvas", 7, 16],
     ["text.secondary", "surface.sidebar", 4.5, Infinity],
     ["text.muted", "surface.sidebar", 4.5, Infinity],
     ["text.link", "surface.canvas", 4.5, Infinity],
@@ -119,6 +115,10 @@ function contrastProblem(colours: ThemeConfigV1["colours"]): string | null {
   ] as const satisfies readonly [ThemeColourRole, ThemeColourRole, number, number][];
 
   for (const [foreground, background, minimum, maximum] of pairs) {
+    const purePair = new Set([colours[foreground], colours[background]]);
+    if (purePair.has("#000000") && purePair.has("#ffffff")) {
+      return `${foreground} on ${background} cannot pair pure black with pure white`;
+    }
     const ratio = contrast(colours[foreground], colours[background]);
     if (ratio < minimum || ratio > maximum) {
       const ceiling = Number.isFinite(maximum) ? ` and at most ${maximum}:1` : "";

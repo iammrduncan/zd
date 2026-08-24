@@ -23,10 +23,16 @@ function problem(source: string): string {
 }
 
 describe("validated theme configuration", () => {
-  it("loads all three built-ins through the same closed parser", () => {
-    expect(BUILT_IN_THEMES.map(({ id }) => id)).toEqual(["current-light", "dark", "dracula"]);
+  it("loads every built-in through the same closed parser", () => {
+    expect(BUILT_IN_THEMES.map(({ id }) => id)).toEqual([
+      "current-light",
+      "dark",
+      "dracula",
+      "homebrew",
+    ]);
     expect(BUILT_IN_THEMES.map(({ config }) => config.appearance)).toEqual([
       "light",
+      "dark",
       "dark",
       "dark",
     ]);
@@ -37,6 +43,22 @@ describe("validated theme configuration", () => {
         value: theme.config,
       });
     }
+  });
+
+  it("matches the defining colours of the macOS Terminal Homebrew profile", () => {
+    const homebrew = BUILT_IN_THEMES.find(({ id }) => id === "homebrew")!;
+
+    expect(homebrew.config.colours["surface.canvas"]).toBe("#000000");
+    expect(homebrew.config.colours["text.primary"]).toBe("#28fe14");
+    expect(homebrew.config.colours["surface.selection"]).toBe("#0c2eee");
+    expect(homebrew.config.colours["line.focus"]).toBe("#38fe27");
+  });
+
+  it("bundles the Dracula MIT attribution with the built-in it covers", () => {
+    const dracula = BUILT_IN_THEMES.find(({ id }) => id === "dracula")!;
+
+    expect(dracula.licenseNotice).toContain("MIT License");
+    expect(dracula.licenseNotice).toContain("Copyright (c) 2016 Dracula Theme");
   });
 
   it("rejects unsupported versions, missing keys, and additional keys", () => {
@@ -100,7 +122,13 @@ describe("validated theme configuration", () => {
       { fileName: "custom.theme.config", contents: sourceFromCurrent() },
     ]);
 
-    expect([...catalog.themes.keys()]).toEqual(["current-light", "dark", "dracula", "custom"]);
+    expect([...catalog.themes.keys()]).toEqual([
+      "current-light",
+      "dark",
+      "dracula",
+      "homebrew",
+      "custom",
+    ]);
     expect(catalog.notices).toEqual([
       expect.objectContaining({
         source: "broken.theme.config",
