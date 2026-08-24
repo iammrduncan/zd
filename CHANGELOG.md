@@ -4,7 +4,7 @@ Notable user-facing changes to zd are recorded here.
 
 ## [Unreleased]
 
-## [0.2.1] - 2026-08-24
+## [0.2.2] - 2026-08-24
 
 ### Added
 
@@ -17,8 +17,8 @@ Notable user-facing changes to zd are recorded here.
 ### Changed
 
 - Reworked the website around rendered, editable Markdown and the paired thread/file workflow.
-- Updated release screenshots and social artwork to show the current Markdown reading and review
-  surfaces.
+- Updated release screenshots for the current Markdown reading and review surfaces, and changed the
+  social card to show all three bundled themes.
 
 ### Fixed
 
@@ -71,7 +71,7 @@ Notable user-facing changes to zd are recorded here.
   reference.
 - macOS-first Tauri application scaffolding with Windows support and best-effort Linux support.
 
-[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.1...HEAD
-[0.2.1]: https://github.com/iammrduncan/zd/compare/v0.2.0...v0.2.1
+[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/iammrduncan/zd/compare/v0.2.0...v0.2.2
 [0.2.0]: https://github.com/iammrduncan/zd/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/iammrduncan/zd/releases/tag/v0.1.0
