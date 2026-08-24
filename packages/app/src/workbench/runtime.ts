@@ -2,6 +2,7 @@ import type { Platform } from "@/platform";
 import type { InstrumentationClient } from "@/instrumentation";
 import type { WorkbenchStateOwner } from "./state";
 import type { LaunchRequest } from "./resources";
+import type { TransientCoordinator } from "./transients";
 
 export type { LaunchRequest } from "./resources";
 
@@ -15,6 +16,7 @@ export interface WorkbenchContentContext {
 export interface WorkbenchRuntimeContext extends WorkbenchContentContext {
   readonly state: WorkbenchStateOwner;
   readonly instrumentation: InstrumentationClient;
+  readonly transients?: TransientCoordinator;
 }
 
 export type WorkbenchMount = (

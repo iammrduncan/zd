@@ -3,7 +3,7 @@ import { registerThemeSelectionOwner } from "@/design/appearance";
 import { ThemeController, loadThemeCatalog } from "@/design/themes";
 import { createInstrumentationClient } from "@/instrumentation";
 import { registerReference } from "./reference";
-import { attachShortcuts } from "./shortcuts";
+import { attachShortcuts, registerCommandTarget } from "./shortcuts";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "./state";
 import { attachWorkbenchCommands } from "./commands";
 import { mountCommandList } from "./command-list";
@@ -16,6 +16,7 @@ import { setThemePreference, themePreference } from "./preferences";
 import { mountWorkbenchFeatures } from "./features";
 import { attachOpenRequests } from "./open-requests";
 import type { Unmount, WorkbenchMount } from "./runtime";
+import { TransientCoordinator } from "./transients";
 
 export type { WorkbenchMount } from "./runtime";
 
@@ -113,13 +114,21 @@ export async function bootWorkbench(
   const detachThemeSelectionOwner = registerThemeSelectionOwner((selected) => {
     state.setThemeSelection(selected, theme.snapshot().lastValid);
   });
-  const runtime = { launch, platform, state, instrumentation };
+  const transients = new TransientCoordinator();
+  const runtime = { launch, platform, state, instrumentation, transients };
   const rootCommands = attachWorkbenchCommands(host, runtime);
   const detachThemeCommands = registerThemeCommands(catalog, (selected) => {
     theme.setSelection(selected);
   });
-  const detachCommandList = mountCommandList(host);
-  const detachReference = registerReference(host);
+  const detachCommandList = mountCommandList(host, transients);
+  const detachReference = registerReference(host, transients);
+  const detachTransientDismiss = registerCommandTarget({
+    id: "workbench.transient.dismiss",
+    commandId: "workbench.escape",
+    priority: 2_000,
+    available: () => true,
+    run: () => transients.dismiss(),
+  });
   const detachChrome = mountWindowChrome();
 
   let unmount: Unmount;
@@ -136,6 +145,7 @@ export async function bootWorkbench(
     detachThemeState();
     theme.dispose();
     detachReference();
+    detachTransientDismiss();
     detachChrome();
     detachShortcuts();
     saySoOnScreen(host, `zd could not start: ${reasonFor(cause)}`);
@@ -154,6 +164,7 @@ export async function bootWorkbench(
     detachThemeState();
     theme.dispose();
     detachReference();
+    detachTransientDismiss();
     detachChrome();
     detachCommandList();
     rootCommands.detach();

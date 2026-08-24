@@ -1,5 +1,6 @@
 import { mountShortcutSettings } from "./shortcut-settings";
 import { register, registerCommandTarget } from "./shortcuts";
+import { TransientCoordinator } from "./transients";
 
 /**
  * The Shortcut Reference — vision §7.1, DESIGN.md §7.8, finding F02.
@@ -27,6 +28,8 @@ const SHEET = "zd-reference";
 /** The open sheet, or null. §6.2 allows exactly one transient at a time. */
 let sheet: HTMLElement | null = null;
 let stopSheet: () => void = () => {};
+let activeCoordinator: TransientCoordinator | null = null;
+let returnFocus: HTMLElement | null = null;
 
 /** Is the Reference on screen? */
 export function isReferenceOpen(): boolean {
@@ -40,8 +43,19 @@ export function isReferenceOpen(): boolean {
  * registry holds right now — a sheet cached at boot would be the drifting list
  * §7.1 forbids, just with extra steps.
  */
-export function openReference(host: HTMLElement): void {
+export function openReference(
+  host: HTMLElement,
+  transients = new TransientCoordinator(),
+): void {
   if (sheet) return;
+  if (
+    !transients.open("shortcut-reference", "ordinary", (restoreFocus) =>
+      closeReference(restoreFocus),
+    )
+  ) {
+    return;
+  }
+  returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : host;
 
   const plane = document.createElement("section");
   plane.className = SHEET;
@@ -64,6 +78,7 @@ export function openReference(host: HTMLElement): void {
    * prevent. The state a row reports has to be the state the key is in.
    */
   sheet = plane;
+  activeCoordinator = transients;
   host.append(plane);
   stopSheet = mountShortcutSettings(column, { heading: false, reference: true });
 }
@@ -76,11 +91,15 @@ export function openReference(host: HTMLElement): void {
  * point. Nothing here re-renders, re-scrolls, or re-focuses anything, because
  * doing so is how a round trip starts losing state.
  */
-export function closeReference(): void {
+export function closeReference(restoreFocus = true): void {
   stopSheet();
   stopSheet = () => {};
   sheet?.remove();
   sheet = null;
+  activeCoordinator?.closed("shortcut-reference");
+  activeCoordinator = null;
+  if (restoreFocus && returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+  returnFocus = null;
 }
 
 /**
@@ -95,7 +114,11 @@ export function closeReference(): void {
  * target dismisses this top transient before Find, a caret, or another underlying
  * mode can consume the same press.
  */
-export function registerReference(host: HTMLElement): () => void {
+export function registerReference(
+  host: HTMLElement,
+  providedTransients?: TransientCoordinator,
+): () => void {
+  const transients = providedTransients ?? new TransientCoordinator();
   let shortcutDown = false;
   const remove = register({
     id: "help.shortcuts",
@@ -105,28 +128,25 @@ export function registerReference(host: HTMLElement): () => void {
       if (shortcutDown) return true;
       shortcutDown = true;
       if (isReferenceOpen()) closeReference();
-      else openReference(host);
+      else openReference(host, transients);
       return true;
     },
     release: () => {
       shortcutDown = false;
     },
   });
-  const removeDismiss = registerCommandTarget({
-    id: "shortcut-reference.dismiss",
-    commandId: "workbench.escape",
-    priority: 1_000,
-    available: isReferenceOpen,
-    run: () => {
-      if (!isReferenceOpen()) return false;
-      closeReference();
-      return true;
-    },
-  });
-
+  const removeStandaloneDismiss = providedTransients
+    ? () => {}
+    : registerCommandTarget({
+        id: "shortcut-reference.dismiss",
+        commandId: "workbench.escape",
+        priority: 1_000,
+        available: isReferenceOpen,
+        run: () => transients.dismiss(),
+      });
   return () => {
     closeReference();
-    removeDismiss();
+    removeStandaloneDismiss();
     remove();
   };
 }
