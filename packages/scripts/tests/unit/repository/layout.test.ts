@@ -260,6 +260,26 @@ describe("local agent tooling", () => {
   });
 });
 
+describe("Markdown visual reference", () => {
+  it("keeps one stable specimen for manually checking rendered Markdown", () => {
+    const demoPath = resolve(ROOT, "docs/markdown-demos/demo.md");
+
+    expect(existsSync(demoPath)).toBe(true);
+    const demo = readFileSync(demoPath, "utf8");
+    expect(demo).toMatch(/^# /m);
+    expect(demo).toMatch(/^###### /m);
+    expect(demo).toMatch(/^\|.+\|$/m);
+    expect(demo).toContain("```typescript");
+    expect(demo).toContain("```rust");
+    expect(demo).toContain("```mermaid");
+    expect(demo).toMatch(/!\[[^\]]+\]\(([^)]+)\)/);
+
+    const imagePath = demo.match(/!\[[^\]]+\]\(([^)]+)\)/)?.[1];
+    expect(imagePath).toBeDefined();
+    expect(existsSync(resolve(demoPath, "..", imagePath!))).toBe(true);
+  });
+});
+
 function htmlUnder(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
