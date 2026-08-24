@@ -149,6 +149,51 @@ describe("the root current-file owner", () => {
     host.remove();
   });
 
+  it("renders a Markdown image relative to the open document through native authority", async () => {
+    const fixture = context(
+      {
+        status: "text",
+        text: [
+          "# Notes",
+          "",
+          "![Screenshot](../screenshots/example.png)",
+          "![Outside](../../../private.png)",
+        ].join("\n"),
+        byteLength: 89,
+        writable: true,
+      },
+      "docs/notes/readme.md",
+    );
+    const readProjectImage = vi.fn(async () => ({
+      mediaType: "image/png" as const,
+      bytes: [0x89, 0x50, 0x4e, 0x47],
+    }));
+    Object.assign(fixture.runtime.platform, { readProjectImage });
+    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:example");
+    const revokeObjectURL = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    const host = document.createElement("div");
+    document.body.append(host);
+
+    const unmount = await mountCurrentFile(host, fixture.runtime);
+
+    await vi.waitFor(() =>
+      expect(readProjectImage).toHaveBeenCalledExactlyOnceWith(
+        resource("docs/screenshots/example.png"),
+      ),
+    );
+    await vi.waitFor(() =>
+      expect(host.querySelector<HTMLImageElement>('.md-image img[alt="Screenshot"]')?.src).toBe(
+        "blob:example",
+      ),
+    );
+
+    unmount();
+    expect(revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:example");
+    createObjectURL.mockRestore();
+    revokeObjectURL.mockRestore();
+    host.remove();
+  });
+
   it("turns a Markdown selection into a durable review comment", async () => {
     const fixture = context(
       {

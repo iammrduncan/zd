@@ -14,6 +14,7 @@ pub(crate) mod mutations;
 
 const EDITABLE_FILE_LIMIT: u64 = 8 * 1024 * 1024;
 const FILE_PREVIEW_LIMIT: usize = 64 * 1024;
+const PROJECT_IMAGE_LIMIT: u64 = 16 * 1024 * 1024;
 
 /// One file in the retained bounded Markdown listing, named for opening and display.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -62,6 +63,48 @@ pub enum BoundedFileRead {
     Unavailable {
         problem: String,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectImage {
+    pub media_type: &'static str,
+    pub bytes: Vec<u8>,
+}
+
+fn project_image_media_type(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
+        Some("image/png")
+    } else if bytes.starts_with(&[0xff, 0xd8, 0xff]) && bytes.ends_with(&[0xff, 0xd9]) {
+        Some("image/jpeg")
+    } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        Some("image/gif")
+    } else if bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP" {
+        Some("image/webp")
+    } else {
+        None
+    }
+}
+
+fn project_image_read(path: &Path, limit: u64) -> Result<ProjectImage, String> {
+    let metadata = std::fs::metadata(path).map_err(|_| "The Markdown image is unavailable")?;
+    if !metadata.is_file() {
+        return Err("The Markdown image is not a regular file".into());
+    }
+    if metadata.len() > limit {
+        return Err("The Markdown image exceeds the 16 MiB limit".into());
+    }
+
+    let mut bytes = Vec::with_capacity(metadata.len() as usize);
+    std::fs::File::open(path)
+        .and_then(|file| file.take(limit.saturating_add(1)).read_to_end(&mut bytes))
+        .map_err(|_| "The Markdown image could not be read")?;
+    if bytes.len() as u64 > limit {
+        return Err("The Markdown image exceeds the 16 MiB limit".into());
+    }
+    let media_type = project_image_media_type(&bytes)
+        .ok_or_else(|| "The Markdown image type is not supported".to_string())?;
+    Ok(ProjectImage { media_type, bytes })
 }
 
 fn read_failure(error: &std::io::Error) -> BoundedFileRead {
@@ -161,6 +204,15 @@ pub fn read_bounded_file(
         }
     };
     bounded_file_read(&path, EDITABLE_FILE_LIMIT, FILE_PREVIEW_LIMIT)
+}
+
+#[tauri::command]
+pub fn read_project_image(
+    launch: tauri::State<'_, LaunchState>,
+    resource: ResourceRef,
+) -> Result<ProjectImage, String> {
+    let path = launch.resolve(&resource)?;
+    project_image_read(&path, PROJECT_IMAGE_LIMIT)
 }
 
 #[tauri::command]
@@ -420,8 +472,8 @@ fn is_web_url(url: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        atomic_write, bounded_file_read, is_web_url, stamp_of, temporary_beside,
-        workspace_files_in, BoundedFileRead,
+        atomic_write, bounded_file_read, is_web_url, project_image_read, stamp_of,
+        temporary_beside, workspace_files_in, BoundedFileRead, ProjectImage,
     };
     use std::path::{Path, PathBuf};
 
@@ -549,6 +601,43 @@ mod tests {
                 preview: Some("preview".to_string()),
             }
         );
+    }
+
+    #[test]
+    fn project_image_read_returns_only_validated_supported_raster_bytes() {
+        let scratch = Scratch::new("project-image");
+        let path = scratch.join("figure.png");
+        let bytes = vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3];
+        std::fs::write(&path, &bytes).unwrap();
+
+        assert_eq!(
+            project_image_read(&path, 1024).unwrap(),
+            ProjectImage {
+                media_type: "image/png",
+                bytes,
+            }
+        );
+    }
+
+    #[test]
+    fn project_image_read_refuses_unsupported_and_over_limit_files() {
+        let scratch = Scratch::new("project-image-refused");
+        let svg = scratch.join("figure.svg");
+        let large = scratch.join("large.png");
+        std::fs::write(&svg, b"<svg></svg>").unwrap();
+        std::fs::write(
+            &large,
+            [
+                &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a][..],
+                &[0; 8][..],
+            ]
+            .concat(),
+        )
+        .unwrap();
+
+        assert!(project_image_read(&svg, 1024).is_err());
+        assert!(project_image_read(&large, 8).is_err());
+        assert!(project_image_read(&scratch.join("missing.png"), 1024).is_err());
     }
 
     #[test]
