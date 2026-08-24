@@ -206,6 +206,7 @@ test("clicking where the caret is drawn puts the caret back there", async ({ pag
 });
 
 test("a block widget's own box is all the space it takes", async ({ page }) => {
+  await materializeEditorTarget(page, page.locator(".md-editor table"), "the fixture table");
   const table = await page.evaluate(() => {
     const element = document.querySelector<HTMLElement>(".md-editor table")!;
     const content = document.querySelector<HTMLElement>(".cm-content")!;
