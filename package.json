@@ -17,6 +17,7 @@
     "build": "tsc --noEmit && vite build",
     "build:e2e": "tsc --noEmit && vite build --mode e2e",
     "preview": "vite preview",
+    "dev:website": "npm run dev --workspace @zd/website",
     "website:dev": "npm run dev --workspace @zd/website",
     "website:build": "npm run build --workspace @zd/website",
     "website:preview": "npm run preview --workspace @zd/website",
