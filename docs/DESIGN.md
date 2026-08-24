@@ -102,12 +102,14 @@ notifications, and diagnostics are specific and inspectable.
 
 ## 4. One shared design system
 
-The workbench resolves one `DesignSystem` for each frame. The shell, editor, Threads, Files/Changes,
-terminal, diffs, transients, settings, and notifications consume semantic roles from that value.
-No feature creates a private palette, font scale, spacing system, or theme-name conditional.
+The workbench resolves palettes through one `DesignSystem` for each frame. The shell, editor,
+Threads, Files/Changes, terminal, diffs, transients, settings, and notifications consume semantic
+roles from that system. A surface can select another validated palette through Settings; an absent
+surface selection inherits the workbench palette. No feature creates a private palette, font scale,
+spacing system, or theme-name conditional.
 
 ```text
-Settings + validated theme file
+Settings + validated theme files
               │
               ▼
       DesignSystem::resolve
@@ -155,45 +157,53 @@ The configuration limit is **65,536 bytes (64 KiB) per file**. Discovery reads o
 direct-child `*.theme.config` files; symbolic links and nested paths are rejected.
 
 One invalid theme produces one specific local notice and falls back to the last valid theme or the
-current light theme. It never prevents launch. A theme change updates every open region without
-restarting processes, clearing editor history, or moving the semantic viewport anchor.
+current light theme. It never prevents launch. A workbench theme change updates every inheriting
+region without restarting processes, clearing editor history, or moving the semantic viewport
+anchor.
 
-The application ships three built-ins through this same loader:
+The application ships four built-ins through this same loader:
 
 1. **Current Light**, the established warm `zd` editor treatment;
 2. **Dark**, the same hierarchy on a near-charcoal plane; and
-3. **Dracula**, a purple-charcoal palette with restrained Dracula syntax colours.
+3. **Dracula**, a purple-charcoal palette with restrained Dracula syntax colours; and
+4. **Homebrew**, the black and neon-green identity of the macOS Terminal Homebrew profile.
 
 System appearance resolves to Current Light or Dark. An explicit choice ignores later operating
 system changes. Warmth remains a separate manual preference and applies to every resolved colour.
+
+Settings owns optional palette overrides for Threads, the Projects panel, Code, Markdown, the File
+panel, and Settings/Meta surfaces. `Workbench` removes an override and restores inheritance. Each
+override uses the same validated catalog and persists by theme ID. An unavailable override returns
+to inheritance and produces a local notice. Changing a terminal override refreshes its emulator
+colours in place; it does not restart or clear the process.
 
 ## 6. Semantic colour roles
 
 ### Core palettes
 
-| Role | Current Light | Dark | Dracula |
-| --- | --- | --- | --- |
-| `surface.canvas` | `#FAFAF7` | `#191A19` | `#282A36` |
-| `surface.sidebar` | `#F3F3EF` | `#20211F` | `#21222C` |
-| `surface.transient` | `#F7F7F3` | `#222320` | `#30323F` |
-| `surface.selection` | `#E7E8E2` | `#30322E` | `#44475A` |
-| `surface.code` | `#F0F1EC` | `#242622` | `#22232E` |
-| `surface.diff-added` | `#E7EFE5` | `#26352A` | `#31443A` |
-| `surface.diff-deleted` | `#F2E7E5` | `#382827` | `#493039` |
-| `text.primary` | `#242522` | `#E5E2D9` | `#F8F8F2` |
-| `text.secondary` | `#5F625C` | `#B4B1A9` | `#C5C8D6` |
-| `text.muted` | `#4A4E48` | `#B4B5AE` | `#8B8FA3` |
-| `text.link` | `#284C5B` | `#A8CCD8` | `#8BE9FD` |
-| `line.quiet` | `#DCDDD7` | `#353733` | `#44475A` |
-| `line.focus` | `#506F78` | `#86A9B2` | `#8BE9FD` |
-| `state.added` | `#2D5338` | `#A6CFB1` | `#50FA7B` |
-| `state.changed` | `#85682C` | `#D1B36C` | `#F1FA8C` |
-| `state.deleted` | `#8A4D4A` | `#D99993` | `#FF5555` |
-| `state.ignored` | `#9B9D97` | `#777A73` | `#6272A4` |
-| `state.error` | `#854943` | `#DB938B` | `#FF5555` |
-| `state.waiting` | `#506F78` | `#86A9B2` | `#8BE9FD` |
-| `state.busy` | `#A66A18` | `#D7A252` | `#FFB86C` |
-| `state.idle` | `#9B9D97` | `#777A73` | `#6272A4` |
+| Role | Current Light | Dark | Dracula | Homebrew |
+| --- | --- | --- | --- | --- |
+| `surface.canvas` | `#FAFAF7` | `#191A19` | `#282A36` | `#000000` |
+| `surface.sidebar` | `#F3F3EF` | `#20211F` | `#21222C` | `#001100` |
+| `surface.transient` | `#F7F7F3` | `#222320` | `#30323F` | `#001800` |
+| `surface.selection` | `#E7E8E2` | `#30322E` | `#44475A` | `#0C2EEE` |
+| `surface.code` | `#F0F1EC` | `#242622` | `#22232E` | `#000800` |
+| `surface.diff-added` | `#E7EFE5` | `#26352A` | `#31443A` | `#003D00` |
+| `surface.diff-deleted` | `#F2E7E5` | `#382827` | `#493039` | `#2B0A0A` |
+| `text.primary` | `#242522` | `#E5E2D9` | `#F8F8F2` | `#28FE14` |
+| `text.secondary` | `#5F625C` | `#B4B1A9` | `#C5C8D6` | `#20D912` |
+| `text.muted` | `#4A4E48` | `#B4B5AE` | `#8B8FA3` | `#6FA96A` |
+| `text.link` | `#284C5B` | `#A8CCD8` | `#8BE9FD` | `#54FF43` |
+| `line.quiet` | `#DCDDD7` | `#353733` | `#44475A` | `#125C0D` |
+| `line.focus` | `#506F78` | `#86A9B2` | `#8BE9FD` | `#38FE27` |
+| `state.added` | `#2D5338` | `#A6CFB1` | `#50FA7B` | `#28FE14` |
+| `state.changed` | `#85682C` | `#D1B36C` | `#F1FA8C` | `#FFFF5F` |
+| `state.deleted` | `#8A4D4A` | `#D99993` | `#FF5555` | `#FF5F5F` |
+| `state.ignored` | `#9B9D97` | `#777A73` | `#6272A4` | `#6FA96A` |
+| `state.error` | `#854943` | `#DB938B` | `#FF5555` | `#FF5F5F` |
+| `state.waiting` | `#506F78` | `#86A9B2` | `#8BE9FD` | `#5FFFFF` |
+| `state.busy` | `#A66A18` | `#D7A252` | `#FFB86C` | `#FFFF5F` |
+| `state.idle` | `#9B9D97` | `#777A73` | `#6272A4` | `#6FA96A` |
 
 These values are theme inputs. The renderer measures final output after warmth and Focus derivation.
 Body content must remain within the contrast policy. Interactive text, focus, and status meet WCAG
@@ -668,8 +678,8 @@ Threads hierarchy.
 
 Initial groups are:
 
-1. **Appearance:** theme file, system/light/dark behavior, warmth, prose size, code size, heading
-   scale.
+1. **Appearance:** workbench theme, per-surface theme overrides, system/light/dark behavior, warmth,
+   prose size, code size, heading scale.
 2. **Reading:** Focus on/off, dim level, granularity, Typewriter Mode, Word Wrap.
 3. **Workbench:** Threads full/collapsed/hidden, Files visible/hidden, centre overlap/side by side,
    region sizes.
@@ -772,8 +782,8 @@ editing, Find/Replace, saving, Git inspection, settings, and dismissal.
 - Focus Mode has an obvious off state and never hides source content.
 
 Final review covers 96 dpi 1×, high-density output, 125%, 150%, and 175% fractional scaling,
-keyboard-only operation, screen-reader names/state, Current Light, Dark, Dracula, and the warmest
-setting.
+keyboard-only operation, screen-reader names/state, Current Light, Dark, Dracula, Homebrew, and the
+warmest setting.
 
 ## 21. Performance is part of the aesthetic
 
@@ -821,7 +831,7 @@ A visual or interaction change requires:
 2. implementation through shared semantic roles;
 3. focused automated tests;
 4. proportional release-build performance review;
-5. inspection in all three built-in themes and relevant accessibility settings; and
+5. inspection in all four built-in themes and relevant accessibility settings; and
 6. an update to this contract when the product decision itself changes.
 
 Reject a change if it introduces a competing state owner, raw feature-local visual constants,

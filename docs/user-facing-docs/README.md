@@ -23,6 +23,8 @@ files, and Git state in one place. Start with the task you want to finish.
   insert its relative Markdown link.
 - [Inspect Git changes](how-to/inspect-changes.md) to review working-tree changes, history,
   comparisons, and read-only diffs.
+- [Customize themes](how-to/customize-themes.md) to choose a workbench theme, override individual
+  surfaces, or install and update a local theme.
 - [Develop zd](how-to/develop.md) to run the browser surface or native shell and choose a useful
   verification command.
 
@@ -31,6 +33,8 @@ files, and Git state in one place. Start with the task you want to finish.
 - [CLI reference](reference/cli.md) lists launch forms, path rules, and native-open behavior.
 - [Shortcut reference](reference/shortcuts.md) lists the stable workbench shortcuts and their
   context rules.
+- [Theme configuration reference](reference/theme-config.md) lists the file schema, semantic colour
+  roles, limits, and validation failures.
 - [Design system](../DESIGN.md) defines canonical type, colour, spacing, and motion values.
 
 ## Explanation
