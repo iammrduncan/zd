@@ -8,6 +8,8 @@ files, and Git state in one place. Start with the task you want to finish.
 
 - [Start your first workbench](tutorials/first-workbench.md) to complete the project, thread, file,
   and Changes loop once.
+- [Read and review Markdown](tutorials/read-and-review-markdown.md) to give a document the full
+  window, use Focus Mode, navigate its blocks, edit in place, and leave a precise comment.
 
 ## How-to guides
 
@@ -35,7 +37,5 @@ files, and Git state in one place. Start with the task you want to finish.
 
 - [Architecture](explanation/architecture.md) explains the one-state workbench, native authority,
   and local security boundaries.
-- [The Markdown reading surface](explanation/markdown-reading-surface.md) explains how rendered
-  Markdown stays directly editable.
 - [Why zd is intentionally minimal](explanation/why-zd-is-minimal.md) explains the daily workflow,
   product fit, and deliberate exclusions.

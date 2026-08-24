@@ -18,6 +18,9 @@ const REPOSITORY_ROOT = findRepositoryRoot(process.cwd());
 const DOCS_ROOT = resolve(REPOSITORY_ROOT, "docs", "user-facing-docs");
 const REPOSITORY_URL = "https://github.com/iammrduncan/zd/blob/main";
 const EXCLUDED_FILES = new Set(["AGENTS.md", "CLAUDE.md", "DOCUMENTATION_STANDARDS_A.md"]);
+const DOC_ALIASES = new Map([
+  ["explanation/markdown-reading-surface", "tutorials/read-and-review-markdown"],
+]);
 const SECTION_ORDER = new Map([
   ["tutorials", 0],
   ["how-to", 1],
@@ -139,5 +142,14 @@ export function getPublicDocs(): PublicDoc[] {
 
 export function getPublicDoc(slug: string[]): PublicDoc | undefined {
   const requested = slug.join("/");
-  return getPublicDocs().find((doc) => doc.slug.join("/") === requested);
+  const canonical = DOC_ALIASES.get(requested) ?? requested;
+  return getPublicDocs().find((doc) => doc.slug.join("/") === canonical);
+}
+
+export function getPublicDocStaticSlugs(): string[][] {
+  const canonical = getPublicDocs()
+    .filter((doc) => doc.slug.length > 0)
+    .map((doc) => doc.slug);
+  const aliases = [...DOC_ALIASES.keys()].map((slug) => slug.split("/"));
+  return [...canonical, ...aliases];
 }

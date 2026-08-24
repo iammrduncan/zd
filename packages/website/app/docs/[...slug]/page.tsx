@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { getPublicDoc, getPublicDocs } from "@/lib/docs";
+import { getPublicDoc, getPublicDocStaticSlugs } from "@/lib/docs";
 import { pageMetadata } from "@/lib/site";
 
 import { DocsPage } from "../_components/document";
@@ -10,9 +10,7 @@ type Props = { params: Promise<{ slug: string[] }> };
 export const dynamicParams = false;
 
 export function generateStaticParams() {
-  return getPublicDocs()
-    .filter((doc) => doc.slug.length > 0)
-    .map((doc) => ({ slug: doc.slug }));
+  return getPublicDocStaticSlugs().map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
