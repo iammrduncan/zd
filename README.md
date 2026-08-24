@@ -68,7 +68,7 @@ sound, desktop notifications, and local diagnostics are off by default.
 ```sh
 npm ci
 npm run app
-npm run website:dev
+npm run dev:website
 npm run check
 ```
 

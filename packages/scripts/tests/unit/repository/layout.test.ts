@@ -168,6 +168,7 @@ describe("static website", () => {
     const websitePackage = JSON.parse(readFileSync(resolve(WEBSITE, "package.json"), "utf8"));
 
     expect(rootPackage.workspaces).toContain("packages/website");
+    expect(rootPackage.scripts["dev:website"]).toBe(rootPackage.scripts["website:dev"]);
     expect(rootPackage.scripts["website:dev"]).toContain("@zd/website");
     expect(rootPackage.scripts["website:build"]).toContain("@zd/website");
     expect(rootPackage.scripts["website:preview"]).toContain("@zd/website");
