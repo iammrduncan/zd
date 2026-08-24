@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { stateAfterFileRemoval, stateAfterFileRename } from "@/workbench/state-owner-files";
+import {
+  stateAfterFileClose,
+  stateAfterFileRemoval,
+  stateAfterFileRename,
+} from "@/workbench/state-owner-files";
 import { defaultWorkbenchState, fileStateId, type WorkbenchState } from "@/workbench/state";
 
 function stateWithOpenFolder(): WorkbenchState {
@@ -60,6 +64,23 @@ function stateWithOpenFolder(): WorkbenchState {
 }
 
 describe("file identity reconciliation", () => {
+  it("closes only the requested file without switching to another open file", () => {
+    const state = stateWithOpenFolder();
+    const contexts = new Map([["project-a", { ...state.active }]]);
+
+    const closed = stateAfterFileClose(state, contexts, {
+      projectId: "project-a",
+      worktreeId: "worktree-a",
+      relativePath: "docs/README.md",
+    });
+
+    expect(closed?.openFiles.map(({ id }) => id)).toEqual(["file-child", "file-other"]);
+    expect(closed?.active.fileId).toBeNull();
+    expect(closed?.threads[0]?.fileId).toBeNull();
+    expect(closed?.regions.focus).toBe("thread");
+    expect(contexts.get("project-a")?.fileId).toBeNull();
+  });
+
   it("updates open files and thread memory after native rename and Trash operations", () => {
     const resource = {
       projectId: "project-a",

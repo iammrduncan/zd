@@ -1,7 +1,11 @@
 import type { FileResource, LaunchRequest, ProjectGrant } from "./resources";
 import { cloneState, parseWorkbenchState } from "./state-codec";
 import { ProjectStateMutations } from "./state-owner-projects";
-import { stateAfterFileRemoval, stateAfterFileRename } from "./state-owner-files";
+import {
+  stateAfterFileClose,
+  stateAfterFileRemoval,
+  stateAfterFileRename,
+} from "./state-owner-files";
 import { threadNameProblem } from "./thread-name";
 import {
   bufferStateId,
@@ -363,6 +367,11 @@ export class WorkbenchStateOwner {
   /** Reconcile open-file identities after one already-committed native rename. */
   renameFilePath(resource: FileResource, nextPath: string): void {
     const next = stateAfterFileRename(this.#state, this.#projectContexts, resource, nextPath);
+    if (next) this.#publish(next);
+  }
+
+  closeFile(resource: FileResource): void {
+    const next = stateAfterFileClose(this.#state, this.#projectContexts, resource);
     if (next) this.#publish(next);
   }
 

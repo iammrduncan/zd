@@ -8,6 +8,7 @@ import {
 import { screenshotLink } from "./clipboard-image";
 import { closeConfirmation } from "./close-confirmation";
 import { FileDraftStore } from "./drafts";
+import { fileCloseAction } from "./file-close";
 import { reconcile, saveWouldClobber } from "./reconcile";
 import type { FileStamp } from "@/platform";
 import type { FileResource } from "../resources";
@@ -57,9 +58,9 @@ export async function mountCurrentFile(
   let reconciliation = 0;
   let currentResource: FileResource | null = null;
   let known: FileStamp | null = null;
-  let currentSavedText: string | null = null;
   let pendingImageSaves = 0;
   let notice: HTMLParagraphElement | null = null;
+  let dismissFileClose: (() => void) | null = null;
   const surface = document.createElement("div");
   surface.className = "current-file";
   host.replaceChildren(surface);
@@ -109,9 +110,10 @@ export async function mountCurrentFile(
   ) => {
     mounted?.destroy();
     mounted = null;
+    dismissFileClose?.();
+    dismissFileClose = null;
     surface.replaceChildren();
     const buffer = editorBufferFromRead(resource.relativePath, read);
-    currentSavedText = savedText ?? buffer.content;
     const header = document.createElement("header");
     header.className = "current-file-header";
     const path = document.createElement("span");
@@ -120,32 +122,26 @@ export async function mountCurrentFile(
     path.title = resource.relativePath;
     const actions = document.createElement("div");
     actions.className = "current-file-actions";
-    const discard = document.createElement("button");
-    discard.type = "button";
-    discard.hidden = true;
-    discard.textContent = "Discard";
-    discard.setAttribute("aria-label", `Discard edits to ${resource.relativePath}`);
-    discard.addEventListener("click", () => {
-      if (openedGeneration !== generation || currentSavedText === null || !mounted?.editor) return;
-      drafts.clear(resource);
-      mounted.editor.setText(currentSavedText);
-      discard.hidden = true;
-      clearNotice();
-      mounted.focus();
-    });
-    const close = document.createElement("button");
-    close.type = "button";
-    close.textContent = "Close";
-    close.setAttribute("aria-label", `Close ${resource.relativePath}`);
-    close.addEventListener("click", () => {
-      if (openedGeneration !== generation) return;
-      if (pendingImageSaves > 0) {
+    let dirty = false;
+    const close = fileCloseAction({
+      host: surface,
+      relativePath: resource.relativePath,
+      isDirty: () => dirty,
+      canClose: () => {
+        if (openedGeneration !== generation) return false;
+        if (pendingImageSaves === 0) return true;
         showNotice("Wait for the pasted screenshot to finish saving before closing.", "warning");
-        return;
-      }
-      context.state.removeFilePath(resource);
+        return false;
+      },
+      close: (discard) => {
+        if (openedGeneration !== generation) return;
+        if (discard) drafts.clear(resource);
+        context.state.closeFile(resource);
+      },
+      transients: context.transients,
     });
-    actions.append(discard, close);
+    dismissFileClose = close.dismiss;
+    actions.append(close.button);
     header.append(path, actions);
     const content = document.createElement("div");
     content.className = "current-file-content";
@@ -177,7 +173,6 @@ export async function mountCurrentFile(
         try {
           await context.platform.writeTextFile(resource, text);
           known = await context.platform.fileStamp(resource).catch(() => null);
-          currentSavedText = text;
           drafts.clear(resource);
           clearNotice();
           await save?.end("ok");
@@ -189,10 +184,10 @@ export async function mountCurrentFile(
         }
       },
       ...(savedText === undefined ? {} : { savedText }),
-      onTextChange: (text, dirty) => {
-        if (dirty) drafts.save(resource, text);
+      onTextChange: (text, isDirty) => {
+        dirty = isDirty;
+        if (isDirty) drafts.save(resource, text);
         else drafts.clear(resource);
-        discard.hidden = !dirty;
       },
       ...(acceptsPastedImages
         ? {
@@ -246,7 +241,6 @@ export async function mountCurrentFile(
       currentResource = null;
       known = null;
       notice = null;
-      currentSavedText = null;
       surface.replaceChildren();
       emptyFile(surface);
       return;
@@ -472,7 +466,6 @@ export async function mountCurrentFile(
         mounted.buffer.editable === read.writable
       ) {
         editor.setText(read.text);
-        currentSavedText = read.text;
       } else {
         render(resource, read, expectedGeneration, false);
       }
@@ -504,6 +497,8 @@ export async function mountCurrentFile(
     for (const unregister of [...registrations].reverse()) unregister();
     mounted?.destroy();
     mounted = null;
+    dismissFileClose?.();
+    dismissFileClose = null;
     host.replaceChildren();
   };
 }
