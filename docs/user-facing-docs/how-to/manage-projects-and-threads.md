@@ -1,21 +1,31 @@
 # Manage projects and threads
 
 Use the Projects pane to keep several approved projects and their terminal sessions in one
-workbench. Each thread remembers its project, worktree, current file, and terminal context.
+workbench. Each thread remembers its project, approved working directory, current file, and
+terminal context.
 
 ## Add a project
 
 Choose **Open** in the `PROJECTS` header, then select a folder in the native picker.
 `zd` adds that folder as an approved project without replacing projects that are already open.
 
-Choose a project heading to activate its remembered worktree, thread, and file together. Use
-`Cmd+1` through `Cmd+9` on macOS, or `Ctrl+1` through `Ctrl+9` elsewhere, to activate the first nine
-projects in their displayed order.
+## Switch and arrange projects
 
-If a project moved or became unavailable, use its **Locate** action to approve the new location.
-Removing a project revokes its native grant only after running terminals allow the transition. It
-does not delete the folder. Ordinary project switches keep unsaved files as recoverable drafts and
-restore them when you return.
+Choose a project heading to activate its remembered thread and file together. You can also use:
+
+- `Cmd+1` through `Cmd+9` on macOS, or `Ctrl+1` through `Ctrl+9` elsewhere, to activate one of the
+  first nine displayed projects.
+- `Cmd+Option+Up` or `Cmd+Option+Down` on macOS, or `Ctrl+Alt+Up` or `Ctrl+Alt+Down` elsewhere, to
+  activate the previous or next project.
+
+Drag a project heading to change the displayed order. The numbered and previous/next shortcuts use
+that order.
+
+If a project moved or became unavailable, choose **Locate folder** to approve the new location.
+Secondary-click its heading and choose **Close** to remove it from the workbench. Closing revokes
+the native grant only after running terminals allow the transition; it does not delete the folder.
+Ordinary project switches keep unsaved files as recoverable drafts and restore them when you
+return.
 
 ## Collapse the Projects pane
 
@@ -29,37 +39,35 @@ only in the collapsed icon rail, not beside names in the full pane.
 
 ## Create a terminal thread
 
-Under a project heading, choose **+ Thread**, enter a name, and select a type:
+Choose the `+` action whose accessible name is **New terminal in _project_**. The terminal starts
+immediately in that project's approved root folder.
 
-- **Terminal** for an ordinary shell session.
-- **Codex**, **Claude Code**, or **OpenCode** when that terminal will host the named agent.
+To start a terminal in the active project without using the pointer, press `Cmd+N` on macOS or
+`Ctrl+N` elsewhere. The action is unavailable when no active project has an approved folder.
 
-Choose where the shell starts:
+The first thread is named `Terminal`; later threads use the next available number. A terminal title
+can replace an automatic name. After you rename the thread yourself, terminal titles no longer
+change it.
 
-- **Project root** uses the approved root folder.
-- **Worktree** uses an existing approved Git worktree.
-- **New worktree** asks for a worktree name, branch, and optional base revision. `zd` checks Git
-  collisions and locks before creating and approving it.
-
-Choose **Create**. The native shell starts the user shell inside the selected scope. `zd` does not
-accept an executable, argument list, environment, or arbitrary path from the frontend.
+The new thread runs your configured shell. Start Codex, Claude Code, OpenCode, or another program by
+entering its normal command in that shell. `zd` does not accept an executable, argument list,
+environment, or arbitrary path from the webview.
 
 ## Switch, rename, or reorder threads
 
-Choose a thread row to activate the complete project/worktree/thread context. Secondary-click a
-thread (or press the keyboard Context Menu key) to choose whether every row's second line shows the
-running app/status, current approved directory, or branch/worktree. The choice is remembered.
-Attention remains available in the row's state and accessible label. Rename and reorder actions
-preserve its stable identity and terminal session.
+Choose a thread row to activate its complete project, working-directory, file, and terminal
+context. Secondary-click a thread, or press the keyboard Context Menu key, to rename it or choose
+whether every row's second line shows **App / status**, **Current directory**, or **Branch /
+worktree**. The second-line choice is remembered. Drag a thread row to reorder it within its
+project.
 
 Choose the active thread row again to return to its current or last-opened file. Choose it once more
 to show the still-mounted terminal again; this is the same switch as `Cmd+J` on macOS or `Ctrl+J`
 elsewhere.
 
-Each row has one removal action. Removing a live thread terminates and disposes its terminal before
-removing the row; removing an exited thread removes the row directly. It never deletes the thread's
-Git worktree or branch. If termination fails, the row stays visible with the specific failure
-instead of switching to a partial context.
+Use **Terminate and Remove Thread…** in the thread menu to stop a live terminal and remove its row.
+An exited terminal uses **Remove Thread…**. Neither action deletes a Git worktree or branch. If
+termination fails, the row stays visible with the reported failure.
 
 ## Configure completion attention
 
@@ -69,7 +77,11 @@ available on macOS; other platforms show the controls as unavailable. When sound
 per-agent sound plays the new choice once at the selected volume. Press the Settings shortcut again
 to close the sheet. The `[s]` action in the top drag strip opens the same Settings sheet.
 
-When enabled, one supported-agent transition from busy to waiting may show one notification. **View**
-returns to the ordinary workbench and activates that exact thread. Notification text contains only
+When enabled, one supported-agent transition from busy to waiting may show one notification.
+**View** returns to the workbench and activates that exact thread. Notification text contains only
 the project name, thread name, and agent label. Mute, volume, and per-agent sound choices are stored
 locally.
+
+The current **New terminal** action creates a shell thread. Starting an agent command inside that
+shell does not relabel the thread as a supported-agent thread, so agent completion notifications do
+not apply to newly created shell threads.

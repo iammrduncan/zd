@@ -15,23 +15,24 @@ git commit -m "add field notes"
 zd .
 ```
 
-The project appears in the Threads region on the left. Its expanded file tree appears under
+The project appears in the **Projects** pane on the left. Its expanded file tree appears under
 **Files** on the right. Native access is limited to the project you opened.
 
 ## 2. Create a thread
 
-Under the project heading, choose **+ Thread**. Name the thread `First pass`, leave **Terminal** and
-**Project root** selected, then choose **Create**.
+Choose the `+` action in the project heading. Its accessible name is **New terminal in
+zd-first-project**. You can press `Cmd+N` on macOS or `Ctrl+N` elsewhere to perform the same action
+for the active project.
 
-The centre switches to the thread’s terminal. Run a harmless command:
+The centre switches to a terminal named `Terminal`, running your configured shell in the project
+root. Run a harmless command:
 
 ```sh
 git status --short
 ```
 
-A Codex, Claude Code, or OpenCode thread still starts your normal shell; choose its agent label and
-start that agent from the terminal as you normally would. The label lets `zd` present the right
-lifecycle and attention state without accepting arbitrary process commands from the webview.
+To use Codex, Claude Code, OpenCode, or another terminal program, enter its normal command in this
+shell. `zd` does not install or launch an agent on your behalf.
 
 ## 3. Open and edit a file
 

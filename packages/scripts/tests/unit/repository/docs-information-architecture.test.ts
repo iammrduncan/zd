@@ -239,6 +239,19 @@ describe("the repository documentation map", () => {
     expect(cli).not.toContain("dirty current file must allow the switch");
   });
 
+  it("documents the current one-click terminal creation flow", () => {
+    const guide = page("docs/user-facing-docs/how-to/manage-projects-and-threads.md");
+    const tutorial = page("docs/user-facing-docs/tutorials/first-workbench.md");
+
+    for (const source of [guide, tutorial]) {
+      expect(source).toContain("New terminal in");
+      expect(source).toMatch(/(?:Cmd|Ctrl)\+N/);
+      expect(source).not.toContain("+ Thread");
+      expect(source).not.toMatch(/choose \*\*Create\*\*/i);
+    }
+    expect(guide).toContain("previous or next project");
+  });
+
   it("keeps current product context on the workbench naming contract", () => {
     const currentPages = [
       ...PUBLIC_PAGES,
