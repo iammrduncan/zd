@@ -30,11 +30,11 @@
 .zd-workspace-home-open {
   justify-self: start;
   margin-block: var(--space-5);
-  border: var(--hairline) solid var(--line-strong);
+  border: var(--hairline) solid var(--line-focus);
   border-radius: 0;
   padding: var(--space-2) var(--space-3);
   color: var(--text-primary);
-  background: var(--surface-raised);
+  background: var(--surface-transient);
   font: inherit;
 }
 
