@@ -32,13 +32,14 @@ export function createFileTreeRow(
   button.setAttribute("aria-setsize", String(row.setSize));
   button.setAttribute("aria-label", fileTreeEntryLabel(row.entry, dirty));
   button.setAttribute("aria-description", row.entry.relativePath);
-  button.setAttribute("aria-selected", String(snapshot.selectedPath === row.entry.relativePath));
+  button.setAttribute("aria-selected", String(snapshot.selectedPaths.has(row.entry.relativePath)));
   button.setAttribute("aria-haspopup", "menu");
   if (snapshot.activePath === row.entry.relativePath) button.setAttribute("aria-current", "page");
   if (row.entry.kind === "directory" && row.hasChildren) {
     button.setAttribute("aria-expanded", String(row.expanded));
   }
   button.tabIndex = snapshot.selectedPath === row.entry.relativePath ? 0 : -1;
+  button.draggable = row.entry.kind !== "symlink";
 
   const guides = document.createElement("span");
   guides.className = "zd-file-tree-guides";
@@ -57,8 +58,10 @@ export function createFileTreeRow(
   name.className = "zd-file-tree-name";
   name.textContent = row.entry.name;
   button.append(guides, disclosure, icon, name);
-  button.addEventListener("click", () => {
-    controller.select(row.entry.relativePath);
+  button.addEventListener("click", (event) => {
+    const mode = event.shiftKey ? "range" : event.metaKey || event.ctrlKey ? "toggle" : "replace";
+    controller.select(row.entry.relativePath, mode);
+    if (mode !== "replace") return;
     if (row.entry.kind === "directory") {
       controller.toggle(row.entry.relativePath);
       return;

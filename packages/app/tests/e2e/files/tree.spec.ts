@@ -138,6 +138,8 @@ test("offers create, rename, copy-path, and confirmed Trash actions for folders"
   await expect(menu.getByRole("menuitem")).toHaveText([
     "New File…",
     "New Folder…",
+    "Cut",
+    "Copy",
     "Rename…",
     "Copy Relative Path",
     "Copy Full Path",
@@ -162,6 +164,37 @@ test("offers create, rename, copy-path, and confirmed Trash actions for folders"
   await expect(confirmation).toContainText("docs/notes");
   await confirmation.getByRole("button", { name: "Move to Trash" }).click();
   await expect(files.locator('[data-file-path="docs/notes"]')).toHaveCount(0);
+});
+
+test("multi-select copy/paste and internal drag/drop operate on the real hierarchy", async ({
+  page,
+}) => {
+  await page.goto("/dev/workbench.html");
+  await expect(page.locator('html[data-workbench-ready="true"]')).toBeAttached();
+  const files = page.getByRole("complementary", { name: "Files and Changes" });
+
+  await files.locator('[data-file-path="docs"]').click();
+  await files.locator('[data-file-path="docs/screenshots"]').click();
+  await files.locator('[data-file-path="docs/user-facing-docs"]').click();
+  await files
+    .locator('[data-file-path="docs/screenshots/first.png"]')
+    .dragTo(files.locator('[data-file-path="docs/user-facing-docs"]'));
+  const screenshot = files.locator('[data-file-path="docs/user-facing-docs/first.png"]');
+  const readme = files.locator('[data-file-path="docs/user-facing-docs/README.md"]');
+  await expect(screenshot).toBeVisible();
+  await expect(files.locator('[data-file-path="docs/screenshots/first.png"]')).toHaveCount(0);
+  await screenshot.click();
+  await readme.click({ modifiers: ["ControlOrMeta"] });
+  await expect(screenshot).toHaveAttribute("aria-selected", "true");
+  await expect(readme).toHaveAttribute("aria-selected", "true");
+  await readme.press("ControlOrMeta+c");
+
+  await files.locator('[data-file-path="packages"]').click();
+  await files.locator('[data-file-path="packages/app"]').click();
+  await files.locator('[data-file-path="packages/app"]').click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Paste" }).click();
+  await expect(files.locator('[data-file-path="packages/app/first.png"]')).toBeVisible();
+  await expect(files.locator('[data-file-path="packages/app/README.md"]')).toBeVisible();
 });
 
 test("exposes file type and Git state without a status-letter column", async ({ page }) => {

@@ -9,6 +9,8 @@ export interface FileTreeScope {
 export type FileTreeEntryKind = "directory" | "file" | "symlink";
 export type FilePathPresentation = "relative" | "full";
 export type FileTreeCreationKind = "file" | "directory";
+export type FileTreeSelectionMode = "replace" | "toggle" | "range";
+export type FileTreeTransferOperation = "copy" | "move";
 
 export type FileCategory =
   "directory" | "markdown" | "code" | "config" | "data" | "image" | "text" | "binary" | "unknown";
@@ -89,6 +91,11 @@ export type FileTreeMutationRequest =
       readonly relativePath: string;
       readonly newName: string;
     })
+  | (FileTreeScope & {
+      readonly operation: "copy" | "move";
+      readonly relativePath: string;
+      readonly destinationPath: string;
+    })
   | (FileTreeScope & { readonly operation: "trash"; readonly relativePath: string });
 
 export type FileTreeMutationResult =
@@ -129,6 +136,16 @@ export interface FileTreeActions {
   createEntry?(resource: FileResource, kind: FileTreeCreationKind): Promise<void>;
   renameEntry?(resource: FileResource, newName: string): Promise<void>;
   trashEntry?(resource: FileResource): Promise<void>;
+  transferEntries?(
+    transfers: readonly FileTreeTransfer[],
+    operation: FileTreeTransferOperation,
+  ): Promise<void>;
+  trashEntries?(resources: readonly FileResource[]): Promise<void>;
+}
+
+export interface FileTreeTransfer {
+  readonly source: FileResource;
+  readonly destinationPath: string;
 }
 
 export type FileTreeRefreshReason = "activate" | "disk" | "focus" | "manual";
@@ -172,6 +189,7 @@ export interface FileTreeViewSnapshot {
   readonly entries: readonly FileTreeEntry[];
   readonly expandedPaths: ReadonlySet<string>;
   readonly selectedPath: string | null;
+  readonly selectedPaths: ReadonlySet<string>;
   readonly activePath: string | null;
   readonly dirtyPaths: ReadonlySet<string>;
   readonly filterOpen: boolean;

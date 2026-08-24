@@ -409,10 +409,12 @@ The tree is deliberately dense, in the manner of Zed:
 - extensions preserved; and
 - long paths scroll horizontally rather than increasing row height.
 
-Expanded directories may show subtle nesting guides using `line.quiet`. The selected file uses the
-same wash and inset hairline as Threads. Keyboard focus adds a high-contrast underline or hairline
-without changing geometry. Clicking a directory row selects and toggles it; clicking it again
-reverses the disclosure. Keyboard Left/Right/Enter provides the same deliberate control.
+Expanded directories may show subtle nesting guides using `line.quiet`. Selected rows use the same
+wash and inset hairline as Threads. `Cmd`/`Ctrl` click toggles additive selection, Shift click
+extends one contiguous range over the visible hierarchy, and Shift+Arrow extends that range from
+the keyboard. Keyboard focus adds a high-contrast underline or hairline without changing geometry.
+An ordinary click replaces the selection; clicking a directory row also toggles it, and clicking it
+again reverses the disclosure. Keyboard Left/Right/Enter provides the same deliberate control.
 
 Git colour applies to both filename and icon:
 
@@ -431,19 +433,28 @@ name, path, or supported category and states result count quietly. Its visible c
 It is not workspace content search.
 
 Secondary-clicking a file or directory replaces the system webview menu with the same scoped file
-menu reached by `Shift+F10` or the platform Context Menu key. Files offer Open, Rename, both path
-copies, and Move to Trash. Directories add New File and New Folder; secondary-clicking empty tree
-space offers those root-level creation actions. Name capture and destructive confirmation remain
-inside the tree surface, keep exact project-relative context visible, and report validation,
-collision, permission, and clipboard failures in place.
+menu reached by `Shift+F10` or the platform Context Menu key. Files offer Cut, Copy, Rename, both
+path copies, and Move to Trash. Directories add New File, New Folder, and Paste when the internal
+clipboard has content; secondary-clicking empty tree space offers the root-level creation and Paste
+actions. These commands operate on the complete selection, collapsing selected descendants below a
+selected directory to one operation. Name capture and destructive confirmation remain inside the
+tree surface, keep exact project-relative context visible, and report validation, collision,
+permission, and clipboard failures in place.
+
+`Cmd`/`Ctrl+C`, `Cmd`/`Ctrl+X`, and `Cmd`/`Ctrl+V` share the contextual Cut, Copy, and Paste model.
+Dragging a row moves it into the target directory; dragging any row in the selection moves the
+selection, while dragging another row moves only that row. Alt-drag copies instead. Copies receive
+stable `copy`, `copy 2`, and later suffixes when their original name is occupied. Cross-worktree
+transfers, moves into a selected directory's own descendants, repository metadata, symbolic links,
+and destination collisions are refused before native mutation.
 
 `Copy Relative Path` preserves the project-relative slash path. `Copy Full Path` joins that identity
 to the active native-approved worktree root without making absolute paths part of ordinary file
-commands. Create, rename, and Trash requests also carry only approved project/worktree identities
-and validated relative paths. Trash means the operating system's recoverable Trash/Recycle Bin;
-repository metadata and symbolic links are protected, and a dirty draft must be saved or discarded
-before its path can move to Trash. Successful directory renames reconcile open-file and draft
-identities for every descendant before the refreshed tree is published.
+commands. Create, rename, transfer, and Trash requests carry only approved project/worktree
+identities and validated relative paths. Trash means the operating system's recoverable
+Trash/Recycle Bin; a dirty draft must be saved or closed before its path can move to Trash.
+Successful directory renames and moves reconcile open-file and draft identities for every
+descendant before the refreshed tree is published.
 
 Loading, empty, denied, missing, non-directory, watcher failure, and non-repository conditions are
 honest text rows. Updates never collapse unrelated directories or move the active file.

@@ -5,6 +5,8 @@ export interface FileTreeMutationMemory {
   readonly entries: readonly FileTreeEntry[];
   readonly expandedPaths: Set<string>;
   selectedPath: string | null;
+  selectedPaths: Set<string>;
+  selectionAnchorPath: string | null;
   notice: string | null;
 }
 
@@ -51,6 +53,8 @@ export async function createFileTreeEntry(
     if (!isCurrent()) return false;
     if (parentPath) memory.expandedPaths.add(parentPath);
     memory.selectedPath = relativePath;
+    memory.selectedPaths = new Set([relativePath]);
+    memory.selectionAnchorPath = relativePath;
     memory.notice = `Created ${relativePath}.`;
     publish();
     return true;
@@ -92,6 +96,8 @@ export async function renameFileTreeEntry(
     if (!isCurrent()) return false;
     const nextPath = childPath(entry.parentPath, newName);
     memory.selectedPath = nextPath;
+    memory.selectedPaths = new Set([nextPath]);
+    memory.selectionAnchorPath = nextPath;
     memory.notice = `Renamed ${path} to ${nextPath}.`;
     publish();
     return true;
@@ -129,6 +135,8 @@ export async function trashFileTreeEntry(
     await actions.trashEntry({ ...memory.scope, relativePath: path });
     if (!isCurrent()) return false;
     memory.selectedPath = entry.parentPath;
+    memory.selectedPaths = new Set(entry.parentPath ? [entry.parentPath] : []);
+    memory.selectionAnchorPath = entry.parentPath;
     memory.notice = `Moved ${path} to Trash.`;
     publish();
     return true;
