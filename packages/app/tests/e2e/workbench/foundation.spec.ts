@@ -92,6 +92,27 @@ test("Mod+N starts a terminal thread in the active project", async ({ page }) =>
   await expect(page.locator('[data-project-id="project-zd"] [data-thread-id]')).toHaveCount(0);
 });
 
+test("Mod+Alt+Up and Down cycle projects in display order", async ({ page }) => {
+  const primary = await page.evaluate(() =>
+    /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",
+  );
+  const projects = page.locator(".zd-project-row");
+  const projectCount = await projects.count();
+  expect(projectCount).toBeGreaterThan(1);
+  await projects.first().click();
+
+  for (let index = 1; index < projectCount; index += 1) {
+    await page.keyboard.press(`${primary}+Alt+ArrowDown`);
+    await expect(projects.nth(index)).toHaveAttribute("aria-current", "true");
+  }
+
+  await page.keyboard.press(`${primary}+Alt+ArrowDown`);
+  await expect(projects.first()).toHaveAttribute("aria-current", "true");
+
+  await page.keyboard.press(`${primary}+Alt+ArrowUp`);
+  await expect(projects.last()).toHaveAttribute("aria-current", "true");
+});
+
 test("thread status and type icons align with the title without entering its labels", async ({
   page,
 }) => {

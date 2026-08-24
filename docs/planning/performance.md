@@ -1,8 +1,9 @@
 # v0.2.0 performance and memory review
 
-Measured on 2026-08-24 from commit `1a650df` before the version-only release bump.
-These numbers describe one machine and one release build. They are a baseline for later `zd`
-builds, not a promise that other computers will produce the same values.
+Runtime behavior was measured on 2026-08-24 from commit `1a650df` before the version-only release
+bump. Artifact sizes were refreshed from the verified v0.2.0 package built at commit `f330136`.
+These numbers describe one machine and one release build. They are a baseline for later `zd` builds,
+not a promise that other computers will produce the same values.
 
 ## Test system
 
@@ -23,11 +24,12 @@ Serial numbers and other machine identifiers are intentionally excluded.
 | --- | ---: |
 | Native executable | 15,839,648 bytes (15.11 MiB) |
 | `zd.app` bundle | 15,592 KiB (15.23 MiB) |
-| arm64 DMG | 5,949,040 bytes (5.67 MiB) |
+| arm64 DMG | 5,948,981 bytes (5.67 MiB) |
 | Minified frontend JavaScript | 2,813.81 kB (878.38 kB gzip) |
 
-The final versioned DMG passed `hdiutil verify`. The application bundle is small because macOS
-supplies WebKit; its system frameworks are not copied into `zd.app`.
+The final versioned DMG passed `hdiutil verify` and has SHA-256
+`b9e84ad5c75c6dce5b0b40069e16988d6e525031c5ffd0727f14039be1eb5c7a`. The application bundle is
+small because macOS supplies WebKit; its system frameworks are not copied into `zd.app`.
 
 ## Runtime workload
 
