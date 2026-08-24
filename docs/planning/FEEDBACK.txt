@@ -3,6 +3,15 @@
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
 === Feedback Addressed ===
+when switching to new branch or worktree the tagged subheading on the panel doesn't change. In this case I created and switched branches but it still says feat/global-use on it... ![Screenshot](../screenshots/screenshot-1787526819901104000.png)
+why is this statement here? ![Screenshot](../screenshots/screenshot-1787526856469699000.png)
+scrollable window for file list doesn't fill full height.
+terminal doesn't fill full height... large blank space below it... ![Screenshot](../screenshots/screenshot-1787526929144636000.png)
+we have finished `docs/planning/goals/expanded-scope`. We should close it out by writing a summary of what it did and putting summary into `docs/planning/goals/_completed`.
+If I edit table in `` at this point (![Screenshot](../screenshots/screenshot-1787527081214534000.png)) then it for every keystroke scrolls the document up and down funkily.
+I currently have no way to "close and not save" a file or dispose of edits to a file.
+terminals when selected have funky outline on them, that shouldn't be there. ![Screenshot](../screenshots/screenshot-1787527212250527000.png) its a blue outline in this screenshot.
+on file editor/reader we should have a sub chrome header above our title chrome that shows current opened file name. kindof like a tab.
 please think harder on the subheader for a thread and the branch/worktree... this screenshot shows clearly the branch is `feat/global-use` yet the thread says `zd`... ![Screenshot](../screenshots/screenshot-1787523388247455000.png)
 what are these differing font sizes in the hotkeys menu? ![Screenshot](../screenshots/screenshot-1787523448008455000.png)
 we have shortcut config on hotkeys menu... don't need it also on the settings menue.
