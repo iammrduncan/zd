@@ -143,7 +143,7 @@ export function headlessEmulator(): TerminalEmulator {
       input.setAttribute("aria-label", label);
       host.append(input);
     },
-    write: () => undefined,
+    write: () => Promise.resolve(),
     onData: () => () => undefined,
     onBinary: () => () => undefined,
     onSearchResults: () => () => undefined,

@@ -18,7 +18,7 @@ export interface TerminalEmulator {
   readonly columns: number;
   readonly rows: number;
   open(host: HTMLElement, label: string): void;
-  write(bytes: Uint8Array): void;
+  write(bytes: Uint8Array): Promise<void>;
   onData(listener: (data: string) => void): () => void;
   onBinary(listener: (data: string) => void): () => void;
   onSearchResults(listener: (results: TerminalEmulatorSearchResults) => void): () => void;
@@ -163,8 +163,8 @@ class XtermEmulator implements TerminalEmulator {
     this.setLabel(label);
   }
 
-  write(bytes: Uint8Array): void {
-    this.#terminal.write(bytes);
+  write(bytes: Uint8Array): Promise<void> {
+    return new Promise((resolve) => this.#terminal.write(bytes, resolve));
   }
 
   onData(listener: (data: string) => void): () => void {
