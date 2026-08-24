@@ -221,19 +221,27 @@
 }
 
 @media (max-width: 58.25rem) {
-  .zd-workbench[data-files-visibility] {
+  .zd-workbench[data-responsive-files="suppressed"] {
     --workbench-files-responsive-width: 0px;
     --workbench-files-divider: 0px;
   }
 
-  .zd-workbench > .zd-workbench-files,
-  .zd-workbench > [data-resizer="files"] {
+  .zd-workbench[data-responsive-files-open="false"] > .zd-workbench-files,
+  .zd-workbench[data-responsive-files="suppressed"] > [data-resizer="files"] {
     display: none;
+  }
+
+  .zd-workbench[data-responsive-files-open="true"] > .zd-workbench-files {
+    z-index: 4;
+    display: grid;
+    grid-area: 1 / 3 / 2 / 6;
+    inline-size: auto;
+    border-inline-start: var(--hairline) solid var(--line-quiet);
   }
 }
 
 @media (max-width: 50rem) {
-  .zd-workbench[data-threads-visibility]:not([data-threads-visibility="hidden"]) {
+  .zd-workbench[data-responsive-threads="collapsed"]:not([data-threads-visibility="hidden"]) {
     --workbench-threads-responsive-width: 56px;
   }
 
@@ -243,13 +251,13 @@
 }
 
 @media (max-width: 40rem) {
-  .zd-workbench[data-threads-visibility][data-files-visibility] {
+  .zd-workbench[data-responsive-threads="hidden"] {
     --workbench-threads-responsive-width: 0px;
     --workbench-threads-divider: 0px;
   }
 
-  .zd-workbench > .zd-workbench-threads,
-  .zd-workbench > [data-resizer="threads"] {
+  .zd-workbench[data-responsive-threads="hidden"] > .zd-workbench-threads,
+  .zd-workbench[data-responsive-threads="hidden"] > [data-resizer="threads"] {
     display: none;
   }
 }

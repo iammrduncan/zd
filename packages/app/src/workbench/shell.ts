@@ -6,6 +6,7 @@ import type {
 } from "./runtime";
 import type { WorkbenchRegions, WorkbenchState } from "./state";
 import { registerCommandTarget } from "./shortcuts";
+import { mountResponsiveRegions } from "./responsive";
 
 const GEOMETRY_STEP = 8;
 const SPLIT_STEP = 0.02;
@@ -15,8 +16,6 @@ const FILES_MIN_WIDTH = 220;
 const FILES_MAX_WIDTH = 360;
 const CENTRE_MIN_WIDTH = 528;
 const NAVIGATION_DIVIDERS_WIDTH = 2;
-const FILES_SUPPRESSED_QUERY = "(max-width: 58.25rem)";
-const THREADS_HIDDEN_QUERY = "(max-width: 40rem)";
 const NOTHING: Unmount = () => {};
 
 function regionMounts(mounts: WorkbenchMount | WorkbenchRegionMounts): WorkbenchRegionMounts {
@@ -120,39 +119,6 @@ function onPointerResize(
     stopDrag();
     element.removeEventListener("pointerdown", onPointerDown);
   };
-}
-
-function watchResponsiveSuppression(
-  query: string,
-  region: HTMLElement,
-  focusFallback: () => HTMLElement,
-): Unmount {
-  if (typeof window.matchMedia !== "function") return () => {};
-
-  const media = window.matchMedia(query);
-  let returnFocus: HTMLElement | null = null;
-  let fallback: HTMLElement | null = null;
-  const reconcileFocus = () => {
-    const active = document.activeElement;
-    if (media.matches) {
-      if (active instanceof HTMLElement && region.contains(active)) {
-        returnFocus = active;
-        fallback = focusFallback();
-        fallback.focus({ preventScroll: true });
-      }
-      return;
-    }
-
-    if (returnFocus && fallback === document.activeElement && returnFocus.isConnected) {
-      returnFocus.focus({ preventScroll: true });
-    }
-    returnFocus = null;
-    fallback = null;
-  };
-
-  media.addEventListener("change", reconcileFocus);
-  reconcileFocus();
-  return () => media.removeEventListener("change", reconcileFocus);
 }
 
 export function fitNavigationWidths(
@@ -312,6 +278,14 @@ export async function mountWorkbenchShell(
   };
   shell.addEventListener("focusin", rememberFocus);
 
+  const responsive = mountResponsiveRegions(
+    shell,
+    threads,
+    files,
+    filesTab,
+    centreFocusTarget,
+  );
+
   const render = (state: WorkbenchState) => {
     regionState(shell, state);
     const { regions } = state;
@@ -340,10 +314,10 @@ export async function mountWorkbenchShell(
       centreFocusTarget(regions).focus({ preventScroll: true });
     }
 
-    threads.setAttribute("aria-hidden", String(regions.threads.visibility === "hidden"));
-    files.setAttribute("aria-hidden", String(regions.files.visibility === "hidden"));
-    threads.inert = regions.threads.visibility === "hidden";
-    files.inert = regions.files.visibility === "hidden";
+    responsive.syncVisibility(
+      regions.threads.visibility === "hidden",
+      regions.files.visibility === "hidden",
+    );
 
     threadsResizer.setAttribute("aria-valuenow", String(regions.threads.width));
     filesResizer.setAttribute("aria-valuenow", String(regions.files.width));
@@ -390,6 +364,7 @@ export async function mountWorkbenchShell(
     priority: 100,
     available: () => true,
     run: () => {
+      if (responsive.filesSuppressed()) return responsive.toggleFiles();
       updateRegions(context, (regions) => ({
         ...regions,
         files: {
@@ -399,6 +374,13 @@ export async function mountWorkbenchShell(
       }));
       return true;
     },
+  });
+  const stopResponsiveFilesDismiss = registerCommandTarget({
+    id: "workbench.files.dismiss-responsive",
+    commandId: "workbench.escape",
+    priority: 250,
+    available: responsive.filesOpen,
+    run: responsive.closeFiles,
   });
   const stopProjectsVisibility = registerCommandTarget({
     id: "workbench.projects.toggle-visibility",
@@ -420,9 +402,9 @@ export async function mountWorkbenchShell(
   const cleanups: Unmount[] = [
     stopProjectsVisibility,
     stopFilesVisibility,
+    stopResponsiveFilesDismiss,
+    responsive.dispose,
     () => geometryObserver?.disconnect(),
-    watchResponsiveSuppression(FILES_SUPPRESSED_QUERY, files, centreFocusTarget),
-    watchResponsiveSuppression(THREADS_HIDDEN_QUERY, threads, centreFocusTarget),
     onArrowResize(threadsResizer, (direction) =>
       updateRegions(context, (regions) => ({
         ...regions,

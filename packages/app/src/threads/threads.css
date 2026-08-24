@@ -335,13 +335,19 @@
   padding-inline: var(--space-2);
 }
 
-[data-thread-region-mode="collapsed"] .zd-thread-region-heading,
-[data-thread-region-mode="collapsed"] .zd-thread-project-name,
-[data-thread-region-mode="collapsed"] .zd-thread-empty,
-[data-thread-region-mode="collapsed"] .zd-thread-actions,
-[data-thread-region-mode="collapsed"] .zd-thread-create-action,
-[data-thread-region-mode="collapsed"] .zd-thread-rename,
-[data-thread-region-mode="collapsed"] .zd-thread-recovery {
+:is(
+    [data-thread-region-mode="collapsed"],
+    .zd-workbench[data-responsive-threads="collapsed"] .zd-project-threads
+  )
+  :is(
+    .zd-thread-region-heading,
+    .zd-thread-project-name,
+    .zd-thread-empty,
+    .zd-thread-actions,
+    .zd-thread-create-action,
+    .zd-thread-rename,
+    .zd-thread-recovery
+  ) {
   position: absolute;
   inline-size: var(--hairline);
   block-size: var(--hairline);
@@ -350,19 +356,19 @@
   white-space: nowrap;
 }
 
-[data-thread-region-mode="collapsed"] .zd-thread-list {
+:is([data-thread-region-mode="collapsed"], .zd-workbench[data-responsive-threads="collapsed"] .zd-project-threads) .zd-thread-list {
   margin-block-start: 0;
 }
 
-[data-thread-region-mode="collapsed"] .zd-thread-project + .zd-thread-project {
+:is([data-thread-region-mode="collapsed"], .zd-workbench[data-responsive-threads="collapsed"] .zd-project-threads) .zd-thread-project + .zd-thread-project {
   margin-block-start: 0;
 }
 
-[data-thread-region-mode="collapsed"] .zd-thread-row {
+:is([data-thread-region-mode="collapsed"], .zd-workbench[data-responsive-threads="collapsed"] .zd-project-threads) .zd-thread-row {
   grid-template-columns: var(--space-2) var(--space-3);
 }
 
-[data-thread-region-mode="collapsed"] .zd-thread-labels {
+:is([data-thread-region-mode="collapsed"], .zd-workbench[data-responsive-threads="collapsed"] .zd-project-threads) .zd-thread-labels {
   position: absolute;
   z-index: 1;
   inset-inline-start: calc(100% + var(--space-1));
@@ -373,6 +379,6 @@
   background: var(--surface-transient);
 }
 
-[data-thread-region-mode="collapsed"] .zd-thread-row:is(:hover, :focus-visible) .zd-thread-labels {
+:is([data-thread-region-mode="collapsed"], .zd-workbench[data-responsive-threads="collapsed"] .zd-project-threads) .zd-thread-row:is(:hover, :focus-visible) .zd-thread-labels {
   display: grid;
 }
