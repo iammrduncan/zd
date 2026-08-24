@@ -125,34 +125,31 @@ export class AttentionSettingsController {
   }
 
   setSoundEnabled(enabled: boolean): void {
+    const before = this.#state.settings;
     setAttentionSoundEnabled(enabled);
     this.#refreshSettings();
+    if (!before.soundEnabled && this.#state.settings.soundEnabled) this.#preview();
   }
 
   setMuted(muted: boolean): void {
+    const before = this.#state.settings;
     setAttentionMuted(muted);
     this.#refreshSettings();
+    if (before.muted && !this.#state.settings.muted) this.#preview();
   }
 
   setVolume(selectedVolume: number): void {
+    const before = this.#state.settings;
     setAttentionVolume(selectedVolume);
     this.#refreshSettings();
+    if (before.volume !== this.#state.settings.volume) this.#preview();
   }
 
   setAgentSound(agent: SupportedAttentionAgent, sound: CompletionSound): void {
     const before = this.#state.settings;
     setAttentionAgentSound(agent, sound);
     this.#refreshSettings();
-    if (
-      before.agentSounds[agent] !== sound &&
-      before.soundEnabled &&
-      !before.muted &&
-      before.volume > 0
-    ) {
-      void this.#adapter.playSound({ sound, volume: before.volume }).catch(() => {
-        // Preview failure cannot prevent the durable selection from applying.
-      });
-    }
+    if (before.agentSounds[agent] !== sound) this.#preview(sound);
   }
 
   reportRoutingProblem(problem: NotificationRoutingProblem): void {
@@ -161,6 +158,14 @@ export class AttentionSettingsController {
 
   #refreshSettings(): void {
     this.#publish({ ...this.#state, settings: attentionSettings() });
+  }
+
+  #preview(sound = this.#state.settings.agentSounds.codex): void {
+    const settings = this.#state.settings;
+    if (!settings.soundEnabled || settings.muted || settings.volume <= 0) return;
+    void this.#adapter.playSound({ sound, volume: settings.volume }).catch(() => {
+      // Preview failure cannot prevent the durable selection from applying.
+    });
   }
 
   #publish(next: AttentionSettingsSnapshot): void {

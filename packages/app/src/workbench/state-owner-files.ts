@@ -52,6 +52,43 @@ export function stateAfterFileRename(
   return { ...state, openFiles, threads, active };
 }
 
+/** Close one open file without treating another open file as its replacement. */
+export function stateAfterFileClose(
+  state: WorkbenchState,
+  contexts: Map<string, WorkbenchContext>,
+  resource: FileResource,
+): WorkbenchState | null {
+  const closingId = state.openFiles.find(
+    (file) =>
+      file.projectId === resource.projectId &&
+      file.worktreeId === resource.worktreeId &&
+      file.relativePath === resource.relativePath,
+  )?.id;
+  if (!closingId) return null;
+
+  const openFiles = state.openFiles.filter(({ id }) => id !== closingId);
+  const threads = state.threads.map((thread) => ({
+    ...thread,
+    fileId: thread.fileId === closingId ? null : thread.fileId,
+  }));
+  const activeFileClosed = state.active.fileId === closingId;
+  const active = {
+    ...state.active,
+    fileId: activeFileClosed ? null : state.active.fileId,
+  };
+  const candidate = { ...state, openFiles, threads, active };
+  const regions = activeFileClosed
+    ? stateWithFocus(candidate, active.threadId ? "thread" : "files").regions
+    : state.regions;
+  for (const [projectId, context] of contexts) {
+    contexts.set(projectId, {
+      ...context,
+      fileId: context.fileId === closingId ? null : context.fileId,
+    });
+  }
+  return { ...candidate, regions };
+}
+
 /** Reconcile open-file identities after one already-committed move to system Trash. */
 export function stateAfterFileRemoval(
   state: WorkbenchState,

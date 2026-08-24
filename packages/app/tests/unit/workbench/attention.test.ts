@@ -95,6 +95,26 @@ describe("attention settings", () => {
     unmount();
   });
 
+  it("previews newly enabled sound and volume changes with the resulting settings", async () => {
+    const native = adapter();
+    const controller = new AttentionSettingsController(native.value);
+
+    controller.setSoundEnabled(true);
+    await vi.waitFor(() =>
+      expect(native.value.playSound).toHaveBeenLastCalledWith({ sound: "subtle", volume: 0.5 }),
+    );
+
+    controller.setVolume(0.75);
+    await vi.waitFor(() =>
+      expect(native.value.playSound).toHaveBeenLastCalledWith({ sound: "subtle", volume: 0.75 }),
+    );
+
+    controller.setAgentSound("codex", "bright");
+    await vi.waitFor(() =>
+      expect(native.value.playSound).toHaveBeenLastCalledWith({ sound: "bright", volume: 0.75 }),
+    );
+  });
+
   it("renders unavailable controls with an explanation and persists immediate choices", async () => {
     const controller = new AttentionSettingsController(adapter("unsupported").value);
     const host = document.createElement("div");

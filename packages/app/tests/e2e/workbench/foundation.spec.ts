@@ -264,7 +264,9 @@ test("a dirty file survives context switches and is bold in the Files tree", asy
   await expect(page.locator(".current-file .cm-content")).toContainText("const unsaved = true;");
 });
 
-test("the file subchrome identifies, discards, and closes the current file", async ({ page }) => {
+test("the file subchrome closes with one x and confirms before discarding unsaved work", async ({
+  page,
+}) => {
   await page.locator('[data-project-id="project-zd"] .zd-project-row').click();
   await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
   await expect(page.locator(".current-file-path")).toHaveText("README.md");
@@ -273,14 +275,19 @@ test("the file subchrome identifies, discards, and closes the current file", asy
   await content.press("End");
   await content.pressSequentially("\nthrowaway");
 
-  const discard = page.getByRole("button", { name: "Discard edits to README.md" });
-  await expect(discard).toBeVisible();
-  await discard.click();
-  await expect(content).not.toContainText("throwaway");
-  await expect(discard).toBeHidden();
+  const close = page.getByRole("button", { name: "Close README.md" });
+  await expect(close).toHaveText("×");
+  await expect(page.getByRole("button", { name: "Discard edits to README.md" })).toHaveCount(0);
+  await close.click();
+  const confirmation = page.getByRole("alertdialog", { name: "Unsaved changes" });
+  await expect(confirmation).toContainText("Close README.md without saving?");
+  await confirmation.getByRole("button", { name: "Cancel" }).click();
+  await expect(content).toContainText("throwaway");
 
-  await page.getByRole("button", { name: "Close README.md" }).click();
-  await expect(page.locator(".current-file-path")).toHaveText("src/main.ts");
+  await close.click();
+  await confirmation.getByRole("button", { name: "Close without Saving" }).click();
+  await expect(page.locator(".current-file-path")).toHaveCount(0);
+  await expect(page.getByText("No file selected.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Close README.md" })).toHaveCount(0);
 });
 

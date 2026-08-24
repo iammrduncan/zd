@@ -5,6 +5,7 @@ import type { BoundedFileRead } from "@/editor";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import type { FileStamp, Platform } from "@/platform";
 import { mountCurrentFile } from "@/workbench/current-file";
+import { FileDraftStore } from "@/workbench/current-file/drafts";
 import { attachOpenRequests } from "@/workbench/open-requests";
 import type { LaunchRequest } from "@/workbench/resources";
 import type { FileResource, ProjectGrant } from "@/workbench/resources";
@@ -148,7 +149,7 @@ describe("the root current-file owner", () => {
     host.remove();
   });
 
-  it("discards unsaved edits from the file header and can close the current file", async () => {
+  it("closes with one x action and confirms before discarding an unsaved draft", async () => {
     const fixture = context({
       status: "text",
       text: "const value = 1;",
@@ -157,23 +158,31 @@ describe("the root current-file owner", () => {
     });
     const host = document.createElement("div");
     document.body.append(host);
-    const unmount = await mountCurrentFile(host, fixture.runtime);
+    const drafts = new FileDraftStore(window.localStorage);
+    const unmount = await mountCurrentFile(host, fixture.runtime, { drafts });
     const view = EditorView.findFromDOM(host.querySelector<HTMLElement>(".md-editor")!)!;
-    const discard = host.querySelector<HTMLButtonElement>(
-      '[aria-label="Discard edits to src/main.ts"]',
-    )!;
+    const close = host.querySelector<HTMLButtonElement>('[aria-label="Close src/main.ts"]')!;
 
-    expect(discard.hidden).toBe(true);
+    expect(close.textContent).toBe("×");
+    expect(host.querySelector('[aria-label="Discard edits to src/main.ts"]')).toBeNull();
     view.dispatch({ changes: { from: view.state.doc.length, insert: "\nconst mine = 2;" } });
-    await vi.waitFor(() => expect(discard.hidden).toBe(false));
-    discard.click();
+    await vi.waitFor(() => expect(drafts.get(resource("src/main.ts"))).not.toBeNull());
+    close.click();
 
-    expect(view.state.doc.toString()).toBe("const value = 1;");
-    expect(discard.hidden).toBe(true);
+    const confirmation = host.querySelector<HTMLDialogElement>('[role="alertdialog"]');
+    expect(confirmation?.open).toBe(true);
+    expect(confirmation?.textContent).toContain("Close src/main.ts without saving?");
+    expect(fixture.runtime.state.snapshot().active.fileId).not.toBeNull();
     expect(fixture.writeTextFile).not.toHaveBeenCalled();
 
-    host.querySelector<HTMLButtonElement>('[aria-label="Close src/main.ts"]')!.click();
+    confirmation?.querySelector<HTMLButtonElement>('[data-file-close-choice="cancel"]')?.click();
+    expect(fixture.runtime.state.snapshot().active.fileId).not.toBeNull();
+    expect(drafts.get(resource("src/main.ts"))).not.toBeNull();
+
+    close.click();
+    host.querySelector<HTMLButtonElement>('[data-file-close-choice="discard"]')?.click();
     await vi.waitFor(() => expect(fixture.runtime.state.snapshot().active.fileId).toBeNull());
+    expect(drafts.get(resource("src/main.ts"))).toBeNull();
     expect(host.textContent).toContain("No file selected.");
     unmount();
     host.remove();
