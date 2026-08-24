@@ -19,7 +19,7 @@ Use the x64 setup executable from a GitHub Release for normal installation.
 
 4. Run the setup executable and complete the per-user installation.
 
-The v0.1 Windows installer is not code signed. Windows may show a SmartScreen warning even when the
+The v0.2 Windows installer is not code signed. Windows may show a SmartScreen warning even when the
 checksum matches the release.
 
 ## Update

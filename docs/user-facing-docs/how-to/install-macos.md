@@ -19,7 +19,7 @@ Use a release DMG for normal installation. Building from source is useful when t
 
 ## If macOS says “zd” Not Opened
 
-The v0.1 build is ad-hoc signed and not notarized, so macOS may show the **“zd” Not Opened** alert
+The v0.2 build is ad-hoc signed and not notarized, so macOS may show the **“zd” Not Opened** alert
 with only **Move to Trash** and **Done**. Continue only when you downloaded `zd` from the official
 release and its checksum passed.
 

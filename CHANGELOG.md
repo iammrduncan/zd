@@ -4,15 +4,41 @@ Notable user-facing changes to zd are recorded here.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-24
+
+### Added
+
+- Added the local workbench for several approved projects, terminal-backed threads, current files,
+  and bounded Git inspection.
+- Added a compact Files/Changes region with filtering, safe file operations, status, history,
+  comparisons, and read-only diffs.
+- Added CodeMirror editing for Markdown, Mermaid, code, and configuration files, including durable
+  unsaved drafts, Find/Replace, focus and typewriter modes, line wrapping, and screenshot paste.
+- Added Current Light, Dark, and Dracula themes, a searchable Command List, editable window
+  shortcuts, local settings, and opt-in diagnostics.
+- Added direct terminal creation in the active project with `Cmd+N` or `Ctrl+N`, numbered project
+  shortcuts, and previous/next project shortcuts.
+- Added opt-in macOS completion notifications and sounds for supported-agent thread identities.
+- Added the static product website, canonical user documentation, release screenshots, and measured
+  performance baseline.
+
 ### Changed
 
-- Replaced the single-document product shell with one local workbench for approved projects,
-  terminal-backed threads, current files, and Git inspection.
+- Replaced the single-document product shell with one stateful workbench that restores project,
+  thread, worktree, file, layout, and theme context together.
 - Simplified launch forms to `zd`, `zd <folder>`, and `zd <file>`.
-- Moved project-scoped Threads to the left and the compact Files/Changes region to the right.
-- Added CodeMirror language-aware editing, bounded terminal sessions, file-tree filtering, Git
-  status/history/comparisons, read-only diffs, validated themes, opt-in local diagnostics, and
-  opt-in macOS completion attention.
+- Moved project-scoped terminal threads to the left and Files/Changes to the right, with collapsible
+  and hideable regions and a paired terminal/file centre layout.
+- Bounded terminal renderer chunks at 64 KiB and made native reads wait for asynchronous xterm
+  writes, preventing the renderer from outrunning its consumer.
+
+### Known limitations
+
+- macOS builds are ad-hoc signed and not notarized. Windows installers are not code signed.
+- The direct **New terminal** action creates a shell thread. Starting an agent inside it does not
+  relabel the thread for completion notifications.
+- Very large unbroken terminal transcripts can still cause substantial transient WebKit memory
+  pressure; the measured stress case is in `docs/planning/performance.md`.
 
 ## [0.1.0] - 2026-08-05
 
@@ -24,5 +50,6 @@ Notable user-facing changes to zd are recorded here.
   reference.
 - macOS-first Tauri application scaffolding with Windows support and best-effort Linux support.
 
-[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/iammrduncan/zd/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/iammrduncan/zd/releases/tag/v0.1.0

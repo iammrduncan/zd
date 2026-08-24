@@ -21,12 +21,13 @@ Serial numbers and other machine identifiers are intentionally excluded.
 
 | Artifact | Size |
 | --- | ---: |
-| Native executable | 15,914,032 bytes (15.18 MiB) |
-| `zd.app` bundle | 15,660 KiB (15.29 MiB) |
+| Native executable | 15,839,648 bytes (15.11 MiB) |
+| `zd.app` bundle | 15,592 KiB (15.23 MiB) |
+| arm64 DMG | 5,949,040 bytes (5.67 MiB) |
 | Minified frontend JavaScript | 2,813.81 kB (878.38 kB gzip) |
 
-The v0.2.0 DMG size is recorded during the final versioned package run. The application bundle is
-small because macOS supplies WebKit; its system frameworks are not copied into `zd.app`.
+The final versioned DMG passed `hdiutil verify`. The application bundle is small because macOS
+supplies WebKit; its system frameworks are not copied into `zd.app`.
 
 ## Runtime workload
 

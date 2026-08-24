@@ -1,7 +1,7 @@
 # Releasing zd
 
 `package.json` is the single source for the product version. Tauri reads it directly, and the
-version synchronizer keeps npm and Cargo lock metadata aligned with it.
+version synchronizer keeps the website package, npm lockfile, and Cargo metadata aligned with it.
 
 Release work requires a Node version accepted by the `engines.node` range in `package.json`.
 
@@ -9,7 +9,7 @@ Release work requires a Node version accepted by the `engines.node` range in `pa
 
 1. Start from a clean checkout of `main`.
 2. Move the relevant entries from `Unreleased` in `CHANGELOG.md` under a dated version heading.
-3. Run `npm run version:bump -- <version>`, using a semantic version such as `0.1.1`.
+3. Run `npm run version:bump -- <version>`, using a semantic version such as `0.2.1`.
 4. Run `npm run check` and `cargo test --manifest-path packages/tauri/Cargo.toml`.
 5. Review and commit all version and changelog changes together as `Prepare v<version>`.
 
@@ -34,7 +34,7 @@ Intel DMGs plus a Windows x64 NSIS installer. It verifies each disk image, write
 beside every download, and creates the GitHub Release from the existing tag with generated release
 notes.
 
-The v0.1 line is ad-hoc signed so macOS can verify that the completed bundle has not changed. It is
+The v0.2 line is ad-hoc signed so macOS can verify that the completed bundle has not changed. It is
 not Developer ID signed or notarized; signing and notarization remain explicitly outside this
 prototype's scope in `docs/VISION.md` §11.
 
