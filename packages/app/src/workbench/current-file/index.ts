@@ -10,6 +10,7 @@ import { closeConfirmation } from "./close-confirmation";
 import { FileDraftStore } from "./drafts";
 import { fileCloseAction } from "./file-close";
 import { reconcile, saveWouldClobber } from "./reconcile";
+import { createReviewBinding } from "./review-binding";
 import type { FileStamp } from "@/platform";
 import type { FileResource } from "../resources";
 import { setWordWrap } from "../preferences";
@@ -18,6 +19,7 @@ import { register, registerCommandTarget } from "../shortcuts";
 import type { TransitionRecovery, WorkbenchState } from "../state";
 import { workbenchSettingsPreferences } from "../settings-preferences";
 import { attachReadingSettings } from "./reading-settings";
+import { mountReview } from "../review";
 import "./styles.css";
 
 export interface MountCurrentFileOptions {
@@ -59,11 +61,15 @@ export async function mountCurrentFile(
   let currentResource: FileResource | null = null;
   let known: FileStamp | null = null;
   let pendingImageSaves = 0;
+  let stopReviewDocument: Unmount = () => {};
   let notice: HTMLParagraphElement | null = null;
   let dismissFileClose: (() => void) | null = null;
   const surface = document.createElement("div");
   surface.className = "current-file";
-  host.replaceChildren(surface);
+  const reviewLayer = document.createElement("div");
+  reviewLayer.className = "current-file-review-layer";
+  host.replaceChildren(surface, reviewLayer);
+  const review = mountReview(reviewLayer, context.platform);
 
   const readingSettings = attachReadingSettings(surface, () => mounted?.editor ?? null);
 
@@ -108,6 +114,8 @@ export async function mountCurrentFile(
     focus: boolean,
     savedText?: string,
   ) => {
+    stopReviewDocument();
+    stopReviewDocument = () => {};
     mounted?.destroy();
     mounted = null;
     dismissFileClose?.();
@@ -122,6 +130,7 @@ export async function mountCurrentFile(
     path.title = resource.relativePath;
     const actions = document.createElement("div");
     actions.className = "current-file-actions";
+    const reviewBinding = createReviewBinding(buffer, resource, actions, review);
     let dirty = false;
     const close = fileCloseAction({
       host: surface,
@@ -184,6 +193,7 @@ export async function mountCurrentFile(
         }
       },
       ...(savedText === undefined ? {} : { savedText }),
+      ...reviewBinding.options,
       onTextChange: (text, isDirty) => {
         dirty = isDirty;
         if (isDirty) drafts.save(resource, text);
@@ -222,6 +232,7 @@ export async function mountCurrentFile(
           }
         : {}),
     });
+    stopReviewDocument = reviewBinding.connect(mounted);
     notice = document.createElement("p");
     notice.className = "current-file-notice";
     notice.hidden = true;
@@ -236,6 +247,8 @@ export async function mountCurrentFile(
     const requested = ++generation;
     reconciliation += 1;
     if (!resource) {
+      stopReviewDocument();
+      stopReviewDocument = () => {};
       mounted?.destroy();
       mounted = null;
       currentResource = null;
@@ -490,6 +503,8 @@ export async function mountCurrentFile(
     host.removeEventListener("focus", focusCurrentFile);
     window.removeEventListener("focus", onFocus);
     readingSettings.dispose();
+    stopReviewDocument();
+    review.unmount();
     stopClose();
     confirmation.dismiss();
     stopState();
