@@ -21,6 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           <nav aria-label="Primary navigation">
             <Link href="/docs/">Docs</Link>
             <a href="https://github.com/iammrduncan/zd">GitHub</a>
+            <a href="https://x.com/iamMrDuncan">X</a>
             <a href="https://discord.gg/3Qs2uejUf9">Discord</a>
             <a className="nav-download" href="https://github.com/iammrduncan/zd/releases/latest">
               Download
