@@ -1,6 +1,6 @@
 # Post-fix Workbench UX Cohesion Goal
 
-Status: **proposed — re-reviewed 2026-08-23 after the current feedback fixes**
+Status: **complete — 2026-08-23**
 
 ## Outcome
 
@@ -279,3 +279,23 @@ workbench, attention, and diagnostics choices without duplicating Shortcuts; thr
 actions are word-led, keyboard-complete, and truthful; the Shortcut Reference is fast to scan; and
 all focused plus integrated checks pass without regressions to current file safety, drafts, active
 context, live terminal sessions, accessibility, themes, or idle performance.
+
+## Completion evidence — 2026-08-23
+
+- Responsive Projects and Files now have one semantic owner. The real Projects hierarchy becomes a
+  labelled icon rail, hidden focus is released, and the mounted Files/Changes region opens as a
+  full-height temporary plane without rewriting durable visibility.
+- Command List, Settings, Shortcut Reference, file Trash, and unsaved-window-close confirmation use
+  the shared transient lifecycle, including ordinary replacement, safety priority, Escape, and
+  focus return.
+- The versioned Settings owner applies and restores every contracted Appearance, Reading,
+  Workbench, Attention, and Diagnostics choice. Hierarchy disclosure, shared context-menu mechanics,
+  inline thread rename, and the categorized registry-backed Shortcut Reference are complete.
+- Verification passed: TypeScript, ESLint, production build, version synchronization, 618 app unit
+  tests, 76 focused cross-feature browser tests, and 215 Tauri tests. Wide, 920 px, 760 px, and
+  Settings visual checks covered persistent layout, the full-height Files plane, the Projects rail,
+  focus, and readable control geometry.
+- The full browser audit also exposed ten pre-existing editor-only marker, heading-spacing, and
+  scroll-easing baselines. The four workbench failures found in that run were fixed and rerun green;
+  the remaining editor typography/rendering items are outside this goal's explicit non-goals and
+  were not changed to force an unrelated baseline.
