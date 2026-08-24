@@ -200,6 +200,17 @@ describe("root workbench commands", () => {
       shift: true,
     });
     expect(byId.get("projects.toggleVisibility")?.chord).toBeUndefined();
+    expect(byId.get("project.previous")?.chord).toEqual({
+      key: "ArrowUp",
+      mod: true,
+      alt: true,
+    });
+    expect(byId.get("project.next")?.chord).toEqual({
+      key: "ArrowDown",
+      mod: true,
+      alt: true,
+    });
+    expect(byId.get("thread.create")?.chord).toEqual({ key: "n", mod: true });
     expect(byId.get("command.list")?.chord).toEqual({ key: "p", mod: true, shift: true });
     expect(byId.get("settings.open")?.chord).toEqual({ key: ",", mod: true });
     expect(byId.get("window.summon")?.chord).toEqual({ key: " ", mod: true, shift: true });
@@ -235,6 +246,50 @@ describe("root workbench commands", () => {
       fileId: null,
     });
     attached.detach();
+  });
+
+  it("cycles through projects in display order and wraps at either edge", async () => {
+    const native = setupPlatform();
+    const runtime = context(native.platform);
+    const attached = attachWorkbenchCommands(document.createElement("div"), runtime);
+    await attached.ready;
+    await runtime.state.activateProject("project-one");
+    const byId = new Map(commands().map((command) => [command.id, command]));
+
+    expect(byId.get("project.next")?.run()).toBe(true);
+    await vi.waitFor(() => expect(runtime.state.snapshot().active.projectId).toBe("project-two"));
+    expect(byId.get("project.next")?.run()).toBe(true);
+    await vi.waitFor(() => expect(runtime.state.snapshot().active.projectId).toBe("project-one"));
+    expect(byId.get("project.previous")?.run()).toBe(true);
+    await vi.waitFor(() => expect(runtime.state.snapshot().active.projectId).toBe("project-two"));
+
+    attached.detach();
+  });
+
+  it("routes new-thread creation to the current feature target", async () => {
+    const native = setupPlatform();
+    const createThread = vi.fn(() => true);
+    const stopTarget = registerCommandTarget({
+      id: "test-thread-create",
+      commandId: "thread.create",
+      available: () => true,
+      run: createThread,
+    });
+    const attached = attachWorkbenchCommands(
+      document.createElement("div"),
+      context(native.platform),
+    );
+    await attached.ready;
+
+    expect(
+      commands()
+        .find(({ id }) => id === "thread.create")
+        ?.run(),
+    ).toBe(true);
+    expect(createThread).toHaveBeenCalledOnce();
+
+    attached.detach();
+    stopTarget();
   });
 
   it("keeps ordinary launch working and reports a native registration conflict", async () => {

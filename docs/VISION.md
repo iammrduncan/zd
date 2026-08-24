@@ -286,6 +286,8 @@ Default application bindings are:
 | Current-file Find | `Cmd+F` | `Ctrl+F` |
 | Focus Mode | `Cmd+Shift+F` | `Ctrl+Shift+F` |
 | Activate project 1…9 | `Cmd+1`…`Cmd+9` | `Ctrl+1`…`Ctrl+9` |
+| Previous / next project | `Cmd+Option+Up` / `Cmd+Option+Down` | `Ctrl+Alt+Up` / `Ctrl+Alt+Down` |
+| New terminal thread in the active project | `Cmd+N` | `Ctrl+N` |
 | Switch between the current thread and file | `Cmd+J` | `Ctrl+J` |
 | Command List | `Cmd+Shift+P` | `Ctrl+Shift+P` |
 | Global summon | `Cmd+Shift+Space` | `Ctrl+Shift+Space` |

@@ -15,6 +15,8 @@ but system-managed.
 | Open the searchable Command List | `Cmd+Shift+P` | `Ctrl+Shift+P` |
 | Open or close Settings | `Cmd+,` | `Ctrl+,` |
 | Activate project 1 through 9 | `Cmd+1` … `Cmd+9` | `Ctrl+1` … `Ctrl+9` |
+| Activate the previous or next project | `Cmd+Option+Up` / `Cmd+Option+Down` | `Ctrl+Alt+Up` / `Ctrl+Alt+Down` |
+| Start a terminal thread in the active project | `Cmd+N` | `Ctrl+N` |
 | Switch between the current thread and file | `Cmd+J` | `Ctrl+J` |
 | Summon or hide the workbench globally | `Cmd+Shift+Space` | `Ctrl+Shift+Space` |
 | Save the current file | `Cmd+S` | `Ctrl+S` |

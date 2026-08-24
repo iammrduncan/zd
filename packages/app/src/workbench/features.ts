@@ -99,6 +99,30 @@ function threadsNavigationMount(
           })),
         }),
     });
+    const activeCreateAction = () => {
+      const activeProjectId = context.state.snapshot().active.projectId;
+      if (!activeProjectId) return null;
+      return (
+        [...host.querySelectorAll<HTMLButtonElement>("[data-thread-create-toggle]")].find(
+          ({ dataset }) => dataset.threadCreateToggle === activeProjectId,
+        ) ?? null
+      );
+    };
+    const stopCreateThread = registerCommandTarget({
+      id: "projects.create-thread",
+      commandId: "thread.create",
+      priority: 100,
+      available: () => {
+        const action = activeCreateAction();
+        return Boolean(action && !action.disabled);
+      },
+      run: () => {
+        const action = activeCreateAction();
+        if (!action || action.disabled) return false;
+        action.click();
+        return true;
+      },
+    });
     const stopSettings = mountWorkbenchSettings(
       host.closest<HTMLElement>(".zd-workbench") ?? host,
       context.instrumentation,
@@ -109,6 +133,7 @@ function threadsNavigationMount(
     );
     return () => {
       stopSettings();
+      stopCreateThread();
       stopProjects();
     };
   };
