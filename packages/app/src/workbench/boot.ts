@@ -11,14 +11,22 @@ import { restoreShortcutBindings } from "./shortcut-settings";
 import { mountWindowChrome } from "./chrome";
 import { registerThemeCommands } from "./theme-commands";
 import { attachWorkbenchDiagnostics } from "./diagnostics";
-import { diagnosticsEnabled, setDiagnosticsEnabled, setWordWrap } from "./preferences";
-import { setThemePreference, themePreference } from "./preferences";
+import {
+  diagnosticsEnabled,
+  setDiagnosticsEnabled,
+  setSurfaceThemePreferences,
+  setThemePreference,
+  setWordWrap,
+  surfaceThemePreferences,
+  themePreference,
+} from "./preferences";
 import { mountWorkbenchFeatures } from "./features";
 import { attachOpenRequests } from "./open-requests";
 import type { Unmount, WorkbenchMount } from "./runtime";
 import { TransientCoordinator } from "./transients";
 import { applyWorkbenchSettings, workbenchSettingsPreferences } from "./settings-preferences";
 import { attachWorkspacePersistence } from "./workspace-home";
+import { SurfaceThemeController } from "./surface-themes";
 
 export type { WorkbenchMount } from "./runtime";
 
@@ -120,8 +128,27 @@ export async function bootWorkbench(
   const detachThemeSelectionOwner = registerThemeSelectionOwner((selected) => {
     state.setThemeSelection(selected, theme.snapshot().lastValid);
   });
+  const surfaceThemes = new SurfaceThemeController(host, catalog, {
+    initial: surfaceThemePreferences(),
+    onChange: setSurfaceThemePreferences,
+    onNotice: ({ source, problem }) => localNotices.push(`Theme ${source}: ${problem}`),
+  });
+  const themes = {
+    choices: Object.freeze([
+      { id: "system", name: "Follow System" },
+      ...[...catalog.themes.values()].map(({ id, config }) => ({ id, name: config.name })),
+    ]),
+    globalSelection: () => theme.snapshot().selected,
+    setGlobalSelection: (selected: string) => theme.setSelection(selected),
+    surfaceSelection: (surface: Parameters<typeof surfaceThemes.selection>[0]) =>
+      surfaceThemes.selection(surface),
+    setSurfaceSelection: (
+      surface: Parameters<typeof surfaceThemes.setSelection>[0],
+      selected: string,
+    ) => surfaceThemes.setSelection(surface, selected),
+  };
   const transients = new TransientCoordinator();
-  const runtime = { launch, platform, state, instrumentation, transients };
+  const runtime = { launch, platform, state, instrumentation, transients, themes };
   const rootCommands = attachWorkbenchCommands(host, runtime);
   const detachThemeCommands = registerThemeCommands(catalog, (selected) => {
     theme.setSelection(selected);
@@ -149,6 +176,7 @@ export async function bootWorkbench(
     detachCommandList();
     detachThemeSelectionOwner();
     detachThemeState();
+    surfaceThemes.dispose();
     theme.dispose();
     detachReference();
     detachTransientDismiss();
@@ -160,6 +188,7 @@ export async function bootWorkbench(
 
   const detachOpenRequests = attachOpenRequests(runtime);
   const detachWorkspacePersistence = attachWorkspacePersistence(state, platform);
+  surfaceThemes.refresh();
   await launchSpan?.end("ok");
 
   localNotices.push(...restoreShortcutBindings());
@@ -169,6 +198,7 @@ export async function bootWorkbench(
   return () => {
     detachThemeSelectionOwner();
     detachThemeState();
+    surfaceThemes.dispose();
     theme.dispose();
     detachReference();
     detachTransientDismiss();

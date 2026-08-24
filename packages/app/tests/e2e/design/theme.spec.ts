@@ -8,7 +8,7 @@ const PROSE = { light: "rgb(36, 37, 34)", dark: "rgb(229, 226, 217)" };
 
 async function paint(
   page: import("@playwright/test").Page,
-  theme: "system" | "light" | "dark" | "dracula" = "system",
+  theme: "system" | "light" | "dark" | "dracula" | "homebrew" = "system",
 ) {
   await page.locator(".zd-workbench").waitFor();
   await page.evaluate(async (value) => {
@@ -64,6 +64,15 @@ test("Dracula replaces the complete workbench palette without remounting", async
   expect((await paint(page, "dracula")).background).toBe("rgb(40, 42, 54)");
   await expect(workbench).toBeAttached();
   await expect(workbench).toHaveAttribute("data-theme-probe", "same-node");
+});
+
+test("Homebrew uses the macOS Terminal profile foreground and background", async ({ page }) => {
+  await page.goto("/");
+
+  expect(await paint(page, "homebrew")).toEqual({
+    background: "rgb(0, 0, 0)",
+    text: "rgb(40, 254, 20)",
+  });
 });
 
 test("warmth rests at an exact identity", async ({ page }) => {

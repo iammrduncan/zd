@@ -305,4 +305,27 @@ describe("the terminal thread surface", () => {
     surface.dispose();
     expect(emulator.disposed).toBe(true);
   });
+
+  it("refreshes in place when a scoped theme changes on an ancestor", async () => {
+    const native = adapter();
+    const emulator = new FakeEmulator();
+    const terminal = TerminalThreadSession.attach(native, session);
+    const themedRegion = document.createElement("section");
+    const host = document.createElement("div");
+    themedRegion.append(host);
+    document.body.append(themedRegion);
+    const surface = mountTerminalThreadSurface(host, terminal, metadata, {
+      createEmulator: () => emulator,
+    });
+    emulator.refreshTheme.mockClear();
+
+    themedRegion.dataset.themeName = "homebrew";
+    themedRegion.style.setProperty("--surface-canvas", "#000000");
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(emulator.refreshTheme).toHaveBeenCalledWith(surface.viewportElement);
+    expect(native.start).not.toHaveBeenCalled();
+    surface.dispose();
+    themedRegion.remove();
+  });
 });

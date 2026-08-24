@@ -526,3 +526,27 @@ test("the command list selects the dark theme and restores it after reload", asy
   await page.locator(".zd-workbench").waitFor();
   await expect(page.locator("html")).toHaveAttribute("data-theme-name", "dark");
 });
+
+test("Settings applies and restores a Markdown-only theme override", async ({ page }) => {
+  await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
+  const markdown = page.locator(
+    '.zd-file-surface .current-file:not(.zd-file-context):has(.md-editor[data-language="markdown"])',
+  );
+  await markdown.locator(".cm-editor").waitFor();
+  await page.keyboard.press("ControlOrMeta+,");
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  await settings
+    .getByRole("radiogroup", { name: "Markdown theme" })
+    .getByRole("radio", { name: "Dracula" })
+    .click();
+
+  await expect(markdown).toHaveAttribute("data-theme-name", "dracula");
+  await expect(page.locator("html")).toHaveAttribute("data-theme-name", "current-light");
+  await expect(page.locator(".zd-workbench-files")).not.toHaveAttribute("data-theme-name", /.+/u);
+
+  await page.reload();
+  await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
+  await markdown.locator(".cm-editor").waitFor();
+  await expect(markdown).toHaveAttribute("data-theme-name", "dracula");
+  await expect(page.locator("html")).toHaveAttribute("data-theme-name", "current-light");
+});

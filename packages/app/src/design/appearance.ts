@@ -2,7 +2,7 @@ import { ThemeController, loadThemeCatalog } from "./themes";
 
 /** Transitional appearance controls used by design fixtures and Settings work. */
 
-export type Theme = "system" | "light" | "dark" | "dracula";
+export type Theme = "system" | "light" | "dark" | "dracula" | "homebrew";
 
 const APPLYING_COLOUR_SETTING = "data-applying-colour-setting";
 const BUILT_INS = loadThemeCatalog([]);
