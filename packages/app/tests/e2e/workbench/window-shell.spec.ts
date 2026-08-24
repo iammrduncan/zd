@@ -240,6 +240,37 @@ test("applies responsive regions in the specified suppression order", async ({ p
   await expect(shell.locator('[data-region="centre"]')).toHaveCSS("width", "600px");
 });
 
+test("responsive suppression exposes real Projects rail and temporary Files plane", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1300, height: 800 });
+  await page.goto("/dev/workbench.html");
+  await expect(page.locator('html[data-workbench-ready="true"]')).toBeAttached();
+  await page.locator('[data-project-id="project-zd"] .zd-project-heading').hover();
+  await page.getByRole("button", { name: "New terminal in zd" }).click();
+  await page.setViewportSize({ width: 760, height: 800 });
+
+  const shell = page.locator(".zd-workbench");
+  const projects = page.locator('[data-region="threads"]');
+  await expect(shell).toHaveAttribute("data-responsive-threads", "collapsed");
+  await expect(projects.locator(".zd-project-icon").first()).toBeVisible();
+  await expect(projects.locator(".zd-project-name").first()).toBeHidden();
+  await expect(projects.locator("[data-thread-id]").first()).toBeVisible();
+  await expect(projects.locator(".zd-thread-labels").first()).toBeHidden();
+
+  await page.setViewportSize({ width: 920, height: 800 });
+  const files = page.locator('[data-region="files"]');
+  await expect(files).toBeHidden();
+  await page.keyboard.press("ControlOrMeta+Shift+b");
+  await expect(shell).toHaveAttribute("data-responsive-files-open", "true");
+  await expect(files).toBeVisible();
+  await expect(files.getByRole("tab", { name: "FILES" })).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(files).toBeHidden();
+  await expect(shell).toHaveAttribute("data-files-visibility", "visible");
+});
+
 test("responsive overlap keeps the focused centre surface and releases hidden focus", async ({
   page,
 }) => {

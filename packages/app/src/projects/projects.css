@@ -241,48 +241,59 @@
   padding: var(--space-2);
 }
 
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-toolbar {
+.zd-workbench:is([data-threads-visibility="collapsed"], [data-responsive-threads="collapsed"])
+  .zd-project-toolbar {
   grid-template-columns: 1fr;
   justify-items: center;
   padding-inline: 0;
 }
 
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-footer {
+.zd-workbench:is([data-threads-visibility="collapsed"], [data-responsive-threads="collapsed"])
+  .zd-project-footer {
   justify-content: center;
 }
 
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-region-heading,
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-add,
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-disclosure,
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-name,
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-actions,
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-recovery,
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-status,
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-empty {
+.zd-workbench:is([data-threads-visibility="collapsed"], [data-responsive-threads="collapsed"])
+  :is(
+    .zd-project-region-heading,
+    .zd-project-add,
+    .zd-project-disclosure,
+    .zd-project-name,
+    .zd-project-actions,
+    .zd-project-recovery,
+    .zd-project-status,
+    .zd-project-empty
+  ) {
   display: none;
 }
 
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-list {
+.zd-workbench:is([data-threads-visibility="collapsed"], [data-responsive-threads="collapsed"])
+  .zd-project-list {
   margin-block-start: var(--space-1);
 }
 
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-group + .zd-project-group {
+.zd-workbench:is([data-threads-visibility="collapsed"], [data-responsive-threads="collapsed"])
+  .zd-project-group
+  + .zd-project-group {
   margin-block-start: var(--space-1);
   padding-block-start: var(--space-1);
 }
 
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-heading {
+.zd-workbench:is([data-threads-visibility="collapsed"], [data-responsive-threads="collapsed"])
+  .zd-project-heading {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-row {
+.zd-workbench:is([data-threads-visibility="collapsed"], [data-responsive-threads="collapsed"])
+  .zd-project-row {
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   min-block-size: calc(var(--space-4) + var(--space-1));
   padding: 0;
 }
 
-.zd-workbench[data-threads-visibility="collapsed"] .zd-project-icon {
+.zd-workbench:is([data-threads-visibility="collapsed"], [data-responsive-threads="collapsed"])
+  .zd-project-icon {
   display: grid;
   inline-size: var(--space-4);
   block-size: var(--space-4);
