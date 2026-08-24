@@ -144,15 +144,25 @@ test("fills its host without drawing a focus outline around the terminal pane", 
   const geometry = await page.locator(".zd-terminal-thread-surface").evaluate((surface) => {
     const host = surface.parentElement!;
     const style = getComputedStyle(surface);
+    const viewport = surface.querySelector<HTMLElement>(".zd-terminal-thread-viewport")!;
+    const viewportStyle = getComputedStyle(viewport);
+    const screen = surface.querySelector<HTMLElement>(".xterm-screen")!;
+    const contentHeight =
+      viewport.clientHeight -
+      Number.parseFloat(viewportStyle.paddingTop) -
+      Number.parseFloat(viewportStyle.paddingBottom);
     return {
       hostBottom: host.getBoundingClientRect().bottom,
       surfaceBottom: surface.getBoundingClientRect().bottom,
       outlineStyle: style.outlineStyle,
+      canvasHeightDelta: Math.abs(contentHeight - screen.getBoundingClientRect().height),
+      lineHeight: Number.parseFloat(viewportStyle.lineHeight),
     };
   });
 
   expect(geometry.surfaceBottom).toBe(geometry.hostBottom);
   expect(geometry.outlineStyle).toBe("none");
+  expect(geometry.canvasHeightDelta).toBeLessThan(geometry.lineHeight);
 });
 
 test("searches parsed terminal state and reports the active result", async ({ page }) => {
