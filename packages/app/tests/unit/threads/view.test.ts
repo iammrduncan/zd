@@ -218,7 +218,7 @@ describe("the Threads region", () => {
         item.getAttribute("aria-checked"),
       ]),
     ).toEqual([
-      ["App running", "true"],
+      ["App / status", "true"],
       ["Current directory", "false"],
       ["Branch / worktree", "false"],
     ]);
@@ -230,6 +230,33 @@ describe("the Threads region", () => {
         ?.textContent,
     ).toBe("/workspace/alpha-review");
     expect(host.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("keeps rename, secondary-line choices, and lifecycle-aware removal in one ordered menu", () => {
+    const host = document.createElement("aside");
+    document.body.append(host);
+    mountThreadsRegion(host, new ThreadsController(adapter()));
+    const review = host.querySelector<HTMLButtonElement>('[data-thread-id="review"]')!;
+
+    expect(host.querySelector(".zd-thread-actions")).toBeNull();
+    review.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    const menu = host.querySelector<HTMLElement>('[data-thread-settings="review"]')!;
+    expect(
+      [...menu.querySelectorAll<HTMLElement>('[role^="menuitem"]')].map((item) =>
+        item.textContent?.trim(),
+      ),
+    ).toEqual([
+      "Rename",
+      "App / status",
+      "Current directory",
+      "Branch / worktree",
+      "Terminate and Remove Thread…",
+    ]);
+
+    menu.querySelector<HTMLButtonElement>('[data-thread-rename="review"]')!.click();
+    expect(host.querySelector<HTMLInputElement>('[data-thread-rename-form="review"] input')).toBe(
+      document.activeElement,
+    );
   });
 
   it("shows the actual root worktree label instead of inventing project root", () => {
@@ -326,6 +353,9 @@ describe("the Threads region", () => {
     const host = document.createElement("div");
     mountProjectThreads(host, new ThreadsController(workbench), "alpha");
 
+    host
+      .querySelector<HTMLButtonElement>('[data-thread-id="review"]')!
+      .dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
     host.querySelector<HTMLButtonElement>('[data-thread-rename="review"]')!.click();
     const rename = host.querySelector<HTMLFormElement>('[data-thread-rename-form="review"]')!;
     expect(rename.dataset.threadRenameInline).toBe("true");
@@ -342,6 +372,9 @@ describe("the Threads region", () => {
     mountProjectThreads(host, new ThreadsController(workbench), "alpha");
 
     expect(host.querySelector('[data-thread-close="review"]')).toBeNull();
+    host
+      .querySelector<HTMLButtonElement>('[data-thread-id="review"]')!
+      .dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
     expect(host.querySelectorAll('[data-thread-remove="review"]')).toHaveLength(1);
     host.querySelector<HTMLButtonElement>('[data-thread-remove="review"]')!.click();
     await settle();
@@ -359,6 +392,9 @@ describe("the Threads region", () => {
     const host = document.createElement("div");
     mountProjectThreads(host, new ThreadsController(workbench), "alpha");
 
+    host
+      .querySelector<HTMLButtonElement>('[data-thread-id="review"]')!
+      .dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
     host.querySelector<HTMLButtonElement>('[data-thread-remove="review"]')!.click();
     await settle();
     const status = host.querySelector<HTMLElement>('[role="status"]')!;

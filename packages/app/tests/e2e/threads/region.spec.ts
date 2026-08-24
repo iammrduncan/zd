@@ -159,9 +159,6 @@ test("renders a dense accessible project/thread hierarchy", async ({ page }) => 
     dot: getComputedStyle(row.querySelector(".zd-thread-state-dot")!).backgroundColor,
     nameTop: row.querySelector(".zd-thread-name")!.getBoundingClientRect().top,
     secondaryTop: row.querySelector(".zd-thread-secondary")!.getBoundingClientRect().top,
-    actionsOpacity: getComputedStyle(
-      row.closest(".zd-thread-item")!.querySelector(".zd-thread-actions")!,
-    ).opacity,
   }));
   expect(metrics.height).toBeGreaterThanOrEqual(30);
   expect(metrics.height).toBeLessThanOrEqual(44);
@@ -169,13 +166,7 @@ test("renders a dense accessible project/thread hierarchy", async ({ page }) => 
   expect(metrics.background).not.toBe("rgba(0, 0, 0, 0)");
   expect(metrics.dot).not.toBe(metrics.background);
   expect(metrics.secondaryTop).toBeGreaterThan(metrics.nameTop);
-  expect(metrics.actionsOpacity).toBe("0");
-
-  await selected.hover();
-  await expect(selected.locator("xpath=..").locator(".zd-thread-actions")).toHaveCSS(
-    "opacity",
-    "1",
-  );
+  await expect(selected.locator("xpath=..").locator(".zd-thread-actions")).toHaveCount(0);
 });
 
 test("thread context settings choose the secondary line", async ({ page }) => {
@@ -185,7 +176,7 @@ test("thread context settings choose the secondary line", async ({ page }) => {
   await thread.click({ button: "right" });
   const menu = page.getByRole("menu", { name: "Thread 1 thread settings" });
   await expect(menu).toContainText("Second line");
-  await expect(page.getByRole("menuitemradio", { name: "App running" })).toHaveAttribute(
+  await expect(page.getByRole("menuitemradio", { name: "App / status" })).toHaveAttribute(
     "aria-checked",
     "true",
   );
@@ -216,13 +207,14 @@ test("compact controls create directly, rename, and expose one removal action", 
   page,
 }) => {
   await mountFixture(page);
-  await page.locator('[data-thread-id="thread-0"]').hover();
-  await page.getByRole("button", { name: "Rename Thread 0" }).click();
+  await page.locator('[data-thread-id="thread-0"]').click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Rename" }).click();
   const rename = page.getByRole("textbox", { name: "New name for Thread 0" });
   await rename.fill("Renamed thread");
   await rename.press("Enter");
   await expect(page.getByRole("button", { name: "Close Thread 0" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Remove Thread 0" }).click();
+  await page.locator('[data-thread-id="thread-0"]').click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Terminate and Remove Thread…" }).click();
 
   await page.evaluate(() => window.threadFixture.mountProjectCreator());
   await page.getByRole("button", { name: "New terminal in Alpha" }).click();

@@ -7,6 +7,7 @@ import { createFileTreeRow } from "./row";
 import type { FileTreeController } from "./controller";
 import type { FileTreeViewSnapshot } from "./types";
 import { FILE_TREE_ROW_HEIGHT, fileTreeWindow } from "./virtualizer";
+import { closeContextMenu, openContextMenu } from "@/workbench/context-menu";
 
 const FALLBACK_VIEWPORT_HEIGHT = 240;
 
@@ -146,7 +147,8 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
 
   const dismissFileMenu = (restoreFocus = false): void => {
     const path = fileMenuPath;
-    fileMenu?.remove();
+    if (fileMenu?.getAttribute("role") === "menu") closeContextMenu(fileMenu, restoreFocus);
+    else fileMenu?.remove();
     fileMenu = null;
     fileMenuPath = null;
     document.removeEventListener("pointerdown", dismissFileMenuFromPointer);
@@ -354,23 +356,15 @@ export function mountFileTree(host: HTMLElement, controller: FileTreeController)
       }
     }
 
-    menu.addEventListener("keydown", (event) => {
-      const actions = [...menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
-      const currentIndex = actions.indexOf(document.activeElement as HTMLButtonElement);
-      let nextIndex: number | null = null;
-      if (event.key === "ArrowDown") nextIndex = (currentIndex + 1) % actions.length;
-      else if (event.key === "ArrowUp")
-        nextIndex = (currentIndex - 1 + actions.length) % actions.length;
-      else if (event.key === "Home") nextIndex = 0;
-      else if (event.key === "End") nextIndex = actions.length - 1;
-      if (nextIndex === null) return;
-      event.preventDefault();
-      actions[nextIndex]?.focus();
-    });
-
-    placeFileMenu(menu, inlineStart, blockStart);
+    fileMenu = menu;
     fileMenuPath = path;
-    menu.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    openContextMenu({
+      host: ui.root,
+      menu,
+      anchor: (path ? fileRow(path) : ui.viewport) ?? ui.viewport,
+      inlineStart,
+      blockStart,
+    });
   };
 
   const renderRows = (): void => {
