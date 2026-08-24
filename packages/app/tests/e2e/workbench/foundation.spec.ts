@@ -53,7 +53,7 @@ test("a file-tree selection takes the overlap centre back from an active thread"
 
   await expect(fileSurface).toBeVisible();
   await expect(threadSurface).toBeHidden();
-  await expect(fileSurface.locator(".cm-content")).toContainText("# README.md");
+  await expect(fileSurface.locator(".cm-content")).toContainText("Markdown stays readable");
   await page.evaluate(() => new Promise(requestAnimationFrame));
   expect(pageErrors).toEqual([]);
 });
@@ -239,7 +239,7 @@ test("pasting a screenshot into Markdown saves it before inserting a relative li
 }) => {
   await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
   const content = page.locator(".current-file .cm-content");
-  await expect(content).toContainText("# README.md");
+  await expect(content).toContainText("Markdown stays readable");
   await content.click();
 
   await page.evaluate(() => {
@@ -275,7 +275,7 @@ test("a dirty file survives context switches and is bold in the Files tree", asy
   await page.locator('[data-project-id="project-zd"] .zd-project-row').click();
   await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
   const content = page.locator(".current-file .cm-content");
-  await expect(content).toContainText("# README.md");
+  await expect(content).toContainText("Markdown stays readable");
   await content.click();
   await content.press("End");
   await content.pressSequentially("\nconst unsaved = true;");
