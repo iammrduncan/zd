@@ -418,6 +418,8 @@ declare global {
       setGranularity: (value: FocusGranularity) => void;
       isDirty: () => boolean;
       isRaw: () => boolean;
+      toggleFocus: () => boolean;
+      isFocusMode: () => boolean;
       /** The buffer as it stands — what a save would write. */
       text: () => string;
       /** Where the caret is, so a test can ask what a key press actually did. */
@@ -463,6 +465,8 @@ window.zdEditor = {
   setGranularity: (value) => setGranularity(column, value),
   isDirty: () => editor.isDirty(),
   isRaw: () => editor.isRaw(),
+  toggleFocus: () => editor.toggleFocus(),
+  isFocusMode: () => editor.isFocusMode(),
   text: () => editor.text(),
   selection: () => editor.selection(),
   setCaret: (at) => editor.setCaret(at),

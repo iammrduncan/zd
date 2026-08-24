@@ -46,7 +46,10 @@ test("a block jump eases the document rather than cutting to it", async ({ page 
     window.zdEditor!.setCaret(lineThree + 5);
   });
 
-  const before = await page.locator(".md-surface").evaluate((surface) => surface.scrollTop);
+  const before = await page.locator(".md-surface").evaluate((surface) => ({
+    scrollTop: surface.scrollTop,
+    rowHeight: document.querySelector<HTMLElement>(".cm-line")!.getBoundingClientRect().height,
+  }));
   await beginEditorScrollTrace(page);
   await page.keyboard.press("Alt+ArrowDown");
   await expect.poll(() => page.evaluate(() => window.zdEditor!.selection().line)).toBe(7);
@@ -54,9 +57,9 @@ test("a block jump eases the document rather than cutting to it", async ({ page 
     .poll(() =>
       page
         .locator(".md-surface")
-        .evaluate((surface, start) => Math.abs(surface.scrollTop - start), before),
+        .evaluate((surface, start) => Math.abs(surface.scrollTop - start), before.scrollTop),
     )
-    .toBeGreaterThan(60);
+    .toBeGreaterThan(before.rowHeight);
   await waitForEditorScrollToSettle(page);
 
   const recorded = await endEditorScrollTrace(page);
@@ -67,9 +70,10 @@ test("a block jump eases the document rather than cutting to it", async ({ page 
   const end = frames[frames.length - 1]!;
   // Distance, not direction. Where the surface starts depends on where the opening click
   // left it, so a jump four blocks down the document can legitimately travel either way.
-  expect(Math.abs(end - start), "the block jump did not scroll the surface at all").toBeGreaterThan(
-    60,
-  );
+  expect(
+    Math.abs(end - start),
+    "the block jump did not travel by one rendered row",
+  ).toBeGreaterThan(before.rowHeight);
 
   const low = Math.min(start, end);
   const high = Math.max(start, end);

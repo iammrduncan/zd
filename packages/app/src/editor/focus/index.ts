@@ -12,6 +12,7 @@ import type { ScrollMotion } from "./scroll";
 import { scrollingMeasure, type ScrollingMeasure } from "../measure";
 import { isTypewriter } from "../typewriter";
 import { blockRange, nearestContentPos, sectionRange } from "./range";
+import { tableFocusRows, tableFocusElement, viewportBlockRange } from "./table";
 
 /**
  * Focus on the editing surface. Vision §4.1 calls it the heart of the product.
@@ -328,9 +329,13 @@ const focus = ViewPlugin.fromClass(
           const block =
             granularity === "section"
               ? sectionRange(view.state, this.origin())
-              : blockRange(view.state, this.origin());
+              : viewportBlockRange(view, this.origin());
 
-          const painted: { node: HTMLElement; focus: "target" | "context" }[] = [];
+          const painted: {
+            node: HTMLElement;
+            focus: "target" | "context";
+            rows: readonly { node: HTMLTableRowElement; focus: "target" | "context" }[];
+          }[] = [];
           for (const child of view.contentDOM.children) {
             if (!(child instanceof HTMLElement)) continue;
             if (child.classList.contains("cm-line")) continue;
@@ -341,15 +346,35 @@ const focus = ViewPlugin.fromClass(
              * `compute()` makes for a line: a widget's own range is its start,
              * and a target that reaches it at all is a target it belongs to.
              */
-            const inTarget = from >= block.from && from <= block.to;
-            painted.push({ node: child, focus: inTarget ? "target" : "context" });
+            const table = child instanceof HTMLTableElement ? child : null;
+            const tableTo = table ? Number(table.dataset.tableTo) : from;
+            const inTarget = from <= block.to && tableTo >= block.from;
+            const tableRows = table ? tableFocusRows(view.state, from) : null;
+            const tableDomRows = table ? [...table.rows] : [];
+            const rows = tableRows
+              ? tableDomRows.map((node, index) => {
+                  const range = tableRows[index];
+                  const target = range ? range.from <= block.to && range.to >= block.from : false;
+                  return { node, focus: target ? ("target" as const) : ("context" as const) };
+                })
+              : [];
+            painted.push({
+              node: child,
+              focus: inTarget ? "target" : "context",
+              rows,
+            });
           }
           return painted;
         },
         write: (painted) => {
           if (this.dead) return;
-          for (const { node, focus } of painted) {
+          for (const { node, focus, rows } of painted) {
             if (node.getAttribute("data-focus") !== focus) node.setAttribute("data-focus", focus);
+            for (const row of rows) {
+              if (row.node.getAttribute("data-focus") !== row.focus) {
+                row.node.setAttribute("data-focus", row.focus);
+              }
+            }
           }
         },
       });
@@ -432,6 +457,12 @@ const focus = ViewPlugin.fromClass(
 
           const block = resolve(view);
           if (!block) return null;
+
+          const element = tableFocusElement(view, block);
+          if (element) {
+            const box = element.getBoundingClientRect();
+            return { top: box.top, height: box.height };
+          }
 
           const top = view.coordsAtPos(block.from);
           const bottom = view.coordsAtPos(block.to);

@@ -9,7 +9,8 @@ import type { Extension } from "@codemirror/state";
 import { keymap, type Command, type EditorView } from "@codemirror/view";
 
 import { granularityOf, scrollBlockToAnchor } from "./focus";
-import { blockRange, sectionRange } from "./focus/range";
+import { sectionRange } from "./focus/range";
+import { viewportBlockRange } from "./focus/table";
 import { isTypewriter } from "./typewriter";
 
 /**
@@ -96,7 +97,7 @@ function focusBlock(view: EditorView, at: number): { from: number; to: number } 
     const line = state.doc.lineAt(at);
     return { from: line.from, to: line.to };
   }
-  return blockRange(state, at);
+  return viewportBlockRange(view, at);
 }
 
 /**

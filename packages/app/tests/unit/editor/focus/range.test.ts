@@ -1,8 +1,9 @@
-import { markdown } from "@codemirror/lang-markdown";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
 import { blockRange, sectionRange } from "@/editor/focus/range";
+import { tableFitsFocusBlock, tableFocusRows } from "@/editor/focus/table";
 
 /*
  * What §4.1 calls the focus target: the whole block the caret is in.
@@ -283,5 +284,28 @@ describe("a paragraph and the code block under it are one target", () => {
     // The null case. Looking backwards from the document's first block has to be
     // a no-op rather than a crash.
     expect(blockRange(alone, 0)).toEqual({ from: 0, to: alone.doc.length });
+  });
+});
+
+describe("viewport-aware table focus blocks", () => {
+  it("keeps the whole table through exactly 70 percent and uses rows above it", () => {
+    expect(tableFitsFocusBlock(700, 1_000)).toBe(true);
+    expect(tableFitsFocusBlock(701, 1_000)).toBe(false);
+    expect(tableFitsFocusBlock(1_001, 1_000)).toBe(false);
+  });
+
+  it("attaches the hidden delimiter line to the rendered header row", () => {
+    const table = EditorState.create({
+      doc: ["| Heading | Value |", "| --- | --- |", "| First | One |", "| Second | Two |"].join(
+        "\n",
+      ),
+      extensions: [markdown({ base: markdownLanguage })],
+    });
+
+    expect(tableFocusRows(table, table.doc.line(1).from)).toEqual([
+      { from: table.doc.line(1).from, to: table.doc.line(2).to },
+      { from: table.doc.line(3).from, to: table.doc.line(3).to },
+      { from: table.doc.line(4).from, to: table.doc.line(4).to },
+    ]);
   });
 });
