@@ -10,6 +10,8 @@ const SIDE_BY_SIDE = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-si
 const DARK = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-dark.png");
 const DRACULA = resolve(ROOT, "docs/user-facing-docs/assets/zd-workbench-dracula.png");
 const SOCIAL_CARD = resolve(ROOT, "docs/user-facing-docs/assets/zd-social-card.png");
+const READER = resolve(ROOT, "docs/user-facing-docs/assets/zd-reader.jpeg");
+const COMMENTS = resolve(ROOT, "docs/user-facing-docs/assets/zd-comments.png");
 
 function pngDimensions(path: string) {
   const bytes = readFileSync(path);
@@ -42,6 +44,19 @@ describe("the workbench promotional kit", () => {
     expect(readme).toMatch(/!\[[^\]]*workbench[^\]]*\]/i);
   });
 
+  it("keeps current Markdown reading and commenting captures", () => {
+    const capture = readFileSync(
+      resolve(ROOT, "packages/scripts/release/capture-workbench.mjs"),
+      "utf8",
+    );
+
+    expect(existsSync(READER)).toBe(true);
+    expect(existsSync(COMMENTS)).toBe(true);
+    expect(capture).toContain("zd-reader.jpeg");
+    expect(capture).toContain("zd-comments.png");
+    expect(pngDimensions(COMMENTS)).toEqual({ width: 1440, height: 900 });
+  });
+
   it("captures the current one-click thread flow in all three bundled themes", () => {
     const capture = readFileSync(
       resolve(ROOT, "packages/scripts/release/capture-workbench.mjs"),
@@ -67,7 +82,7 @@ describe("the workbench promotional kit", () => {
     expect(existsSync(SOCIAL_CARD)).toBe(true);
     expect(pngDimensions(SOCIAL_CARD)).toEqual({ width: 1200, height: 630 });
     expect(manifest.scripts["promo:render"]).toContain("render-social-card.swift");
-    expect(renderer).toContain("Run every agent. Keep every thread.");
+    expect(renderer).toContain("Markdown, rendered and editable.");
   });
 
   it("keeps honest release limits beside the public download guidance", () => {

@@ -24,11 +24,15 @@ const PUBLIC_PAGES = [
   "docs/user-facing-docs/how-to/install-macos.md",
   "docs/user-facing-docs/how-to/install-windows.md",
   "docs/user-facing-docs/how-to/manage-projects-and-threads.md",
+  "docs/user-facing-docs/how-to/review-markdown-with-comments.md",
+  "docs/user-facing-docs/how-to/paste-screenshots.md",
   "docs/user-facing-docs/how-to/inspect-changes.md",
   "docs/user-facing-docs/how-to/develop.md",
   "docs/user-facing-docs/reference/cli.md",
   "docs/user-facing-docs/reference/shortcuts.md",
   "docs/user-facing-docs/explanation/architecture.md",
+  "docs/user-facing-docs/explanation/markdown-reading-surface.md",
+  "docs/user-facing-docs/explanation/why-zd-is-minimal.md",
 ];
 const CONTRIBUTOR_PAGES = [
   "CONTRIBUTING.md",
@@ -97,9 +101,12 @@ describe("the repository documentation map", () => {
     expect(readme).toContain("install-macos.md#if-macos-says-zd-not-opened");
     expect(readme).toContain("Open Anyway");
     expect(readme).toContain("docs/user-facing-docs/how-to/manage-projects-and-threads.md");
+    expect(readme).toContain("docs/user-facing-docs/how-to/review-markdown-with-comments.md");
+    expect(readme).toContain("docs/user-facing-docs/how-to/paste-screenshots.md");
     expect(readme).toContain("docs/user-facing-docs/how-to/inspect-changes.md");
     expect(readme).toContain("docs/user-facing-docs/reference/cli.md");
     expect(readme).toContain("docs/user-facing-docs/explanation/architecture.md");
+    expect(readme).toContain("docs/user-facing-docs/explanation/markdown-reading-surface.md");
     expect(readme).toContain("CONTRIBUTING.md");
   });
 
@@ -247,6 +254,28 @@ describe("the repository documentation map", () => {
       expect(source).not.toMatch(/choose \*\*Create\*\*/i);
     }
     expect(guide).toContain("previous or next project");
+  });
+
+  it("covers the complete Markdown reading and review workflow", () => {
+    const review = page("docs/user-facing-docs/how-to/review-markdown-with-comments.md");
+    const screenshots = page("docs/user-facing-docs/how-to/paste-screenshots.md");
+    const reading = page("docs/user-facing-docs/explanation/markdown-reading-surface.md");
+    const fit = page("docs/user-facing-docs/explanation/why-zd-is-minimal.md");
+    const website = page("packages/website/app/page.tsx");
+    const websiteLayout = page("packages/website/app/layout.tsx");
+
+    expect(review).toContain("zd-feedback.txt");
+    expect(review).toContain("Add comment");
+    expect(screenshots).toContain("docs/screenshots");
+    expect(screenshots).toContain("16 MiB");
+    expect(reading).toContain("directly editable");
+    expect(reading).toContain("Raw Mode");
+    expect(reading).toContain("Typewriter Mode");
+    expect(fit).toContain("daily driver");
+    expect(fit).toContain("may not fit everyone");
+    expect(website).toContain("Markdown, rendered and editable");
+    expect(website).toContain("zd-feedback.txt");
+    expect(websiteLayout).toContain("https://discord.gg/3Qs2uejUf9");
   });
 
   it("keeps current product context on the workbench naming contract", () => {

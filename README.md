@@ -4,9 +4,9 @@
 
 # zd
 
-ZenSuite’s `zd` is a fast, local agent workbench for projects, threads, terminals, files, and Git.
-Keep several repositories and agent sessions in one quiet window, edit the current file, and inspect
-changes without handing a web service your source tree.
+ZenSuite’s `zd` is an intentionally minimal, local Markdown and agent workbench. It began with the
+rendered Markdown reader/editor I wanted for my own daily work, then grew projects, terminal threads,
+files, and Git around that surface. It purposefully matches how I build and may not fit everyone.
 
 ![The zd workbench with project threads on the left, an editable file in the centre, and the compact file tree on the right](docs/user-facing-docs/assets/zd-workbench.png)
 
@@ -35,12 +35,16 @@ creates it on the first successful save.
 
 ## What is available
 
-- Several approved projects and Git worktrees in one root window.
+- Rendered, directly editable Markdown with document typography, local images, tables, fenced code,
+  Mermaid diagrams, Find/Replace, Raw Mode, Focus Mode, and Typewriter Mode.
+- Selected-text comments that stay beside the Markdown and regenerate a worktree-root
+  `zd-feedback.txt` handoff for a person or coding agent.
+- Clipboard image paste that saves the screenshot below `docs/screenshots` and inserts its relative
+  link into the current Markdown or plain-text file.
+- Several approved projects and Git worktrees, with shortcuts to switch projects and the current
+  thread/file without stopping inactive terminal sessions.
 - Project-scoped terminal threads for a shell, Codex, Claude Code, or OpenCode workflow.
-- A compact, keyboard-accessible file tree with file type and Git state.
-- CodeMirror editing for Markdown and common code/configuration languages, including rendered
-  Mermaid fences and standalone `.mmd` / `.mermaid` diagrams, with bounded large-file states and
-  Find/Replace.
+- A compact file tree, common code/configuration editing, and bounded large-file states.
 - Read-only Git status, commit history, revision comparison, and file diffs.
 - Current Light, Dark, Dracula, and validated local theme files.
 - A global quick-access shortcut that reuses the running workbench.
@@ -55,6 +59,9 @@ sound, desktop notifications, and local diagnostics are off by default.
 | If you want to… | Start here |
 | --- | --- |
 | Learn the core project, thread, file, and Git loop | [Start your first workbench](docs/user-facing-docs/tutorials/first-workbench.md) |
+| Understand rendered, directly editable Markdown | [The Markdown reading surface](docs/user-facing-docs/explanation/markdown-reading-surface.md) |
+| Leave a precise Markdown review handoff | [Review Markdown with comments](docs/user-facing-docs/how-to/review-markdown-with-comments.md) |
+| Paste a clipboard image into a document | [Paste a screenshot](docs/user-facing-docs/how-to/paste-screenshots.md) |
 | Organize projects and terminal threads | [Manage projects and threads](docs/user-facing-docs/how-to/manage-projects-and-threads.md) |
 | Review working-tree or historical changes | [Inspect Git changes](docs/user-facing-docs/how-to/inspect-changes.md) |
 | Install or update on macOS | [Install on macOS](docs/user-facing-docs/how-to/install-macos.md) |

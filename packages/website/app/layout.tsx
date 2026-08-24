@@ -21,6 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           <nav aria-label="Primary navigation">
             <Link href="/docs/">Docs</Link>
             <a href="https://github.com/iammrduncan/zd">GitHub</a>
+            <a href="https://discord.gg/3Qs2uejUf9">Discord</a>
             <a className="nav-download" href="https://github.com/iammrduncan/zd/releases/latest">
               Download
             </a>
@@ -29,7 +30,10 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         {children}
         <footer>
           <span>zd is open source under MIT.</span>
-          <a href="https://github.com/iammrduncan/zd">View the source</a>
+          <span className="footer-links">
+            <a href="https://discord.gg/3Qs2uejUf9">Join Discord</a>
+            <a href="https://github.com/iammrduncan/zd">View the source</a>
+          </span>
         </footer>
       </body>
     </html>
