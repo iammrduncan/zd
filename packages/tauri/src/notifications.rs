@@ -147,6 +147,7 @@ pub struct NotificationState {
 struct NativeAttentionCapabilities {
     notification_problem: Option<String>,
     sound_problem: Option<String>,
+    development_notifications: bool,
 }
 
 impl NativeAttentionCapabilities {
@@ -154,6 +155,20 @@ impl NativeAttentionCapabilities {
         Self {
             notification_problem: Some(problem),
             sound_problem: None,
+            development_notifications: false,
+        }
+    }
+
+    #[cfg(any(target_os = "macos", test))]
+    fn for_macos(notification_problem: Option<String>, development: bool) -> Self {
+        match notification_problem {
+            Some(_) if development => Self {
+                notification_problem: None,
+                sound_problem: None,
+                development_notifications: true,
+            },
+            Some(problem) => Self::with_notification_problem(problem),
+            None => Self::default(),
         }
     }
 
@@ -162,6 +177,7 @@ impl NativeAttentionCapabilities {
         Self {
             notification_problem: Some(problem.clone()),
             sound_problem: Some(problem),
+            development_notifications: false,
         }
     }
 
@@ -172,19 +188,24 @@ impl NativeAttentionCapabilities {
     fn sound_problem(&self) -> Option<&str> {
         self.sound_problem.as_deref()
     }
+
+    fn uses_development_notifications(&self) -> bool {
+        self.development_notifications
+    }
 }
 
 impl NotificationState {
     pub fn new(app: tauri::AppHandle) -> Self {
         let store = Arc::new(ActionStore::default());
         #[cfg(target_os = "macos")]
-        let capabilities = macos::install(Arc::new(ActionRouter {
+        let notification_problem = macos::install(Arc::new(ActionRouter {
             app,
             store: Arc::clone(&store),
         }))
-        .err()
-        .map(NativeAttentionCapabilities::with_notification_problem)
-        .unwrap_or_default();
+        .err();
+        #[cfg(target_os = "macos")]
+        let capabilities =
+            NativeAttentionCapabilities::for_macos(notification_problem, tauri::is_dev());
         #[cfg(not(target_os = "macos"))]
         let capabilities = {
             let _ = app;
@@ -343,6 +364,9 @@ async fn platform_request_permission() -> NotificationPermission {
 pub async fn notification_permission(
     state: tauri::State<'_, NotificationState>,
 ) -> Result<NotificationPermission, String> {
+    if state.capabilities.uses_development_notifications() {
+        return Ok(NotificationPermission::Granted);
+    }
     if state.capabilities.notification_problem().is_some() {
         return Ok(NotificationPermission::Unsupported);
     }
@@ -353,6 +377,9 @@ pub async fn notification_permission(
 pub async fn notification_request_permission(
     state: tauri::State<'_, NotificationState>,
 ) -> Result<NotificationPermission, String> {
+    if state.capabilities.uses_development_notifications() {
+        return Ok(NotificationPermission::Granted);
+    }
     if state.capabilities.notification_problem().is_some() {
         return Ok(NotificationPermission::Unsupported);
     }
@@ -362,6 +389,7 @@ pub async fn notification_request_permission(
 #[tauri::command]
 pub fn show_thread_notification(
     state: tauri::State<'_, NotificationState>,
+    app: tauri::AppHandle,
     request: ThreadNotificationRequestV1,
 ) -> NotificationPresentationResult {
     if let Some(problem) = state.capabilities.notification_problem() {
@@ -374,6 +402,28 @@ pub fn show_thread_notification(
         return NotificationPresentationResult {
             status: NotificationPresentationStatus::Failed,
             problem: Some(problem),
+        };
+    }
+
+    if state.capabilities.uses_development_notifications() {
+        use tauri_plugin_notification::NotificationExt;
+
+        let shown = app
+            .notification()
+            .builder()
+            .title(&request.title)
+            .body(&request.body)
+            .show();
+        state.store.forget(&request.notification_id);
+        return match shown {
+            Ok(()) => NotificationPresentationResult {
+                status: NotificationPresentationStatus::Presented,
+                problem: None,
+            },
+            Err(error) => NotificationPresentationResult {
+                status: NotificationPresentationStatus::Failed,
+                problem: Some(error.to_string()),
+            },
         };
     }
 
@@ -450,5 +500,16 @@ mod capability_tests {
 
         assert!(capabilities.notification_problem().is_some());
         assert_eq!(capabilities.sound_problem(), None);
+    }
+
+    #[test]
+    fn development_fallback_keeps_desktop_notifications_enabled() {
+        let capabilities = NativeAttentionCapabilities::for_macos(
+            Some("notifications require an application bundle".into()),
+            true,
+        );
+
+        assert_eq!(capabilities.notification_problem(), None);
+        assert!(capabilities.uses_development_notifications());
     }
 }
