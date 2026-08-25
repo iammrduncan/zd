@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import "./globals.css";
+import { FathomEvents } from "@/app/_components/fathom-events";
 import { rootMetadata } from "@/lib/site";
 
 export const metadata: Metadata = rootMetadata;
@@ -14,6 +15,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <script src="https://cdn.usefathom.com/script.js" data-site="LIDRLGUW" defer />
       </head>
       <body>
+        <FathomEvents />
         <header className="site-header">
           <Link className="wordmark" href="/" aria-label="zd home">
             <span>zd</span>
