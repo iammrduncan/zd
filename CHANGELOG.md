@@ -4,6 +4,13 @@ Notable user-facing changes to zd are recorded here.
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-08-25
+
+### Fixed
+
+- Made release verification wait for Markdown table navigation to settle before measuring whether
+  cell edits keep the document viewport still.
+
 ## [0.2.4] - 2026-08-25
 
 ### Fixed
@@ -108,7 +115,8 @@ Notable user-facing changes to zd are recorded here.
   reference.
 - macOS-first Tauri application scaffolding with Windows support and best-effort Linux support.
 
-[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.5...HEAD
+[0.2.5]: https://github.com/iammrduncan/zd/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/iammrduncan/zd/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/iammrduncan/zd/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/iammrduncan/zd/compare/v0.2.0...v0.2.2
