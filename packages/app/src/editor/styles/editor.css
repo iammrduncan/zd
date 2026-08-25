@@ -328,12 +328,14 @@
   display: inline-block;
   width: calc(var(--nest) * var(--list-level-indent));
   margin-inline-start: calc(-1 * var(--hang));
+  white-space: nowrap;
 }
 
 .md-editor .md-line-cont-fill {
   display: inline-block;
   width: var(--hang);
   margin-inline-start: calc(-1 * var(--hang));
+  white-space: nowrap;
 }
 
 /*
@@ -368,9 +370,11 @@
  * prose beside it. See the shared rule below.
  */
 .md-editor .md-notation-mark {
-  display: inline-block;
+  box-sizing: content-box;
+  display: inline-flex;
+  justify-content: flex-end;
   width: var(--notation-gutter);
-  margin-inline-start: calc(-1 * var(--notation-gutter));
+  margin-inline-start: calc(-1 * (var(--notation-gutter) + var(--notation-gutter-gap)));
   padding-inline-end: var(--notation-gutter-gap);
   text-align: right;
   /*
@@ -402,6 +406,15 @@
 .md-editor .md-line-marker,
 .md-editor .md-quote-mark {
   color: var(--text-muted);
+}
+
+/* A quote marker and a list marker each keep their own column on a combined row. */
+.md-editor .md-line-quote.md-line-item {
+  padding-inline-start: calc(var(--list-marker-column) + var(--hang));
+}
+
+.md-editor .md-line-quote.md-line-item .md-quote-mark:first-child {
+  margin-inline-start: calc(-1 * (var(--list-marker-column) + var(--hang)));
 }
 
 /*
@@ -459,6 +472,7 @@
   font-size: var(--type-code-size);
   line-height: var(--type-code-line);
   background: var(--surface-code);
+  padding-inline: var(--space-2);
 }
 
 /* §7.3 allows no chrome around the document, and a focus ring is chrome. */

@@ -246,15 +246,18 @@ test("the hash hangs in the gutter and the prose edge stays straight", async ({ 
     )!;
 
     const gutter = getComputedStyle(document.documentElement).getPropertyValue("--notation-gutter");
+    const gap = getComputedStyle(document.documentElement).getPropertyValue(
+      "--notation-gutter-gap",
+    );
     const probe = document.createElement("div");
-    probe.style.width = gutter;
+    probe.style.width = `calc(${gutter} + ${gap})`;
     probe.style.position = "absolute";
     document.body.append(probe);
     const gutterPx = probe.getBoundingClientRect().width;
     probe.remove();
 
     return {
-      gutterPx,
+      gutterAndGapPx: gutterPx,
       markLeft: mark.getBoundingClientRect().left,
       markRight: mark.getBoundingClientRect().right,
       headingLeft: heading.getBoundingClientRect().left,
@@ -273,10 +276,14 @@ test("the hash hangs in the gutter and the prose edge stays straight", async ({ 
   expect(geometry, "the heading's hash is not marked as notation").not.toBeNull();
   const g = geometry!;
 
-  expect(g.gutterPx, "--notation-gutter must be a real width").toBeGreaterThan(0);
-  // The hash ends where the prose begins and starts a full gutter to its left.
+  expect(g.gutterAndGapPx, "the notation gutter and gap must be a real width").toBeGreaterThan(0);
+  // The marker box ends where prose begins. Its box includes the explicit gap that
+  // keeps an over-wide H5/H6 glyph from consuming the heading text.
   expect(g.markRight, "the hash runs up to the text edge").toBeCloseTo(g.headingLeft, 0);
-  expect(g.markLeft, "the hash hangs a full gutter out").toBeCloseTo(g.headingLeft - g.gutterPx, 0);
+  expect(g.markLeft, "the hash hangs a full gutter and gap out").toBeCloseTo(
+    g.headingLeft - g.gutterAndGapPx,
+    0,
+  );
   // The measure is not dented: a heading's text starts where a paragraph's does.
   expect(g.proseLeft, "heading and paragraph share one text edge").toBeCloseTo(g.headingLeft, 0);
 
