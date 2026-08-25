@@ -280,7 +280,12 @@ describe("Markdown visual reference", () => {
       expect(readFileSync(resolve(directory, specimen), "utf8")).toMatch(/^# /m);
     }
 
-    expect(readFileSync(resolve(directory, "typography.md"), "utf8")).toMatch(/^###### /m);
+    const typography = readFileSync(resolve(directory, "typography.md"), "utf8");
+    expect(typography).toMatch(/^###### /m);
+    expect(typography).toContain("Setext is Markdown's underline-style heading syntax.");
+    expect(typography).toMatch(/^Setext heading level one\n=+$/m);
+    expect(typography).toMatch(/^Setext heading level two\n-+$/m);
+    expect(demo).toContain("Discard Unsaved Changes…");
     expect(readFileSync(resolve(directory, "tables.md"), "utf8")).toMatch(/^\|.+\|$/m);
     const code = readFileSync(resolve(directory, "code-fences.md"), "utf8");
     expect(code).toContain("```typescript");

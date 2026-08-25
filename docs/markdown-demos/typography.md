@@ -23,6 +23,15 @@ Text below a fifth-level heading.
 
 Text below a sixth-level heading.
 
+## Setext headings
+
+Setext is Markdown's underline-style heading syntax. A line of equals signs (`=`) below text makes a
+level-one heading. A line of hyphens (`-`) makes a level-two heading. They render like the matching
+`#` and `##` headings; turn on Raw Mode when you want to see or edit the underline.
+
+Setext heading level one
+========================
+
 Setext heading level two
 ------------------------
 
