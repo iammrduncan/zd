@@ -3,6 +3,16 @@
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
 === Feedback Addressed ===
+on a markdown file: code fences should probably have some padding. ![Screenshot](../screenshots/screenshot-1787619191480808000.png)
+on a markdown file: links are not clickable in markdown? we should fix that. ![Screenshot](../screenshots/screenshot-1787619332208461000.png)
+on a markdown file: typing on order lists and such is all kinds of wonky, cursors jump to many places, tabs don't work, etc...
+on a markdown file: completed tasks should hae their [x] as a different color from a [ ].
+on a markdown file: I'm unable to select a whole table... ![Screenshot](../screenshots/screenshot-1787619470063844000.png)
+on a markdown file: blockquotes are funky... ![Screenshot](../screenshots/screenshot-1787619501295834000.png)
+did you actually inspect our demos visually for correct rendering and stuff? lots of bugs...
+on a markdown file: strike through doesn't strikethrough ... ![Screenshot](../screenshots/screenshot-1787619546369072000.png)
+on a markdonw file: cmd+b/ctrl+b should bold... cmd+i/ctrl+i should italics... etc.... we should have a shortcut to turn selected text into a single tick code fence or a url.
+on a markdown file: headings be funky ![Screenshot](../screenshots/screenshot-1787619618481583000.png)
 images don't render on markdown page. ![Screenshot](../screenshots/screenshot-1787612677772071000.png)
 can you create a demo.md in docs/markdown-demos/demo.md etc that show various markdown renderings and stuff for us to manually and visually check as humans when we look/use this thing. For example code fences for various languages, tables, headers, inline code, etc... mermaid, etc... image embeds etc..
 home page project list does not scroll and is cut off at end of screen. ![Screenshot](../screenshots/screenshot-1787613190890564000.png)
