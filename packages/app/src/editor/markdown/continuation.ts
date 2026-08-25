@@ -63,6 +63,62 @@ const leaveList: StateCommand = ({ state, dispatch }) => {
   return true;
 };
 
+/** Find the innermost list item containing a source position. */
+function listItemAt(state: EditorState, pos: number): SyntaxNode | null {
+  let node: SyntaxNode | null = syntaxTree(state).resolveInner(pos, -1);
+  while (node && node.name !== "ListItem") node = node.parent;
+  return node;
+}
+
+/** The next marker for a sibling item, retaining bullet or ordered-list syntax. */
+function nextListMarker(marker: string): string {
+  const ordered = /^(\d{1,9})([.)])$/u.exec(marker);
+  return ordered ? `${Number(ordered[1]) + 1}${ordered[2]}` : marker;
+}
+
+/**
+ * Continue a list when its final item ends on an explicit source continuation.
+ *
+ * CodeMirror's Markdown command continues a marker line, but on a wrapped item
+ * whose final source row has only indentation and prose it copies the indentation
+ * and inserts no marker. That is precisely where a person still reads themselves
+ * as being in the item. The parser identifies the enclosing item and its marker;
+ * this command only owns that final continuation row and leaves all marker-line
+ * cases to the library.
+ */
+const continueListFromContinuation: StateCommand = ({ state, dispatch }) => {
+  const range = state.selection.main;
+  if (!range.empty) return false;
+
+  const line = state.doc.lineAt(range.head);
+  if (range.head !== line.to || line.text.trim() === "") return false;
+
+  const item = listItemAt(state, range.head);
+  const marker = item?.getChild("ListMark") ?? null;
+  if (!item || !marker) return false;
+
+  const markerLine = state.doc.lineAt(marker.from);
+  const lastItemLine = state.doc.lineAt(Math.max(item.from, item.to - 1));
+  if (markerLine.number === line.number || lastItemLine.number !== line.number) return false;
+
+  const indentation = state.doc.sliceString(markerLine.from, marker.from);
+  const markerText = nextListMarker(state.doc.sliceString(marker.from, marker.to));
+  const afterMarker = markerLine.text.slice(marker.to - markerLine.from);
+  const spacing = /^[\t ]+/u.exec(afterMarker)?.[0] ?? " ";
+  const task = /^[\t ]+\[[ xX]\][\t ]+/u.test(afterMarker) ? "[ ] " : "";
+  const prefix = `${indentation}${markerText}${spacing}${task}`;
+
+  dispatch(
+    state.update({
+      changes: { from: line.to, insert: `\n${prefix}` },
+      selection: { anchor: line.to + 1 + prefix.length },
+      scrollIntoView: true,
+      userEvent: "input",
+    }),
+  );
+  return true;
+};
+
 /**
  * Enter on a blockquote line with nothing typed in it leaves the quote.
  *
@@ -255,6 +311,7 @@ export function markdownStructure(): Extension {
       { key: "Enter", run: closeFence },
       { key: "Enter", run: leaveList },
       { key: "Enter", run: leaveBlockquote },
+      { key: "Enter", run: continueListFromContinuation },
     ]),
     keymap.of(markdownKeymap),
   ];

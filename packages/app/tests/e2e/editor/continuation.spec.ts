@@ -115,6 +115,61 @@ test("a nested item continues at its own depth", async ({ page }) => {
   expect(after[0], "the nested item continued at the wrong depth").toBe("  - a third nested item");
 });
 
+test("enter at the end of a wrapped final item continues the list", async ({ page }) => {
+  const { line } = await caretAtEndOfLine(page, "than to the left margin");
+
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("a new final item");
+
+  const [continued] = await linesAround(page, line + 1, 1);
+  expect(continued, "the continuation line ended the list instead of adding an item").toBe(
+    "- a new final item",
+  );
+});
+
+test("a second enter from a nested item returns the visible caret to the prose edge", async ({
+  page,
+}) => {
+  const { line } = await caretAtEndOfLine(
+    page,
+    "the nested level advances exactly fourteen pixels",
+  );
+
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+
+  const state = await page.evaluate((expectedLine) => {
+    const focus = document.getSelection()?.focusNode;
+    const element =
+      focus instanceof Element ? focus : focus instanceof Node ? focus.parentElement : null;
+    const caretLine = element?.closest<HTMLElement>(".cm-line") ?? null;
+    const prose = [...document.querySelectorAll<HTMLElement>(".cm-line")].find((candidate) =>
+      candidate.textContent?.includes("Everything that makes reading good"),
+    );
+    return {
+      expectedLine,
+      actualLine: window.zdEditor!.selection().line,
+      source: window.zdEditor!.text().split("\n")[expectedLine - 1],
+      classes: caretLine?.className ?? null,
+      caretLeft: caretLine?.getBoundingClientRect().left ?? null,
+      proseLeft: prose?.getBoundingClientRect().left ?? null,
+    };
+  }, line + 1);
+
+  expect(state.actualLine).toBe(state.expectedLine);
+  expect(state.source, "the empty line retained source indentation").toBe("");
+  expect(state.classes, "the caret line was not found in the rendered surface").not.toBeNull();
+  expect(state.classes, "the empty line retained nested-list presentation").not.toContain(
+    "md-line-item-cont",
+  );
+  expect(state.caretLeft).not.toBeNull();
+  expect(state.proseLeft).not.toBeNull();
+  expect(
+    Math.abs(state.caretLeft! - state.proseLeft!),
+    "the caret stayed visually nested",
+  ).toBeLessThan(1);
+});
+
 test("enter in plain prose is still just a newline", async ({ page }) => {
   const { line } = await caretAtEndOfLine(page, "not, the claim above is decoration");
   await page.keyboard.press("Enter");
