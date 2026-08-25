@@ -164,6 +164,20 @@ class TableWidget extends WidgetType {
       if (currentCell) element.replaceChildren(renderInlineMarkdown(currentCell.source));
     });
     element.addEventListener("keydown", (event) => {
+      if (event.key.toLowerCase() === "a" && (event.metaKey || event.ctrlKey) && !event.altKey) {
+        const tableElement = element.closest<HTMLTableElement>("table[data-table-from]");
+        const from = Number(tableElement?.dataset.tableFrom);
+        const currentTable = Number.isSafeInteger(from) ? tableModelAt(view.state, from) : null;
+        if (!currentTable) return;
+        event.preventDefault();
+        view.dispatch({
+          selection: { anchor: currentTable.from, head: currentTable.to },
+          scrollIntoView: true,
+          userEvent: "select.table",
+        });
+        view.focus();
+        return;
+      }
       if (event.key !== "Enter") return;
       event.preventDefault();
       element.blur();
