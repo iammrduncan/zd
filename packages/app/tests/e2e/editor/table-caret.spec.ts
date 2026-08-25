@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { waitForEditorScrollToSettle } from "./harness";
+
 /*
  * A rendered table is a stop for the caret — vision §6.1 and §4.1.
  *
@@ -137,7 +139,10 @@ test("editing a rendered table cell keeps the document viewport still", async ({
   await cell.click();
   const surface = page.locator(".md-surface");
   const beforeText = await page.evaluate(() => window.zdEditor!.text());
-  const samples = [await surface.evaluate((element) => element.scrollTop)];
+  // Navigation and the cell click may still be finishing their own smooth
+  // scroll. The measurement begins only after that motion has come to rest so
+  // every later sample belongs to cell editing.
+  const samples = [await waitForEditorScrollToSettle(page)];
 
   for (const key of ["A", "B", "C", "D"]) {
     await page.keyboard.press(key);
