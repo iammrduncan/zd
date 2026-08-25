@@ -3,6 +3,14 @@
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
 === Feedback Addressed ===
+in markdown docs: code fence more padding ![Screenshot](../screenshots/screenshot-1787624957202740000.png)
+in markdown docs: editing code block fence is funky... it should keep going until I double enter to get out of the codeblock, but on first enter it exits (As seen in screenshot ![Screenshot](../screenshots/screenshot-1787625030298869000.png)) then it acts funky on subsequent enters/returns and backspaces cause caret to jump around.
+in markdown docs: clicking x does not prompt to discard edits/are you sure... ![Screenshot](../screenshots/screenshot-1787625104006738000.png) and it doesn't actually close the file.
+in (docs/markdown-demos/images-and-links.md) if you click the image it disappears... doesn't stay on screen rendered... strange.
+in markdown docs: I clicked an link to another doc, it successfully navigated but then the filetree does not show it changed. ![Screenshot](../screenshots/screenshot-1787625244715402000.png)
+in markdown docs: double enter on unordered list caused funky space... ![Screenshot](../screenshots/screenshot-1787625279378514000.png)
+in markdown docs: you need to do a deeper audit of the editing surface and various user behaviours and expected outcomes and test it I'm finding tons of edge case bugs like the above that any competent user would run into.
+update website to use useFathom events on link clicks so we can capture how many people click to go download, go to twitter, github, discord etc... https://usefathom.com/docs/events/overview
 on a markdown file: code fences should probably have some padding. ![Screenshot](../screenshots/screenshot-1787619191480808000.png)
 on a markdown file: links are not clickable in markdown? we should fix that. ![Screenshot](../screenshots/screenshot-1787619332208461000.png)
 on a markdown file: typing on order lists and such is all kinds of wonky, cursors jump to many places, tabs don't work, etc...
