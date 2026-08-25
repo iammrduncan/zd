@@ -4,6 +4,36 @@ Notable user-facing changes to zd are recorded here.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-08-25
+
+### Added
+
+- Added theme overrides for Markdown, code, terminals, navigation panels, and transient settings
+  surfaces, with matching theme-configuration documentation.
+- Added a focused suite of separate Markdown rendering demos for typography, lists, tables, code,
+  diagrams, images, and links.
+- Added Markdown formatting shortcuts for strong text, emphasis, inline code, and links.
+- Added a confirmed **Discard Unsaved Changes…** action for selected dirty files or folders.
+
+### Changed
+
+- Made rendered Markdown tables support physical drag selection across cells and copy the selected
+  cell text as rows and columns.
+- Made project-relative Markdown links reveal and select their destination in Files.
+- Added website event tracking for download, GitHub, Discord, and maintainer-profile links.
+
+### Fixed
+
+- Kept rendered Markdown images visible through clicks and drag selections, including images backed
+  by desktop blob URLs.
+- Protected rendered code-fence boundaries, restored empty-fence backspace, and added top and bottom
+  breathing room inside fenced code.
+- Fixed Markdown list continuation, nested-list exit, and Tab or Shift-Tab indentation across every
+  CodeMirror document type.
+- Replaced unreliable native file-tree drag events with physical mouse dragging while retaining
+  multi-file moves, copy modifiers, drop indicators, and folder hover expansion.
+- Made long Home project lists scroll instead of being cut off by the window.
+
 ## [0.2.2] - 2026-08-24
 
 ### Added
@@ -71,7 +101,8 @@ Notable user-facing changes to zd are recorded here.
   reference.
 - macOS-first Tauri application scaffolding with Windows support and best-effort Linux support.
 
-[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/iammrduncan/zd/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/iammrduncan/zd/compare/v0.2.0...v0.2.2
 [0.2.0]: https://github.com/iammrduncan/zd/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/iammrduncan/zd/releases/tag/v0.1.0
