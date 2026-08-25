@@ -28,11 +28,10 @@ impl ProcessTree {
         #[cfg(unix)]
         {
             Ok(Self {
-                process_group: master.process_group_leader().or_else(|| {
-                    child
-                        .process_id()
-                        .and_then(|identity| i32::try_from(identity).ok())
-                }),
+                process_group: owned_process_group(
+                    child.process_id(),
+                    master.process_group_leader(),
+                ),
             })
         }
 
@@ -246,6 +245,19 @@ impl Drop for WindowsJob {
 }
 
 #[cfg(unix)]
+fn owned_process_group(
+    child_process_id: Option<u32>,
+    tty_process_group: Option<i32>,
+) -> Option<i32> {
+    // portable-pty starts the Unix child as a session and process-group
+    // leader. Its PID is therefore the group we own; the terminal's current
+    // foreground group is only a fallback when a backend omits that PID.
+    child_process_id
+        .and_then(|identity| i32::try_from(identity).ok())
+        .or(tty_process_group)
+}
+
+#[cfg(unix)]
 fn signal_group(process_group: Option<i32>, signal: libc::c_int) -> Result<(), TerminalError> {
     let Some(process_group) = process_group else {
         return Ok(());
@@ -264,4 +276,15 @@ fn signal_group(process_group: Option<i32>, signal: libc::c_int) -> Result<(), T
 
 fn io_error(error: std::io::Error) -> TerminalError {
     TerminalError::new(TerminalErrorKind::Io, error.to_string())
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::owned_process_group;
+
+    #[test]
+    fn process_tree_prefers_the_owned_child_over_a_stale_tty_group() {
+        assert_eq!(owned_process_group(Some(42), Some(7)), Some(42));
+        assert_eq!(owned_process_group(None, Some(7)), Some(7));
+    }
 }
