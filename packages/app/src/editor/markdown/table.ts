@@ -1,5 +1,12 @@
 import { syntaxTree } from "@codemirror/language";
-import { Prec, StateField, type EditorState, type Extension, type Range } from "@codemirror/state";
+import {
+  Prec,
+  StateEffect,
+  StateField,
+  type EditorState,
+  type Extension,
+  type Range,
+} from "@codemirror/state";
 import { Decoration, EditorView, keymap, WidgetType, type DecorationSet } from "@codemirror/view";
 
 import { renderInlineMarkdown } from "./inline";
@@ -38,6 +45,29 @@ interface EditableTable {
   readonly rows: readonly (readonly EditableCell[])[];
   readonly source: string;
 }
+
+interface MeasuredTableHeight {
+  readonly from: number;
+  readonly height: number;
+}
+
+/*
+ * Carry the rendered block's height through a source edit.
+ *
+ * CodeMirror rebuilds the height-map node touched by a document change before it
+ * measures the updated DOM. A block widget without an estimate starts that pass at
+ * one prose line high. A rendered table is several lines high, so while one of its
+ * cells owns focus CodeMirror preserves the external scroll anchor against that
+ * temporary collapse and moves `.md-surface` by almost the table's full height.
+ * The next measure restores the table height, but the scroll has already moved.
+ *
+ * The table DOM is present at the input boundary, so its current border-box is the
+ * exact estimate for the next state. Mapping `from` keeps the effect in the new
+ * document's coordinate space if a transaction ever changes content before it.
+ */
+const measuredTableHeight = StateEffect.define<MeasuredTableHeight>({
+  map: ({ from, height }, changes) => ({ from: changes.mapPos(from, -1), height }),
+});
 
 type MarkdownTree = ReturnType<typeof syntaxTree>;
 type MarkdownNode = ReturnType<MarkdownTree["resolve"]>;
@@ -121,8 +151,15 @@ function sourceEdge(cell: HTMLTableCellElement, edge: "start" | "end"): number |
 class TableWidget extends WidgetType {
   private stopCrossCellSelection: (() => void) | null = null;
 
-  constructor(private readonly table: EditableTable) {
+  constructor(
+    private readonly table: EditableTable,
+    private readonly measuredHeight = -1,
+  ) {
     super();
+  }
+
+  get estimatedHeight(): number {
+    return this.measuredHeight;
   }
 
   /**
@@ -155,12 +192,15 @@ class TableWidget extends WidgetType {
       const from = Number(tableElement?.dataset.tableFrom);
       if (!Number.isSafeInteger(from)) return;
       const currentTable = tableModelAt(view.state, from);
-      const currentCell = currentTable ? cellAt(currentTable, row, column) : null;
+      if (!currentTable) return;
+      const currentCell = cellAt(currentTable, row, column);
       if (!currentCell) return;
       const insert = editableText(element.textContent ?? "");
       if (insert === currentCell.source) return;
+      const height = tableElement?.getBoundingClientRect().height ?? -1;
       view.dispatch({
         changes: { from: currentCell.from, to: currentCell.to, insert },
+        effects: height > 0 ? measuredTableHeight.of({ from: currentTable.from, height }) : [],
         userEvent: "input.table",
       });
     });
@@ -388,7 +428,10 @@ class TableWidget extends WidgetType {
   }
 }
 
-function tableDecorations(state: EditorState): DecorationSet {
+function tableDecorations(
+  state: EditorState,
+  measuredHeights: ReadonlyMap<number, number> = new Map(),
+): DecorationSet {
   // §7.4: raw mode reveals the literal source, and a rendered table and its pipes
   // cannot both be on screen. Returning nothing is the whole of it — the source was
   // never edited, so it is simply there again.
@@ -405,7 +448,7 @@ function tableDecorations(state: EditorState): DecorationSet {
 
       ranges.push(
         Decoration.replace({
-          widget: new TableWidget(table),
+          widget: new TableWidget(table, measuredHeights.get(table.from)),
           // The whole point, and the reason this needs a StateField: the range
           // crosses line boundaries, so it replaces blocks rather than inline text.
           block: true,
@@ -439,7 +482,13 @@ const tables = StateField.define<DecorationSet>({
     ) {
       return value.map(transaction.changes);
     }
-    return tableDecorations(transaction.state);
+    const measuredHeights = new Map<number, number>();
+    for (const effect of transaction.effects) {
+      if (effect.is(measuredTableHeight)) {
+        measuredHeights.set(effect.value.from, effect.value.height);
+      }
+    }
+    return tableDecorations(transaction.state, measuredHeights);
   },
   provide: (field) => [
     EditorView.decorations.from(field),
