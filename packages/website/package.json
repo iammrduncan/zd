@@ -1,7 +1,7 @@
 {
   "name": "@zd/website",
   "private": true,
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "The public website and user documentation for the zd agent workbench.",
   "scripts": {
     "dev": "next dev",

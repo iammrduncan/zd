@@ -4,6 +4,13 @@ Notable user-facing changes to zd are recorded here.
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-08-25
+
+### Fixed
+
+- Made caret edge returns wait for the editor's settled selection scroll and yield immediately to
+  direct mouse, pointer, touch, or wheel input.
+
 ## [0.2.7] - 2026-08-25
 
 ### Fixed
@@ -129,7 +136,8 @@ Notable user-facing changes to zd are recorded here.
   reference.
 - macOS-first Tauri application scaffolding with Windows support and best-effort Linux support.
 
-[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.7...HEAD
+[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.8...HEAD
+[0.2.8]: https://github.com/iammrduncan/zd/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/iammrduncan/zd/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/iammrduncan/zd/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/iammrduncan/zd/compare/v0.2.4...v0.2.5
