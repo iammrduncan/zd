@@ -255,6 +255,57 @@ test("select all in a rendered cell selects the whole Markdown table", async ({ 
   expect(selected.actual.to).toBe(selected.expected.to);
 });
 
+test("a real pointer drag selects across rendered table cells", async ({ page }) => {
+  const first = page.locator(".md-editor table td", { hasText: "Blockquote" });
+  const last = page.locator(".md-editor table td", { hasText: "Hairlines only" });
+  await page.locator(".md-editor table").scrollIntoViewIfNeeded();
+  const [from, to] = await Promise.all([first.boundingBox(), last.boundingBox()]);
+  expect(from, "the first table cell has no geometry").not.toBeNull();
+  expect(to, "the destination table cell has no geometry").not.toBeNull();
+
+  await page.mouse.move(from!.x + 3, from!.y + from!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to!.x + to!.width - 3, to!.y + to!.height / 2, { steps: 16 });
+  await page.mouse.up();
+
+  const selected = await page.evaluate(() => ({
+    visible: [...document.querySelectorAll<HTMLElement>("[data-table-selected='true']")].map(
+      (cell) => cell.innerText,
+    ),
+    source: window.zdEditor!.selection(),
+    text: window.zdEditor!.text(),
+  }));
+  expect(selected.source.from).toBeLessThanOrEqual(selected.text.indexOf("Blockquote"));
+  expect(selected.source.to).toBeGreaterThanOrEqual(
+    selected.text.indexOf("Hairlines only") + "Hairlines only".length,
+  );
+  expect(
+    selected.visible.some((text) => text.includes("Hairlines only")),
+    "the highlight never reached the destination cell",
+  ).toBe(true);
+  expect(selected.visible, "the highlight lost its starting cell").toContain("Blockquote");
+
+  const copied = await last.evaluate((cell) => {
+    const transfer = new DataTransfer();
+    cell.dispatchEvent(
+      new ClipboardEvent("copy", { bubbles: true, cancelable: true, clipboardData: transfer }),
+    );
+    return transfer.getData("text/plain");
+  });
+  expect(copied, "copy omitted the first selected cell").toContain("Blockquote");
+  expect(copied, "copy omitted the destination cell").toContain("Hairlines only");
+
+  await page.locator(".md-line-h2", { hasText: "Mermaid" }).click();
+  await expect(
+    page.locator("[data-table-selected='true']"),
+    "the old highlight remained",
+  ).toHaveCount(0);
+  await expect(
+    page.locator(".md-editor table"),
+    "the table disappeared after selection",
+  ).toBeVisible();
+});
+
 test("a multi-column table never stacks an unspaced header one character per line", async ({
   page,
 }) => {
@@ -263,10 +314,7 @@ test("a multi-column table never stacks an unspaced header one character per lin
     "| --- | --- | --- | --- |",
     "| P0 | Missing rows | The restored tree is incomplete. | Render every valid row. |",
   ].join("\n");
-  const content = page.locator(".cm-content");
-  await content.click();
-  await page.keyboard.press("ControlOrMeta+A");
-  await page.keyboard.insertText(markdown);
+  await page.evaluate((text) => window.zdEditor!.setText(text), markdown);
 
   const header = page.locator(".md-editor th", { hasText: "Priority" });
   await expect(header).toBeVisible();

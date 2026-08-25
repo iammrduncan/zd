@@ -3,10 +3,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { openEditor } from "./harness";
 
 async function selectWord(page: Page, source = "word"): Promise<void> {
-  const content = page.locator(".cm-content");
-  await content.click();
-  await page.keyboard.press("ControlOrMeta+A");
-  await page.keyboard.insertText(source);
+  await page.evaluate((text) => window.zdEditor!.setText(text), source);
+  await page.locator(".cm-content").focus();
   await page.evaluate(() => window.zdEditor!.setCaret(0));
   for (let index = 0; index < source.length; index += 1) {
     await page.keyboard.press("Shift+ArrowRight");

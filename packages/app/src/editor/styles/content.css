@@ -63,6 +63,10 @@
   border-block-end-color: var(--line-focus);
 }
 
+.md-editor :is(th, td)[data-table-selected="true"] {
+  background: var(--surface-selection);
+}
+
 /*
  * The seven syntax categories emitted by the editor highlighter.
  *

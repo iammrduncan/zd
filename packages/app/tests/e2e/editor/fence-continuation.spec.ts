@@ -78,6 +78,12 @@ async function caretLine(page: import("@playwright/test").Page) {
   return page.evaluate(() => window.zdEditor!.selection().line);
 }
 
+async function replaceDocument(page: import("@playwright/test").Page, source: string) {
+  await page.evaluate((text) => window.zdEditor!.setText(text), source);
+  await expect.poll(() => page.evaluate(() => window.zdEditor!.text())).toBe(source);
+  await page.locator(".cm-content").focus();
+}
+
 test("enter after a fence line closes the block and leaves the caret inside", async ({ page }) => {
   // A fresh line in prose, then type an opening fence on it.
   const { line } = await caretAtEndOfLine(page, "The paragraph after it starts");
@@ -190,6 +196,74 @@ test("Backspace after the first Enter returns to the last code line without cros
   await page.keyboard.press("Enter");
   await page.keyboard.type("plain after the round trip");
   expect(await lines(page, line, 3)).toEqual(["}", "```", "plain after the round trip"]);
+});
+
+test("rendered editing cannot erase either boundary of a non-empty fence", async ({ page }) => {
+  const source = "Before\n\n```ts\nconst value = 1;\n```\n\nAfter";
+  await replaceDocument(page, source);
+  const code = page.locator(".md-line-code", { hasText: "const value" });
+
+  await code.click();
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Backspace");
+  expect(
+    await page.evaluate(() => window.zdEditor!.text()),
+    "Backspace removed the opening fence",
+  ).toBe(source);
+
+  await code.click();
+  await page.keyboard.press("End");
+  await page.keyboard.press("Delete");
+  expect(
+    await page.evaluate(() => window.zdEditor!.text()),
+    "Delete removed the closing fence",
+  ).toBe(source);
+});
+
+test("Backspace from a completely empty rendered fence removes the whole block", async ({
+  page,
+}) => {
+  await replaceDocument(page, "Before\n\n```\n\n```\n\nAfter");
+  const emptyRow = page.locator(".md-empty-fence");
+  await expect(emptyRow, "the empty fence has no editable row").toHaveCount(1);
+
+  await emptyRow.click();
+  await page.keyboard.press("Backspace");
+
+  expect(await page.evaluate(() => window.zdEditor!.text())).toBe("Before\n\nAfter");
+});
+
+test("removing an empty fence keeps tightly adjacent prose as separate blocks", async ({ page }) => {
+  await replaceDocument(page, "Before\n```\n\n```\nAfter");
+  await page.locator(".md-empty-fence").click();
+
+  await page.keyboard.press("Backspace");
+
+  expect(await page.evaluate(() => window.zdEditor!.text())).toBe("Before\n\nAfter");
+});
+
+test("raw mode still permits literal fence edits", async ({ page }) => {
+  await replaceDocument(page, "Before\n\n```ts\nconst value = 1;\n```\n\nAfter");
+  await page.keyboard.press("ControlOrMeta+e");
+  await expect.poll(() => page.evaluate(() => window.zdEditor!.isRaw())).toBe(true);
+  const opener = page.locator(".cm-line", { hasText: "```ts" });
+  await opener.click();
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Delete");
+
+  expect(await page.evaluate(() => window.zdEditor!.text())).toContain("``ts\nconst value = 1;");
+});
+
+test("undo can take back an automatically completed fence", async ({ page }) => {
+  const source = "Before\n\n```js";
+  await replaceDocument(page, source);
+  await page.evaluate(() => window.zdEditor!.setCaret(window.zdEditor!.text().length));
+
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => window.zdEditor!.text())).toBe(`${source}\n\n\`\`\``);
+
+  await page.keyboard.press("ControlOrMeta+z");
+  expect(await page.evaluate(() => window.zdEditor!.text())).toBe(source);
 });
 
 test("an already closed fence never gains a second closer", async ({ page }) => {

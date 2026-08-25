@@ -475,6 +475,21 @@
   padding-inline: var(--space-3);
 }
 
+.md-editor .md-line-code-first {
+  padding-block-start: var(--space-2);
+}
+
+.md-editor .md-line-code-last {
+  padding-block-end: var(--space-2);
+}
+
+.md-editor .md-empty-fence {
+  box-sizing: border-box;
+  min-block-size: calc(var(--type-code-line) + var(--space-4));
+  background: var(--surface-code);
+  cursor: text;
+}
+
 /* §7.3 allows no chrome around the document, and a focus ring is chrome. */
 .md-editor .cm-editor.cm-focused {
   outline: none;

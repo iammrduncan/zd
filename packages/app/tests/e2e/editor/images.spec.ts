@@ -53,6 +53,67 @@ test("clicking a rendered image keeps the image rendered", async ({ page }) => {
   ).not.toContainText("![a dot]");
 });
 
+test("dragging a text selection across a rendered image keeps it rendered", async ({ page }) => {
+  const source =
+    "Before ![a dot](data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=) after";
+  await page.evaluate((text) => window.zdEditor!.setText(text), source);
+  const image = page.locator('.md-image img[alt="a dot"]');
+  await expect(image).toBeVisible();
+
+  const points = await page.locator(".cm-line", { hasText: "Before" }).evaluate((line) => {
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) textNodes.push(node as Text);
+    const point = (needle: string, end: boolean) => {
+      const node = textNodes.find((candidate) => candidate.data.includes(needle));
+      if (!node) throw new Error(`no rendered text contains ${needle}`);
+      const offset = node.data.indexOf(needle) + (end ? needle.length : 0);
+      const range = document.createRange();
+      range.setStart(node, offset);
+      range.setEnd(node, offset);
+      const rect = range.getBoundingClientRect();
+      return { x: rect.left, y: rect.top + rect.height / 2 };
+    };
+    const image = line.querySelector<HTMLElement>(".md-image")!.getBoundingClientRect();
+    return {
+      start: point("Before", false),
+      image: { x: image.left + image.width / 2, y: image.top + image.height / 2 },
+      end: point("after", true),
+    };
+  });
+
+  await page.mouse.move(points.start.x, points.start.y);
+  await page.mouse.down();
+  await page.mouse.move(points.image.x, points.image.y, { steps: 8 });
+  await page.mouse.up();
+  await expect(image, "the image disappeared when a selection ended on it").toBeVisible();
+
+  await page.mouse.move(points.start.x, points.start.y);
+  await page.mouse.down();
+  await page.mouse.move(points.end.x, points.end.y, { steps: 12 });
+  await page.mouse.up();
+
+  await expect(image, "the image disappeared while the selection crossed it").toBeVisible();
+  expect(await page.evaluate(() => window.zdEditor!.text())).toBe(source);
+  const forward = await page.evaluate(() => window.zdEditor!.selection());
+  expect(forward.from, "the selection did not start before the image source").toBeLessThanOrEqual(
+    source.indexOf("![a dot]"),
+  );
+  expect(forward.to, "the selection did not cross the image source").toBeGreaterThanOrEqual(
+    source.indexOf(") after") + 1,
+  );
+
+  await page.mouse.move(points.end.x, points.end.y);
+  await page.mouse.down();
+  await page.mouse.move(points.start.x, points.start.y, { steps: 12 });
+  await page.mouse.up();
+
+  await expect(image, "the image disappeared during a backward selection").toBeVisible();
+  const backward = await page.evaluate(() => window.zdEditor!.selection());
+  expect(backward.from).toBeLessThanOrEqual(source.indexOf("![a dot]"));
+  expect(backward.to).toBeGreaterThanOrEqual(source.indexOf(") after") + 1);
+});
+
 test("a remote image is a quiet placeholder and is never requested", async ({ page }) => {
   const requests: string[] = [];
   page.on("request", (r) => requests.push(r.url()));
