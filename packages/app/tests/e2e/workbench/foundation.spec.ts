@@ -66,7 +66,8 @@ test("a project-relative Markdown image renders through the open document", asyn
   await expect(image).toHaveAttribute("src", /^blob:/);
   await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.naturalWidth)).toBe(1);
 
-  await image.scrollIntoViewIfNeeded();
+  await image.evaluate((node) => node.scrollIntoView({ block: "center" }));
+  await page.evaluate(() => new Promise(requestAnimationFrame));
   const beforeClick = await page
     .locator(".current-file .md-surface")
     .evaluate((surface) => surface.scrollTop);
@@ -75,6 +76,48 @@ test("a project-relative Markdown image renders through the open document", asyn
   await expect
     .poll(() => page.locator(".current-file .md-surface").evaluate((surface) => surface.scrollTop))
     .toBeCloseTo(beforeClick, 0);
+
+  const points = await page.locator(".current-file .cm-content").evaluate((content) => {
+    const point = (needle: string, edge: "start" | "end") => {
+      const lines = [...content.querySelectorAll<HTMLElement>(".cm-line")];
+      const line = lines.find((candidate) => candidate.textContent?.includes(needle));
+      if (!line) throw new Error(`no rendered line contains ${needle}`);
+      const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const text = node as Text;
+        const at = text.data.indexOf(needle);
+        if (at < 0) continue;
+        const offset = at + (edge === "end" ? needle.length : 0);
+        const range = document.createRange();
+        range.setStart(text, offset);
+        range.setEnd(text, offset);
+        const bounds = range.getBoundingClientRect();
+        return { x: bounds.left, y: bounds.top + bounds.height / 2 };
+      }
+      throw new Error(`no rendered text contains ${needle}`);
+    };
+    return {
+      start: point("precise feedback file.", "end"),
+      end: point("Edit rendered tables in place.", "end"),
+    };
+  });
+  await page.mouse.move(points.start.x, points.start.y);
+  await page.mouse.down();
+  await page.mouse.move(points.end.x, points.end.y, { steps: 16 });
+  await page.mouse.up();
+
+  await expect
+    .poll(
+      async () => {
+        if (await image.count()) return "image";
+        return page
+          .locator(".current-file .md-image-unavailable")
+          .getAttribute("data-image-status");
+      },
+      { message: "dragging a highlight across the native-resolved image removed it" },
+    )
+    .toBe("image");
+  await expect(image).toHaveAttribute("src", /^blob:/);
 });
 
 test("a relative Markdown link selects and reveals its destination in Files", async ({ page }) => {
@@ -336,6 +379,43 @@ test("a dirty file survives context switches and is bold in the Files tree", asy
     "true",
   );
   await expect(page.locator(".current-file .cm-content")).toContainText("const unsaved = true;");
+});
+
+test("selected dirty files can discard accidental edits and reopen from disk", async ({ page }) => {
+  const rootReadme = page.locator('[data-file-path="README.md"]');
+  const guide = page.locator('[data-file-path="docs/user-facing-docs/README.md"]');
+  const content = page.locator(".current-file .cm-content");
+
+  await rootReadme.click();
+  await content.click();
+  await content.press("ControlOrMeta+End");
+  await content.pressSequentially("\naccidental root edit");
+  await expect(rootReadme).toHaveAttribute("data-dirty", "true");
+
+  await page.getByRole("link", { name: "Open the reader guide" }).click({
+    modifiers: ["ControlOrMeta"],
+  });
+  await expect(guide).toBeVisible();
+  await content.click();
+  await content.press("ControlOrMeta+End");
+  await content.pressSequentially("\naccidental guide edit");
+  await expect(guide).toHaveAttribute("data-dirty", "true");
+
+  await rootReadme.click();
+  await guide.click({ modifiers: ["ControlOrMeta"] });
+  await guide.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Discard Unsaved Changes…" }).click();
+
+  const confirmation = page.getByRole("alertdialog", { name: "Discard unsaved changes" });
+  await expect(confirmation).toContainText("Discard unsaved changes in 2 files?");
+  await confirmation.getByRole("button", { name: "Discard Changes" }).click();
+
+  await expect(rootReadme).not.toHaveAttribute("data-dirty", "true");
+  await expect(guide).not.toHaveAttribute("data-dirty", "true");
+  await rootReadme.click();
+  await expect(content).not.toContainText("accidental root edit");
+  await guide.click();
+  await expect(content).not.toContainText("accidental guide edit");
 });
 
 test("the file subchrome closes with one x and confirms before discarding unsaved work", async ({

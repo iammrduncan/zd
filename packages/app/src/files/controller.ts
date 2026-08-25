@@ -69,6 +69,10 @@ function scopeKey(scope: FileTreeScope): string {
   return `${scope.projectId}\0${scope.worktreeId}`;
 }
 
+function pathIsWithin(candidate: string, root: string): boolean {
+  return candidate === root || candidate.startsWith(`${root}/`);
+}
+
 function newMemory(scope: FileTreeScope, activePath: string | null): ScopeMemory {
   return {
     scope: { ...scope },
@@ -342,6 +346,40 @@ export class FileTreeController {
       this.#publish();
       return false;
     }
+  }
+
+  dirtySelectionCount(): number {
+    return this.#dirtySelectionPaths().length;
+  }
+
+  async discardUnsavedSelection(): Promise<boolean> {
+    const memory = this.#current;
+    const paths = this.#dirtySelectionPaths();
+    if (!memory || paths.length === 0 || !this.actions.discardUnsavedChanges) return false;
+    try {
+      await this.actions.discardUnsavedChanges(
+        paths.map((relativePath) => ({ ...memory.scope, relativePath })),
+      );
+      if (this.#current !== memory) return false;
+      memory.notice = `Discarded unsaved changes in ${paths.length} ${paths.length === 1 ? "file" : "files"}.`;
+      this.#publish();
+      return true;
+    } catch (cause) {
+      if (this.#current !== memory) return false;
+      memory.notice =
+        cause instanceof Error ? cause.message : "The unsaved changes could not be discarded.";
+      this.#publish();
+      return false;
+    }
+  }
+
+  #dirtySelectionPaths(): readonly string[] {
+    const memory = this.#current;
+    if (!memory) return [];
+    const roots = selectionRoots(memory.selectedPaths);
+    return [...this.#dirtyPaths]
+      .filter((path) => roots.some((root) => pathIsWithin(path, root)))
+      .sort((left, right) => left.localeCompare(right));
   }
 
   async #transfer(

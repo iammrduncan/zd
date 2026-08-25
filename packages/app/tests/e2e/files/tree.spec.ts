@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 declare global {
   interface Window {
@@ -96,6 +96,30 @@ async function mountFixture(page: Page): Promise<void> {
   });
 }
 
+async function mouseDrag(page: Page, source: Locator, destination: Locator): Promise<void> {
+  await expect(source).toBeVisible();
+  await expect(destination).toBeVisible();
+  let from: Awaited<ReturnType<Locator["boundingBox"]>> = null;
+  let to: Awaited<ReturnType<Locator["boundingBox"]>> = null;
+  await expect
+    .poll(
+      async () => {
+        [from, to] = await Promise.all([source.boundingBox(), destination.boundingBox()]);
+        return Boolean(from && to);
+      },
+      { message: "the virtualized source and destination rows never had geometry together" },
+    )
+    .toBe(true);
+
+  await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from!.x + from!.width / 2 + 10, from!.y + from!.height / 2, {
+    steps: 4,
+  });
+  await page.mouse.move(to!.x + to!.width / 2, to!.y + to!.height / 2, { steps: 12 });
+  await page.mouse.up();
+}
+
 test("renders a dense horizontally and vertically scrollable virtual tree", async ({ page }) => {
   await mountFixture(page);
   const viewport = page.locator("[data-file-tree-viewport]");
@@ -176,9 +200,11 @@ test("multi-select copy/paste and internal drag/drop operate on the real hierarc
   await files.locator('[data-file-path="docs"]').click();
   await files.locator('[data-file-path="docs/screenshots"]').click();
   await files.locator('[data-file-path="docs/user-facing-docs"]').click();
-  await files
-    .locator('[data-file-path="docs/screenshots/first.png"]')
-    .dragTo(files.locator('[data-file-path="docs/user-facing-docs"]'));
+  await mouseDrag(
+    page,
+    files.locator('[data-file-path="docs/screenshots/first.png"]'),
+    files.locator('[data-file-path="docs/user-facing-docs"]'),
+  );
   const screenshot = files.locator('[data-file-path="docs/user-facing-docs/first.png"]');
   const readme = files.locator('[data-file-path="docs/user-facing-docs/README.md"]');
   await expect(screenshot).toBeVisible();
@@ -195,6 +221,33 @@ test("multi-select copy/paste and internal drag/drop operate on the real hierarc
   await page.getByRole("menuitem", { name: "Paste" }).click();
   await expect(files.locator('[data-file-path="packages/app/first.png"]')).toBeVisible();
   await expect(files.locator('[data-file-path="packages/app/README.md"]')).toBeVisible();
+});
+
+test("a real mouse drag moves a file into the folder under the pointer", async ({ page }) => {
+  await page.goto("/dev/workbench.html");
+  await expect(page.locator('html[data-workbench-ready="true"]')).toBeAttached();
+  const files = page.getByRole("complementary", { name: "Files and Changes" });
+
+  await files.locator('[data-file-path="docs"]').click();
+  await files.locator('[data-file-path="docs/screenshots"]').click();
+  await files.locator('[data-file-path="docs/user-facing-docs"]').click();
+  const source = files.locator('[data-file-path="docs/screenshots/first.png"]');
+  const destination = files.locator('[data-file-path="docs/user-facing-docs"]');
+  // macOS's webview does not reliably start native HTML drag-and-drop for a button.
+  await files.locator("[data-file-tree-viewport]").evaluate((viewport) => {
+    viewport.addEventListener(
+      "dragstart",
+      (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      },
+      true,
+    );
+  });
+  await mouseDrag(page, source, destination);
+
+  await expect(files.locator('[data-file-path="docs/user-facing-docs/first.png"]')).toBeVisible();
+  await expect(files.locator('[data-file-path="docs/screenshots/first.png"]')).toHaveCount(0);
 });
 
 test("exposes file type and Git state without a status-letter column", async ({ page }) => {

@@ -42,6 +42,7 @@ async function mounted(entries: readonly NativeFileTreeEntry[]) {
     renameEntry: vi.fn(async () => {}),
     trashEntry: vi.fn(async () => {}),
     transferEntries: vi.fn(async () => {}),
+    discardUnsavedChanges: vi.fn(async () => {}),
   };
   const controller = new FileTreeController(adapter(entries), actions);
   const host = document.createElement("aside");
@@ -117,30 +118,59 @@ describe("Files tree view", () => {
     expect(notes.getAttribute("aria-label")).toContain("unsaved");
   });
 
-  it("shows an inside insertion line and expands a collapsed folder while dragging over it", async () => {
+  it("confirms before discarding every dirty file below the selection", async () => {
+    const fixture = await mounted([
+      entry("docs", "directory"),
+      entry("docs/a.md"),
+      entry("docs/b.md"),
+      entry("notes.md"),
+    ]);
+    fixture.controller.setDirtyPaths(new Set(["docs/a.md", "docs/b.md", "notes.md"]));
+    const docs = fixture.host.querySelector<HTMLElement>('[data-file-path="docs"]')!;
+    docs.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    [...fixture.host.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
+      .find(({ textContent }) => textContent === "Discard Unsaved Changes…")!
+      .click();
+
+    const confirmation = fixture.host.querySelector<HTMLElement>('[role="alertdialog"]')!;
+    expect(confirmation.getAttribute("aria-label")).toBe("Discard unsaved changes");
+    expect(confirmation.textContent).toContain("Discard unsaved changes in 2 files?");
+    [...confirmation.querySelectorAll<HTMLButtonElement>("button")]
+      .find(({ textContent }) => textContent === "Discard Changes")!
+      .click();
+
+    await vi.waitFor(() =>
+      expect(fixture.actions.discardUnsavedChanges).toHaveBeenCalledWith([
+        { ...scope, relativePath: "docs/a.md" },
+        { ...scope, relativePath: "docs/b.md" },
+      ]),
+    );
+  });
+
+  it("shows an inside insertion line and expands a collapsed folder during a mouse drag", async () => {
     vi.useFakeTimers();
+    const elementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint");
     try {
       const fixture = await mounted([
         entry("docs", "directory"),
         entry("docs/guide.md"),
         entry("notes.md"),
       ]);
-      const transfer = {
-        types: ["application/x-zd-file-tree"],
-        effectAllowed: "none",
-        dropEffect: "none",
-        setData: vi.fn(),
-      };
-      const dispatchDrag = (target: Element, type: string) => {
-        const event = new Event(type, { bubbles: true, cancelable: true });
-        Object.defineProperty(event, "dataTransfer", { value: transfer });
-        target.dispatchEvent(event);
-      };
+      Object.defineProperty(document, "elementFromPoint", {
+        configurable: true,
+        value: vi.fn(() => fixture.host.querySelector<HTMLElement>('[data-file-path="docs"]')),
+      });
+      fixture.host.querySelector<HTMLElement>('[data-file-path="notes.md"]')!.dispatchEvent(
+        new MouseEvent("mousedown", {
+          bubbles: true,
+          button: 0,
+          clientX: 1,
+          clientY: 1,
+        }),
+      );
+      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 20, clientY: 20 }));
 
-      dispatchDrag(fixture.host.querySelector('[data-file-path="notes.md"]')!, "dragstart");
       const docs = fixture.host.querySelector<HTMLElement>('[data-file-path="docs"]')!;
-      dispatchDrag(docs, "dragover");
-
       expect(docs.dataset.dropPosition).toBe("inside");
       expect(docs.getAttribute("aria-expanded")).toBe("false");
 
@@ -150,7 +180,10 @@ describe("Files tree view", () => {
         fixture.host.querySelector('[data-file-path="docs"]')?.getAttribute("aria-expanded"),
       ).toBe("true");
       expect(fixture.host.querySelector('[data-file-path="docs/guide.md"]')).not.toBeNull();
+      window.dispatchEvent(new MouseEvent("mouseup", { clientX: 20, clientY: 20 }));
     } finally {
+      if (elementFromPoint) Object.defineProperty(document, "elementFromPoint", elementFromPoint);
+      else delete (document as Partial<Document>).elementFromPoint;
       vi.useRealTimers();
     }
   });

@@ -146,7 +146,7 @@ export function mountFileTree(
   let active = true;
   let fileMenu: HTMLElement | null = null;
   let fileMenuPath: string | null = null;
-  let safetyActive = false;
+  let safetyTransient: string | null = null;
   let dropTargetPath: string | null = null;
   let hoverExpandPath: string | null = null;
   let hoverExpandTimer: ReturnType<typeof setTimeout> | null = null;
@@ -161,9 +161,10 @@ export function mountFileTree(
     else fileMenu?.remove();
     fileMenu = null;
     fileMenuPath = null;
-    if (safetyActive) {
-      safetyActive = false;
-      transients?.closed("file-trash-confirmation");
+    if (safetyTransient) {
+      const transient = safetyTransient;
+      safetyTransient = null;
+      transients?.closed(transient);
     }
     document.removeEventListener("pointerdown", dismissFileMenuFromPointer);
     document.removeEventListener("keydown", dismissFileMenuFromKeyboard);
@@ -279,7 +280,7 @@ export function mountFileTree(
     ) {
       return;
     }
-    safetyActive = Boolean(transients);
+    safetyTransient = transients ? "file-trash-confirmation" : null;
     const selectedPaths = [...controller.snapshot().selectedPaths];
     const count = selectedPaths.length;
     const confirmation = document.createElement("div");
@@ -318,6 +319,61 @@ export function mountFileTree(
     });
     controls.append(confirm, cancel);
     confirmation.append(question, problem, controls);
+    placeFileMenu(confirmation, inlineStart, blockStart);
+    fileMenuPath = path;
+    confirm.focus();
+  };
+
+  const openDiscardConfirmation = (path: string, inlineStart: number, blockStart: number): void => {
+    dismissFileMenu();
+    const transientId = "file-draft-discard-confirmation";
+    if (
+      transients &&
+      !transients.open(transientId, "safety", (restoreFocus) => dismissFileMenu(restoreFocus))
+    ) {
+      return;
+    }
+    safetyTransient = transients ? transientId : null;
+    const count = controller.dirtySelectionCount();
+    const confirmation = document.createElement("div");
+    confirmation.className = "zd-file-tree-operation";
+    confirmation.setAttribute("role", "alertdialog");
+    confirmation.setAttribute("aria-label", "Discard unsaved changes");
+    const question = document.createElement("p");
+    question.textContent =
+      count === 1
+        ? `Discard unsaved changes in ${path}?`
+        : `Discard unsaved changes in ${count} files?`;
+    const explanation = document.createElement("p");
+    explanation.textContent =
+      "The affected files will close. Open them again to read their saved copies.";
+    const problem = document.createElement("span");
+    problem.className = "zd-file-tree-operation-problem";
+    problem.setAttribute("role", "status");
+    const controls = document.createElement("span");
+    controls.className = "zd-file-tree-operation-controls";
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.textContent = "Discard Changes";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    cancel.addEventListener("click", () => dismissFileMenu(true));
+    confirm.addEventListener("click", () => {
+      confirm.disabled = true;
+      void (async () => {
+        if (await controller.discardUnsavedSelection()) {
+          dismissFileMenu();
+          return;
+        }
+        problem.textContent =
+          controller.snapshot().notice ?? "The unsaved changes could not be discarded.";
+        confirm.disabled = false;
+        confirm.focus();
+      })();
+    });
+    controls.append(confirm, cancel);
+    confirmation.append(question, explanation, problem, controls);
     placeFileMenu(confirmation, inlineStart, blockStart);
     fileMenuPath = path;
     confirm.focus();
@@ -395,6 +451,11 @@ export function mountFileTree(
           dismissFileMenu(true);
           void controller.copyPath(entryPath, presentation);
         }, ["copyPath", presentation]);
+      }
+      if (controller.dirtySelectionCount() > 0) {
+        action("Discard Unsaved Changes…", () =>
+          openDiscardConfirmation(entryPath, inlineStart, blockStart),
+        );
       }
       if (entry.kind !== "symlink") {
         action("Move to Trash…", () =>
@@ -525,43 +586,97 @@ export function mountFileTree(
       if (hoverExpandPath === path && dropTargetPath === path) controller.expand(path);
     }, DRAG_EXPAND_DELAY_MS);
   };
-  let draggedPaths: readonly string[] = [];
-  ui.viewport.addEventListener("dragstart", (event) => {
+  let mouseDrag:
+    | {
+        readonly paths: readonly string[];
+        readonly startX: number;
+        readonly startY: number;
+        active: boolean;
+      }
+    | undefined;
+  let suppressDragClick = false;
+  let suppressDragClickTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function pathUnderPointer(clientX: number, clientY: number): string | null | undefined {
+    const hit = document.elementFromPoint(clientX, clientY);
+    if (!hit || !ui.viewport.contains(hit)) return undefined;
+    return hit.closest<HTMLElement>("[data-file-path]")?.dataset.filePath ?? null;
+  }
+
+  function stopMouseDrag(): void {
+    mouseDrag = undefined;
+    delete ui.root.dataset.dragging;
+    window.removeEventListener("mousemove", moveMouseDrag, true);
+    window.removeEventListener("mouseup", finishMouseDrag, true);
+  }
+
+  function moveMouseDrag(event: MouseEvent): void {
+    if (!mouseDrag) return;
+    if (!mouseDrag.active) {
+      const distance = Math.hypot(
+        event.clientX - mouseDrag.startX,
+        event.clientY - mouseDrag.startY,
+      );
+      if (distance < 5) return;
+      mouseDrag.active = true;
+      ui.root.dataset.dragging = "true";
+    }
+
+    event.preventDefault();
+    const path = pathUnderPointer(event.clientX, event.clientY);
+    setDropTarget(path === undefined ? null : path);
+  }
+
+  function finishMouseDrag(event: MouseEvent): void {
+    const gesture = mouseDrag;
+    if (!gesture) return;
+    const path = pathUnderPointer(event.clientX, event.clientY);
+    const transfer = gesture.active && path !== undefined;
+    if (gesture.active) {
+      event.preventDefault();
+      suppressDragClick = true;
+      if (suppressDragClickTimer !== null) clearTimeout(suppressDragClickTimer);
+      suppressDragClickTimer = setTimeout(() => {
+        suppressDragClick = false;
+        suppressDragClickTimer = null;
+      }, 0);
+    }
+    clearDropTarget();
+    stopMouseDrag();
+    if (transfer) {
+      void controller.transferPaths(
+        gesture.paths,
+        destinationDirectory(path),
+        event.altKey ? "copy" : "move",
+      );
+    }
+  }
+
+  ui.viewport.addEventListener("mousedown", (event) => {
+    if (event.button !== 0) return;
     const target = (event.target as HTMLElement).closest<HTMLElement>("[data-file-path]");
     const path = target?.dataset.filePath;
-    if (!path || !event.dataTransfer) return;
+    if (!path || target.dataset.fileKind === "symlink") return;
     const selection = controller.snapshot().selectedPaths;
-    draggedPaths = selection.has(path) ? [...selection] : [path];
-    event.dataTransfer.effectAllowed = "copyMove";
-    event.dataTransfer.setData("application/x-zd-file-tree", "selection");
+    mouseDrag = {
+      paths: selection.has(path) ? [...selection] : [path],
+      startX: event.clientX,
+      startY: event.clientY,
+      active: false,
+    };
+    window.addEventListener("mousemove", moveMouseDrag, { capture: true, passive: false });
+    window.addEventListener("mouseup", finishMouseDrag, { capture: true, passive: false });
   });
-  ui.viewport.addEventListener("dragover", (event) => {
-    if (!event.dataTransfer?.types.includes("application/x-zd-file-tree")) return;
-    event.preventDefault();
-    const target = (event.target as HTMLElement).closest<HTMLElement>("[data-file-path]");
-    setDropTarget(target?.dataset.filePath ?? null);
-    event.dataTransfer.dropEffect = event.altKey ? "copy" : "move";
-  });
-  ui.viewport.addEventListener("dragleave", (event) => {
-    if (event.relatedTarget instanceof Node && ui.viewport.contains(event.relatedTarget)) return;
-    clearDropTarget();
-  });
-  ui.viewport.addEventListener("drop", (event) => {
-    if (!event.dataTransfer?.types.includes("application/x-zd-file-tree")) return;
-    event.preventDefault();
-    const target = (event.target as HTMLElement).closest<HTMLElement>("[data-file-path]");
-    clearDropTarget();
-    void controller.transferPaths(
-      draggedPaths,
-      destinationDirectory(target?.dataset.filePath ?? null),
-      event.altKey ? "copy" : "move",
-    );
-    draggedPaths = [];
-  });
-  ui.viewport.addEventListener("dragend", () => {
-    draggedPaths = [];
-    clearDropTarget();
-  });
+  ui.viewport.addEventListener(
+    "click",
+    (event) => {
+      if (!suppressDragClick) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      suppressDragClick = false;
+    },
+    true,
+  );
   ui.viewport.addEventListener("keydown", (event) => {
     const eventPath = (event.target as HTMLElement).dataset.filePath ?? null;
     if (eventPath && controller.snapshot().selectedPath !== eventPath) controller.select(eventPath);
@@ -635,6 +750,8 @@ export function mountFileTree(
   return () => {
     if (!active) return;
     active = false;
+    stopMouseDrag();
+    if (suppressDragClickTimer !== null) clearTimeout(suppressDragClickTimer);
     clearDropTarget();
     dismissFileMenu();
     unsubscribe();
