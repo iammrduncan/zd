@@ -5,6 +5,8 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use portable_pty::{Child, ExitStatus, MasterPty};
+#[cfg(unix)]
+use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
 use super::output::BoundedOutput;
 use super::{TerminalError, TerminalErrorKind, TerminalOutputSignal, TerminalSessionHandle};
@@ -52,10 +54,7 @@ impl ProcessTree {
 
     pub(super) fn cleanup_descendants(&mut self) -> Result<(), TerminalError> {
         #[cfg(unix)]
-        {
-            signal_group(self.process_group, libc::SIGHUP)?;
-            signal_group(self.process_group, libc::SIGKILL)?;
-        }
+        cleanup_unix_session(self.process_group.take())?;
 
         #[cfg(windows)]
         self.job.terminate()?;
@@ -258,20 +257,100 @@ fn owned_process_group(
 }
 
 #[cfg(unix)]
-fn signal_group(process_group: Option<i32>, signal: libc::c_int) -> Result<(), TerminalError> {
+fn cleanup_unix_session(process_group: Option<i32>) -> Result<(), TerminalError> {
+    cleanup_unix_session_with(
+        process_group,
+        |process_group| signal_process(-process_group, libc::SIGKILL),
+        signal_session_members,
+    )
+}
+
+#[cfg(unix)]
+fn cleanup_unix_session_with<SignalGroup, SignalMembers>(
+    process_group: Option<i32>,
+    signal_group: SignalGroup,
+    signal_members: SignalMembers,
+) -> Result<(), TerminalError>
+where
+    SignalGroup: FnOnce(i32) -> std::io::Result<()>,
+    SignalMembers: FnOnce(i32) -> Result<(), TerminalError>,
+{
     let Some(process_group) = process_group else {
         return Ok(());
     };
-    let result = unsafe { libc::kill(-process_group, signal) };
+
+    match signal_group(process_group) {
+        Ok(()) => Ok(()),
+        Err(error) if error.raw_os_error() == Some(libc::ESRCH) => Ok(()),
+        // macOS reports EPERM for the whole group when any one member cannot
+        // receive the signal. Fall back to the members that still belong to
+        // this PTY session so one inaccessible process does not strand all of
+        // the processes we can terminate.
+        Err(error) if error.raw_os_error() == Some(libc::EPERM) => signal_members(process_group),
+        Err(error) => Err(TerminalError::new(
+            TerminalErrorKind::Io,
+            format!("could not terminate terminal process group {process_group}: {error}"),
+        )),
+    }
+}
+
+#[cfg(unix)]
+fn signal_session_members(session_id: i32) -> Result<(), TerminalError> {
+    let mut system = System::new();
+    system.refresh_processes_specifics(
+        ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::nothing().without_tasks(),
+    );
+    let Ok(session_id) = u32::try_from(session_id) else {
+        return Ok(());
+    };
+    let session_id = Pid::from_u32(session_id);
+    let mut members = system
+        .processes()
+        .iter()
+        .filter_map(|(pid, process)| (process.session_id() == Some(session_id)).then_some(*pid))
+        .collect::<Vec<_>>();
+    members.sort_unstable_by_key(|pid| (*pid == session_id, pid.as_u32()));
+
+    let mut first_error = None;
+    for pid in members {
+        let native_pid = match i32::try_from(pid.as_u32()) {
+            Ok(pid) => pid,
+            Err(_) => continue,
+        };
+        if let Err(error) = signal_process(native_pid, libc::SIGKILL) {
+            match error.raw_os_error() {
+                // A process can exit or change effective user between the
+                // session snapshot and this signal. Neither should prevent us
+                // from terminating the remaining owned members.
+                Some(code) if code == libc::ESRCH || code == libc::EPERM => {}
+                _ => {
+                    first_error.get_or_insert_with(|| {
+                        TerminalError::new(
+                            TerminalErrorKind::Io,
+                            format!("could not terminate terminal process {native_pid}: {error}"),
+                        )
+                    });
+                }
+            }
+        }
+    }
+
+    match first_error {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
+}
+
+#[cfg(unix)]
+fn signal_process(process: i32, signal: libc::c_int) -> std::io::Result<()> {
+    let result = unsafe { libc::kill(process, signal) };
     if result == 0 {
         return Ok(());
     }
 
-    let error = std::io::Error::last_os_error();
-    if error.raw_os_error() == Some(libc::ESRCH) {
-        return Ok(());
-    }
-    Err(io_error(error))
+    Err(std::io::Error::last_os_error())
 }
 
 fn io_error(error: std::io::Error) -> TerminalError {
@@ -280,11 +359,41 @@ fn io_error(error: std::io::Error) -> TerminalError {
 
 #[cfg(all(test, unix))]
 mod tests {
-    use super::owned_process_group;
+    use std::cell::Cell;
+
+    use super::{cleanup_unix_session_with, owned_process_group, ProcessTree};
 
     #[test]
     fn process_tree_prefers_the_owned_child_over_a_stale_tty_group() {
         assert_eq!(owned_process_group(Some(42), Some(7)), Some(42));
         assert_eq!(owned_process_group(None, Some(7)), Some(7));
+    }
+
+    #[test]
+    fn cleanup_consumes_the_owned_process_group() {
+        let mut process_tree = ProcessTree {
+            process_group: Some(1_000_000_000),
+        };
+
+        process_tree.cleanup_descendants().unwrap();
+
+        assert_eq!(process_tree.process_group, None);
+    }
+
+    #[test]
+    fn permission_denied_group_signal_falls_back_to_session_members() {
+        let cleaned_session = Cell::new(None);
+
+        cleanup_unix_session_with(
+            Some(42),
+            |_| Err(std::io::Error::from_raw_os_error(libc::EPERM)),
+            |session_id| {
+                cleaned_session.set(Some(session_id));
+                Ok(())
+            },
+        )
+        .unwrap();
+
+        assert_eq!(cleaned_session.get(), Some(42));
     }
 }
