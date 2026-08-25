@@ -232,6 +232,70 @@ describe("the root Files and Git coordinator", () => {
     detach();
   });
 
+  it("selects and reveals a file activated outside the Files tree", async () => {
+    const owner = createWorkbenchStateOwner(workbenchStateFromGrants([alpha], launch(alpha)));
+    const files: FileTreeAdapter = {
+      snapshot: vi.fn(async () => ({
+        ...treeResult(alpha),
+        entries: [
+          {
+            relativePath: "README.md",
+            parentPath: null,
+            name: "README.md",
+            kind: "file" as const,
+            ignored: false,
+            byteLength: 10,
+            modified: 1,
+          },
+          {
+            relativePath: "docs",
+            parentPath: null,
+            name: "docs",
+            kind: "directory" as const,
+            ignored: false,
+            byteLength: null,
+            modified: 1,
+          },
+          {
+            relativePath: "docs/DESIGN.md",
+            parentPath: "docs",
+            name: "DESIGN.md",
+            kind: "file" as const,
+            ignored: false,
+            byteLength: 10,
+            modified: 1,
+          },
+        ],
+      })),
+      watch: () => () => {},
+    };
+    const runtime = createWorkbenchFilesRuntime(
+      owner,
+      files,
+      gitAdapter(async () => gitResult(alpha, "modified")),
+      createUnavailableInstrumentationClient(),
+    );
+    const detach = runtime.attach();
+    await vi.waitFor(() => expect(runtime.controller.snapshot().state).toBe("ready"));
+
+    await owner.activateFile({
+      projectId: alpha.id,
+      worktreeId: "worktree-alpha",
+      relativePath: "docs/DESIGN.md",
+    });
+
+    await vi.waitFor(() => expect(runtime.controller.snapshot().activePath).toBe("docs/DESIGN.md"));
+    const snapshot = runtime.controller.snapshot();
+    expect(snapshot.selectedPath).toBe("docs/DESIGN.md");
+    expect(snapshot.selectedPaths).toEqual(new Set(["docs/DESIGN.md"]));
+    expect(snapshot.expandedPaths).toContain("docs");
+    expect(
+      runtime.controller.rows().some(({ entry }) => entry.relativePath === "docs/DESIGN.md"),
+    ).toBe(true);
+    expect(files.snapshot).toHaveBeenCalledOnce();
+    detach();
+  });
+
   it("projects recoverable draft state into the active Files tree", async () => {
     const owner = createWorkbenchStateOwner(workbenchStateFromGrants([alpha], launch(alpha)));
     const drafts = new FileDraftStore(window.localStorage);

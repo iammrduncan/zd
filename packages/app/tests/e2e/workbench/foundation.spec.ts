@@ -65,6 +65,36 @@ test("a project-relative Markdown image renders through the open document", asyn
   await expect(image).toBeVisible();
   await expect(image).toHaveAttribute("src", /^blob:/);
   await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.naturalWidth)).toBe(1);
+
+  await image.scrollIntoViewIfNeeded();
+  const beforeClick = await page
+    .locator(".current-file .md-surface")
+    .evaluate((surface) => surface.scrollTop);
+  await image.click();
+  await expect(image, "clicking the native-resolved image removed its widget").toBeVisible();
+  await expect
+    .poll(() => page.locator(".current-file .md-surface").evaluate((surface) => surface.scrollTop))
+    .toBeCloseTo(beforeClick, 0);
+});
+
+test("a relative Markdown link selects and reveals its destination in Files", async ({ page }) => {
+  await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
+  const primary = await page.evaluate(() =>
+    /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "Meta" : "Control",
+  );
+
+  await page.getByRole("link", { name: "Open the reader guide" }).click({ modifiers: [primary] });
+
+  await expect(page.locator(".current-file-path")).toHaveText("docs/user-facing-docs/README.md");
+  const destination = page.locator('[data-file-path="docs/user-facing-docs/README.md"]');
+  await expect(destination).toBeVisible();
+  await expect(destination).toHaveAttribute("aria-current", "page");
+  await expect(destination).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator('[data-file-path="docs"]')).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator('[data-file-path="docs/user-facing-docs"]')).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
 });
 
 test("the active project header remains visually distinct from its active thread", async ({
