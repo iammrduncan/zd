@@ -58,6 +58,15 @@ For a long document, press `Cmd+Option+T` on macOS or `Ctrl+Alt+T` elsewhere to 
 **Typewriter Mode**. The caret line stays at a stable reading position while the document moves.
 Press the shortcut again to turn it off.
 
+### Undo an accidental editing session
+
+A bold file name in Files has recoverable unsaved changes. Select one or more dirty files, or select
+a folder that contains them. Right-click the selection and choose **Discard Unsaved Changes…**.
+Check the number of files in the confirmation, then choose **Discard Changes**.
+
+The affected files close. Open them again to read their saved copies. This action does not revert a
+change that you already saved to disk.
+
 ## 6. Leave a precise comment
 
 Select the exact words that need attention. Enter `Clarify this result.` in the comment box beside
