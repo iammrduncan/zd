@@ -143,16 +143,16 @@ test("a second enter from a nested item returns the visible caret to the prose e
     const element =
       focus instanceof Element ? focus : focus instanceof Node ? focus.parentElement : null;
     const caretLine = element?.closest<HTMLElement>(".cm-line") ?? null;
-    const prose = [...document.querySelectorAll<HTMLElement>(".cm-line")].find((candidate) =>
-      candidate.textContent?.includes("Everything that makes reading good"),
-    );
+    // `.cm-content` is the durable prose origin. A named comparison line can be
+    // outside CodeMirror's virtualized viewport on a slow or short runner.
+    const content = document.querySelector<HTMLElement>(".cm-content");
     return {
       expectedLine,
       actualLine: window.zdEditor!.selection().line,
       source: window.zdEditor!.text().split("\n")[expectedLine - 1],
       classes: caretLine?.className ?? null,
       caretLeft: caretLine?.getBoundingClientRect().left ?? null,
-      proseLeft: prose?.getBoundingClientRect().left ?? null,
+      proseLeft: content?.getBoundingClientRect().left ?? null,
     };
   }, line + 1);
 

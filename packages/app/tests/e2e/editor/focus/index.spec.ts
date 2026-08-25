@@ -47,9 +47,16 @@ test("the target is the whole block, not just the caret's line", async ({ page }
   const line = page.locator(".cm-line", { hasText: "A paragraph here should be" }).first();
   await line.click();
 
-  const focused = await target(page);
-  expect(focused.length).toBeGreaterThan(1);
-  expect(focused.join(" ")).toContain("not, the claim above is decoration");
+  // Focus decoration follows CodeMirror's measured semantic range. On a slow
+  // layout pass the click can land one frame before the rest of the paragraph.
+  await expect
+    .poll(async () => (await target(page)).length, {
+      message: "the measured focus target stayed on one source line",
+    })
+    .toBeGreaterThan(1);
+  await expect
+    .poll(async () => (await target(page)).join(" "))
+    .toContain("not, the claim above is decoration");
 });
 
 test("the whole block stays the target at the end of it, and while typing there", async ({

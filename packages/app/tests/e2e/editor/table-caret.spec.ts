@@ -137,7 +137,6 @@ test("editing a rendered table cell keeps the document viewport still", async ({
   const cell = page.locator("table.md-rendered td").first();
   await expect(cell).toBeVisible();
   await cell.click();
-  const surface = page.locator(".md-surface");
   const beforeText = await page.evaluate(() => window.zdEditor!.text());
   // Navigation and the cell click may still be finishing their own smooth
   // scroll. The measurement begins only after that motion has come to rest so
@@ -146,8 +145,9 @@ test("editing a rendered table cell keeps the document viewport still", async ({
 
   for (const key of ["A", "B", "C", "D"]) {
     await page.keyboard.press(key);
-    await settle(page);
-    samples.push(await surface.evaluate((element) => element.scrollTop));
+    // Every edit gets its own height-map measurement. Sampling two arbitrary
+    // frames missed the delayed correction that moved the release runner.
+    samples.push(await waitForEditorScrollToSettle(page));
   }
 
   expect(
