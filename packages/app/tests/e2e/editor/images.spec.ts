@@ -42,6 +42,17 @@ test("a local image renders as a picture, not as bracket source", async ({ page 
   expect(onScreen, "the image's bracket source is still on screen").not.toContain("![a dot]");
 });
 
+test("clicking a rendered image keeps the image rendered", async ({ page }) => {
+  const image = page.locator('.md-image img[alt="a dot"]');
+  await image.click();
+
+  await expect(image, "the image disappeared when it received pointer focus").toBeVisible();
+  await expect(
+    page.locator(".cm-content"),
+    "the click revealed the image source",
+  ).not.toContainText("![a dot]");
+});
+
 test("a remote image is a quiet placeholder and is never requested", async ({ page }) => {
   const requests: string[] = [];
   page.on("request", (r) => requests.push(r.url()));

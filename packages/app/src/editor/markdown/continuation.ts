@@ -24,6 +24,45 @@ import { keymap } from "@codemirror/view";
 /** A line holding nothing but blockquote markers and space. */
 const ONLY_QUOTE_MARKERS = /^[\s>]*>[\s]*$/;
 
+/** A parser-confirmed list item whose line contains no user text. */
+const ONLY_EMPTY_LIST_ITEM = /^[\t ]*(?:[-+*]|\d{1,9}[.)])(?:[\t ]+\[[ xX]\])?[\t ]*$/;
+
+/**
+ * A second Enter leaves the complete list, including from a nested empty item.
+ *
+ * CodeMirror's Markdown command demotes nested empty items one level at a time.
+ * That is valid structural editing, but it contradicts this surface's established
+ * two-Enter gesture and leaves invisible indentation behind. Once decorations make
+ * that indentation atomic, the following key can continue a new nested marker and
+ * produce the orphan gap reported in the demo.
+ *
+ * The regular expression only recognizes the empty-line shape. The syntax tree is
+ * still the authority that says it is a list item, so a prose line containing `-`
+ * or `1.` is never claimed accidentally.
+ */
+const leaveList: StateCommand = ({ state, dispatch }) => {
+  const range = state.selection.main;
+  if (!range.empty) return false;
+
+  const line = state.doc.lineAt(range.head);
+  if (range.head !== line.to || !ONLY_EMPTY_LIST_ITEM.test(line.text)) return false;
+
+  const markerOffset = line.text.search(/[-+*\d]/u);
+  let node: SyntaxNode | null = syntaxTree(state).resolveInner(line.from + markerOffset, 1);
+  while (node && node.name !== "ListItem") node = node.parent;
+  if (!node) return false;
+
+  dispatch(
+    state.update({
+      changes: { from: line.from, to: line.to, insert: "" },
+      selection: { anchor: line.from },
+      scrollIntoView: true,
+      userEvent: "input",
+    }),
+  );
+  return true;
+};
+
 /**
  * Enter on a blockquote line with nothing typed in it leaves the quote.
  *
@@ -214,6 +253,7 @@ export function markdownStructure(): Extension {
     keymap.of([
       { key: "Enter", run: leaveFence },
       { key: "Enter", run: closeFence },
+      { key: "Enter", run: leaveList },
       { key: "Enter", run: leaveBlockquote },
     ]),
     keymap.of(markdownKeymap),

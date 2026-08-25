@@ -472,7 +472,7 @@
   font-size: var(--type-code-size);
   line-height: var(--type-code-line);
   background: var(--surface-code);
-  padding-inline: var(--space-2);
+  padding-inline: var(--space-3);
 }
 
 /* §7.3 allows no chrome around the document, and a focus ring is chrome. */

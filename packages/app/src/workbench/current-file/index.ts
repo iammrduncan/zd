@@ -124,11 +124,13 @@ export async function mountCurrentFile(
     const actions = document.createElement("div");
     actions.className = "current-file-actions";
     const reviewBinding = createReviewBinding(buffer, resource, actions, review);
-    let dirty = false;
     const close = fileCloseAction({
       host: surface,
       relativePath: resource.relativePath,
-      isDirty: () => dirty,
+      // The editor owns the saved baseline, including a recovered draft mounted
+      // before the first change callback. A second local flag started false and
+      // let restored work bypass the destructive-close confirmation.
+      isDirty: () => mounted?.editor?.isDirty() ?? savedText !== undefined,
       canClose: () => {
         if (openedGeneration !== generation) return false;
         if (pendingImageSaves === 0) return true;
@@ -192,7 +194,6 @@ export async function mountCurrentFile(
         showNotice(message, "warning"),
       ),
       onTextChange: (text, isDirty) => {
-        dirty = isDirty;
         if (isDirty) drafts.save(resource, text);
         else drafts.clear(resource);
       },
