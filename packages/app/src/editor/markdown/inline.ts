@@ -83,3 +83,8 @@ export function renderInlineMarkdown(source: string): DocumentFragment {
   blockRemoteImages(template.content);
   return template.content;
 }
+
+/** Return the parser-approved destination for one complete Markdown link. */
+export function markdownLinkHref(source: string): string | null {
+  return renderInlineMarkdown(source).querySelector("a")?.getAttribute("href") ?? null;
+}

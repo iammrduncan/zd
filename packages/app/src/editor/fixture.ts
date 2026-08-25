@@ -16,6 +16,7 @@ import {
   runCommandTarget,
 } from "@/workbench/shortcuts";
 import { anchorY, type FocusGranularity } from "./focus/anchor";
+import { registerMarkdownFormatting } from "@/workbench/markdown/format";
 
 /*
  * A document with a caret in it, for looking at and for testing against.
@@ -261,10 +262,12 @@ host.append(surface);
  * atomic write on the other side is tested in packages/tauri/src/fs.rs.
  */
 const saves: string[] = [];
+const openedLinks: string[] = [];
 const editor = createEditor(column, source, {
   onSave: (text) => {
     saves.push(text);
   },
+  onOpenMarkdownLink: (href) => openedLinks.push(href),
   // The same call the workbench makes, from the same function — a fixture that
   // hand-built a language object would be testing its own copy of the rule.
   language: languageFor(path),
@@ -312,6 +315,11 @@ register({
     return true;
   },
 });
+
+registerMarkdownFormatting(
+  () => editor,
+  () => true,
+);
 
 register({
   id: "file.find",
@@ -443,6 +451,7 @@ declare global {
       /** UTF-8 fixture size, recorded without teaching the editor about bytes. */
       sourceBytes: number;
       saves: string[];
+      openedLinks: string[];
     };
     /**
      * A way to put a command into the registry from a test.
@@ -491,4 +500,5 @@ window.zdEditor = {
   readyAt: performance.now(),
   sourceBytes: new TextEncoder().encode(source).byteLength,
   saves,
+  openedLinks,
 };

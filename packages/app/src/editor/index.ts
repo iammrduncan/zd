@@ -1,4 +1,5 @@
 export { createEditor, type Editor, type EditorOptions } from "./document";
+export type { MarkdownFormat } from "./markdown/format";
 export {
   MAX_CLIPBOARD_IMAGE_BYTES,
   type ClipboardImage,

@@ -58,6 +58,7 @@ function context(read: BoundedFileRead, relativePath = "src/main.ts") {
   let requestOpen: (() => void) | null = null;
   let pending: LaunchRequest | null = null;
   const closeWindow = vi.fn(async () => {});
+  const openExternal = vi.fn(async () => {});
   const acceptOpenRequest = vi.fn(async () => {
     const accepted = pending;
     pending = null;
@@ -74,6 +75,7 @@ function context(read: BoundedFileRead, relativePath = "src/main.ts") {
       };
     },
     closeWindow,
+    openExternal,
     onOpenRequested: (handler: () => void) => {
       requestOpen = handler;
       return () => {
@@ -95,6 +97,7 @@ function context(read: BoundedFileRead, relativePath = "src/main.ts") {
     writeTextFile,
     fileStamp,
     closeWindow,
+    openExternal,
     requestClose: () => requestClose?.(),
     requestOpen: (request: LaunchRequest) => {
       pending = request;
@@ -136,6 +139,16 @@ describe("the root current-file owner", () => {
     expect(host.querySelector(".cm-lineNumbers")).not.toBeNull();
     expect(commandTargetAvailable("file.find")).toBe(true);
     expect(commandTargetAvailable("focus.toggle")).toBe(true);
+    expect(
+      commands()
+        .filter(({ id }) => id.startsWith("document.format"))
+        .map(({ id }) => id),
+    ).toEqual([
+      "document.formatBold",
+      "document.formatItalic",
+      "document.formatCode",
+      "document.formatLink",
+    ]);
 
     expect(runCommandTarget("file.find")).toBe(true);
     expect(host.querySelector<HTMLElement>(".editor-find")?.hidden).toBe(false);
@@ -191,6 +204,45 @@ describe("the root current-file owner", () => {
     expect(revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:example");
     createObjectURL.mockRestore();
     revokeObjectURL.mockRestore();
+    host.remove();
+  });
+
+  it("keeps relative Markdown links in the workbench and sends web links to the platform", async () => {
+    const fixture = context(
+      {
+        status: "text",
+        text: "[Design](../DESIGN.md) and [Website](https://example.com)",
+        byteLength: 58,
+        writable: true,
+      },
+      "docs/notes/readme.md",
+    );
+    const host = document.createElement("div");
+    document.body.append(host);
+    const unmount = await mountCurrentFile(host, fixture.runtime);
+    const [design] = host.querySelectorAll<HTMLElement>(".md-link-label");
+
+    design!.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true }),
+    );
+    await vi.waitFor(() =>
+      expect(fixture.runtime.state.snapshot().openFiles.at(-1)?.relativePath).toBe(
+        "docs/DESIGN.md",
+      ),
+    );
+
+    await fixture.runtime.state.activateFile(resource("docs/notes/readme.md"));
+    await vi.waitFor(() => expect(host.querySelectorAll(".md-link-label")).toHaveLength(2));
+    host
+      .querySelectorAll<HTMLElement>(".md-link-label")[1]!
+      .dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true }),
+      );
+    await vi.waitFor(() =>
+      expect(fixture.openExternal).toHaveBeenCalledExactlyOnceWith("https://example.com"),
+    );
+
+    unmount();
     host.remove();
   });
 

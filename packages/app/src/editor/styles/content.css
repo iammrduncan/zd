@@ -279,6 +279,7 @@
 .md-rendered a,
 .md-editor .md-link-label {
   color: var(--text-link);
+  cursor: pointer;
   text-decoration: none;
 }
 
