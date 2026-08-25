@@ -2,7 +2,7 @@
 
 Cananoical list of ideas from maintainer:
 
-- [ ] add beautiful mermaid support
+- [x] add beautiful mermaid support
 - [ ] explore bdd/tdd development flows and custom tooling around that?
 - [ ] explore mcp and should agents interact with zd or other threads of zd etc? (Think herdr).
 - [ ] support ssh mode (open project remotely over ssh)

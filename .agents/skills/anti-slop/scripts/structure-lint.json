@@ -1,0 +1,200 @@
+{
+  "schema": "antiky-structure-lint/1",
+  "version": "1.0.0",
+  "calibration": {
+    "date": "2026-08-14",
+    "note": "Directory-shape thresholds were fitted against four real directories: two that should split, one that is correctly flat, and one generated tree. Coverage discriminates; entropy does not. Re-fit before loosening any of them.",
+    "cases": [
+      {
+        "dir": "website/src/shaders",
+        "files": 86,
+        "clusters": 18,
+        "coverage": 0.74,
+        "entropy": 3.71,
+        "expect": "no-folder-in-filenames"
+      },
+      {
+        "dir": "website/src/shaders/fns",
+        "files": 132,
+        "clusters": 1,
+        "coverage": 1.0,
+        "entropy": 0.0,
+        "expect": "no-redundant-prefix"
+      },
+      {
+        "dir": "brometal/src/shaders",
+        "files": 61,
+        "clusters": 31,
+        "coverage": 0.0,
+        "entropy": 4.95,
+        "expect": "silent"
+      },
+      {
+        "dir": "Intermediate/Build/UHT",
+        "files": 72,
+        "clusters": 27,
+        "coverage": 0.44,
+        "entropy": 4.63,
+        "expect": "silent"
+      }
+    ]
+  },
+  "thresholds": {
+    "minFiles": 20,
+    "minClusters": 3,
+    "maxSubdirs": 1,
+    "splitCoverage": 0.6,
+    "prefixCoverage": 0.9,
+    "digitLedExclusion": 0.8
+  },
+  "rules": [
+    {
+      "id": "no-uncollected-test",
+      "severity": "error",
+      "oracle": "derived",
+      "message": "This file is named like a test, but the project's own test runner configuration does not collect it.",
+      "next": "Move the file under a declared test root, or add its directory to the runner's configuration.",
+      "never": "Do not rename the file so it stops looking like a test. That hides the problem and loses the assertions.",
+      "why": "A test the runner never collects passes silently forever. The runner's own configuration is the oracle, so this finding cannot be argued with.",
+      "fixtures": {
+        "fires": {
+          "vitest.config.ts": "export default { test: { include: [\"tests/**/*.test.ts\"] } }\n",
+          "src/stray.test.ts": "it('x', () => {})\n"
+        },
+        "passes": {
+          "vitest.config.ts": "export default { test: { include: [\"tests/**/*.test.ts\"] } }\n",
+          "tests/ok.test.ts": "it('x', () => {})\n"
+        }
+      }
+    },
+    {
+      "id": "no-orphan-script",
+      "severity": "error",
+      "oracle": "derived",
+      "message": "Nothing in this repository invokes this script.",
+      "next": "Delete it, or reference it from a package script, a CI workflow, a Makefile, or a document that explains when to run it.",
+      "never": "Do not add a comment claiming it is useful. A reference is checkable; a claim is not.",
+      "why": "Untraced code is a finding: trace it or delete it. This is DO-178C orphan analysis applied to a scripts folder, and it covers the shell and Python files that reachability tools such as knip do not see.",
+      "fixtures": {
+        "fires": {
+          "package.json": "{ \"name\": \"x\", \"scripts\": { \"build\": \"tsc\" } }\n",
+          "scripts/leftover-migration.sh": "#!/bin/sh\necho hi\n"
+        },
+        "passes": {
+          "package.json": "{ \"name\": \"x\", \"scripts\": { \"release\": \"sh scripts/release.sh\" } }\n",
+          "scripts/release.sh": "#!/bin/sh\necho hi\n"
+        }
+      }
+    },
+    {
+      "id": "no-folder-in-filenames",
+      "severity": "warning",
+      "oracle": "heuristic",
+      "message": "This directory is a flat list whose filenames already describe a hierarchy.",
+      "next": "Create one subdirectory per prefix family and move the files, dropping the now-redundant prefix from each name.",
+      "never": "Do not split the directory arbitrarily to reduce the file count. The prefix families are the seam; any other cut makes it worse.",
+      "why": "A proxy, not a proof. Prefix-cluster coverage separates a directory that wants subfolders from one that is correctly flat; entropy does not.",
+      "fixtures": {
+        "fires": {
+          "src/thing/user-create.ts": "",
+          "src/thing/user-delete.ts": "",
+          "src/thing/user-list.ts": "",
+          "src/thing/user-update.ts": "",
+          "src/thing/order-create.ts": "",
+          "src/thing/order-delete.ts": "",
+          "src/thing/order-list.ts": "",
+          "src/thing/order-ship.ts": "",
+          "src/thing/cart-add.ts": "",
+          "src/thing/cart-clear.ts": "",
+          "src/thing/cart-view.ts": "",
+          "src/thing/cart-total.ts": "",
+          "src/thing/pay-auth.ts": "",
+          "src/thing/pay-capture.ts": "",
+          "src/thing/pay-refund.ts": "",
+          "src/thing/pay-void.ts": "",
+          "src/thing/ship-book.ts": "",
+          "src/thing/ship-track.ts": "",
+          "src/thing/ship-cancel.ts": "",
+          "src/thing/ship-quote.ts": ""
+        },
+        "passes": {
+          "src/flat/alpha.ts": "",
+          "src/flat/bravo.ts": "",
+          "src/flat/charlie.ts": "",
+          "src/flat/delta.ts": "",
+          "src/flat/echo.ts": "",
+          "src/flat/foxtrot.ts": "",
+          "src/flat/golf.ts": "",
+          "src/flat/hotel.ts": "",
+          "src/flat/india.ts": "",
+          "src/flat/juliet.ts": "",
+          "src/flat/kilo.ts": "",
+          "src/flat/lima.ts": "",
+          "src/flat/mike.ts": "",
+          "src/flat/november.ts": "",
+          "src/flat/oscar.ts": "",
+          "src/flat/papa.ts": "",
+          "src/flat/quebec.ts": "",
+          "src/flat/romeo.ts": "",
+          "src/flat/sierra.ts": "",
+          "src/flat/tango.ts": ""
+        }
+      }
+    },
+    {
+      "id": "no-redundant-prefix",
+      "severity": "info",
+      "oracle": "heuristic",
+      "message": "Nearly every file here starts with the same prefix, which the directory name already carries.",
+      "next": "Drop the prefix from the filenames. The directory already says it.",
+      "never": "Do not add subdirectories. The remedy here is renaming, not nesting \u2014 this is the opposite of the split finding.",
+      "why": "A proxy, not a proof. One cluster at high coverage means the prefix is noise; three or more clusters mean the directory wants subfolders. Same measurement, opposite remedies. The prefix must also echo the directory's own name, or the rule fires on every lint plugin: `no-` in a `rules/` folder is the rule's public id, not repetition.",
+      "fixtures": {
+        "fires": {
+          "src/fns/fn-add.ts": "",
+          "src/fns/fn-sub.ts": "",
+          "src/fns/fn-mul.ts": "",
+          "src/fns/fn-div.ts": "",
+          "src/fns/fn-mod.ts": "",
+          "src/fns/fn-pow.ts": "",
+          "src/fns/fn-abs.ts": "",
+          "src/fns/fn-min.ts": "",
+          "src/fns/fn-max.ts": "",
+          "src/fns/fn-sum.ts": "",
+          "src/fns/fn-avg.ts": "",
+          "src/fns/fn-clamp.ts": "",
+          "src/fns/fn-lerp.ts": "",
+          "src/fns/fn-sign.ts": "",
+          "src/fns/fn-sqrt.ts": "",
+          "src/fns/fn-cbrt.ts": "",
+          "src/fns/fn-log.ts": "",
+          "src/fns/fn-exp.ts": "",
+          "src/fns/fn-sin.ts": "",
+          "src/fns/fn-cos.ts": ""
+        },
+        "passes": {
+          "src/rules/no-unknown-returns.mjs": "",
+          "src/rules/no-unknown-parameters.mjs": "",
+          "src/rules/no-reflect-get.mjs": "",
+          "src/rules/no-reflect-apply.mjs": "",
+          "src/rules/no-module-mocking.mjs": "",
+          "src/rules/no-object-parameters.mjs": "",
+          "src/rules/no-shape-in-names.mjs": "",
+          "src/rules/no-chained-assertions.mjs": "",
+          "src/rules/no-empty-spread.mjs": "",
+          "src/rules/no-runtime-typeof.mjs": "",
+          "src/rules/no-known-widening.mjs": "",
+          "src/rules/no-widen-assert.mjs": "",
+          "src/rules/no-unsafe-dictionary.mjs": "",
+          "src/rules/no-disabled-test.mjs": "",
+          "src/rules/no-swallowed-error.mjs": "",
+          "src/rules/no-placeholder-body.mjs": "",
+          "src/rules/no-tautological-assertion.mjs": "",
+          "src/rules/no-redundant-prefix.mjs": "",
+          "src/rules/no-orphan-script.mjs": "",
+          "src/rules/no-uncollected-test.mjs": ""
+        }
+      }
+    }
+  ]
+}

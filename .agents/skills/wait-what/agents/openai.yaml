@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wait, what?"
+  short_description: "Stop — that did not land. Re-pitch it."
+  default_prompt: "Use $wait-what — that did not land, re-pitch it."

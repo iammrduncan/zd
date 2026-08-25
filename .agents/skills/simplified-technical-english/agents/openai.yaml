@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simplified Technical English"
+  short_description: "Write, audit, and fix text against ASD-STE100 Issue 9"
+  default_prompt: "Use $simplified-technical-english audit to check this document against ASD-STE100 Issue 9."

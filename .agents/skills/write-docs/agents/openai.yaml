@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write Documentation"
+  short_description: "Classify, write, audit, and split docs using Diátaxis"
+  default_prompt: "Use $write-docs classify to decide what kind of page this should be."

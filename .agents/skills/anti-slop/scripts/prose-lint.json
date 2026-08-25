@@ -1,0 +1,232 @@
+{
+  "schema": "antiky-claim-lint/1",
+  "version": "1.0.0",
+  "provenance": {
+    "date": "2026-08-14",
+    "method": "Word sets were chosen to make a structural test possible, not to detect authorship. A finding needs a quality attribute AND an assertion verb AND an artifact subject AND the absence of any referent. No single list decides anything on its own.",
+    "calibration": "Measured over 32,483 words of this repository's prose: 0 findings. Over an AI-slop probe document: 3 of 3 claims caught. Over a deliberately well-written architecture document: 0 findings.",
+    "notDetection": "This is not an AI-authorship detector and must never be described as one. Detectors that classify authorship misfire on non-native English writing at rates above 60% (Liang et al., 2023, n=91). A structural check for 'this assertion carries no referent' makes a different claim and carries no accusation.",
+    "shelfLife": "The structural test does not decay by model generation. Do not extend this file with fashionable vocabulary; a word list is wrong within a year, and the tokens below are load-bearing grammar rather than style markers."
+  },
+  "words": {
+    "qualityAttributes": [
+      "robust", "scalable", "maintainable", "performant", "secure", "reliable",
+      "resilient", "efficient", "flexible", "extensible", "modular", "seamless",
+      "elegant", "optimal", "testable", "future-proof", "battle-tested",
+      "world-class", "production-ready", "enterprise-grade", "highly available",
+      "loosely coupled", "bulletproof", "rock-solid", "blazing fast"
+    ],
+    "artifactSubjects": [
+      "this", "these", "it", "our",
+      "the (?:system|architecture|design|approach|solution|codebase|module|layer|change|migration|implementation|refactor|service|pipeline|api|library|framework|component)"
+    ],
+    "assertionVerbs": [
+      "is", "are", "remains", "stays", "becomes", "ensures", "guarantees",
+      "provides", "delivers", "offers", "improves", "enhances", "enables",
+      "will be", "makes it", "keeps it"
+    ],
+    "evidenceTokens": [
+      "measured", "measurement", "benchmark", "benchmarked", "profiled",
+      "profiling", "we ran", "we measured", "we profiled", "load test",
+      "p50", "p95", "p99", "ms", "milliseconds", "seconds", "throughput",
+      "according to", "per the", "see "
+    ],
+    "nonAssertiveOpeners": [
+      "use", "using", "write", "writing", "never", "always", "prefer", "avoid",
+      "do not", "don't", "when", "if", "a", "an", "keep", "make", "treat",
+      "consider", "ask", "check", "read", "run", "state", "say", "report",
+      "aim", "try", "start", "stop", "let", "put", "give", "name", "call",
+      "why", "what", "how", "where", "which", "who"
+    ],
+    "durationPattern": "\\b(?:\\d+(?:\\.\\d+)?|a|an|one|two|three|four|five|six|several|a few|a couple of)\\s*(?:-|\\s)?\\s*(?:hour|day|week|month|sprint|quarter|year)s?\\b",
+    "claimDenials": [
+      "no claim", "no assertion", "not claim", "never claim", "without claiming",
+      "avoid claiming", "stop short of", "must not (?:say|claim|assert|report)",
+      "do not (?:say|claim|assert|report)", "does not (?:say|claim|assert|mean)",
+      "rather than claiming", "instead of claiming", "no one may claim"
+    ],
+    "estimateCues": [
+      "should take", "will take", "takes about", "estimate", "estimated",
+      "eta", "expect(?:ed)? to (?:take|be done|finish|complete|ship|land)",
+      "timeline", "time to (?:complete|deliver|ship)", "delivery date",
+      "ready (?:in|by)", "done (?:in|by)", "ship(?:ping|s)? (?:in|by)",
+      "(?:within|in|over) (?:one|a|two|three|four|\\d+) (?:sprint|quarter|cycle|milestone)s?"
+    ],
+    "estimateCuesRejected": {
+      "note": "These fired on sentences that state a fact rather than a prediction: a cache TTL, a retry window, a rate of decay. A cue must imply that work will be finished, not merely mention a duration.",
+      "cues": ["within", "roughly", "approximately", "in about", "no more than", "at most", "by end of"]
+    }
+  },
+  "patterns": [
+    {
+      "id": "load-bearing",
+      "rule": "no-empty-metaphor",
+      "match": "load-bearing",
+      "unless": ["wall", "beam", "column", "joist", "structural", "roof", "masonry"],
+      "instead": "say what breaks if it is removed",
+      "fires": ["This is the load-bearing part of the argument."],
+      "passes": ["The load-bearing wall carries the roof above it."]
+    },
+    {
+      "id": "seam",
+      "rule": "no-empty-metaphor",
+      "match": "seams?",
+      "unless": [
+        "test", "testing", "refactor", "refactoring", "legacy", "inject", "substitute",
+        "fabric", "sewn", "weld", "garment", "stitch",
+        "uv", "uvs", "texture", "texel", "bake", "baked", "baking", "mesh", "atlas",
+        "unwrap", "normals", "lightmap", "tiling", "cage", "padding", "vertex", "geometry",
+        "junction", "junctions", "tile", "tiles", "skew"
+      ],
+      "instead": "name the boundary: the module, the interface, or the file it runs along",
+      "why": "The guard list is long because `seam` is literal in three separate trades: testing (Michael Feathers), textiles, and 3D art, where a UV seam is a real edge on a real mesh.",
+      "fires": ["The seam between the two services is where it gets messy."],
+      "passes": [
+        "A seam lets you change behaviour without editing the code under test.",
+        "Detects seams, skew, cage misses, inverted normals, and padding failures.",
+        "Check the UV seams before baking the normal map."
+      ]
+    },
+    {
+      "id": "smoking-gun",
+      "rule": "no-empty-metaphor",
+      "match": "smoking gun",
+      "instead": "state the evidence and what it proves",
+      "fires": ["That log line is the smoking gun."],
+      "passes": []
+    },
+    {
+      "id": "north-star",
+      "rule": "no-empty-metaphor",
+      "match": "north[- ]star",
+      "instead": "state the goal and how it is measured",
+      "fires": ["Latency is our north star here."],
+      "passes": []
+    },
+    {
+      "id": "secret-sauce",
+      "rule": "no-empty-metaphor",
+      "match": "secret sauce",
+      "instead": "describe the mechanism, or say it is undocumented",
+      "fires": ["Caching is the secret sauce behind the speedup."],
+      "passes": []
+    },
+    {
+      "id": "single-source-of-truth",
+      "rule": "no-empty-metaphor",
+      "match": "single source of truth",
+      "instead": "name the file, table, or service that holds it",
+      "fires": ["The config becomes the single source of truth."],
+      "passes": []
+    },
+    {
+      "id": "negative-parallelism",
+      "rule": "no-ai-tell",
+      "match": "\\bnot (?:just|only|merely|simply) [^,.;]{2,60}[,—-] (?:it|that|this)(?:'s| is)\\b",
+      "instead": "make the second claim on its own, without the setup",
+      "fires": ["This is not just a linter — it's a way of thinking about evidence."],
+      "passes": ["This is not just for tests; the same rule applies to scripts."]
+    },
+    {
+      "id": "empty-pivot",
+      "rule": "no-ai-tell",
+      "match": "\\b(?:but here'?s the (?:thing|kicker|catch)|here'?s (?:the thing|where it gets)|the (?:real|actual) (?:question|problem) is this)\\b",
+      "instead": "delete the pivot and state the point",
+      "fires": ["But here's the thing: nobody reads the logs."],
+      "passes": []
+    },
+    {
+      "id": "significance-inflation",
+      "rule": "no-ai-tell",
+      "match": "\\b(?:fundamentally|profoundly|radically|dramatically) (?:changes?|shifts?|transforms?|alters?|reshapes?)\\b",
+      "instead": "say what changed and by how much",
+      "fires": ["This fundamentally changes how the pipeline behaves."],
+      "passes": ["The retry policy changes how the pipeline behaves under load."]
+    },
+    {
+      "id": "delve",
+      "rule": "no-ai-tell",
+      "match": "delves? into",
+      "instead": "say what the section covers",
+      "fires": ["This section delves into the caching layer."],
+      "passes": []
+    }
+  ],
+
+  "rules": [
+    {
+      "id": "no-empty-metaphor",
+      "severity": "warning",
+      "message": "A metaphor is standing in for a mechanism.",
+      "next": "Replace it with the thing itself.",
+      "never": "Do not swap one metaphor for another. The defect is the substitution, not the particular word.",
+      "why": "These words are not banned and they are not evidence of a machine author. Each has a real technical use, which is what the `unless` guard on each pattern protects. The defect is reaching for an image instead of naming the mechanism — the same failure the claim rule catches, one level up.",
+      "fixtures": {
+        "fires": ["That log line is the smoking gun."],
+        "passes": ["A seam lets you change behaviour without editing the code under test."]
+      }
+    },
+    {
+      "id": "no-ai-tell",
+      "severity": "info",
+      "message": "A structural tic that carries no information.",
+      "next": "State the point directly and delete the scaffolding around it.",
+      "never": "Do not treat this as evidence of who wrote the text. It is a writing defect, not an authorship finding.",
+      "why": "Structural tics do not decay by model generation the way vocabulary does, which is why every pattern here is a shape rather than a word. Severity is info: these are the weakest signals in the file and they must never gate a build.",
+      "fixtures": {
+        "fires": ["But here's the thing: nobody reads the logs."],
+        "passes": ["This is not just for tests; the same rule applies to scripts."]
+      }
+    },
+    {
+      "id": "no-unsupported-claim",
+      "severity": "warning",
+      "message": "A quality is asserted of an artifact with nothing a reader could check.",
+      "next": "Add the referent: a number, a measurement, a link, a file path, or the decision record that settled it. If there is no referent, delete the claim — the sentence was carrying no information.",
+      "never": "Do not soften the claim into a hedge. \"Reasonably robust\" is the same sentence with less courage, and it still says nothing.",
+      "why": "The defect in an AI-written architecture document is not vocabulary; it is confident assertion with no referent. No prose linter checks this: proselint has no such rule, and write-good's entire weasel-word check is a 26-word list.",
+      "fixtures": {
+        "fires": [
+          "This approach is robust and scalable.",
+          "The new architecture ensures the system remains maintainable.",
+          "Our design provides a seamless experience."
+        ],
+        "passes": [
+          "This approach is robust: it survived the 12-hour soak test at 4k rps.",
+          "The migration is faster, measured at p99 120ms against 400ms before.",
+          "Prefer a modular layout when the module boundary is already obvious.",
+          "See ADR-0007 for why the system is loosely coupled here.",
+          "A robust parser is one that does not crash on malformed input.",
+          "Do not write \"our design is modular\" without saying what makes it so.",
+          "The sentence \"this approach is robust\" asserts nothing a reader can check.",
+          "The report must make no claim that the scaffold is validated or production-ready.",
+          "Reviewers do not claim the system is secure without a threat model."
+        ]
+      }
+    },
+    {
+      "id": "no-time-estimate",
+      "severity": "error",
+      "message": "A duration is offered as a prediction.",
+      "next": "State what is done, what is left, and what blocks it. Those are facts a reader can act on.",
+      "never": "Do not replace the number with a vaguer one. \"A short while\" is the same prediction with the accountability removed.",
+      "why": "GOOD_ENGINEERING_H.md states this as an absolute: never report estimated time to complete a goal, feature, or objective. Nothing in the toolchain enforced it until now.",
+      "fixtures": {
+        "fires": [
+          "This should take about three days.",
+          "Estimated timeline: two weeks for the migration.",
+          "We expect to finish within one sprint.",
+          "The remaining services follow within one sprint."
+        ],
+        "passes": [
+          "The request timed out after 30 seconds.",
+          "Cache entries expire after seven days.",
+          "The migration is done except for the index rebuild, which is blocked on the DBA.",
+          "Set the retry window to five minutes.",
+          "A shipped word list is wrong within a year, because style markers turn over.",
+          "The phrase \"should take about three days\" is a prediction rather than a fact."
+        ]
+      }
+    }
+  ]
+}

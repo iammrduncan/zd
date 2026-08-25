@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "skills": {
+    "anti-slop": {
+      "source": "antikylabs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/general/anti-slop/SKILL.md",
+      "computedHash": "763e326bf8cf3f6478f3415e919179088f605891977b246a8410e1f86d18fdb3"
+    },
+    "engineering": {
+      "source": "antikylabs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/general/engineering/SKILL.md",
+      "computedHash": "1c0b7da03ab966354853098b5dd7df3ae4040c2c71c2a2bcef43cd25707bc450"
+    },
+    "show-me": {
+      "source": "antikylabs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/general/show-me/SKILL.md",
+      "computedHash": "1be6bd4f549f3dc365c7d0b0f6633a093bc9c4fd59ccaba43a37d55394298d91"
+    },
+    "simplified-technical-english": {
+      "source": "antikylabs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/general/simplified-technical-english/SKILL.md",
+      "computedHash": "68bdac86e8629389a529691ded35a522a0181ccecce24f11e2c70f2069044e9a"
+    },
+    "wait-what": {
+      "source": "antikylabs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/general/wait-what/SKILL.md",
+      "computedHash": "2eb3c845bc1d0b317e4b73e31c201191dbfaa0d82029fc4bbe3d0610a552d16f"
+    },
+    "write-adrs": {
+      "source": "antikylabs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/general/write-adrs/SKILL.md",
+      "computedHash": "bf5ff00ca3ba09ea876eb4a3b25d8783e94094dc59e7cbfd80771c014ea5ac1b"
+    },
+    "write-docs": {
+      "source": "antikylabs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/general/write-docs/SKILL.md",
+      "computedHash": "f209688b01ee1b8d49d8ebd2086f2066e90ec905d28121d84587ca25054fb449"
+    },
+    "write-objectives": {
+      "source": "antikylabs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/general/write-objectives/SKILL.md",
+      "computedHash": "61c8035298a76b203fbf6e4b4736b3e9d3535722b9e22a49953ab8173215bf58"
+    }
+  }
+}
