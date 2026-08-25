@@ -193,6 +193,10 @@ const STRONG = Decoration.mark({ class: "md-strong" });
 
 /** The `_` or `**` themselves — notation, so quiet, per §5.2's marker rule. */
 const EMPHASIS_MARK = Decoration.mark({ class: "md-emphasis-mark" });
+const STRIKETHROUGH = Decoration.mark({ class: "md-strikethrough" });
+const STRIKETHROUGH_MARK = Decoration.mark({ class: "md-strikethrough-mark" });
+const TASK_COMPLETE = Decoration.mark({ class: "md-task-marker md-task-complete" });
+const TASK_OPEN = Decoration.mark({ class: "md-task-marker md-task-open" });
 
 /**
  * An image, drawn instead of written.
@@ -373,6 +377,10 @@ function notationLines(view: EditorView): Notation {
   const emphasis: { from: number; to: number }[] = [];
   const strong: { from: number; to: number }[] = [];
   const emphasisMarks: { from: number; to: number }[] = [];
+  const strikethrough: { from: number; to: number }[] = [];
+  const strikethroughMarks: { from: number; to: number }[] = [];
+  const completedTasks: { from: number; to: number }[] = [];
+  const openTasks: { from: number; to: number }[] = [];
   const images: { from: number; to: number; source: string }[] = [];
 
   // The lines carrying a list marker, so an item's source continuations can be
@@ -433,7 +441,12 @@ function notationLines(view: EditorView): Notation {
           // The nesting steps, boxed separately from the marker so each stays
           // one thing: the indent is worth `depth` levels, the marker is worth
           // the column, and neither has to know the other's width.
-          if (node.from > line.from) indents.push({ from: line.from, to: node.from });
+          if (
+            node.from > line.from &&
+            /^[\t ]+$/u.test(state.doc.sliceString(line.from, node.from))
+          ) {
+            indents.push({ from: line.from, to: node.from });
+          }
           return;
         }
 
@@ -488,6 +501,24 @@ function notationLines(view: EditorView): Notation {
               emphasisMarks.push({ from: child.from, to: child.to });
             }
           }
+        }
+
+        if (node.name === "Strikethrough") {
+          strikethrough.push({ from: node.from, to: node.to });
+          for (let child = node.node.firstChild; child; child = child.nextSibling) {
+            if (child.name === "StrikethroughMark") {
+              strikethroughMarks.push({ from: child.from, to: child.to });
+            }
+          }
+        }
+
+        if (node.name === "TaskMarker") {
+          const source = state.doc.sliceString(node.from, node.to);
+          (source.toLowerCase() === "[x]" ? completedTasks : openTasks).push({
+            from: node.from,
+            to: node.to,
+          });
+          return;
         }
 
         /*
@@ -669,6 +700,10 @@ function notationLines(view: EditorView): Notation {
     ["emphasis", emphasis, EMPHASIS],
     ["strong", strong, STRONG],
     ["emphasismark", emphasisMarks, EMPHASIS_MARK],
+    ["strikethrough", strikethrough, STRIKETHROUGH],
+    ["strikethroughmark", strikethroughMarks, STRIKETHROUGH_MARK],
+    ["taskcomplete", completedTasks, TASK_COMPLETE],
+    ["taskopen", openTasks, TASK_OPEN],
   ];
 
   for (const { from, to, source } of images) {

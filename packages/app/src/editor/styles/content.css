@@ -222,6 +222,31 @@
   transition: color var(--focus-ease-out) ease-out;
 }
 
+.md-rendered s,
+.md-editor .md-strikethrough {
+  text-decoration-line: line-through;
+}
+
+.md-editor .md-strikethrough-mark,
+.md-editor .md-task-open {
+  color: var(--text-muted);
+}
+
+.md-editor .md-task-complete {
+  color: var(--state-added);
+}
+
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-strikethrough-mark,
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-task-open {
+  color: var(--focus-context-text);
+  transition: color var(--focus-ease-out) ease-out;
+}
+
+.md-editor[data-focus-mode="true"] .cm-line[data-focus="context"] .md-task-complete {
+  color: color-mix(in srgb, var(--focus-context-text), var(--state-added) 35%);
+  transition: color var(--focus-ease-out) ease-out;
+}
+
 /*
  * Links, shared by decorated source and rendered widget DOM.
  *
