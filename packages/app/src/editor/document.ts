@@ -1,4 +1,4 @@
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { Compartment, EditorState, Text } from "@codemirror/state";
 import {
   EditorView,
@@ -380,6 +380,10 @@ export function createEditor(
         // Backspace first. See pairing.ts, and notation.ts for which characters
         // pair in markdown.
         autoPairing(),
+        // Lists get first refusal through `listIndentation`; every other editable
+        // line gets CodeMirror's ordinary indent/outdent behavior. Escape remains
+        // the explicit way to drop the caret before traversing workbench chrome.
+        keymap.of([indentWithTab]),
         // Ahead of defaultKeymap, which is where cmd+left and cmd+right come from.
         // See motion.ts: the commands are the library's, the invariant is ours.
         settledMotion(),

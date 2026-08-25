@@ -39,6 +39,27 @@ async function open(page: import("@playwright/test").Page, url: string) {
   await openEditor(page, { url });
 }
 
+test("Tab and Shift-Tab indent and outdent a code line", async ({ page }) => {
+  await open(page, CODE);
+  await page.locator(".cm-content").click();
+  await page.evaluate(() => {
+    const text = window.zdEditor!.text();
+    const at = text.indexOf("const HEADING_SENTINEL_01");
+    if (at < 0) throw new Error("code fixture line is missing");
+    window.zdEditor!.setCaret(at);
+  });
+
+  await page.keyboard.press("Tab");
+  expect(await page.evaluate(() => window.zdEditor!.text())).toContain(
+    "  const HEADING_SENTINEL_01",
+  );
+
+  await page.keyboard.press("Shift+Tab");
+  expect(await page.evaluate(() => window.zdEditor!.text())).toContain(
+    "\nconst HEADING_SENTINEL_01",
+  );
+});
+
 test("a code file takes the mono family", async ({ page }) => {
   await open(page, CODE);
 

@@ -14,10 +14,8 @@ import { openEditor } from "./harness";
  * `9. ` marker produces a sibling list rather than a nested one: markdown that
  * parses, renders wrongly, and looks like the feature working.
  *
- * Tab is only claimed when the selection is actually in a list. Everywhere else it
- * keeps its traversal meaning — CodeMirror leaves Tab unbound by default for that
- * reason, and §9 claims keyboard-only editing, so swallowing it document-wide
- * would trap the keyboard on a surface whose only other way out is Escape.
+ * Lists own their structural form first. Everywhere else Tab uses CodeMirror's
+ * document indentation, while Escape still drops the caret before keyboard traversal.
  *
  * Six of these were red before the commands existed. The two that were not — the
  * first item of a list, and Shift-Tab at the outermost level — are green whenever
@@ -175,49 +173,16 @@ test("a selection spanning several items indents all of them and keeps their nes
   }
 });
 
-test("Tab outside a list is not claimed and still leaves the editor", async ({ page }) => {
-  await caretOn(page, "Everything that makes reading good");
-  const before = await lines(page);
+test("Tab and Shift-Tab indent and outdent Markdown outside a list", async ({ page }) => {
+  const at = await caretOn(page, "Everything that makes reading good", 0);
 
   await page.keyboard.press("Tab");
+  expect((await lines(page))[at], "Tab did not indent Markdown prose").toBe(
+    "  Everything that makes reading good stays true while you type. This is not a",
+  );
 
-  expect(await lines(page), "Tab edited a paragraph").toEqual(before);
-});
-
-test("Tab outside a list is left to the browser", async ({ page }) => {
-  /*
-   * The half that matters more than the document being unchanged. §9 claims
-   * keyboard-only editing and CodeMirror leaves Tab unbound precisely so the
-   * keyboard can get out of a text surface — Escape drops the caret but keeps the
-   * surface focused, so Tab is the only way off it.
-   *
-   * Measured as `defaultPrevented` rather than as "focus moved". Focus moving
-   * needs somewhere to move *to*, and this dev page has no other focusable
-   * element, so that assertion would have been about the fixture rather than about
-   * the editor — it failed here for exactly that reason before being rewritten.
-   * Whether the key was consumed is the claim; where focus goes next is the
-   * browser's business.
-   */
-  await caretOn(page, "Everything that makes reading good");
-  await page.evaluate(() => {
-    (window as unknown as { zdTab?: boolean[] }).zdTab = [];
-    window.addEventListener(
-      "keydown",
-      (event) => {
-        if (event.key === "Tab") {
-          // Read after the editor has had it, so this reports what the editor did.
-          queueMicrotask(() =>
-            (window as unknown as { zdTab: boolean[] }).zdTab.push(event.defaultPrevented),
-          );
-        }
-      },
-      false,
-    );
-  });
-
-  await page.keyboard.press("Tab");
-
-  const consumed = await page.evaluate(() => (window as unknown as { zdTab: boolean[] }).zdTab);
-  expect(consumed, "the Tab keydown never reached the listener").toHaveLength(1);
-  expect(consumed[0], "Tab was swallowed in prose, trapping the keyboard").toBe(false);
+  await page.keyboard.press("Shift+Tab");
+  expect((await lines(page))[at], "Shift-Tab did not restore the prose indentation").toBe(
+    "Everything that makes reading good stays true while you type. This is not a",
+  );
 });

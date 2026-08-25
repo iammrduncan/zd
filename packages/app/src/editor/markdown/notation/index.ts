@@ -675,13 +675,18 @@ function notationLines(view: EditorView): Notation {
         const depth = listDepth(node.node);
         for (const start of lineStarts(state, node.from, node.to)) {
           if (itemLines.has(start)) continue;
+          const line = state.doc.lineAt(start);
+          // A blank row made by the second Enter is outside the visible list even
+          // while the incremental parse tree still attaches it to the item above.
+          // Decorating it would move an empty source line back to the nested text
+          // edge and make the caret appear trapped in a list it already left.
+          if (line.text.trim() === "") continue;
           markList(start, "md-line-item-cont", depth);
 
           // The indent the author typed to line this up with the item's text
           // stands in for the nesting steps *and* the marker column, since a
           // continuation has neither. A continuation left flush needs no box:
           // the line's own padding already puts it on the origin.
-          const line = state.doc.lineAt(start);
           const to = textStart(line, start);
           if (to > start) continuations.push({ from: start, to });
         }
