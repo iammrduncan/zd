@@ -97,6 +97,23 @@ function newMemory(scope: FileTreeScope, activePath: string | null): ScopeMemory
   };
 }
 
+function expandPathAncestors(memory: ScopeMemory, path: string): void {
+  const entries = new Map(memory.entries.map((entry) => [entry.relativePath, entry]));
+  let parent = entries.get(path)?.parentPath ?? null;
+  while (parent) {
+    memory.expandedPaths.add(parent);
+    parent = entries.get(parent)?.parentPath ?? null;
+  }
+}
+
+/** Make a non-tree activation visible through the tree's ordinary selection model. */
+function revealActivePath(memory: ScopeMemory, path: string): void {
+  memory.selectedPath = path;
+  memory.selectedPaths = new Set([path]);
+  memory.selectionAnchorPath = path;
+  expandPathAncestors(memory, path);
+}
+
 function resultMatchesScope(result: FileTreeResult, scope: FileTreeScope): boolean {
   return result.projectId === scope.projectId && result.worktreeId === scope.worktreeId;
 }
@@ -190,8 +207,9 @@ export class FileTreeController {
 
   setActivePath(path: string | null): void {
     const memory = this.#current;
-    if (!memory) return;
+    if (!memory || memory.activePath === path) return;
     memory.activePath = path;
+    if (path !== null) revealActivePath(memory, path);
     this.#publish();
   }
 

@@ -110,6 +110,8 @@ precise feedback file.
 - Edit rendered tables in place.
 - Paste screenshots without leaving the document.
 - Reveal every delimiter with Raw Mode.
+
+[Open the reader guide](docs/user-facing-docs/README.md)
 `;
 let contents = source;
 let stamp: FileStamp = { modified: 1, length: new TextEncoder().encode(contents).byteLength };
