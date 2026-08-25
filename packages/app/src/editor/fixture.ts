@@ -434,6 +434,8 @@ declare global {
       selection: () => { from: number; to: number; head: number; line: number };
       /** Put the caret somewhere known, so key presses are what is measured. */
       setCaret: (at: number) => void;
+      /** Replace the fixture document through the editor's real file-load path. */
+      setText: (text: string) => void;
       /** Has a caret been placed? What Escape acts on. */
       hasCaret: () => boolean;
       /** Viewport y of the middle of the caret's row, from the view that knows. */
@@ -479,6 +481,7 @@ window.zdEditor = {
   text: () => editor.text(),
   selection: () => editor.selection(),
   setCaret: (at) => editor.setCaret(at),
+  setText: (text) => editor.setText(text),
   hasCaret: () => editor.hasCaret(),
   caretY: () => editor.caretY(),
   isTypewriter: () => editor.isTypewriter(),

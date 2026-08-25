@@ -124,7 +124,10 @@ describe("markdown notation in the editing surface", () => {
        */
       const doc = ["prose", "```sh", "npm test", "```"].join("\n");
 
-      expect(classesOf(doc)).toEqual([[], ["md-line-code"]]);
+      expect(classesOf(doc)).toEqual([
+        [],
+        ["md-line-code", "md-line-code-first", "md-line-code-last"],
+      ]);
     });
 
     it("does not read the contents of a fence as markdown", () => {
@@ -139,7 +142,12 @@ describe("markdown notation in the editing surface", () => {
         "```",
       ].join("\n");
 
-      expect(classesOf(doc)).toEqual([[], ["md-line-code"], ["md-line-code"], ["md-line-code"]]);
+      expect(classesOf(doc)).toEqual([
+        [],
+        ["md-line-code", "md-line-code-first"],
+        ["md-line-code"],
+        ["md-line-code", "md-line-code-last"],
+      ]);
     });
   });
 });

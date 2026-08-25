@@ -1,9 +1,17 @@
 /** Markdown-specific structure continuation for the shared editor owner. */
 import { markdownKeymap } from "@codemirror/lang-markdown";
 import { syntaxTree } from "@codemirror/language";
-import type { EditorState, Extension, StateCommand } from "@codemirror/state";
+import {
+  Annotation,
+  EditorState,
+  Transaction,
+  type Extension,
+  type StateCommand,
+} from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
-import { keymap } from "@codemirror/view";
+import { EditorView, keymap } from "@codemirror/view";
+
+import { isRaw } from "./raw";
 
 /**
  * Structure that continues as you type it — vision §6.1.
@@ -26,6 +34,9 @@ const ONLY_QUOTE_MARKERS = /^[\s>]*>[\s]*$/;
 
 /** A parser-confirmed list item whose line contains no user text. */
 const ONLY_EMPTY_LIST_ITEM = /^[\t ]*(?:[-+*]|\d{1,9}[.)])(?:[\t ]+\[[ xX]\])?[\t ]*$/;
+
+/** A structural fence edit that is allowed to cross a protected delimiter boundary. */
+const fenceStructureEdit = Annotation.define<boolean>();
 
 /**
  * A second Enter leaves the complete list, including from a nested empty item.
@@ -279,10 +290,119 @@ const leaveFence: StateCommand = ({ state, dispatch }) => {
       selection: { anchor: closing.to - removed + 1 },
       scrollIntoView: true,
       userEvent: "input",
+      annotations: fenceStructureEdit.of(true),
     }),
   );
   return true;
 };
+
+/**
+ * Remove a complete fence that contains no code.
+ *
+ * This is the one rendered-mode deletion that intentionally owns delimiter
+ * source. It removes the surrounding block boundaries as well, leaving the
+ * ordinary single blank line that separated the neighboring prose.
+ */
+const removeEmptyFence: StateCommand = ({ state, dispatch }) => {
+  if (isRaw(state)) return false;
+  const range = state.selection.main;
+  if (!range.empty) return false;
+
+  const fence = fenceAt(state, range.head);
+  if (!fence || fence.marks.length < 2) return false;
+  const opening = state.doc.lineAt(fence.marks[0]!.from);
+  const closing = state.doc.lineAt(fence.marks.at(-1)!.from);
+  const contentFrom = Math.min(opening.to + 1, state.doc.length);
+  if (state.doc.sliceString(contentFrom, closing.from).trim() !== "") return false;
+
+  const previous = opening.number > 1 ? state.doc.line(opening.number - 1) : null;
+  const next = closing.number < state.doc.lines ? state.doc.line(closing.number + 1) : null;
+  const previousBlank = previous?.text.trim() === "";
+  const nextBlank = next?.text.trim() === "";
+  const from = previous ? (previousBlank ? previous.from : previous.to) : opening.from;
+  const to = next ? (nextBlank ? next.to : next.from) : closing.to;
+  const insert =
+    previous && next
+      ? "\n".repeat(2 - Number(previousBlank) - Number(nextBlank))
+      : "";
+  dispatch(
+    state.update({
+      changes: { from, to, insert },
+      selection: { anchor: from },
+      scrollIntoView: true,
+      userEvent: "delete",
+      annotations: fenceStructureEdit.of(true),
+    }),
+  );
+  return true;
+};
+
+/** Source ranges that make a complete fence remain a fence in rendered mode. */
+function protectedFenceBoundaries(state: EditorState): readonly { from: number; to: number }[] {
+  const boundaries: { from: number; to: number }[] = [];
+  syntaxTree(state).iterate({
+    enter: (node) => {
+      if (node.name !== "FencedCode") return;
+      const marks = node.node.getChildren("CodeMark");
+      if (marks.length < 2) return;
+
+      const opening = state.doc.lineAt(marks[0]!.from);
+      const closing = state.doc.lineAt(marks.at(-1)!.from);
+      boundaries.push({
+        from: opening.from,
+        to: Math.min(opening.to + 1, state.doc.length),
+      });
+      boundaries.push({
+        from: closing.number > 1 ? state.doc.line(closing.number - 1).to : closing.from,
+        to: Math.min(closing.to + 1, state.doc.length),
+      });
+    },
+  });
+  return boundaries;
+}
+
+/** Keep hidden delimiters structural unless Raw Mode explicitly reveals them. */
+const protectRenderedFences = EditorState.transactionFilter.of((transaction) => {
+  if (
+    !transaction.docChanged ||
+    isRaw(transaction.startState) ||
+    transaction.annotation(fenceStructureEdit) ||
+    !transaction.annotation(Transaction.userEvent)
+  ) {
+    return transaction;
+  }
+
+  const boundaries = protectedFenceBoundaries(transaction.startState);
+  let crossesBoundary = false;
+  transaction.changes.iterChangedRanges((fromA, toA) => {
+    if (fromA === toA) return;
+    if (boundaries.some(({ from, to }) => fromA < to && toA > from)) crossesBoundary = true;
+  });
+  return crossesBoundary ? [] : transaction;
+});
+
+/** Make a click in the lower inset mean “append inside this fence.” */
+const fencePaddingPointer = EditorView.domEventHandlers({
+  mousedown: (event, view) => {
+    if (event.button !== 0) return false;
+    const target =
+      event.target instanceof Element ? event.target.closest<HTMLElement>(".cm-line") : null;
+    if (!target?.classList.contains("md-line-code-last")) return false;
+    const padding = parseFloat(getComputedStyle(target).paddingBlockEnd);
+    const bounds = target.getBoundingClientRect();
+    if (padding <= 0 || event.clientY < bounds.bottom - padding) return false;
+
+    event.preventDefault();
+    const line = view.state.doc.lineAt(view.posAtDOM(target));
+    view.dispatch({
+      selection: { anchor: line.to },
+      scrollIntoView: true,
+      userEvent: "select.pointer",
+    });
+    view.focus();
+    return true;
+  },
+});
 
 /**
  * Enter and Backspace for markdown structure.
@@ -299,6 +419,8 @@ const leaveFence: StateCommand = ({ state, dispatch }) => {
  */
 export function markdownStructure(): Extension {
   return [
+    protectRenderedFences,
+    fencePaddingPointer,
     /*
      * Leaving before continuing, in both pairs. Each of these claims exactly one
      * case and declines otherwise, so the order only decides who is *asked* first —
@@ -312,6 +434,7 @@ export function markdownStructure(): Extension {
       { key: "Enter", run: leaveList },
       { key: "Enter", run: leaveBlockquote },
       { key: "Enter", run: continueListFromContinuation },
+      { key: "Backspace", run: removeEmptyFence },
     ]),
     keymap.of(markdownKeymap),
   ];

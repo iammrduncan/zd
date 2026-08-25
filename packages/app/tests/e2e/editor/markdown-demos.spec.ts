@@ -41,11 +41,9 @@ const DEMO_IMAGE = readFileSync(
 
 async function showDemo(page: Page, source: string): Promise<void> {
   await openEditor(page, { height: 900, width: 1100 });
-  const content = page.locator(".cm-content");
-  await content.click();
-  await page.keyboard.press("ControlOrMeta+A");
-  await page.keyboard.insertText(source);
+  await page.evaluate((text) => window.zdEditor!.setText(text), source);
   await expect.poll(() => page.evaluate(() => window.zdEditor!.text())).toBe(source);
+  await page.locator(".cm-content").focus();
   await page.locator(".md-surface").evaluate((surface) => {
     surface.scrollTop = 0;
   });
@@ -70,6 +68,23 @@ test("the code demo gives every fenced passage an inner reading edge", async ({
     .evaluate((line) => parseFloat(getComputedStyle(line).paddingInlineStart));
 
   expect(inset, "fenced code still has only the token-sized inner edge").toBeGreaterThanOrEqual(16);
+
+  const vertical = await page.evaluate(() => {
+    const first = [...document.querySelectorAll<HTMLElement>(".md-line-code")].find((line) =>
+      line.textContent?.includes("interface Note"),
+    );
+    const last = [...document.querySelectorAll<HTMLElement>(".md-line-code")].find((line) =>
+      line.textContent?.includes("console.log(note.title)"),
+    );
+    return {
+      top: first ? parseFloat(getComputedStyle(first).paddingBlockStart) : 0,
+      bottom: last ? parseFloat(getComputedStyle(last).paddingBlockEnd) : 0,
+    };
+  });
+  expect(vertical.top, "the first code row has no top breathing room").toBeGreaterThanOrEqual(8);
+  expect(vertical.bottom, "the last code row has no bottom breathing room").toBeGreaterThanOrEqual(
+    8,
+  );
 });
 
 test("the typography demo renders strikethrough and keeps every heading marker clear of text", async ({
@@ -96,7 +111,7 @@ test("the typography demo renders strikethrough and keeps every heading marker c
       return range.getClientRects()[0]!.left - markerText.getBoundingClientRect().right;
     }),
   );
-  expect(gaps).toHaveLength(6);
+  expect(gaps).toHaveLength(DEMOS.typography.match(/^#{1,6}\s/gmu)?.length ?? 0);
   for (const gap of gaps)
     expect(gap, "a heading marker touches its heading text").toBeGreaterThan(2);
 });
@@ -179,8 +194,12 @@ test("editing the last visible fence row stays inside until the second Enter", a
   const lastCodeRow = page.locator(".md-line-code", {
     hasText: "This fence should remain readable",
   });
-  await lastCodeRow.click();
-  await page.keyboard.press("End");
+  await lastCodeRow.scrollIntoViewIfNeeded();
+  const bounds = await lastCodeRow.boundingBox();
+  expect(bounds, "the final rendered code row has no geometry").not.toBeNull();
+  // The lower padding is the reported boundary: clicking the glyph row's centre
+  // bypasses the place where the caret was ejected through the hidden closer.
+  await page.mouse.click(bounds!.x + 24, bounds!.y + bounds!.height - 2);
   const originalLine = await page.evaluate(() => window.zdEditor!.selection().line);
 
   await page.keyboard.press("Enter");

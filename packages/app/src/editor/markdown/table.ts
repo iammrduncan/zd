@@ -112,8 +112,15 @@ function cellAt(table: EditableTable, row: number, column: number): EditableCell
   return cells?.[column] ?? null;
 }
 
+function sourceEdge(cell: HTMLTableCellElement, edge: "start" | "end"): number | null {
+  const value = Number(edge === "start" ? cell.dataset.tableCellFrom : cell.dataset.tableCellTo);
+  return Number.isSafeInteger(value) ? value : null;
+}
+
 /** A rendered `<table>` standing in for its source lines. */
 class TableWidget extends WidgetType {
+  private stopCrossCellSelection: (() => void) | null = null;
+
   constructor(private readonly table: EditableTable) {
     super();
   }
@@ -140,6 +147,8 @@ class TableWidget extends WidgetType {
     element.setAttribute("aria-label", `Edit table cell, row ${row + 1}, column ${column + 1}`);
     element.dataset.tableRow = String(row);
     element.dataset.tableColumn = String(column);
+    element.dataset.tableCellFrom = String(cell.from);
+    element.dataset.tableCellTo = String(cell.to);
 
     element.addEventListener("input", () => {
       const tableElement = element.closest<HTMLTableElement>("table[data-table-from]");
@@ -184,6 +193,125 @@ class TableWidget extends WidgetType {
     });
   }
 
+  /**
+   * Extend a pointer selection across the table's separate editing hosts.
+   *
+   * Native selection stops at one `contenteditable` cell. Once the pointer crosses
+   * into another cell, the table owns the gesture: it paints the participating
+   * cells, reports the matching source range to CodeMirror, and supplies their
+   * rendered text to Copy. A gesture inside one cell remains native cell editing.
+   */
+  private bindCrossCellSelection(table: HTMLTableElement, view: EditorView): void {
+    let anchor: HTMLTableCellElement | null = null;
+    let current: HTMLTableCellElement | null = null;
+    let crossing = false;
+
+    const clear = (): void => {
+      for (const cell of table.querySelectorAll<HTMLElement>("[data-table-selected]")) {
+        delete cell.dataset.tableSelected;
+      }
+    };
+
+    const paint = (): void => {
+      if (!anchor || !current || anchor === current) return;
+      const anchorFrom = sourceEdge(anchor, "start");
+      const currentFrom = sourceEdge(current, "start");
+      if (anchorFrom === null || currentFrom === null) return;
+
+      const forward = anchorFrom < currentFrom;
+      const sourceAnchor = sourceEdge(anchor, forward ? "start" : "end");
+      const sourceHead = sourceEdge(current, forward ? "end" : "start");
+      if (sourceAnchor === null || sourceHead === null) return;
+
+      const cells = [...table.querySelectorAll<HTMLTableCellElement>("th, td")];
+      const selectionFrom = Math.min(cells.indexOf(anchor), cells.indexOf(current));
+      const selectionTo = Math.max(cells.indexOf(anchor), cells.indexOf(current));
+      cells.forEach((cell, index) => {
+        if (index >= selectionFrom && index <= selectionTo) {
+          cell.dataset.tableSelected = "true";
+        } else {
+          delete cell.dataset.tableSelected;
+        }
+      });
+
+      view.dispatch({
+        selection: { anchor: sourceAnchor, head: sourceHead },
+        scrollIntoView: false,
+        userEvent: "select.pointer",
+      });
+    };
+
+    const cleanup = (): void => {
+      anchor = null;
+      current = null;
+      crossing = false;
+      window.removeEventListener("mousemove", move, true);
+      window.removeEventListener("mouseup", finish, true);
+    };
+
+    const move = (event: MouseEvent): void => {
+      if (!anchor) return;
+      const hit = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest<HTMLTableCellElement>("th, td");
+      if (!hit || !table.contains(hit)) return;
+      current = hit;
+      if (current !== anchor) crossing = true;
+      if (!crossing) return;
+      event.preventDefault();
+      paint();
+    };
+
+    const finish = (event: MouseEvent): void => {
+      if (crossing) {
+        event.preventDefault();
+        paint();
+      }
+      cleanup();
+    };
+
+    table.addEventListener("mousedown", (event) => {
+      if (event.button !== 0) return;
+      const cell =
+        event.target instanceof Element
+          ? event.target.closest<HTMLTableCellElement>("th, td")
+          : null;
+      if (!cell || !table.contains(cell)) return;
+      clear();
+      anchor = cell;
+      current = cell;
+      crossing = false;
+      window.addEventListener("mousemove", move, { capture: true, passive: false });
+      window.addEventListener("mouseup", finish, { capture: true, passive: false });
+    });
+
+    table.addEventListener("copy", (event) => {
+      const selected = [...table.querySelectorAll<HTMLTableCellElement>("[data-table-selected]")];
+      if (selected.length === 0 || !event.clipboardData) return;
+
+      event.preventDefault();
+      const rows = new Map<HTMLTableRowElement, string[]>();
+      for (const cell of selected) {
+        const row = cell.closest("tr");
+        if (!row) continue;
+        const values = rows.get(row) ?? [];
+        values.push(cell.innerText);
+        rows.set(row, values);
+      }
+      event.clipboardData.setData(
+        "text/plain",
+        [...rows.values()].map((values) => values.join("\t")).join("\n"),
+      );
+    });
+
+    const clearOutside = (event: MouseEvent): void => {
+      if (!(event.target instanceof Node) || !table.contains(event.target)) clear();
+    };
+    view.dom.addEventListener("mousedown", clearOutside, true);
+    this.stopCrossCellSelection = () =>
+      view.dom.removeEventListener("mousedown", clearOutside, true);
+  }
+
   toDOM(view: EditorView): HTMLElement {
     const table = document.createElement("table");
     /*
@@ -225,6 +353,8 @@ class TableWidget extends WidgetType {
       });
     });
 
+    this.bindCrossCellSelection(table, view);
+
     return table;
   }
 
@@ -236,10 +366,17 @@ class TableWidget extends WidgetType {
     dom.dataset.tableFrom = String(this.table.from);
     dom.dataset.tableTo = String(this.table.to);
     cells.forEach((element, index) => {
+      element.dataset.tableCellFrom = String(nextCells[index]!.from);
+      element.dataset.tableCellTo = String(nextCells[index]!.to);
       if (element === document.activeElement) return;
       element.replaceChildren(renderInlineMarkdown(nextCells[index]!.source));
     });
     return true;
+  }
+
+  destroy(): void {
+    this.stopCrossCellSelection?.();
+    this.stopCrossCellSelection = null;
   }
 
   /**

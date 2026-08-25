@@ -1,33 +1,21 @@
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { syntaxTree } from "@codemirror/language";
-import { Facet, type EditorState, type Extension } from "@codemirror/state";
+import type { EditorState, Extension } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 
 import { codeHighlighting, codeLanguages } from "../../language";
-import { markdownLinkHref, renderInlineMarkdown } from "../inline";
+import { markdownLinkHref } from "../inline";
 import { isRaw, rawModeChanged } from "../raw";
+import { renderedImages, type MarkdownImageResolver } from "./images";
 import {
   Decoration,
   EditorView,
   ViewPlugin,
-  WidgetType,
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
 
-export interface ResolvedMarkdownImage {
-  readonly url: string;
-  release(): void;
-}
-
-export type MarkdownImageResolver = (source: string) => Promise<ResolvedMarkdownImage | null>;
-
-const markdownImageResolver = Facet.define<
-  MarkdownImageResolver,
-  MarkdownImageResolver | undefined
->({
-  combine: (resolvers) => resolvers.at(-1),
-});
+export type { MarkdownImageResolver, ResolvedMarkdownImage } from "./images";
 
 /**
  * Markdown notation on the editing surface.
@@ -67,6 +55,8 @@ const LINE = new Map<string, Decoration>(
     "md-line-h6",
     "md-line-quote",
     "md-line-code",
+    "md-line-code-first",
+    "md-line-code-last",
     "md-line-rule",
   ].map((name) => [name, Decoration.line({ class: name })]),
 );
@@ -209,85 +199,6 @@ const TASK_COMPLETE = Decoration.mark({ class: "md-task-marker md-task-complete"
 const TASK_OPEN = Decoration.mark({ class: "md-task-marker md-task-open" });
 
 /**
- * An image, drawn instead of written.
- *
- * Shares `![alt](url)`'s shape with a link and needs the opposite treatment: a link
- * shows its label, an image shows the picture the label describes.
- *
- * Built through the surface's shared `renderInlineMarkdown`, which is not a shortcut —
- * it is the only way to keep DESIGN.md §7.3's guarantee: "Remote images are never
- * fetched." That function parses inside an inert `<template>`, where the browser
- * does not load images, and swaps every remote `src` for a quiet placeholder before
- * anything reaches a live node. Constructing an `<img>` here directly would issue
- * the request in the same statement that created it, and a document would be able to
- * announce that it had been opened.
- */
-class ImageWidget extends WidgetType {
-  private released = false;
-  private release: (() => void) | null = null;
-
-  constructor(
-    private readonly source: string,
-    private readonly resolveImage: MarkdownImageResolver | undefined,
-  ) {
-    super();
-  }
-
-  eq(other: ImageWidget): boolean {
-    return other.source === this.source && other.resolveImage === this.resolveImage;
-  }
-
-  toDOM(): HTMLElement {
-    const host = document.createElement("span");
-    host.className = "md-image";
-    const fragment = renderInlineMarkdown(this.source);
-    const image = fragment.querySelector<HTMLImageElement>("img");
-    const source = image?.getAttribute("src") ?? "";
-    if (!image || !this.resolveImage || /^(?:data|blob):/i.test(source)) {
-      host.append(fragment);
-      return host;
-    }
-
-    const placeholder = document.createElement("span");
-    placeholder.className = "md-image-unavailable";
-    placeholder.textContent = image.getAttribute("alt")?.trim() || "image";
-    placeholder.dataset.imageStatus = "loading";
-    host.append(placeholder);
-    void this.resolveImage(source).then(
-      (resolved) => {
-        if (!resolved) {
-          placeholder.dataset.imageStatus = "unavailable";
-          return;
-        }
-        if (this.released) {
-          resolved.release();
-          return;
-        }
-        this.release = resolved.release;
-        image.src = resolved.url;
-        placeholder.replaceWith(image);
-      },
-      () => {
-        // Missing and refused local images remain quiet, but retain an inspectable state.
-        placeholder.dataset.imageStatus = "unavailable";
-      },
-    );
-    return host;
-  }
-
-  destroy(): void {
-    this.released = true;
-    this.release?.();
-    this.release = null;
-  }
-
-  /** Not editable content. The source is reachable through raw mode (§7.4). */
-  ignoreEvent(): boolean {
-    return true;
-  }
-}
-
-/**
  * The line decorations that carry a nesting depth.
  *
  * `--nest` rather than a class per level: depth is unbounded, and CSS can do
@@ -364,7 +275,6 @@ interface Notation {
 function notationLines(view: EditorView): Notation {
   const state = view.state;
   const tree = syntaxTree(state);
-  const resolveImage = state.facet(markdownImageResolver);
 
   // Line decorations are collected as the decoration itself rather than as a
   // name, because a list line's depth is part of which decoration it gets and
@@ -391,7 +301,6 @@ function notationLines(view: EditorView): Notation {
   const strikethroughMarks: { from: number; to: number }[] = [];
   const completedTasks: { from: number; to: number }[] = [];
   const openTasks: { from: number; to: number }[] = [];
-  const images: { from: number; to: number; source: string }[] = [];
 
   // The lines carrying a list marker, so an item's source continuations can be
   // told apart from them below. A nested item's own marker line lands here too,
@@ -540,13 +449,6 @@ function notationLines(view: EditorView): Notation {
          * there.
          */
         if (node.name === "Image") {
-          if (!isRaw(state)) {
-            images.push({
-              from: node.from,
-              to: node.to,
-              source: state.doc.sliceString(node.from, node.to),
-            });
-          }
           return;
         }
 
@@ -658,6 +560,17 @@ function notationLines(view: EditorView): Notation {
         if (node.name === "Blockquote" || node.name === "FencedCode") {
           const name = node.name === "Blockquote" ? "md-line-quote" : "md-line-code";
           for (const line of lineStarts(state, node.from, node.to)) mark(line, name);
+          if (node.name === "FencedCode" && !isRaw(state)) {
+            const marks = node.node.getChildren("CodeMark");
+            if (marks.length >= 2) {
+              const first = state.doc.lineAt(marks[0]!.from).number + 1;
+              const last = state.doc.lineAt(marks.at(-1)!.from).number - 1;
+              if (first <= last) {
+                mark(state.doc.line(first).from, "md-line-code-first");
+                mark(state.doc.line(last).from, "md-line-code-last");
+              }
+            }
+          }
         }
       },
     });
@@ -725,20 +638,6 @@ function notationLines(view: EditorView): Notation {
     ["taskcomplete", completedTasks, TASK_COMPLETE],
     ["taskopen", openTasks, TASK_OPEN],
   ];
-
-  for (const { from, to, source } of images) {
-    const key = `image:${from}:${to}`;
-    if (placed.has(key)) continue;
-    placed.add(key);
-    const range = Decoration.replace({ widget: new ImageWidget(source, resolveImage) }).range(
-      from,
-      to,
-    );
-    ranges.push(range);
-    // A picture is one thing to step past, not one thing per character of the
-    // `![alt](url)` it was built from.
-    atomic.push(range);
-  }
 
   for (const { from, to, href } of linkLabels) {
     const key = `link:${from}:${to}:${href}`;
@@ -826,7 +725,6 @@ export function markdownNotation(
    * which is the same dialect the reader already reads.
    */
   return [
-    resolveImage ? markdownImageResolver.of(resolveImage) : [],
     markdown({
       base: markdownLanguage,
       addKeymap: false,
@@ -894,6 +792,7 @@ export function markdownNotation(
       closeBrackets: { brackets: ["[", "{", "'", '"', "`"] },
     }),
     codeHighlighting(),
+    renderedImages(resolveImage),
     notation,
     atomicNotation,
   ];

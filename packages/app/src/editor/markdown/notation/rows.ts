@@ -37,6 +37,11 @@ import { mermaidFence } from "../../mermaid/source";
  * empty row where it was.
  */
 const HIDDEN_ROW = Decoration.replace({ block: true });
+const HIDDEN_NOTATION = Decoration.replace({});
+const EMPTY_FENCE_ROW = Decoration.line({
+  attributes: { "aria-label": "Empty code block" },
+  class: "md-empty-fence",
+});
 
 /**
  * The range that makes a line's row disappear: the break *before* it, plus the
@@ -122,10 +127,24 @@ function notationRowDecorations(state: EditorState): DecorationSet {
        */
       if (marks.length < 2) return;
 
+      const openingLine = state.doc.lineAt(marks[0]!.from);
+      const closingLine = state.doc.lineAt(marks.at(-1)!.from);
+      const contentFrom = Math.min(openingLine.to + 1, state.doc.length);
       const opening = rowRange(state, marks[0]!.from);
-      if (opening) ranges.push(HIDDEN_ROW.range(opening.from, opening.to));
+      const empty = state.doc.sliceString(contentFrom, closingLine.from).trim() === "";
+      if (empty) {
+        /*
+         * Keep one real CodeMirror row as the editable surface. A block widget
+         * beside either hidden-row replacement continuously changes its measured
+         * edge; hiding only the opener text keeps a stable caret-bearing line.
+         */
+        ranges.push(EMPTY_FENCE_ROW.range(openingLine.from));
+        ranges.push(HIDDEN_NOTATION.range(openingLine.from, openingLine.to));
+      } else if (opening) {
+        ranges.push(HIDDEN_ROW.range(opening.from, opening.to));
+      }
 
-      const closing = rowRange(state, marks.at(-1)!.from);
+      const closing = rowRange(state, closingLine.from);
       if (closing) ranges.push(HIDDEN_ROW.range(closing.from, closing.to));
     },
   });
