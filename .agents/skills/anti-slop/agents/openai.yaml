@@ -1,0 +1,4 @@
+interface:
+  display_name: "anti-slop"
+  short_description: "Reject tests that cannot fail, discarded errors, stubs, and claims with no evidence"
+  default_prompt: "Use $anti-slop structure to check this repository, then $anti-slop prose on any document the change touched."

@@ -16,3 +16,4 @@ target/
 zd-feedback.md
 zd-feedback.txt
 docs/screenshots
+.playwright-mcp/
