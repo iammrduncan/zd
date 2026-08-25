@@ -62,7 +62,7 @@ function caretInSurface() {
 
   return {
     caret: caret === null ? null : caret - box.top,
-    anchor: box.height / 3,
+    anchor: window.zdEditor!.anchorY() - box.top,
     height: box.height,
     scrollTop: surface.scrollTop,
   };
@@ -234,6 +234,37 @@ test("the return is eased rather than a cut", async ({ page }) => {
     visibleMs,
     `the return still warped to the anchor in ${Math.round(visibleMs)}ms`,
   ).toBeGreaterThanOrEqual(280);
+});
+
+test("a delayed selection scroll cannot strand the caret away from the anchor", async ({
+  page,
+}) => {
+  await open(page);
+  await waitForEditorScrollToSettle(page);
+
+  // CodeMirror may apply its own selection scroll in the paint after the
+  // selection transaction. Reproduce that ordering deterministically: the edge
+  // return is requested first, then the editor's later scroll moves the surface.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        const surface = document.querySelector<HTMLElement>(".md-surface")!;
+        surface.scrollTop = 350;
+        window.zdEditor!.setCaret(0);
+        requestAnimationFrame(() => {
+          surface.scrollTop += 70;
+          resolve();
+        });
+      }),
+  );
+  await waitForEditorScrollToSettle(page);
+
+  const at = await page.evaluate(caretInSurface);
+  expect(at.caret, "the delayed selection scroll left no measurable caret").not.toBeNull();
+  expect(
+    Math.abs(at.caret! - at.anchor),
+    "the delayed selection scroll left the caret away from the reading anchor",
+  ).toBeLessThanOrEqual(0.5);
 });
 
 test("arrowing through the middle of the window moves nothing", async ({ page }) => {
