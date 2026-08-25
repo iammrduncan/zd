@@ -174,10 +174,24 @@ const focus = ViewPlugin.fromClass(
       }
 
       const onScroll = () => this.remeasure();
+      // Match the active journey's ownership rule in scroll.ts during the one
+      // frame before that journey exists: direct input wins immediately.
+      const onDirectInput = () => {
+        this.edgeReturnGeneration += 1;
+        this.cancelEdgeReturn();
+      };
       surface.addEventListener("scroll", onScroll, { passive: true });
+      surface.addEventListener("wheel", onDirectInput, { passive: true });
+      surface.addEventListener("touchstart", onDirectInput, { passive: true });
+      surface.addEventListener("pointerdown", onDirectInput, { passive: true });
+      surface.addEventListener("mousedown", onDirectInput, { passive: true });
       this.detach = () => {
         watcher?.disconnect();
         surface.removeEventListener("scroll", onScroll);
+        surface.removeEventListener("wheel", onDirectInput);
+        surface.removeEventListener("touchstart", onDirectInput);
+        surface.removeEventListener("pointerdown", onDirectInput);
+        surface.removeEventListener("mousedown", onDirectInput);
       };
     }
 
@@ -247,7 +261,7 @@ const focus = ViewPlugin.fromClass(
      *     something on the anchor and means the block rather than the caret's row.
      *   - No caret in the document yet, when the anchor still owns the target and
      *     scrolling is the reader's alone.
-    */
+     */
     private returnFromEdge(update: ViewUpdate): void {
       const deliberate = update.transactions.some(
         (transaction) =>

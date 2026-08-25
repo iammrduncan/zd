@@ -49,11 +49,13 @@ function yieldToDirectInput(surface: Element): void {
   surface.addEventListener("wheel", stop, { passive: true });
   surface.addEventListener("touchstart", stop, { passive: true });
   surface.addEventListener("pointerdown", stop, { passive: true });
+  surface.addEventListener("mousedown", stop, { passive: true });
 
   directInputCleanup.set(surface, () => {
     surface.removeEventListener("wheel", stop);
     surface.removeEventListener("touchstart", stop);
     surface.removeEventListener("pointerdown", stop);
+    surface.removeEventListener("mousedown", stop);
   });
 }
 
