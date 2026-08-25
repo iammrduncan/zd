@@ -4,6 +4,13 @@ Notable user-facing changes to zd are recorded here.
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-08-25
+
+### Fixed
+
+- Made Unix terminal disposal signal the spawned shell's owned process group instead of relying on
+  the terminal's current foreground group, keeping cleanup reliable across macOS hosts.
+
 ## [0.2.3] - 2026-08-25
 
 ### Added
@@ -101,7 +108,8 @@ Notable user-facing changes to zd are recorded here.
   reference.
 - macOS-first Tauri application scaffolding with Windows support and best-effort Linux support.
 
-[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/iammrduncan/zd/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/iammrduncan/zd/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/iammrduncan/zd/compare/v0.2.0...v0.2.2
 [0.2.0]: https://github.com/iammrduncan/zd/compare/v0.1.0...v0.2.0
