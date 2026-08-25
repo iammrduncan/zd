@@ -13,11 +13,31 @@ const DEMOS = {
     new URL("../../../../../docs/markdown-demos/lists-and-quotes.md", import.meta.url),
     "utf8",
   ),
+  index: readFileSync(
+    new URL("../../../../../docs/markdown-demos/demo.md", import.meta.url),
+    "utf8",
+  ),
+  diagrams: readFileSync(
+    new URL("../../../../../docs/markdown-demos/diagrams.md", import.meta.url),
+    "utf8",
+  ),
+  images: readFileSync(
+    new URL("../../../../../docs/markdown-demos/images-and-links.md", import.meta.url),
+    "utf8",
+  ),
+  tables: readFileSync(
+    new URL("../../../../../docs/markdown-demos/tables.md", import.meta.url),
+    "utf8",
+  ),
   typography: readFileSync(
     new URL("../../../../../docs/markdown-demos/typography.md", import.meta.url),
     "utf8",
   ),
 } as const;
+
+const DEMO_IMAGE = readFileSync(
+  new URL("../../../../../docs/user-facing-docs/assets/zd-workbench.png", import.meta.url),
+);
 
 async function showDemo(page: Page, source: string): Promise<void> {
   await openEditor(page, { height: 900, width: 1100 });
@@ -152,4 +172,54 @@ test("ordered-list typing, continuation, and Tab keep the caret with the inserte
   }));
   expect(state.text).toContain("   4. Inserted item");
   expect(state.selection.head).toBe(state.text.indexOf("Inserted item") + "Inserted item".length);
+});
+
+test("the demo index renders its navigation as a table of links", async ({ page }, testInfo) => {
+  await showDemo(page, DEMOS.index);
+  await capture(page, testInfo, "demo-index");
+
+  await expect(page.locator("table.md-rendered tbody tr")).toHaveCount(6);
+  await expect(page.locator("table.md-rendered a")).toHaveCount(6);
+});
+
+test("the tables demo renders all three specimens without exposing pipe source", async ({
+  page,
+}, testInfo) => {
+  await showDemo(page, DEMOS.tables);
+  await capture(page, testInfo, "tables");
+
+  await expect(page.locator("table.md-rendered")).toHaveCount(3);
+  expect(await page.locator(".cm-content").innerText()).not.toContain("| Surface");
+});
+
+test("the diagrams demo renders both Mermaid definitions", async ({ page }, testInfo) => {
+  await showDemo(page, DEMOS.diagrams);
+  await expect(page.locator('.md-mermaid-diagram[aria-label="Mermaid flowchart"]')).toBeVisible();
+  await capture(page, testInfo, "diagrams-flowchart");
+
+  const sequence = page.locator('.md-mermaid-diagram[aria-label="Mermaid sequence diagram"]');
+  await sequence.scrollIntoViewIfNeeded();
+  await expect(sequence).toBeVisible();
+  await capture(page, testInfo, "diagrams-sequence");
+});
+
+test("the images and links demo renders local media, blocks remote media, and labels links", async ({
+  page,
+}, testInfo) => {
+  await page.route("**/user-facing-docs/assets/zd-workbench.png", (route) =>
+    route.fulfill({ body: DEMO_IMAGE, contentType: "image/png" }),
+  );
+  await showDemo(page, DEMOS.images);
+  await capture(page, testInfo, "images-and-links");
+
+  const localImage = page.locator('.md-image img[alt="The zd Markdown reader"]');
+  await expect(localImage).toHaveCount(1);
+  expect(
+    await localImage.evaluate((image: HTMLImageElement) => image.naturalWidth),
+    "the demo image is a broken browser-relative URL instead of resolved project media",
+  ).toBeGreaterThan(0);
+  await expect(
+    page.locator(".md-image-blocked", { hasText: "A remote diagram that must not load" }),
+  ).toHaveCount(1);
+  await expect(page.locator(".md-link-label")).toHaveCount(4);
 });
