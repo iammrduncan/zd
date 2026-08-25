@@ -69,7 +69,7 @@ test("the code demo gives every fenced passage an inner reading edge", async ({
     .locator(".md-line-code", { hasText: "interface Note" })
     .evaluate((line) => parseFloat(getComputedStyle(line).paddingInlineStart));
 
-  expect(inset, "fenced code starts against the code plane edge").toBeGreaterThan(0);
+  expect(inset, "fenced code still has only the token-sized inner edge").toBeGreaterThanOrEqual(16);
 });
 
 test("the typography demo renders strikethrough and keeps every heading marker clear of text", async ({
@@ -174,6 +174,184 @@ test("ordered-list typing, continuation, and Tab keep the caret with the inserte
   expect(state.selection.head).toBe(state.text.indexOf("Inserted item") + "Inserted item".length);
 });
 
+test("editing the last visible fence row stays inside until the second Enter", async ({ page }) => {
+  await showDemo(page, DEMOS.code);
+  const lastCodeRow = page.locator(".md-line-code", {
+    hasText: "This fence should remain readable",
+  });
+  await lastCodeRow.click();
+  await page.keyboard.press("End");
+  const originalLine = await page.evaluate(() => window.zdEditor!.selection().line);
+
+  await page.keyboard.press("Enter");
+  const afterFirst = await page.evaluate((line) => {
+    const source = window.zdEditor!.text().split("\n");
+    const caret = window.zdEditor!.caretY();
+    const insideCodePlane = [...document.querySelectorAll<HTMLElement>(".md-line-code")].some(
+      (row) => {
+        const bounds = row.getBoundingClientRect();
+        return caret !== null && caret >= bounds.top && caret <= bounds.bottom;
+      },
+    );
+    return {
+      lines: source.slice(line - 1, line + 2),
+      caretLine: window.zdEditor!.selection().line,
+      insideCodePlane,
+    };
+  }, originalLine);
+  expect(afterFirst.lines).toEqual([
+    "This fence should remain readable even when no syntax grammar exists.",
+    "",
+    "```",
+  ]);
+  expect(afterFirst.caretLine).toBe(originalLine + 1);
+  expect(afterFirst.insideCodePlane, "the first Enter visually ejected the caret").toBe(true);
+
+  await page.keyboard.press("Enter");
+  await page.keyboard.insertText("prose after the fence");
+  const afterSecond = await page.evaluate(
+    (line) =>
+      window
+        .zdEditor!.text()
+        .split("\n")
+        .slice(line - 1, line + 2),
+    originalLine,
+  );
+  expect(afterSecond).toEqual([
+    "This fence should remain readable even when no syntax grammar exists.",
+    "```",
+    "prose after the fence",
+  ]);
+});
+
+test("double Enter on a nested unordered item leaves no orphan marker or indentation", async ({
+  page,
+}) => {
+  await showDemo(page, DEMOS.lists);
+  const item = page.locator(".md-line-item", { hasText: "A third level" });
+  await item.click();
+  await page.keyboard.press("End");
+  const originalLine = await page.evaluate(() => window.zdEditor!.selection().line);
+
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await page.keyboard.insertText("prose after the nested list");
+
+  const lines = await page.evaluate((line) => {
+    const source = window.zdEditor!.text().split("\n");
+    return source.slice(line - 1, line + 2);
+  }, originalLine);
+  expect(lines).toEqual([
+    "    - A third level",
+    "prose after the nested list",
+    "- An item whose text is deliberately long enough to wrap and reveal whether continuation lines",
+  ]);
+});
+
+for (const example of [
+  {
+    name: "nested ordered item",
+    label: "Another nested ordered item",
+    source: "   2. Another nested ordered item",
+    next: "3. Third ordered item",
+  },
+  {
+    name: "task item",
+    label: "Open task",
+    source: "- [ ] Open task",
+    next: "",
+  },
+] as const) {
+  test(`double Enter on a ${example.name} leaves the complete list`, async ({ page }) => {
+    await showDemo(page, DEMOS.lists);
+    const item = page.locator(".md-line-item", { hasText: example.label });
+    await item.click();
+    await page.keyboard.press("End");
+    const originalLine = await page.evaluate(() => window.zdEditor!.selection().line);
+
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+    await page.keyboard.insertText(`prose after ${example.name}`);
+
+    const lines = await page.evaluate((line) => {
+      const source = window.zdEditor!.text().split("\n");
+      return source.slice(line - 1, line + 2);
+    }, originalLine);
+    expect(lines).toEqual([example.source, `prose after ${example.name}`, example.next]);
+  });
+}
+
+for (const example of [
+  {
+    name: "heading",
+    demo: DEMOS.typography,
+    selector: ".md-line-h2",
+    label: "Heading level two",
+    sourceLine: "## Heading level two",
+  },
+  {
+    name: "styled prose",
+    demo: DEMOS.typography,
+    selector: ".cm-line",
+    label: "This paragraph shows the normal prose",
+    sourceLine: DEMOS.typography.split("\n")[2]!,
+  },
+  {
+    name: "task item",
+    demo: DEMOS.lists,
+    selector: ".md-line-item",
+    label: "Open task",
+    sourceLine: "- [ ] Open task",
+  },
+  {
+    name: "blockquote",
+    demo: DEMOS.lists,
+    selector: ".md-line-quote",
+    label: "Markdown should remain comfortable",
+    sourceLine: "> Markdown should remain comfortable to read while it is directly editable.",
+  },
+  {
+    name: "fenced code",
+    demo: DEMOS.code,
+    selector: ".md-line-code",
+    label: "interface Note",
+    sourceLine: "interface Note {",
+  },
+  {
+    name: "link",
+    demo: DEMOS.images,
+    selector: ".md-link-label",
+    label: "A project-relative document",
+    sourceLine: "- [A project-relative document](../DESIGN.md)",
+    editedLine: "- [A project-relative document [audited]](../DESIGN.md)",
+  },
+] as const) {
+  test(`a pointer edit and undo round-trip preserves the ${example.name}`, async ({ page }) => {
+    await showDemo(page, example.demo);
+    const before = await page.evaluate(() => window.zdEditor!.text());
+    const target = page.locator(example.selector, { hasText: example.label }).first();
+
+    await target.scrollIntoViewIfNeeded();
+    await target.click();
+    await page.keyboard.press("End");
+    await page.keyboard.insertText(" [audited]");
+
+    await expect
+      .poll(() => page.evaluate(() => window.zdEditor!.text()))
+      .toContain("editedLine" in example ? example.editedLine : `${example.sourceLine} [audited]`);
+    if (example.name === "link") {
+      expect(
+        await page.evaluate(() => window.zdEditor!.openedLinks),
+        "an ordinary editing click activated the link",
+      ).toEqual([]);
+    }
+
+    await page.keyboard.press("ControlOrMeta+Z");
+    await expect.poll(() => page.evaluate(() => window.zdEditor!.text())).toBe(before);
+    await expect(target).toBeVisible();
+  });
+}
+
 test("the demo index renders its navigation as a table of links", async ({ page }, testInfo) => {
   await showDemo(page, DEMOS.index);
   await capture(page, testInfo, "demo-index");
@@ -218,6 +396,10 @@ test("the images and links demo renders local media, blocks remote media, and la
     await localImage.evaluate((image: HTMLImageElement) => image.naturalWidth),
     "the demo image is a broken browser-relative URL instead of resolved project media",
   ).toBeGreaterThan(0);
+  await localImage.scrollIntoViewIfNeeded();
+  await localImage.click();
+  await expect(localImage, "the project-relative image disappeared after a click").toBeVisible();
+  await expect(page.locator('.md-image-unavailable[data-image-status="loading"]')).toHaveCount(0);
   await expect(
     page.locator(".md-image-blocked", { hasText: "A remote diagram that must not load" }),
   ).toHaveCount(1);

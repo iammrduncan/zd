@@ -283,7 +283,7 @@ class ImageWidget extends WidgetType {
 
   /** Not editable content. The source is reachable through raw mode (§7.4). */
   ignoreEvent(): boolean {
-    return false;
+    return true;
   }
 }
 

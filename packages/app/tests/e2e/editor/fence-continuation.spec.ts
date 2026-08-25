@@ -168,6 +168,30 @@ test("enter at the end of a code line stays inside the block", async ({ page }) 
   expect(written).toBe("// a second comment");
 });
 
+test("Backspace after the first Enter returns to the last code line without crossing the fence", async ({
+  page,
+}) => {
+  const line = await page.evaluate(() => {
+    const lines = window.zdEditor!.text().split("\n");
+    const index = lines.findIndex((text) => text.includes("    Ok(raw)")) + 1;
+    const start = lines.slice(0, index).reduce((total, text) => total + text.length + 1, 0);
+    window.zdEditor!.setCaret(start + lines[index]!.length);
+    return index + 1;
+  });
+  const before = await page.evaluate(() => window.zdEditor!.text());
+
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Backspace");
+
+  expect(await page.evaluate(() => window.zdEditor!.text())).toBe(before);
+  expect(await caretLine(page), "Backspace crossed the hidden closing fence").toBe(line);
+
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("plain after the round trip");
+  expect(await lines(page, line, 3)).toEqual(["}", "```", "plain after the round trip"]);
+});
+
 test("an already closed fence never gains a second closer", async ({ page }) => {
   const before = await page.evaluate(() => window.zdEditor!.text());
 

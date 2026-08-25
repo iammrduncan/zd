@@ -235,9 +235,7 @@ describe("the root current-file owner", () => {
     await vi.waitFor(() => expect(host.querySelectorAll(".md-link-label")).toHaveLength(2));
     host
       .querySelectorAll<HTMLElement>(".md-link-label")[1]!
-      .dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true }),
-      );
+      .dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true }));
     await vi.waitFor(() =>
       expect(fixture.openExternal).toHaveBeenCalledExactlyOnceWith("https://example.com"),
     );
@@ -321,6 +319,41 @@ describe("the root current-file owner", () => {
 
     close.click();
     host.querySelector<HTMLButtonElement>('[data-file-close-choice="discard"]')?.click();
+    await vi.waitFor(() => expect(fixture.runtime.state.snapshot().active.fileId).toBeNull());
+    expect(drafts.get(resource("src/main.ts"))).toBeNull();
+    expect(host.textContent).toContain("No file selected.");
+    unmount();
+    host.remove();
+  });
+
+  it("confirms before closing a draft restored from recovery state", async () => {
+    const fixture = context({
+      status: "text",
+      text: "const value = 1;",
+      byteLength: 16,
+      writable: true,
+    });
+    const host = document.createElement("div");
+    document.body.append(host);
+    const drafts = new FileDraftStore(window.localStorage);
+    drafts.save(resource("src/main.ts"), "const value = 2;");
+    const unmount = await mountCurrentFile(host, fixture.runtime, { drafts });
+    await vi.waitFor(() =>
+      expect(
+        EditorView.findFromDOM(
+          host.querySelector<HTMLElement>(".md-editor")!,
+        )?.state.doc.toString(),
+      ).toBe("const value = 2;"),
+    );
+
+    host.querySelector<HTMLButtonElement>('[aria-label="Close src/main.ts"]')!.click();
+
+    const confirmation = host.querySelector<HTMLDialogElement>('[role="alertdialog"]');
+    expect(confirmation?.open).toBe(true);
+    expect(confirmation?.textContent).toContain("Close src/main.ts without saving?");
+    expect(fixture.runtime.state.snapshot().active.fileId).not.toBeNull();
+
+    confirmation?.querySelector<HTMLButtonElement>('[data-file-close-choice="discard"]')?.click();
     await vi.waitFor(() => expect(fixture.runtime.state.snapshot().active.fileId).toBeNull());
     expect(drafts.get(resource("src/main.ts"))).toBeNull();
     expect(host.textContent).toContain("No file selected.");
