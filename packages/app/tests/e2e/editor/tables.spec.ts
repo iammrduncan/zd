@@ -239,6 +239,22 @@ test("a rendered cell edits the underlying Markdown without leaving reader mode"
   await expect(page.locator(".md-editor table")).toHaveCount(1);
 });
 
+test("select all in a rendered cell selects the whole Markdown table", async ({ page }) => {
+  const cell = page.locator(".md-editor table td", { hasText: "Hairlines only" });
+  await cell.click();
+  await page.keyboard.press("ControlOrMeta+A");
+
+  const selected = await page.evaluate(() => {
+    const text = window.zdEditor!.text();
+    const from = text.indexOf("| Construct | Resting state |");
+    const after = text.indexOf("\n\n## Mermaid", from);
+    return { expected: { from, to: after }, actual: window.zdEditor!.selection() };
+  });
+
+  expect(selected.actual.from).toBe(selected.expected.from);
+  expect(selected.actual.to).toBe(selected.expected.to);
+});
+
 test("a multi-column table never stacks an unspaced header one character per line", async ({
   page,
 }) => {
