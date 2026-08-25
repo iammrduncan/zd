@@ -104,6 +104,16 @@ test("a relative link renders the same way as an external one", async ({ page })
   expect(relative!.rendered, "the relative destination is on screen").not.toContain("vision.md");
 });
 
+test("modifier-click activates the rendered link label", async ({ page }) => {
+  await page.locator(".md-link-label", { hasText: "its label" }).dispatchEvent("click", {
+    metaKey: true,
+  });
+
+  await expect
+    .poll(() => page.evaluate(() => window.zdEditor!.openedLinks))
+    .toEqual(["https://example.com/spec"]);
+});
+
 test("hiding the punctuation does not change the document", async ({ page }) => {
   const text = await page.evaluate(() => window.zdEditor!.text());
 

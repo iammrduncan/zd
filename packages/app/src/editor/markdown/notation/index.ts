@@ -4,7 +4,7 @@ import { Facet, type EditorState, type Extension } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 
 import { codeHighlighting, codeLanguages } from "../../language";
-import { renderInlineMarkdown } from "../inline";
+import { markdownLinkHref, renderInlineMarkdown } from "../inline";
 import { isRaw, rawModeChanged } from "../raw";
 import {
   Decoration,
@@ -142,7 +142,17 @@ const QUOTE = Decoration.mark({ class: "md-quote-mark" });
  * for reading. Raw mode is the way back to the source; the caret is not — §7.4:
  * notation is never revealed by caret proximity, in either state.
  */
-const LINK_LABEL = Decoration.mark({ class: "md-link-label" });
+function linkLabel(href: string): Decoration {
+  return Decoration.mark({
+    tagName: "a",
+    class: "md-link-label",
+    attributes: {
+      "data-markdown-href": href,
+      href,
+      title: "Command- or Control-click to open",
+    },
+  });
+}
 
 /**
  * Notation taken off the screen entirely.
@@ -370,7 +380,7 @@ function notationLines(view: EditorView): Notation {
   const indents: { from: number; to: number }[] = [];
   const continuations: { from: number; to: number }[] = [];
   const quoteMarks: { from: number; to: number }[] = [];
-  const linkLabels: { from: number; to: number }[] = [];
+  const linkLabels: { from: number; to: number; href: string }[] = [];
   const hidden: { from: number; to: number }[] = [];
   const inlineCode: { from: number; to: number }[] = [];
   const codeMarks: { from: number; to: number }[] = [];
@@ -558,7 +568,10 @@ function notationLines(view: EditorView): Notation {
 
           const open = marks[0]!;
           const close = marks.at(-1)!;
-          if (close.from > open.to) linkLabels.push({ from: open.to, to: close.from });
+          const href = markdownLinkHref(state.doc.sliceString(node.from, node.to));
+          if (href && close.from > open.to) {
+            linkLabels.push({ from: open.to, to: close.from, href });
+          }
           if (!isRaw(state)) {
             hidden.push({ from: open.from, to: open.to });
             hidden.push({ from: close.from, to: close.to });
@@ -577,7 +590,10 @@ function notationLines(view: EditorView): Notation {
 
           const open = marks[0]!;
           const close = marks[1]!;
-          if (close.from > open.to) linkLabels.push({ from: open.to, to: close.from });
+          const href = markdownLinkHref(state.doc.sliceString(node.from, node.to));
+          if (href && close.from > open.to) {
+            linkLabels.push({ from: open.to, to: close.from, href });
+          }
 
           // Under raw mode the brackets and destination stay on screen. The label
           // keeps its colour either way: it is still the label, and §7.4 says raw
@@ -693,7 +709,6 @@ function notationLines(view: EditorView): Notation {
     ["indent", indents, INDENT],
     ["cont", continuations, CONTINUATION],
     ["quote", quoteMarks, QUOTE],
-    ["link", linkLabels, LINK_LABEL],
     ["hidden", hidden, HIDDEN],
     ["inlinecode", inlineCode, INLINE_CODE],
     ["codemark", codeMarks, CODE_MARK],
@@ -718,6 +733,13 @@ function notationLines(view: EditorView): Notation {
     // A picture is one thing to step past, not one thing per character of the
     // `![alt](url)` it was built from.
     atomic.push(range);
+  }
+
+  for (const { from, to, href } of linkLabels) {
+    const key = `link:${from}:${to}:${href}`;
+    if (placed.has(key)) continue;
+    placed.add(key);
+    ranges.push(linkLabel(href).range(from, to));
   }
 
   for (const [label, list, deco] of spans) {
@@ -787,7 +809,10 @@ const atomicNotation = EditorView.atomicRanges.of(
  * quietly answer a question that session is meant to ask. Parsing is what is
  * needed today, so parsing is all that is turned on.
  */
-export function markdownNotation(resolveImage?: MarkdownImageResolver): Extension {
+export function markdownNotation(
+  resolveImage?: MarkdownImageResolver,
+  onOpenLink?: (href: string) => void,
+): Extension {
   /*
    * GFM, not bare CommonMark. `markdown()` defaults to `commonmarkLanguage`,
    * which has no `Table` node at all — the reader parses with markdown-it and
@@ -809,6 +834,21 @@ export function markdownNotation(resolveImage?: MarkdownImageResolver): Extensio
        */
       codeLanguages,
     }),
+    onOpenLink
+      ? EditorView.domEventHandlers({
+          click: (event) => {
+            const target =
+              event.target instanceof Element
+                ? event.target.closest<HTMLElement>("[data-markdown-href]")
+                : null;
+            if (!target) return false;
+            event.preventDefault();
+            if (!event.metaKey && !event.ctrlKey && event.detail !== 0) return false;
+            onOpenLink(target.dataset.markdownHref!);
+            return true;
+          },
+        })
+      : [],
     /*
      * Which characters auto-pair in markdown prose — feedback, 2026-07-30: "so if I
      * type [ or { then it auto creates the other side… Need this for back ticks and

@@ -11,6 +11,7 @@ import { closeConfirmation } from "./close-confirmation";
 import { FileDraftStore } from "./drafts";
 import { fileCloseAction } from "./file-close";
 import { markdownImageResolver } from "./markdown-image";
+import { markdownLinkOpener } from "./markdown/link";
 import { reconcile, saveWouldClobber } from "./reconcile";
 import { createReviewBinding } from "./review-binding";
 import type { FileStamp } from "@/platform";
@@ -22,6 +23,7 @@ import type { TransitionRecovery } from "../state";
 import { workbenchSettingsPreferences } from "../settings-preferences";
 import { attachReadingSettings } from "./reading-settings";
 import { mountReview } from "../review";
+import { registerMarkdownFormatting } from "../markdown/format";
 import "./styles.css";
 
 export interface MountCurrentFileOptions {
@@ -186,6 +188,9 @@ export async function mountCurrentFile(
       ...(savedText === undefined ? {} : { savedText }),
       ...reviewBinding.options,
       resolveMarkdownImage: markdownImageResolver(context.platform, resource),
+      onOpenMarkdownLink: markdownLinkOpener(context, resource, (message) =>
+        showNotice(message, "warning"),
+      ),
       onTextChange: (text, isDirty) => {
         dirty = isDirty;
         if (isDirty) drafts.save(resource, text);
@@ -366,6 +371,9 @@ export async function mountCurrentFile(
         return true;
       },
     }),
+    ...registerMarkdownFormatting(commandEditor, () =>
+      Boolean(commandEditor() && mounted?.buffer.language.markdown),
+    ),
     register({
       id: "document.wrap",
       category: "Editor/Reading",

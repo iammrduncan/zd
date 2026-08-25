@@ -94,6 +94,23 @@ describe("the editing surface", () => {
     expect(activated).toBe("comment-1");
     editor.destroy();
   });
+
+  it("delegates modifier-clicked Markdown links without owning navigation", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const activated: string[] = [];
+    const editor = createEditor(host, "[Design](../DESIGN.md)", {
+      onOpenMarkdownLink: (href) => activated.push(href),
+    });
+
+    host
+      .querySelector<HTMLElement>(".md-link-label")!
+      .dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true }),
+      );
+    expect(activated).toEqual(["../DESIGN.md"]);
+    editor.destroy();
+  });
 });
 
 describe("the workbench editor facade", () => {

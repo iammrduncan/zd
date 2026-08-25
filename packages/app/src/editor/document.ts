@@ -16,6 +16,7 @@ import { markdownStructure } from "./markdown/continuation";
 import { isTypewriter, setTypewriter, typewriterMode } from "./typewriter";
 import { MARKDOWN_DOCUMENT, type DocumentLanguage } from "./language";
 import { listIndentation } from "./markdown/lists";
+import { formatMarkdown, type MarkdownFormat } from "./markdown/format";
 import { jumpFocusBlock, settledMotion } from "./motion";
 import { markdownNotation, type MarkdownImageResolver } from "./markdown/notation";
 import { autoPairing } from "./pairing";
@@ -151,6 +152,8 @@ export interface Editor {
    * Always returns true, including at the ends of the document; see `jumpFocusBlock`.
    */
   jumpBlock(direction: "next" | "previous"): boolean;
+  /** Apply one source-preserving Markdown format to the current selection. */
+  format(format: MarkdownFormat): boolean;
   /**
    * Replace the whole document, as if it had just been opened.
    *
@@ -185,6 +188,8 @@ export interface EditorOptions {
   onPasteImageProblem?: (message: string) => void;
   /** Resolve one document-relative Markdown image without giving the editor a path. */
   resolveMarkdownImage?: MarkdownImageResolver;
+  /** Delegate one parser-approved Markdown destination to the document owner. */
+  onOpenMarkdownLink?: (href: string) => void;
   /**
    * Called when the document crosses between saved and unsaved, and only then —
    * not on every keystroke.
@@ -381,7 +386,7 @@ export function createEditor(
         keymap.of([...defaultKeymap, ...historyKeymap]),
         language.markdown
           ? [
-              markdownNotation(options.resolveMarkdownImage),
+              markdownNotation(options.resolveMarkdownImage, options.onOpenMarkdownLink),
               // Separate from the notation plugin because a table is a block
               // decoration and CodeMirror only accepts those from a StateField.
               // See table.ts.
@@ -546,6 +551,10 @@ export function createEditor(
     },
     isTypewriter: () => isTypewriter(view.state),
     jumpBlock: (direction) => jumpFocusBlock(view, direction),
+    format: (format) => {
+      if (readOnly || !language.markdown) return false;
+      return formatMarkdown(view, format);
+    },
     setText: (text) => {
       written = Text.of(text.split("\n"));
       view.dispatch({
