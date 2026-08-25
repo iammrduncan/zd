@@ -261,22 +261,37 @@ describe("local agent tooling", () => {
 });
 
 describe("Markdown visual reference", () => {
-  it("keeps one stable specimen for manually checking rendered Markdown", () => {
-    const demoPath = resolve(ROOT, "docs/markdown-demos/demo.md");
+  it("keeps an indexed suite of focused specimens for manually checking Markdown", () => {
+    const directory = resolve(ROOT, "docs/markdown-demos");
+    const demoPath = resolve(directory, "demo.md");
+    const specimens = [
+      "typography.md",
+      "lists-and-quotes.md",
+      "tables.md",
+      "code-fences.md",
+      "diagrams.md",
+      "images-and-links.md",
+    ];
 
-    expect(existsSync(demoPath)).toBe(true);
     const demo = readFileSync(demoPath, "utf8");
-    expect(demo).toMatch(/^# /m);
-    expect(demo).toMatch(/^###### /m);
-    expect(demo).toMatch(/^\|.+\|$/m);
-    expect(demo).toContain("```typescript");
-    expect(demo).toContain("```rust");
-    expect(demo).toContain("```mermaid");
-    expect(demo).toMatch(/!\[[^\]]+\]\(([^)]+)\)/);
+    for (const specimen of specimens) {
+      expect(existsSync(resolve(directory, specimen)), `${specimen} is missing`).toBe(true);
+      expect(demo).toContain(`(${specimen})`);
+      expect(readFileSync(resolve(directory, specimen), "utf8")).toMatch(/^# /m);
+    }
 
-    const imagePath = demo.match(/!\[[^\]]+\]\(([^)]+)\)/)?.[1];
+    expect(readFileSync(resolve(directory, "typography.md"), "utf8")).toMatch(/^###### /m);
+    expect(readFileSync(resolve(directory, "tables.md"), "utf8")).toMatch(/^\|.+\|$/m);
+    const code = readFileSync(resolve(directory, "code-fences.md"), "utf8");
+    expect(code).toContain("```typescript");
+    expect(code).toContain("```rust");
+    expect(readFileSync(resolve(directory, "diagrams.md"), "utf8")).toContain("```mermaid");
+    const images = readFileSync(resolve(directory, "images-and-links.md"), "utf8");
+    expect(images).toMatch(/!\[[^\]]+\]\(([^)]+)\)/);
+
+    const imagePath = images.match(/!\[[^\]]+\]\(([^)]+)\)/)?.[1];
     expect(imagePath).toBeDefined();
-    expect(existsSync(resolve(demoPath, "..", imagePath!))).toBe(true);
+    expect(existsSync(resolve(directory, imagePath!))).toBe(true);
   });
 });
 
