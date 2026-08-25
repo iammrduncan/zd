@@ -39,8 +39,6 @@ export function createFileTreeRow(
     button.setAttribute("aria-expanded", String(row.expanded));
   }
   button.tabIndex = snapshot.selectedPath === row.entry.relativePath ? 0 : -1;
-  button.draggable = row.entry.kind !== "symlink";
-
   const guides = document.createElement("span");
   guides.className = "zd-file-tree-guides";
   guides.setAttribute("aria-hidden", "true");

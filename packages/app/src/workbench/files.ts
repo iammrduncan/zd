@@ -101,6 +101,7 @@ export class WorkbenchFilesRuntime {
         activateFile: (resource) => owner.activateFile(resource),
         copyPath: (resource, presentation) => this.#copyPath(resource, presentation),
         createEntry: (resource, kind) => this.#createEntry(resource, kind),
+        discardUnsavedChanges: (resources) => this.#discardUnsavedChanges(resources),
         renameEntry: (resource, newName) => this.#renameEntry(resource, newName),
         trashEntry: (resource) => this.#trashEntry(resource),
         transferEntries: (transfers, operation) => this.#transferEntries(transfers, operation),
@@ -245,6 +246,13 @@ export class WorkbenchFilesRuntime {
     await this.#mutate({ ...resource, operation: "create", kind });
     await this.controller.refresh("manual");
     if (kind === "file") await this.owner.activateFile(resource);
+  }
+
+  async #discardUnsavedChanges(resources: readonly FileResource[]): Promise<void> {
+    for (const resource of resources) {
+      this.drafts.clear(resource);
+      this.owner.closeFile(resource);
+    }
   }
 
   async #renameEntry(resource: FileResource, newName: string): Promise<void> {

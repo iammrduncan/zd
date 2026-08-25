@@ -322,6 +322,34 @@ describe("the root Files and Git coordinator", () => {
     detach();
   });
 
+  it("clears selected recoverable drafts and closes their open files", async () => {
+    const owner = createWorkbenchStateOwner(workbenchStateFromGrants([alpha], launch(alpha)));
+    const drafts = new FileDraftStore(window.localStorage);
+    const runtime = createWorkbenchFilesRuntime(
+      owner,
+      { snapshot: vi.fn(async () => treeResult(alpha)), watch: () => () => {} },
+      gitAdapter(async () => gitResult(alpha, "modified")),
+      createUnavailableInstrumentationClient(),
+      drafts,
+    );
+    const detach = runtime.attach();
+    await vi.waitFor(() => expect(runtime.controller.snapshot().state).toBe("ready"));
+    const resource = {
+      projectId: alpha.id,
+      worktreeId: alpha.worktrees[0]!.id,
+      relativePath: "README.md",
+    };
+    drafts.save(resource, "accidental edit");
+    runtime.controller.select("README.md");
+
+    await expect(runtime.controller.discardUnsavedSelection()).resolves.toBe(true);
+
+    expect(drafts.get(resource)).toBeNull();
+    expect(owner.snapshot().openFiles).not.toContainEqual(expect.objectContaining(resource));
+    expect(runtime.controller.snapshot().dirtyPaths).not.toContain("README.md");
+    detach();
+  });
+
   it("copies relative and full paths using the active approved worktree root", async () => {
     const owner = createWorkbenchStateOwner(workbenchStateFromGrants([alpha], launch(alpha)));
     const copyText = vi.fn(async () => {});

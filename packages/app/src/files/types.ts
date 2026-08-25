@@ -134,6 +134,7 @@ export interface FileTreeActions {
   activateFile(resource: FileResource): Promise<TransitionResult>;
   copyPath?(resource: FileResource, presentation: FilePathPresentation): Promise<void>;
   createEntry?(resource: FileResource, kind: FileTreeCreationKind): Promise<void>;
+  discardUnsavedChanges?(resources: readonly FileResource[]): Promise<void>;
   renameEntry?(resource: FileResource, newName: string): Promise<void>;
   trashEntry?(resource: FileResource): Promise<void>;
   transferEntries?(

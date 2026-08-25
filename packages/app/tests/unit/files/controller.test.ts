@@ -203,6 +203,37 @@ describe("FileTreeController", () => {
     ]);
   });
 
+  it("discards only dirty files covered by the selected files and folders", async () => {
+    const actions: FileTreeActions = {
+      activateFile: vi.fn(async () => ({ status: "committed" as const })),
+      discardUnsavedChanges: vi.fn(async () => {}),
+    };
+    const controller = new FileTreeController(
+      sequence([
+        ready("one", [
+          entry("docs", "directory"),
+          entry("docs/a.md"),
+          entry("docs/b.md"),
+          entry("notes.md"),
+          entry("clean.md"),
+        ]),
+      ]),
+      actions,
+    );
+    await controller.activate(scope);
+    controller.setDirtyPaths(new Set(["docs/a.md", "docs/b.md", "notes.md"]));
+    controller.select("docs");
+    controller.select("clean.md", "toggle");
+
+    expect(controller.dirtySelectionCount()).toBe(2);
+    await expect(controller.discardUnsavedSelection()).resolves.toBe(true);
+    expect(actions.discardUnsavedChanges).toHaveBeenCalledWith([
+      { ...scope, relativePath: "docs/a.md" },
+      { ...scope, relativePath: "docs/b.md" },
+    ]);
+    expect(controller.snapshot().notice).toBe("Discarded unsaved changes in 2 files.");
+  });
+
   it("transfers explicit drag paths without changing selection before the operation", async () => {
     const actions: FileTreeActions = {
       activateFile: vi.fn(async () => ({ status: "committed" as const })),
