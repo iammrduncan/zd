@@ -3,6 +3,18 @@
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 === New Feedback ===
 === Feedback Addressed ===
+markdown doc: more vertical paddint at top and bottom of code fence... ![Screenshot](../screenshots/screenshot-1787632760328716000.png)
+markdown doc: code fence boundry editing still not working... ![Screenshot](../screenshots/screenshot-1787632813868661000.png) How can you test and confirm this reliably?
+markdonw doc: unless you are in raw edit mode you shouldn't be able to delete a code fences ``` ... unless the code fence is compeltely empty and you back space out of it.
+markdonw doc: image stays now when clicked, but drag highlight causes it to disappear.
+markdown doc: on table, click in cell, drag across table. Only highlights the single cell doesn't highlight other cells as you drag... ![Screenshot](../screenshots/screenshot-1787632995427747000.png)
+file tree: click and drag doesn't work.
+markdonw doc: double enter in unorder list still breaks an does wierd stuff.. I would expect it to break the list but to send cursor back to main indent, not keep the indented... ![Screenshot](../screenshots/screenshot-1787633044883125000.png)
+markdown doc: newline on last unorder list did not create a new unordered list like I expected it to. it should. ![Screenshot](../screenshots/screenshot-1787633075747242000.png)
+markdown doc: tabs do not work in markdown doc editying.
+codemirror: tabbing does not work in any document editing...
+markdown-demos: I've uninentionally editied several files in demos. Need a way to restor file to correct.
+markdown-demos: what is setext? ![Screenshot](../screenshots/screenshot-1787633215904008000.png)
 in markdown docs: code fence more padding ![Screenshot](../screenshots/screenshot-1787624957202740000.png)
 in markdown docs: editing code block fence is funky... it should keep going until I double enter to get out of the codeblock, but on first enter it exits (As seen in screenshot ![Screenshot](../screenshots/screenshot-1787625030298869000.png)) then it acts funky on subsequent enters/returns and backspaces cause caret to jump around.
 in markdown docs: clicking x does not prompt to discard edits/are you sure... ![Screenshot](../screenshots/screenshot-1787625104006738000.png) and it doesn't actually close the file.
