@@ -110,6 +110,8 @@ const focus = ViewPlugin.fromClass(
     caretPlaced = false;
     private queued = false;
     private dead = false;
+    private edgeReturnFrame: number | null = null;
+    private edgeReturnGeneration = 0;
 
     /**
      * The document position under the vertical anchor, measured rather than
@@ -245,19 +247,54 @@ const focus = ViewPlugin.fromClass(
      *     something on the anchor and means the block rather than the caret's row.
      *   - No caret in the document yet, when the anchor still owns the target and
      *     scrolling is the reader's alone.
-     */
+    */
     private returnFromEdge(update: ViewUpdate): void {
-      if (this.dead || !this.caretPlaced) return;
-      if (isTypewriter(update.state)) return;
-
       const deliberate = update.transactions.some(
         (transaction) =>
           transaction.isUserEvent("select.pointer") ||
           transaction.isUserEvent("select.blockjump") ||
           transaction.isUserEvent("input.table"),
       );
-      if (deliberate) return;
+      if (this.dead || !this.caretPlaced || isTypewriter(update.state) || deliberate) {
+        this.edgeReturnGeneration += 1;
+        this.cancelEdgeReturn();
+        return;
+      }
 
+      /*
+       * CodeMirror can scroll a new selection into view in its own measure phase.
+       * Measuring the edge in this transaction sees the position before that
+       * write on a slow frame, starts a return toward a stale target, and then
+       * treats CodeMirror's scroll as a layout correction. The caret finishes
+       * exactly that later scroll distance away from the anchor.
+       *
+       * Queue one post-layout check instead. Calling `requestMeasure` from this
+       * frame puts its read in the next measure phase, after CodeMirror's pending
+       * selection scroll. Repeated keys share the same check, while a later
+       * deliberate selection cancels it before it can move the document.
+       */
+      if (this.edgeReturnFrame !== null) return;
+      const generation = this.edgeReturnGeneration;
+      this.edgeReturnFrame = requestAnimationFrame(() => {
+        this.edgeReturnFrame = null;
+        if (
+          this.dead ||
+          generation !== this.edgeReturnGeneration ||
+          !this.caretPlaced ||
+          isTypewriter(this.view.state)
+        )
+          return;
+        this.measureEdgeReturn(generation);
+      });
+    }
+
+    private cancelEdgeReturn(): void {
+      if (this.edgeReturnFrame === null) return;
+      cancelAnimationFrame(this.edgeReturnFrame);
+      this.edgeReturnFrame = null;
+    }
+
+    private measureEdgeReturn(generation: number): void {
       /*
        * `return` and not `smooth`, and that was measured rather than chosen. A
        * browser-managed smooth scroll is one animation the browser owns, and any direct
@@ -268,6 +305,7 @@ const focus = ViewPlugin.fromClass(
        * outlives that.
        */
       this.putOnAnchor((view) => {
+        if (generation !== this.edgeReturnGeneration || isTypewriter(view.state)) return null;
         const surface = surfaceOf(view);
         if (!surface) return null;
 
@@ -292,6 +330,7 @@ const focus = ViewPlugin.fromClass(
 
     destroy() {
       this.dead = true;
+      this.cancelEdgeReturn();
       this.scrolling.stop();
       this.detach();
     }
