@@ -325,7 +325,9 @@ available. Platform-specific panel mechanics stay below the shared window contra
 The native shell resolves display and Space placement while the window is hidden, then presents one
 positioned frame. On macOS, quick access uses `MoveToActiveSpace`; it does not make the workbench an
 all-Spaces window. Focus-loss dismissal becomes active only after the native window reports focus,
-so transitional focus events during a Space move cannot hide the newly summoned window.
+and that focus remains stable through a bounded settle interval. Generation-checked focus-loss work
+then rechecks native focus before hiding, so transitional Space events and stale callbacks cannot
+hide the newly summoned window.
 
 ## 9. Workbench composition
 

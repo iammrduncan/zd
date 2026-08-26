@@ -1,12 +1,14 @@
 //! Native global summon and the presentation lifetime of the one root window.
 
-use std::sync::Mutex;
+use std::{sync::Mutex, time::Duration};
 
 use tauri::{Emitter, Manager, PhysicalPosition};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 pub const SUMMON_SHORTCUT: &str = "CmdOrCtrl+Shift+Space";
 const PRESENTATION_EVENT: &str = "window-presentation-changed";
+const FOCUS_SETTLE_DELAY: Duration = Duration::from_millis(250);
+const FOCUS_LOSS_DELAY: Duration = Duration::from_millis(120);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum QuickAccessShowStep {
@@ -61,13 +63,18 @@ impl Default for GlobalShortcutRegistration {
 struct QuickAccessModel {
     presentation: WindowPresentation,
     quick_access_ready: bool,
+    focus_revision: u64,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct FocusTicket(u64);
 
 impl Default for QuickAccessModel {
     fn default() -> Self {
         Self {
             presentation: WindowPresentation::Ordinary,
             quick_access_ready: false,
+            focus_revision: 0,
         }
     }
 }
@@ -80,9 +87,45 @@ impl QuickAccessModel {
         }
     }
 
-    fn focus_lost_target(&self) -> Option<WindowPresentation> {
+    fn set_presentation(&mut self, next: WindowPresentation) {
+        self.presentation = next;
+        self.quick_access_ready = false;
+        self.focus_revision = self.focus_revision.wrapping_add(1);
+    }
+
+    fn begin_focus_settle(&mut self) -> Option<FocusTicket> {
+        self.focus_revision = self.focus_revision.wrapping_add(1);
+        if self.presentation != WindowPresentation::QuickAccess {
+            return None;
+        }
+        self.quick_access_ready = false;
+        Some(FocusTicket(self.focus_revision))
+    }
+
+    fn finish_focus_settle(&mut self, ticket: FocusTicket) -> bool {
+        if self.presentation != WindowPresentation::QuickAccess || self.focus_revision != ticket.0 {
+            return false;
+        }
+        self.quick_access_ready = true;
+        true
+    }
+
+    fn begin_focus_loss(&mut self) -> Option<FocusTicket> {
+        self.focus_revision = self.focus_revision.wrapping_add(1);
         (self.presentation == WindowPresentation::QuickAccess && self.quick_access_ready)
-            .then_some(WindowPresentation::Ordinary)
+            .then_some(FocusTicket(self.focus_revision))
+    }
+
+    fn focus_loss_is_current(&self, ticket: FocusTicket) -> bool {
+        self.presentation == WindowPresentation::QuickAccess
+            && self.quick_access_ready
+            && self.focus_revision == ticket.0
+    }
+
+    fn restore_quick_access_ready(&mut self) {
+        if self.presentation == WindowPresentation::QuickAccess {
+            self.quick_access_ready = true;
+        }
     }
 }
 
@@ -110,20 +153,17 @@ fn set_presentation(state: &QuickAccessState, next: WindowPresentation) -> Resul
         .model
         .lock()
         .map(|mut model| {
-            model.presentation = next;
-            model.quick_access_ready = false;
+            model.set_presentation(next);
         })
         .map_err(|_| lock_problem("presentation"))
 }
 
-fn mark_quick_access_ready(state: &QuickAccessState) -> Result<(), String> {
+fn restore_quick_access_ready(state: &QuickAccessState) -> Result<(), String> {
     state
         .model
         .lock()
         .map(|mut model| {
-            if model.presentation == WindowPresentation::QuickAccess {
-                model.quick_access_ready = true;
-            }
+            model.restore_quick_access_ready();
         })
         .map_err(|_| lock_problem("presentation"))
 }
@@ -202,6 +242,49 @@ fn execute_quick_access_show(window: &tauri::WebviewWindow) -> Result<(), String
     Ok(())
 }
 
+fn schedule_focus_settle(app: tauri::AppHandle, ticket: FocusTicket) {
+    tauri::async_runtime::spawn_blocking(move || {
+        std::thread::sleep(FOCUS_SETTLE_DELAY);
+        let dispatcher = app.clone();
+        let _ = dispatcher.run_on_main_thread(move || {
+            let Some(window) = app.get_webview_window("main") else {
+                return;
+            };
+            if window.is_focused().ok() != Some(true) {
+                return;
+            }
+            let state = app.state::<QuickAccessState>();
+            if let Ok(mut model) = state.model.lock() {
+                model.finish_focus_settle(ticket);
+            };
+        });
+    });
+}
+
+fn schedule_focus_loss(app: tauri::AppHandle, ticket: FocusTicket) {
+    tauri::async_runtime::spawn_blocking(move || {
+        std::thread::sleep(FOCUS_LOSS_DELAY);
+        let dispatcher = app.clone();
+        let _ = dispatcher.run_on_main_thread(move || {
+            let Some(window) = app.get_webview_window("main") else {
+                return;
+            };
+            if window.is_focused().ok() != Some(false) {
+                return;
+            }
+            let state = app.state::<QuickAccessState>();
+            let current = state
+                .model
+                .lock()
+                .map(|model| model.focus_loss_is_current(ticket))
+                .unwrap_or(false);
+            if current {
+                let _ = hide_quick_access_for(&app);
+            }
+        });
+    });
+}
+
 fn show_quick_access(app: &tauri::AppHandle) -> Result<WindowPresentation, String> {
     let state = app.state::<QuickAccessState>();
     let window = app
@@ -245,7 +328,7 @@ fn hide_quick_access_for(app: &tauri::AppHandle) -> Result<WindowPresentation, S
     set_presentation(&state, WindowPresentation::Ordinary)?;
     if let Err(error) = window.hide() {
         let _ = set_presentation(&state, WindowPresentation::QuickAccess);
-        let _ = mark_quick_access_ready(&state);
+        let _ = restore_quick_access_ready(&state);
         return Err(error.to_string());
     }
     let _ = set_move_to_active_space(&window, false);
@@ -326,18 +409,19 @@ pub fn show_workbench(app: tauri::AppHandle) -> WindowPresentation {
 pub fn window_focus_changed(window: &tauri::Window, focused: bool) {
     let app = window.app_handle();
     let state = app.state::<QuickAccessState>();
-    if focused {
-        let _ = mark_quick_access_ready(&state);
-        return;
-    }
-    let should_hide = state
-        .model
-        .lock()
-        .ok()
-        .and_then(|model| model.focus_lost_target())
-        .is_some();
-    if should_hide {
-        let _ = hide_quick_access_for(app);
+    let ticket = state.model.lock().ok().and_then(|mut model| {
+        if focused {
+            model.begin_focus_settle()
+        } else {
+            model.begin_focus_loss()
+        }
+    });
+    if let Some(ticket) = ticket {
+        if focused {
+            schedule_focus_settle(app.clone(), ticket);
+        } else {
+            schedule_focus_loss(app.clone(), ticket);
+        }
     }
 }
 
@@ -400,14 +484,28 @@ mod tests {
     #[test]
     fn focus_loss_hides_only_quick_access() {
         let mut model = QuickAccessModel::default();
-        assert_eq!(model.focus_lost_target(), None);
+        assert_eq!(model.begin_focus_loss(), None);
+        model.set_presentation(WindowPresentation::QuickAccess);
+        assert_eq!(model.begin_focus_loss(), None);
+        let focus = model.begin_focus_settle().unwrap();
+        assert!(model.finish_focus_settle(focus));
+        assert!(model.begin_focus_loss().is_some());
+    }
+
+    #[test]
+    fn transient_space_focus_events_cannot_arm_or_hide_quick_access() {
+        let mut model = QuickAccessModel::default();
         model.presentation = WindowPresentation::QuickAccess;
-        assert_eq!(model.focus_lost_target(), None);
-        model.quick_access_ready = true;
-        assert_eq!(
-            model.focus_lost_target(),
-            Some(WindowPresentation::Ordinary)
-        );
+
+        let transitional_focus = model.begin_focus_settle().unwrap();
+        assert_eq!(model.begin_focus_loss(), None);
+        assert!(!model.finish_focus_settle(transitional_focus));
+
+        let stable_focus = model.begin_focus_settle().unwrap();
+        assert!(model.finish_focus_settle(stable_focus));
+        let transient_loss = model.begin_focus_loss().unwrap();
+        assert!(model.begin_focus_settle().is_some());
+        assert!(!model.focus_loss_is_current(transient_loss));
     }
 
     #[test]
