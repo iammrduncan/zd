@@ -8,6 +8,28 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 pub const SUMMON_SHORTCUT: &str = "CmdOrCtrl+Shift+Space";
 const PRESENTATION_EVENT: &str = "window-presentation-changed";
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum QuickAccessShowStep {
+    Hide,
+    MoveToActiveSpace,
+    CentreOnPointerMonitor,
+    Unminimize,
+    Show,
+    Focus,
+}
+
+fn quick_access_show_steps() -> &'static [QuickAccessShowStep] {
+    use QuickAccessShowStep::*;
+    &[
+        Hide,
+        MoveToActiveSpace,
+        CentreOnPointerMonitor,
+        Unminimize,
+        Show,
+        Focus,
+    ]
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum WindowPresentation {
@@ -134,6 +156,52 @@ fn restore_ordinary_position(state: &QuickAccessState, window: &tauri::WebviewWi
     }
 }
 
+#[cfg(target_os = "macos")]
+fn set_move_to_active_space(window: &tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::{NSWindow, NSWindowCollectionBehavior};
+
+    let _main_thread = MainThreadMarker::new()
+        .ok_or_else(|| "quick-access Space changes require the main thread".to_string())?;
+    let raw_window = window.ns_window().map_err(|error| error.to_string())?;
+    if raw_window.is_null() {
+        return Err("the root workbench native window is unavailable".to_string());
+    }
+    // SAFETY: Tauri owns this non-null NSWindow for the WebviewWindow lifetime,
+    // and AppKit access above is restricted to the main thread.
+    let native_window = unsafe { &*raw_window.cast::<NSWindow>() };
+    let mut behavior = native_window.collectionBehavior();
+    behavior.remove(
+        NSWindowCollectionBehavior::CanJoinAllSpaces
+            | NSWindowCollectionBehavior::MoveToActiveSpace,
+    );
+    if enabled {
+        behavior.insert(NSWindowCollectionBehavior::MoveToActiveSpace);
+    }
+    native_window.setCollectionBehavior(behavior);
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn set_move_to_active_space(_window: &tauri::WebviewWindow, _enabled: bool) -> Result<(), String> {
+    Ok(())
+}
+
+fn execute_quick_access_show(window: &tauri::WebviewWindow) -> Result<(), String> {
+    use QuickAccessShowStep::*;
+    for step in quick_access_show_steps() {
+        match step {
+            Hide => window.hide().map_err(|error| error.to_string())?,
+            MoveToActiveSpace => set_move_to_active_space(window, true)?,
+            CentreOnPointerMonitor => centre_on_pointer_monitor(window),
+            Unminimize => window.unminimize().map_err(|error| error.to_string())?,
+            Show => window.show().map_err(|error| error.to_string())?,
+            Focus => window.set_focus().map_err(|error| error.to_string())?,
+        }
+    }
+    Ok(())
+}
+
 fn show_quick_access(app: &tauri::AppHandle) -> Result<WindowPresentation, String> {
     let state = app.state::<QuickAccessState>();
     let window = app
@@ -151,21 +219,16 @@ fn show_quick_access(app: &tauri::AppHandle) -> Result<WindowPresentation, Strin
     }
 
     set_presentation(&state, WindowPresentation::QuickAccess)?;
-    #[cfg(target_os = "macos")]
-    let _ = window.set_visible_on_all_workspaces(true);
-    centre_on_pointer_monitor(&window);
-    if let Err(error) = window
-        .unminimize()
-        .and_then(|_| window.show())
-        .and_then(|_| window.set_focus())
-    {
+    if let Err(error) = execute_quick_access_show(&window) {
         let _ = set_presentation(&state, WindowPresentation::Ordinary);
-        #[cfg(target_os = "macos")]
-        let _ = window.set_visible_on_all_workspaces(false);
+        let _ = set_move_to_active_space(&window, false);
         restore_ordinary_position(&state, &window);
-        return Err(error.to_string());
+        let _ = window
+            .unminimize()
+            .and_then(|_| window.show())
+            .and_then(|_| window.set_focus());
+        return Err(error);
     }
-    mark_quick_access_ready(&state)?;
     emit_presentation(app, WindowPresentation::QuickAccess);
     Ok(WindowPresentation::QuickAccess)
 }
@@ -185,8 +248,7 @@ fn hide_quick_access_for(app: &tauri::AppHandle) -> Result<WindowPresentation, S
         let _ = mark_quick_access_ready(&state);
         return Err(error.to_string());
     }
-    #[cfg(target_os = "macos")]
-    let _ = window.set_visible_on_all_workspaces(false);
+    let _ = set_move_to_active_space(&window, false);
     restore_ordinary_position(&state, &window);
     emit_presentation(app, WindowPresentation::Ordinary);
     Ok(WindowPresentation::Ordinary)
@@ -262,11 +324,12 @@ pub fn show_workbench(app: tauri::AppHandle) -> WindowPresentation {
 }
 
 pub fn window_focus_changed(window: &tauri::Window, focused: bool) {
-    if focused {
-        return;
-    }
     let app = window.app_handle();
     let state = app.state::<QuickAccessState>();
+    if focused {
+        let _ = mark_quick_access_ready(&state);
+        return;
+    }
     let should_hide = state
         .model
         .lock()
@@ -287,8 +350,7 @@ pub fn show_ordinary(app: &tauri::AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
-    #[cfg(target_os = "macos")]
-    let _ = window.set_visible_on_all_workspaces(false);
+    let _ = set_move_to_active_space(&window, false);
     restore_ordinary_position(&state, &window);
     let _ = window
         .unminimize()
@@ -299,7 +361,10 @@ pub fn show_ordinary(app: &tauri::AppHandle) {
 
 #[cfg(test)]
 mod tests {
-    use super::{QuickAccessModel, WindowPresentation, SUMMON_SHORTCUT};
+    use super::{
+        quick_access_show_steps, QuickAccessModel, QuickAccessShowStep, WindowPresentation,
+        SUMMON_SHORTCUT,
+    };
     use tauri_plugin_global_shortcut::Shortcut;
 
     #[test]
@@ -314,6 +379,22 @@ mod tests {
         assert_eq!(model.toggle_target(), WindowPresentation::QuickAccess);
         model.presentation = WindowPresentation::QuickAccess;
         assert_eq!(model.toggle_target(), WindowPresentation::Ordinary);
+    }
+
+    #[test]
+    fn quick_access_is_hidden_and_moved_before_its_one_visible_frame() {
+        use QuickAccessShowStep::*;
+        assert_eq!(
+            quick_access_show_steps(),
+            [
+                Hide,
+                MoveToActiveSpace,
+                CentreOnPointerMonitor,
+                Unminimize,
+                Show,
+                Focus,
+            ]
+        );
     }
 
     #[test]
