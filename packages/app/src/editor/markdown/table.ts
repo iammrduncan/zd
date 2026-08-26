@@ -1,8 +1,10 @@
+import { redo, undo } from "@codemirror/commands";
 import { syntaxTree } from "@codemirror/language";
 import {
   Prec,
   StateEffect,
   StateField,
+  Transaction,
   type EditorState,
   type Extension,
   type Range,
@@ -83,6 +85,17 @@ function trimmedCell(state: EditorState, from: number, to: number): EditableCell
     to: contentTo,
     source: state.doc.sliceString(contentFrom, contentTo),
   };
+}
+
+function focusTextEnd(element: HTMLElement): void {
+  element.focus();
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
 }
 
 /** Read editable cell ranges from parser-owned delimiters, including empty cells. */
@@ -187,6 +200,18 @@ class TableWidget extends WidgetType {
     element.dataset.tableCellFrom = String(cell.from);
     element.dataset.tableCellTo = String(cell.to);
 
+    element.addEventListener("focus", () => {
+      const tableElement = element.closest<HTMLTableElement>("table[data-table-from]");
+      const from = Number(tableElement?.dataset.tableFrom);
+      const currentTable = Number.isSafeInteger(from) ? tableModelAt(view.state, from) : null;
+      const currentCell = currentTable ? cellAt(currentTable, row, column) : null;
+      if (!currentCell) return;
+      view.dispatch({
+        selection: { anchor: currentCell.to },
+        annotations: Transaction.addToHistory.of(false),
+        userEvent: "select.table-cell",
+      });
+    });
     element.addEventListener("input", () => {
       const tableElement = element.closest<HTMLTableElement>("table[data-table-from]");
       const from = Number(tableElement?.dataset.tableFrom);
@@ -213,6 +238,28 @@ class TableWidget extends WidgetType {
       if (currentCell) element.replaceChildren(renderInlineMarkdown(currentCell.source));
     });
     element.addEventListener("keydown", (event) => {
+      if (event.key.toLowerCase() === "z" && (event.metaKey || event.ctrlKey) && !event.altKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        element.blur();
+        const changed = (event.shiftKey ? redo : undo)(view);
+        if (changed) {
+          queueMicrotask(() => {
+            const table = view.dom.querySelector<HTMLTableElement>(
+              `table[data-table-from="${view.state.doc.lineAt(view.state.selection.main.head).from}"]`,
+            );
+            const restored =
+              table?.querySelector<HTMLElement>(
+                `[data-table-row="${row}"][data-table-column="${column}"]`,
+              ) ??
+              view.dom.querySelector<HTMLElement>(
+                `[data-table-row="${row}"][data-table-column="${column}"]`,
+              );
+            if (restored) focusTextEnd(restored);
+          });
+        }
+        return;
+      }
       if (event.key.toLowerCase() === "a" && (event.metaKey || event.ctrlKey) && !event.altKey) {
         const tableElement = element.closest<HTMLTableElement>("table[data-table-from]");
         const from = Number(tableElement?.dataset.tableFrom);
@@ -250,6 +297,7 @@ class TableWidget extends WidgetType {
       for (const cell of table.querySelectorAll<HTMLElement>("[data-table-selected]")) {
         delete cell.dataset.tableSelected;
       }
+      delete view.dom.dataset.tableSelection;
     };
 
     const paint = (): void => {
@@ -273,12 +321,14 @@ class TableWidget extends WidgetType {
           delete cell.dataset.tableSelected;
         }
       });
+      view.dom.dataset.tableSelection = "true";
 
       view.dispatch({
         selection: { anchor: sourceAnchor, head: sourceHead },
         scrollIntoView: false,
         userEvent: "select.pointer",
       });
+      window.getSelection()?.removeAllRanges();
     };
 
     const cleanup = (): void => {
@@ -347,9 +397,9 @@ class TableWidget extends WidgetType {
     const clearOutside = (event: MouseEvent): void => {
       if (!(event.target instanceof Node) || !table.contains(event.target)) clear();
     };
-    view.dom.addEventListener("mousedown", clearOutside, true);
+    document.addEventListener("mousedown", clearOutside, true);
     this.stopCrossCellSelection = () =>
-      view.dom.removeEventListener("mousedown", clearOutside, true);
+      document.removeEventListener("mousedown", clearOutside, true);
   }
 
   toDOM(view: EditorView): HTMLElement {

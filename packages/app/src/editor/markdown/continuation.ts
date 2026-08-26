@@ -35,6 +35,9 @@ const ONLY_QUOTE_MARKERS = /^[\s>]*>[\s]*$/;
 /** A parser-confirmed list item whose line contains no user text. */
 const ONLY_EMPTY_LIST_ITEM = /^[\t ]*(?:[-+*]|\d{1,9}[.)])(?:[\t ]+\[[ xX]\])?[\t ]*$/;
 
+/** An unordered marker and the spacing before the item's visible content. */
+const UNORDERED_ITEM_PREFIX = /^[\t ]*[-+*][\t ]+(?:\[[ xX]\][\t ]+)?/u;
+
 /** A structural fence edit that is allowed to cross a protected delimiter boundary. */
 const fenceStructureEdit = Annotation.define<boolean>();
 
@@ -66,6 +69,37 @@ const leaveList: StateCommand = ({ state, dispatch }) => {
   dispatch(
     state.update({
       changes: { from: line.from, to: line.to, insert: "" },
+      selection: { anchor: line.from },
+      scrollIntoView: true,
+      userEvent: "input",
+    }),
+  );
+  return true;
+};
+
+/**
+ * A second Enter at the beginning of a split remainder leaves the list.
+ *
+ * Splitting `- before **after**` inside the emphasis correctly produces a new
+ * item with `**after**` after its marker. The caret is then at that item's text
+ * edge. CodeMirror's default action for another Enter inserts an empty item above
+ * the untouched remainder, so repeated Return piles up blank bullets while the
+ * text keeps moving down the page. At the text edge, the second press is the same
+ * explicit leave gesture as Enter on an empty marker: remove this marker and keep
+ * the remainder as prose.
+ */
+const leaveListAtContentStart: StateCommand = ({ state, dispatch }) => {
+  const range = state.selection.main;
+  if (!range.empty) return false;
+
+  const line = state.doc.lineAt(range.head);
+  const prefix = UNORDERED_ITEM_PREFIX.exec(line.text)?.[0] ?? null;
+  if (!prefix || range.head !== line.from + prefix.length) return false;
+  if (line.text.slice(prefix.length).trim() === "") return false;
+
+  dispatch(
+    state.update({
+      changes: { from: line.from, to: range.head, insert: "" },
       selection: { anchor: line.from },
       scrollIntoView: true,
       userEvent: "input",
@@ -321,10 +355,7 @@ const removeEmptyFence: StateCommand = ({ state, dispatch }) => {
   const nextBlank = next?.text.trim() === "";
   const from = previous ? (previousBlank ? previous.from : previous.to) : opening.from;
   const to = next ? (nextBlank ? next.to : next.from) : closing.to;
-  const insert =
-    previous && next
-      ? "\n".repeat(2 - Number(previousBlank) - Number(nextBlank))
-      : "";
+  const insert = previous && next ? "\n".repeat(2 - Number(previousBlank) - Number(nextBlank)) : "";
   dispatch(
     state.update({
       changes: { from, to, insert },
@@ -431,6 +462,7 @@ export function markdownStructure(): Extension {
     keymap.of([
       { key: "Enter", run: leaveFence },
       { key: "Enter", run: closeFence },
+      { key: "Enter", run: leaveListAtContentStart },
       { key: "Enter", run: leaveList },
       { key: "Enter", run: leaveBlockquote },
       { key: "Enter", run: continueListFromContinuation },

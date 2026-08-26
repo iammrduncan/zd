@@ -43,6 +43,7 @@ async function inlineCode(page: import("@playwright/test").Page) {
       paddingBlock: `${style.paddingTop} ${style.paddingBottom}`,
       paddingInline: style.paddingLeft,
       background: style.backgroundColor,
+      outline: style.boxShadow,
       proseFamily: lineStyle.fontFamily,
       text: run.textContent,
     };
@@ -57,6 +58,7 @@ test("an inline run takes the code face and a quiet plane", async ({ page }) => 
   expect(code!.family, "the run kept the prose family").not.toBe(code!.proseFamily);
   // §7.3 asks for `surface.code` sparingly — a plane, and no border or weight.
   expect(code!.background, "the run has no plane").not.toBe("rgba(0, 0, 0, 0)");
+  expect(code!.outline, "the code plane blends into the document canvas").not.toBe("none");
 });
 
 test("it shares the prose baseline and line rhythm", async ({ page }) => {

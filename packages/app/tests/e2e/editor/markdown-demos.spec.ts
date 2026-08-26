@@ -120,6 +120,9 @@ test("the lists demo distinguishes completed tasks and keeps quoted list notatio
   page,
 }, testInfo) => {
   await showDemo(page, DEMOS.lists);
+  await page.evaluate(() => {
+    if (window.zdEditor!.isFocusMode()) window.zdEditor!.toggleFocus();
+  });
   await capture(page, testInfo, "lists-and-quotes");
 
   const listHeights = await page
@@ -148,6 +151,18 @@ test("the lists demo distinguishes completed tasks and keeps quoted list notatio
   expect(taskColours.completed, "the completed marker is not decorated").not.toBeNull();
   expect(taskColours.open, "the open marker is not decorated").not.toBeNull();
   expect(taskColours.completed).not.toBe(taskColours.open);
+  const semanticTaskColours = await page.evaluate(() => {
+    const probe = document.createElement("span");
+    document.body.append(probe);
+    probe.style.color = "var(--state-added)";
+    const completed = getComputedStyle(probe).color;
+    probe.style.color = "var(--state-changed)";
+    const open = getComputedStyle(probe).color;
+    probe.remove();
+    return { completed, open };
+  });
+  expect(taskColours.completed).toBe(semanticTaskColours.completed);
+  expect(taskColours.open).toBe(semanticTaskColours.open);
 
   const combined = page.locator(".md-line-quote.md-line-item", { hasText: "A list can be nested" });
   const geometry = await combined.evaluate((line) => {

@@ -5,6 +5,7 @@ import { Decoration, EditorView, WidgetType, type DecorationSet } from "@codemir
 import { isRaw, rawModeChanged } from "../markdown/raw";
 import { renderMermaidDiagram } from "./render";
 import { mermaidFence } from "./source";
+import { openMermaidViewer } from "./viewer";
 
 import "./styles.css";
 
@@ -32,6 +33,13 @@ class MermaidWidget extends WidgetType {
     if (diagram) {
       figure.setAttribute("aria-label", diagram.getAttribute("aria-label") ?? "Mermaid diagram");
       figure.append(diagram);
+      const expand = document.createElement("button");
+      expand.type = "button";
+      expand.className = "md-mermaid-expand";
+      expand.setAttribute("aria-label", "Expand Mermaid diagram");
+      expand.textContent = "↗";
+      expand.addEventListener("click", () => openMermaidViewer(this.source));
+      figure.append(expand);
     } else {
       const source = document.createElement("pre");
       source.textContent = this.source;
@@ -41,7 +49,7 @@ class MermaidWidget extends WidgetType {
   }
 
   ignoreEvent(): boolean {
-    return false;
+    return true;
   }
 }
 
