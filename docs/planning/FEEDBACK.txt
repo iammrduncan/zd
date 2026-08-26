@@ -3,6 +3,18 @@
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 <=== New Feedback ===>
 <=== Feedback Addressed ===>
+dracula... I liked the yellow that was there for changed files... and for in progres items on feedback etc... was nice.
+markdown docs: be able to expand a mermaid diagram to full window, and zoom/pan on the diagram. use zoom/expand icon in top right of mermaid diagram on markdown file to expand it.
+markdown docs: return/enter on unordered list causes funkyness... ![Screenshot](../screenshots/screenshot-1787718456189921000.png)
+mardown docs: cmd+z, cmd+shift+z not doing undo, redo...
+markdown docs: completed tasks and uncompleted tasks should be highlighted on their []/[x] differently... ![Screenshot](../screenshots/screenshot-1787718579804394000.png)
+global hotkey: cmd+shift+space is better, but on virtual window switching calling it to foreground if not on that window etc is still a bit funky.
+Switch between the current thread and file should be cmd+b
+we should have a "global" terminal for each project... that can be brought up with cmd+j. It's not a thread, just a terminal. It can be split with cmd+d and unsplit with cmd+shift+d. It should be brought up from the bottom of the screen on the code part of the screen. This means if no agent thread/terminal thread is open then it comes up full width of code on bottom. If agent thread is open and code view is open (split view) then it comes up from bottom of the code side. If just agent thread is visible (non-split view) it comes up from bottom of agent thread.
+homebrew theme is off. its just all... green... no style to it at all... sadness...
+current light theme should just be called "light"...
+markdown doc: highlight sometimes overlap, double up, or stick around... ![Screenshot](../screenshots/screenshot-1787719095601388000.png)
+markdown doc: inline code has no visible difference: ![Screenshot](../screenshots/screenshot-1787719132504606000.png)
 global hotkey: when calling global hotkey it first shows up on screen somewhere then jumps to center of screen. every time. if i switch virtual windows and call it up it flickers there and disappears. I then have to call it back again for it to show up.
 take a look at dracula theme for zed.. it seems our theme is not quite there or accurate. Our current theme for dracula is interesting but its not dracula.
 I drug DESIGN.md to docs/planning. It moved and showed delete and new file correctly. However I drug it back and it then broke and completely deleted still. ![Screenshot](../screenshots/screenshot-1787705709632414000.png)
