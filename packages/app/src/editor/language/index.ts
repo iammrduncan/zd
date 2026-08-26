@@ -22,6 +22,7 @@ export interface LanguageRegistration {
   readonly extensions: readonly string[];
   readonly filenames: readonly string[];
   readonly markdown: boolean;
+  readonly supportsClipboardImages: boolean;
   readonly description: LanguageDescription | null;
 }
 
@@ -31,6 +32,7 @@ function code(
   extensions: readonly string[],
   support: LanguageSupport,
   filenames: readonly string[] = [],
+  capabilities: { readonly supportsClipboardImages?: boolean } = {},
 ): LanguageRegistration {
   return {
     id,
@@ -38,6 +40,7 @@ function code(
     extensions,
     filenames,
     markdown: false,
+    supportsClipboardImages: capabilities.supportsClipboardImages ?? false,
     description: LanguageDescription.of({ name: id, alias: [...extensions], support }),
   };
 }
@@ -56,6 +59,7 @@ export const LANGUAGE_REGISTRY: readonly LanguageRegistration[] = [
     extensions: ["md", "markdown"],
     filenames: [],
     markdown: true,
+    supportsClipboardImages: true,
     description: null,
   },
   code("rust", "Rust", ["rs"], rust()),
@@ -68,7 +72,9 @@ export const LANGUAGE_REGISTRY: readonly LanguageRegistration[] = [
   code("json", "JSON", ["json"], json(), [".eslintrc"]),
   code("zig", "Zig", ["zig"], zigLanguage()),
   code("todo", "Todo", [], todoLanguage(), ["todo.txt"]),
-  code("feedback", "Feedback", [], feedbackLanguage(), ["feedback.txt"]),
+  code("feedback", "Feedback", [], feedbackLanguage(), ["feedback.txt"], {
+    supportsClipboardImages: true,
+  }),
 ];
 
 export interface DocumentLanguage {
@@ -76,6 +82,7 @@ export interface DocumentLanguage {
   readonly label: string;
   readonly markdown: boolean;
   readonly diagram: boolean;
+  readonly supportsClipboardImages: boolean;
   readonly support: Extension | null;
 }
 
@@ -84,6 +91,7 @@ export const MARKDOWN_DOCUMENT: DocumentLanguage = {
   label: "Markdown",
   markdown: true,
   diagram: false,
+  supportsClipboardImages: true,
   support: null,
 };
 
@@ -92,6 +100,7 @@ export const MERMAID_DOCUMENT: DocumentLanguage = {
   label: "Mermaid",
   markdown: false,
   diagram: true,
+  supportsClipboardImages: false,
   support: null,
 };
 
@@ -100,6 +109,7 @@ export const PLAIN_TEXT_DOCUMENT: DocumentLanguage = {
   label: "Plain Text",
   markdown: false,
   diagram: false,
+  supportsClipboardImages: true,
   support: null,
 };
 
@@ -147,6 +157,7 @@ export function languageFor(path: string): DocumentLanguage {
     label: registration.label,
     markdown: false,
     diagram: false,
+    supportsClipboardImages: registration.supportsClipboardImages,
     support: registration.description?.support
       ? [registration.description.support, codeHighlighting()]
       : null,

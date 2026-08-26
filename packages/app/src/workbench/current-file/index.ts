@@ -155,8 +155,7 @@ export async function mountCurrentFile(
       worktreeId: resource.worktreeId,
       logicalPath: resource.relativePath,
     };
-    const acceptsPastedImages =
-      buffer.editable && (buffer.language.markdown || buffer.language.id === "plain-text");
+    const acceptsPastedImages = buffer.editable && buffer.language.supportsClipboardImages;
     const readingPreferences = workbenchSettingsPreferences().reading;
     mounted = mountEditorBuffer(content, buffer, {
       wrap: readingPreferences.wordWrap,

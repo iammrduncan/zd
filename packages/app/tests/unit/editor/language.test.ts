@@ -141,6 +141,7 @@ describe("the shared highlighting inventory", () => {
 
     expect(feedback.id).toBe("feedback");
     expect(feedback.support).not.toBeNull();
+    expect(feedback.supportsClipboardImages).toBe(true);
   });
 
   it("leaves every language outside the inventory as honest monospace", () => {
