@@ -27,6 +27,14 @@ const DEFINED = new Set(
 
 describe("design token references", () => {
   const files = cssFiles(SRC);
+  // Component properties may cross stylesheet boundaries because the browser
+  // resolves one cascade. Keep them out of tokens.css, but require a concrete
+  // CSS default somewhere in that cascade even when JavaScript overrides it.
+  const DECLARED = new Set(
+    files.flatMap((file) =>
+      [...readFileSync(file, "utf8").matchAll(/^\s*(--[\w-]+):/gm)].map((match) => match[1]!),
+    ),
+  );
 
   it("finds the stylesheets to check", () => {
     expect(files.length).toBeGreaterThan(0);
@@ -36,15 +44,8 @@ describe("design token references", () => {
     const source = readFileSync(join(SRC, name), "utf8");
     const referenced = [...source.matchAll(/var\(\s*(--[\w-]+)/g)].map((m) => m[1]!);
 
-    // A stylesheet may also define custom properties of its own — a local
-    // distance built out of tokens, or a value an element carries per instance.
-    // Those are not suite tokens and must not be in tokens.css: putting them
-    // there would claim the whole suite owns a number one file uses. They are
-    // still not dangling, because the file that reads them declares them.
-    const local = new Set([...source.matchAll(/^\s*(--[\w-]+):/gm)].map((m) => m[1]!));
-
     const dangling = [...new Set(referenced)].filter(
-      (token) => !DEFINED.has(token) && !local.has(token),
+      (token) => !DEFINED.has(token) && !DECLARED.has(token),
     );
     expect(dangling, `undefined tokens referenced in ${name}`).toEqual([]);
   });

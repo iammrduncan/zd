@@ -54,8 +54,10 @@
 }
 
 .zd-project-terminal-group {
+  --project-terminal-panes: 1;
+
   display: grid;
-  grid-template-columns: repeat(var(--project-terminal-panes, 1), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--project-terminal-panes), minmax(0, 1fr));
   block-size: 100%;
   min-inline-size: 0;
 }
