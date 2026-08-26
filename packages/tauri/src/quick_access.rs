@@ -494,8 +494,10 @@ mod tests {
 
     #[test]
     fn transient_space_focus_events_cannot_arm_or_hide_quick_access() {
-        let mut model = QuickAccessModel::default();
-        model.presentation = WindowPresentation::QuickAccess;
+        let mut model = QuickAccessModel {
+            presentation: WindowPresentation::QuickAccess,
+            ..QuickAccessModel::default()
+        };
 
         let transitional_focus = model.begin_focus_settle().unwrap();
         assert_eq!(model.begin_focus_loss(), None);
