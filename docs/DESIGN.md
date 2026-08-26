@@ -318,6 +318,11 @@ Quick-access behavior reuses that window and state:
 Shortcut registration conflict produces one local, actionable notice. Ordinary launch remains
 available. Platform-specific panel mechanics stay below the shared window contract.
 
+The native shell resolves display and Space placement while the window is hidden, then presents one
+positioned frame. On macOS, quick access uses `MoveToActiveSpace`; it does not make the workbench an
+all-Spaces window. Focus-loss dismissal becomes active only after the native window reports focus,
+so transitional focus events during a Space move cannot hide the newly summoned window.
+
 ## 9. Workbench composition
 
 ### Persistent regions

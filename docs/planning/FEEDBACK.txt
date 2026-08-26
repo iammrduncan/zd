@@ -2,8 +2,8 @@
 # Rule: If item needs additional comment or instruction or input please put it in docs/planning/FEEDBACK_INFO.txt
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 <=== New Feedback ===>
-global hotkey: when calling global hotkey it first shows up on screen somewhere then jumps to center of screen. every time. if i switch virtual windows and call it up it flickers there and disappears. I then have to call it back again for it to show up.
 <=== Feedback Addressed ===>
+global hotkey: when calling global hotkey it first shows up on screen somewhere then jumps to center of screen. every time. if i switch virtual windows and call it up it flickers there and disappears. I then have to call it back again for it to show up.
 take a look at dracula theme for zed.. it seems our theme is not quite there or accurate. Our current theme for dracula is interesting but its not dracula.
 I drug DESIGN.md to docs/planning. It moved and showed delete and new file correctly. However I drug it back and it then broke and completely deleted still. ![Screenshot](../screenshots/screenshot-1787705709632414000.png)
 file tree: when dragging a file to a folder it should highlight the folder it will drag into.

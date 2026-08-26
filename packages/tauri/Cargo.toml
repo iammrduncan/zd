@@ -44,7 +44,10 @@ objc2-foundation = { version = "0.3.2", default-features = false, features = [
   "NSSet",
   "NSString",
 ] }
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSSound"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = [
+  "NSSound",
+  "NSWindow",
+] }
 objc2-user-notifications = { version = "0.3.2", default-features = false, features = [
   "std",
   "block2",
