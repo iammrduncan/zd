@@ -90,6 +90,9 @@ describe("the shared highlighting inventory", () => {
       "html",
       "css",
       "json",
+      "zig",
+      "todo",
+      "feedback",
     ]);
   });
 
@@ -117,8 +120,31 @@ describe("the shared highlighting inventory", () => {
     }
   });
 
+  it("gives Zig source its own syntax grammar", () => {
+    const language = languageFor("src/main.zig");
+
+    expect(language.id).toBe("zig");
+    expect(language.label).toBe("Zig");
+    expect(language.support).not.toBeNull();
+  });
+
+  it("recognises todo.txt without treating every text file as a task list", () => {
+    const todo = languageFor("notes/todo.txt");
+
+    expect(todo.id).toBe("todo");
+    expect(todo.support).not.toBeNull();
+    expect(languageFor("notes.txt").support).toBeNull();
+  });
+
+  it("recognises FEEDBACK.txt as a section-aware document", () => {
+    const feedback = languageFor("docs/planning/FEEDBACK.txt");
+
+    expect(feedback.id).toBe("feedback");
+    expect(feedback.support).not.toBeNull();
+  });
+
   it("leaves every language outside the inventory as honest monospace", () => {
-    for (const path of ["data.yaml", "config.toml", "run.py"]) {
+    for (const path of ["data.yaml", "config.toml", "run.py", "notes.txt"]) {
       expect(languageFor(path).support, `${path} received a grammar`).toBeNull();
     }
   });

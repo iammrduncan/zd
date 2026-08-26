@@ -103,6 +103,19 @@
   color: var(--syntax-punctuation);
 }
 
+/* FEEDBACK.txt owns workflow state, not a private palette. */
+.md-editor .zd-feedback-new {
+  color: var(--state-added);
+}
+
+.md-editor .zd-feedback-progress {
+  color: var(--state-changed);
+}
+
+.md-editor .zd-feedback-addressed {
+  color: var(--text-muted);
+}
+
 /*
  * Dimmed, and still seven categories. §4.4 moves context toward its surface
  * rather than flattening it, and §5.2 wants syntax "distinguishable at the warmest

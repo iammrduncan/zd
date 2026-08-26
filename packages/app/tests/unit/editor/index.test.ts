@@ -7,6 +7,7 @@ import {
   createEditor,
   editorBufferFromRead,
   mountEditorBuffer,
+  languageFor,
   type EditorOptions,
 } from "@/editor";
 
@@ -105,10 +106,64 @@ describe("the editing surface", () => {
 
     host
       .querySelector<HTMLElement>(".md-link-label")!
-      .dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true }),
-      );
+      .dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true }));
     expect(activated).toEqual(["../DESIGN.md"]);
+    editor.destroy();
+  });
+
+  it("paints Zig syntax through the shared semantic roles", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const editor = createEditor(
+      host,
+      'const std = @import("std");\nfn main() void { // entry\n  const retries: u8 = 3;\n}',
+      { language: languageFor("src/main.zig") },
+    );
+
+    for (const role of ["keyword", "function", "string", "type", "comment", "number"]) {
+      expect(host.querySelector(`.md-syn-${role}`), `${role} stayed uncoloured`).not.toBeNull();
+    }
+    editor.destroy();
+  });
+
+  it("distinguishes todo priorities, dates, projects, contexts, and completed tasks", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const editor = createEditor(
+      host,
+      "(A) 2026-08-25 Ship +zd @desk\n(B) Review docs\n(C) Ask Joseph\nx 2026-08-24 Done +zd",
+      { language: languageFor("todo.txt") },
+    );
+
+    expect(host.querySelectorAll(".md-syn-keyword")).toHaveLength(1);
+    expect(host.querySelectorAll(".md-syn-type").length).toBeGreaterThanOrEqual(2);
+    expect(host.querySelectorAll(".md-syn-function").length).toBeGreaterThanOrEqual(2);
+    expect(host.querySelectorAll(".md-syn-number")).toHaveLength(1);
+    expect(host.querySelector(".md-syn-comment")?.textContent).toContain("Done");
+    editor.destroy();
+  });
+
+  it("colours open, active, and addressed FEEDBACK.txt lines by workflow state", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const editor = createEditor(
+      host,
+      [
+        "<=== New Feedback ===>",
+        "open item",
+        "\\active item",
+        "<=== Feedback Addressed ===>",
+        "finished item",
+      ].join("\n"),
+      { language: languageFor("docs/planning/FEEDBACK.txt") },
+    );
+
+    expect(host.querySelector(".zd-feedback-new")?.textContent).toContain("New Feedback");
+    expect(host.querySelector(".zd-feedback-progress")?.textContent).toBe("\\active item");
+    expect(host.querySelector(".zd-feedback-addressed")?.textContent).toContain(
+      "Feedback Addressed",
+    );
+    expect(host.querySelectorAll(".zd-feedback-addressed")).toHaveLength(2);
     editor.destroy();
   });
 });

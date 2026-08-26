@@ -1,8 +1,13 @@
 # Rule: Work on each feedback item until resolved. Once resolved move it to below the Feedback Addressed Line. Mark it with "\" while feedback is in progress. One line per feedback item in this file.
 # Rule: If item needs additional comment or instruction or input please put it in docs/planning/FEEDBACK_INFO.txt
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
-=== New Feedback ===
-=== Feedback Addressed ===
+<=== New Feedback ===>
+some people will want a true codemode for markdown. add a toggle for that in settings.
+I drug DESIGN.md to docs/planning. It moved and showed delete and new file correctly. However I drug it back and it then broke and completely deleted still. ![Screenshot](../screenshots/screenshot-1787705709632414000.png)
+file tree: when dragging a file to a folder it should highlight the folder it will drag into.
+take a look at dracula theme for zed.. it seems our theme is not quite there or accurate. Our current theme for dracula is interesting but its not dracula.
+global hotkey: when calling global hotkey it first shows up on screen somewhere then jumps to center of screen. every time. if i switch virtual windows and call it up it flickers there and disappears. I then have to call it back again for it to show up.
+<=== Feedback Addressed ===>
 markdown doc: more vertical paddint at top and bottom of code fence... ![Screenshot](../screenshots/screenshot-1787632760328716000.png)
 markdown doc: code fence boundry editing still not working... ![Screenshot](../screenshots/screenshot-1787632813868661000.png) How can you test and confirm this reliably?
 markdonw doc: unless you are in raw edit mode you shouldn't be able to delete a code fences ``` ... unless the code fence is compeltely empty and you back space out of it.
@@ -125,3 +130,6 @@ thread pane and file/changes panes are not resizeable
 I want to be able to paste a screenshot from clipboard inline to a file. When done it saves the screenshot to the project under a docs/screenshots/ directory and inserts link to the screenshot to the file. This will allow me to edit feedback txt or md files and paste screenshots inline to the feedback for you to inspect later.
 terminal font is way too big, terminal font should be a monospaced font by default like fira code or ibm mono.
 code editor that isn't markdown should be just like any ide with line numbers and syntax highlighting and open at top of the viewport etc...
+.zig files have no color coding on them, syntax highlighting.
+todo.txt files should have some syntax highlighting on them. Colors for different priorities, contrasting colors for tags/@'s/dates/etc. (I have a future idea for that)
+for FEEDBACK.txt files color everything in the <=== New Feedback ===> block green (in dracula the dracula green for now - same as in dracula the new file green on filetree.) or appropriate color token from other themes. color everything in <=== Feedback Addressed ===> as muted/greyed out. color any inprogres item as yellow (in dracula the dracula yellow for now - same as in dracula the changed file yellow in file tree)
