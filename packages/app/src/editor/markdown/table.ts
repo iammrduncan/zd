@@ -204,10 +204,9 @@ class TableWidget extends WidgetType {
       const tableElement = element.closest<HTMLTableElement>("table[data-table-from]");
       const from = Number(tableElement?.dataset.tableFrom);
       const currentTable = Number.isSafeInteger(from) ? tableModelAt(view.state, from) : null;
-      const currentCell = currentTable ? cellAt(currentTable, row, column) : null;
-      if (!currentCell) return;
+      if (!currentTable || !cellAt(currentTable, row, column)) return;
       view.dispatch({
-        selection: { anchor: currentCell.to },
+        selection: { anchor: currentTable.from },
         annotations: Transaction.addToHistory.of(false),
         userEvent: "select.table-cell",
       });
@@ -223,11 +222,24 @@ class TableWidget extends WidgetType {
       const insert = editableText(element.textContent ?? "");
       if (insert === currentCell.source) return;
       const height = tableElement?.getBoundingClientRect().height ?? -1;
+      const surface = view.dom.closest<HTMLElement>(".md-surface");
+      const scrollTop = surface?.scrollTop;
       view.dispatch({
         changes: { from: currentCell.from, to: currentCell.to, insert },
         effects: height > 0 ? measuredTableHeight.of({ from: currentTable.from, height }) : [],
         userEvent: "input.table",
       });
+      if (surface && scrollTop !== undefined) {
+        // CodeMirror may correct an external scroll anchor after replacing the
+        // table's height-map node. Restore the product-owned surface in the same
+        // measure phase so the intermediate position never reaches paint.
+        view.requestMeasure({
+          read: () => undefined,
+          write: () => {
+            surface.scrollTop = scrollTop;
+          },
+        });
+      }
     });
     element.addEventListener("blur", () => {
       const tableElement = element.closest<HTMLTableElement>("table[data-table-from]");
