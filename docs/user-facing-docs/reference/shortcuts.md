@@ -40,7 +40,7 @@ the registered default. The global summon shortcut remains managed by the operat
 and `[h]` opens the live Shortcut Reference.
 
 To change the theme, open the Command List, type `theme`, and choose **Theme: Follow System**,
-**Theme: Current Light**, **Theme: Dark**, **Theme: Dracula**, **Theme: Homebrew**, or a validated
+**Theme: Light**, **Theme: Dark**, **Theme: Dracula**, **Theme: Homebrew**, or a validated
 installed theme. The selection applies immediately and is restored the next time zd starts. Use
 [Customize themes](../how-to/customize-themes.md) to apply different palettes to individual
 workbench surfaces.

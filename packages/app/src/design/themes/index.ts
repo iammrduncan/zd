@@ -196,7 +196,7 @@ export class ThemeController {
 
   setSelection(selected: string, lastValid = this.#snapshot.lastValid): void {
     const currentLight = this.#catalog.themes.get("current-light");
-    if (!currentLight) throw new Error("Current Light is unavailable");
+    if (!currentLight) throw new Error("Light is unavailable");
     const fallback = this.#catalog.themes.get(lastValid) ?? currentLight;
     let resolved: ThemeDefinition | undefined;
 

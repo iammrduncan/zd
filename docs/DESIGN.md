@@ -157,18 +157,18 @@ The configuration limit is **65,536 bytes (64 KiB) per file**. Discovery reads o
 direct-child `*.theme.config` files; symbolic links and nested paths are rejected.
 
 One invalid theme produces one specific local notice and falls back to the last valid theme or the
-current light theme. It never prevents launch. A workbench theme change updates every inheriting
+Light theme. It never prevents launch. A workbench theme change updates every inheriting
 region without restarting processes, clearing editor history, or moving the semantic viewport
 anchor.
 
 The application ships four built-ins through this same loader:
 
-1. **Current Light**, the established warm `zd` editor treatment;
+1. **Light**, the established warm `zd` editor treatment;
 2. **Dark**, the same hierarchy on a near-charcoal plane; and
 3. **Dracula**, the opaque Dracula Solid palette published for Zed; and
 4. **Homebrew**, the black and neon-green identity of the macOS Terminal Homebrew profile.
 
-System appearance resolves to Current Light or Dark. An explicit choice ignores later operating
+System appearance resolves to Light or Dark. An explicit choice ignores later operating
 system changes. Warmth remains a separate manual preference and applies to every resolved colour.
 
 Settings owns optional palette overrides for Threads, the Projects panel, Code, Markdown, the File
@@ -181,29 +181,29 @@ colours in place; it does not restart or clear the process.
 
 ### Core palettes
 
-| Role | Current Light | Dark | Dracula | Homebrew |
+| Role | Light | Dark | Dracula | Homebrew |
 | --- | --- | --- | --- | --- |
 | `surface.canvas` | `#FAFAF7` | `#191A19` | `#282A36` | `#000000` |
-| `surface.sidebar` | `#F3F3EF` | `#20211F` | `#0A080C` | `#001100` |
-| `surface.transient` | `#F7F7F3` | `#222320` | `#1E1925` | `#001800` |
+| `surface.sidebar` | `#F3F3EF` | `#20211F` | `#0A080C` | `#111411` |
+| `surface.transient` | `#F7F7F3` | `#222320` | `#1E1925` | `#171B17` |
 | `surface.selection` | `#E7E8E2` | `#30322E` | `#65547D` | `#0C2EEE` |
-| `surface.code` | `#F0F1EC` | `#242622` | `#242631` | `#000800` |
-| `surface.diff-added` | `#E7EFE5` | `#26352A` | `#222E1D` | `#003D00` |
-| `surface.diff-deleted` | `#F2E7E5` | `#382827` | `#301B1B` | `#2B0A0A` |
-| `text.primary` | `#242522` | `#E5E2D9` | `#F8F8F2` | `#28FE14` |
-| `text.secondary` | `#5F625C` | `#B4B1A9` | `#C6C6C2` | `#20D912` |
-| `text.muted` | `#4A4E48` | `#B4B5AE` | `#A186C7` | `#6FA96A` |
-| `text.link` | `#284C5B` | `#A8CCD8` | `#8BE9FD` | `#54FF43` |
-| `line.quiet` | `#DCDDD7` | `#353733` | `#3C324B` | `#125C0D` |
+| `surface.code` | `#F0F1EC` | `#242622` | `#242631` | `#070907` |
+| `surface.diff-added` | `#E7EFE5` | `#26352A` | `#222E1D` | `#102710` |
+| `surface.diff-deleted` | `#F2E7E5` | `#382827` | `#301B1B` | `#2B1111` |
+| `text.primary` | `#242522` | `#E5E2D9` | `#F8F8F2` | `#D8DDD8` |
+| `text.secondary` | `#5F625C` | `#B4B1A9` | `#C6C6C2` | `#B8C0B8` |
+| `text.muted` | `#4A4E48` | `#B4B5AE` | `#A186C7` | `#858D85` |
+| `text.link` | `#284C5B` | `#A8CCD8` | `#8BE9FD` | `#5FFFFF` |
+| `line.quiet` | `#DCDDD7` | `#353733` | `#3C324B` | `#303730` |
 | `line.focus` | `#506F78` | `#86A9B2` | `#C9A8F9` | `#38FE27` |
 | `state.added` | `#2D5338` | `#A6CFB1` | `#73FB95` | `#28FE14` |
-| `state.changed` | `#85682C` | `#D1B36C` | `#A2EDFD` | `#FFFF5F` |
+| `state.changed` | `#85682C` | `#D1B36C` | `#F1FA8C` | `#FFFF5F` |
 | `state.deleted` | `#8A4D4A` | `#D99993` | `#FF5555` | `#FF5F5F` |
-| `state.ignored` | `#9B9D97` | `#777A73` | `#65547D` | `#6FA96A` |
+| `state.ignored` | `#9B9D97` | `#777A73` | `#65547D` | `#858D85` |
 | `state.error` | `#854943` | `#DB938B` | `#E67373` | `#FF5F5F` |
 | `state.waiting` | `#506F78` | `#86A9B2` | `#73ECE5` | `#5FFFFF` |
 | `state.busy` | `#A66A18` | `#D7A252` | `#FFB86C` | `#FFFF5F` |
-| `state.idle` | `#9B9D97` | `#777A73` | `#A186C7` | `#6FA96A` |
+| `state.idle` | `#9B9D97` | `#777A73` | `#A186C7` | `#858D85` |
 
 These values are theme inputs. The renderer measures final output after warmth and Focus derivation.
 Body content must remain within the contrast policy. Interactive text, focus, and status meet WCAG
@@ -214,6 +214,10 @@ The Dracula inputs map the official
 `zd` uses opaque window surfaces. The mapping keeps the upstream UI hierarchy and seven syntax
 roles while fitting them into this application's smaller semantic role set. The bundled MIT notice
 covers this derived built-in.
+
+The Homebrew mapping keeps the profile's black background, blue selection, and neon-green cursor
+identity. Green is an accent for focus, additions, and syntax functions; neutral greys carry
+application prose and chrome so the theme preserves semantic hierarchy.
 
 ### Git and lifecycle state
 
@@ -798,7 +802,7 @@ editing, Find/Replace, saving, Git inspection, settings, and dismissal.
 - Focus Mode has an obvious off state and never hides source content.
 
 Final review covers 96 dpi 1×, high-density output, 125%, 150%, and 175% fractional scaling,
-keyboard-only operation, screen-reader names/state, Current Light, Dark, Dracula, Homebrew, and the
+keyboard-only operation, screen-reader names/state, Light, Dark, Dracula, Homebrew, and the
 warmest setting.
 
 ## 21. Performance is part of the aesthetic
