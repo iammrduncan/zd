@@ -114,17 +114,17 @@ black paired directly with pure white is rejected.
 
 | ID | Display name | Appearance |
 | --- | --- | --- |
-| `current-light` | Current Light | light |
+| `current-light` | Light | light |
 | `dark` | Dark | dark |
 | `dracula` | Dracula | dark |
 | `homebrew` | Homebrew | dark |
 
-The Homebrew theme matches the defining background, text, selection, and cursor colours of the
-macOS Terminal Homebrew profile. The Dracula built-in includes the Dracula Theme MIT license
-notice.
+The Homebrew theme carries the macOS Terminal profile's black, blue, and neon-green identity into
+semantic application roles. Neutral text and chrome keep the interface readable. The Dracula
+built-in includes the Dracula Theme MIT license notice.
 
 ## Validation results
 
 One invalid theme produces one local notice. Other custom themes and all built-ins remain
-available. An unavailable global selection falls back to the last valid theme, then Current Light.
+available. An unavailable global selection falls back to the last valid theme, then Light.
 An unavailable surface override returns to workbench inheritance.

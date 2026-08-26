@@ -7,12 +7,12 @@ reading or working surface helps you.
 ## Change the workbench theme
 
 1. Press `Cmd+,` on macOS or `Ctrl+,` elsewhere to open **Settings**.
-2. Under **Appearance**, choose **Follow System**, **Current Light**, **Dark**, **Dracula**,
+2. Under **Appearance**, choose **Follow System**, **Light**, **Dark**, **Dracula**,
    **Homebrew**, or an installed local theme in the **Theme** row.
 3. Close Settings.
 
 The change applies immediately and remains selected when you reopen `zd`. **Follow System** uses
-Current Light or Dark when the operating-system appearance changes.
+Light or Dark when the operating-system appearance changes.
 
 You can also press `Cmd+Shift+P` on macOS or `Ctrl+Shift+P` elsewhere, type `theme`, and choose a
 theme from the Command List.
@@ -60,5 +60,5 @@ To update a theme, edit the same `.theme.config` file and reopen `zd`. Keep the 
 want existing selections to keep the same theme identity.
 
 To remove a theme, delete its file and reopen `zd`. If it was selected, `zd` uses the last available
-theme or Current Light and shows a local notice. Any surface override that refers to the removed
+theme or Light and shows a local notice. Any surface override that refers to the removed
 theme returns to the workbench theme.

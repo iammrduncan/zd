@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-// System resolves to Current Light or Dark rather than being a third appearance.
+// System resolves to Light or Dark rather than being a third appearance.
 // Explicit themes are applied through the same loader used during workbench boot.
 
 const CANVAS = { light: "rgb(250, 250, 247)", dark: "rgb(25, 26, 25)" };
@@ -84,12 +84,12 @@ test("Dracula replaces the complete workbench palette without remounting", async
   await expect(workbench).toHaveAttribute("data-theme-probe", "same-node");
 });
 
-test("Homebrew uses the macOS Terminal profile foreground and background", async ({ page }) => {
+test("Homebrew keeps its terminal accents on neutral application text", async ({ page }) => {
   await page.goto("/");
 
   expect(await paint(page, "homebrew")).toEqual({
     background: "rgb(0, 0, 0)",
-    text: "rgb(40, 254, 20)",
+    text: "rgb(216, 221, 216)",
   });
 });
 

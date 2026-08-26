@@ -36,6 +36,12 @@ describe("validated theme configuration", () => {
       "dark",
       "dark",
     ]);
+    expect(BUILT_IN_THEMES.map(({ config }) => config.name)).toEqual([
+      "Light",
+      "Dark",
+      "Dracula",
+      "Homebrew",
+    ]);
 
     for (const theme of BUILT_IN_THEMES) {
       expect(parseThemeConfig(theme.source, theme.fileName)).toEqual({
@@ -45,13 +51,16 @@ describe("validated theme configuration", () => {
     }
   });
 
-  it("matches the defining colours of the macOS Terminal Homebrew profile", () => {
+  it("adapts the macOS Terminal Homebrew identity to neutral application chrome", () => {
     const homebrew = BUILT_IN_THEMES.find(({ id }) => id === "homebrew")!;
 
     expect(homebrew.config.colours["surface.canvas"]).toBe("#000000");
-    expect(homebrew.config.colours["text.primary"]).toBe("#28fe14");
+    expect(homebrew.config.colours["surface.sidebar"]).toBe("#111411");
+    expect(homebrew.config.colours["text.primary"]).toBe("#d8ddd8");
     expect(homebrew.config.colours["surface.selection"]).toBe("#0c2eee");
     expect(homebrew.config.colours["line.focus"]).toBe("#38fe27");
+    expect(homebrew.config.colours["state.added"]).toBe("#28fe14");
+    expect(homebrew.config.syntax.function).toBe("#28fe14");
   });
 
   it("matches the opaque Dracula Solid palette published for Zed", () => {
@@ -67,7 +76,7 @@ describe("validated theme configuration", () => {
       "line.quiet": "#3c324b",
       "line.focus": "#c9a8f9",
       "state.added": "#73fb95",
-      "state.changed": "#a2edfd",
+      "state.changed": "#f1fa8c",
     });
     expect(dracula.config.syntax).toEqual({
       keyword: "#ff79c6",
@@ -178,7 +187,7 @@ describe("validated theme configuration", () => {
     ]);
   });
 
-  it("falls back to the last valid theme, then Current Light", () => {
+  it("falls back to the last valid theme, then Light", () => {
     const root = document.createElement("div");
     const catalog = loadThemeCatalog([]);
     const notice = vi.fn();
