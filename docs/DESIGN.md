@@ -165,7 +165,7 @@ The application ships four built-ins through this same loader:
 
 1. **Current Light**, the established warm `zd` editor treatment;
 2. **Dark**, the same hierarchy on a near-charcoal plane; and
-3. **Dracula**, a purple-charcoal palette with restrained Dracula syntax colours; and
+3. **Dracula**, the opaque Dracula Solid palette published for Zed; and
 4. **Homebrew**, the black and neon-green identity of the macOS Terminal Homebrew profile.
 
 System appearance resolves to Current Light or Dark. An explicit choice ignores later operating
@@ -184,30 +184,36 @@ colours in place; it does not restart or clear the process.
 | Role | Current Light | Dark | Dracula | Homebrew |
 | --- | --- | --- | --- | --- |
 | `surface.canvas` | `#FAFAF7` | `#191A19` | `#282A36` | `#000000` |
-| `surface.sidebar` | `#F3F3EF` | `#20211F` | `#21222C` | `#001100` |
-| `surface.transient` | `#F7F7F3` | `#222320` | `#30323F` | `#001800` |
-| `surface.selection` | `#E7E8E2` | `#30322E` | `#44475A` | `#0C2EEE` |
-| `surface.code` | `#F0F1EC` | `#242622` | `#22232E` | `#000800` |
-| `surface.diff-added` | `#E7EFE5` | `#26352A` | `#31443A` | `#003D00` |
-| `surface.diff-deleted` | `#F2E7E5` | `#382827` | `#493039` | `#2B0A0A` |
+| `surface.sidebar` | `#F3F3EF` | `#20211F` | `#0A080C` | `#001100` |
+| `surface.transient` | `#F7F7F3` | `#222320` | `#1E1925` | `#001800` |
+| `surface.selection` | `#E7E8E2` | `#30322E` | `#65547D` | `#0C2EEE` |
+| `surface.code` | `#F0F1EC` | `#242622` | `#242631` | `#000800` |
+| `surface.diff-added` | `#E7EFE5` | `#26352A` | `#222E1D` | `#003D00` |
+| `surface.diff-deleted` | `#F2E7E5` | `#382827` | `#301B1B` | `#2B0A0A` |
 | `text.primary` | `#242522` | `#E5E2D9` | `#F8F8F2` | `#28FE14` |
-| `text.secondary` | `#5F625C` | `#B4B1A9` | `#C5C8D6` | `#20D912` |
-| `text.muted` | `#4A4E48` | `#B4B5AE` | `#8B8FA3` | `#6FA96A` |
+| `text.secondary` | `#5F625C` | `#B4B1A9` | `#C6C6C2` | `#20D912` |
+| `text.muted` | `#4A4E48` | `#B4B5AE` | `#A186C7` | `#6FA96A` |
 | `text.link` | `#284C5B` | `#A8CCD8` | `#8BE9FD` | `#54FF43` |
-| `line.quiet` | `#DCDDD7` | `#353733` | `#44475A` | `#125C0D` |
-| `line.focus` | `#506F78` | `#86A9B2` | `#8BE9FD` | `#38FE27` |
-| `state.added` | `#2D5338` | `#A6CFB1` | `#50FA7B` | `#28FE14` |
-| `state.changed` | `#85682C` | `#D1B36C` | `#F1FA8C` | `#FFFF5F` |
+| `line.quiet` | `#DCDDD7` | `#353733` | `#3C324B` | `#125C0D` |
+| `line.focus` | `#506F78` | `#86A9B2` | `#C9A8F9` | `#38FE27` |
+| `state.added` | `#2D5338` | `#A6CFB1` | `#73FB95` | `#28FE14` |
+| `state.changed` | `#85682C` | `#D1B36C` | `#A2EDFD` | `#FFFF5F` |
 | `state.deleted` | `#8A4D4A` | `#D99993` | `#FF5555` | `#FF5F5F` |
-| `state.ignored` | `#9B9D97` | `#777A73` | `#6272A4` | `#6FA96A` |
-| `state.error` | `#854943` | `#DB938B` | `#FF5555` | `#FF5F5F` |
-| `state.waiting` | `#506F78` | `#86A9B2` | `#8BE9FD` | `#5FFFFF` |
+| `state.ignored` | `#9B9D97` | `#777A73` | `#65547D` | `#6FA96A` |
+| `state.error` | `#854943` | `#DB938B` | `#E67373` | `#FF5F5F` |
+| `state.waiting` | `#506F78` | `#86A9B2` | `#73ECE5` | `#5FFFFF` |
 | `state.busy` | `#A66A18` | `#D7A252` | `#FFB86C` | `#FFFF5F` |
-| `state.idle` | `#9B9D97` | `#777A73` | `#6272A4` | `#6FA96A` |
+| `state.idle` | `#9B9D97` | `#777A73` | `#A186C7` | `#6FA96A` |
 
 These values are theme inputs. The renderer measures final output after warmth and Focus derivation.
 Body content must remain within the contrast policy. Interactive text, focus, and status meet WCAG
 2.2 AA. Pure black on pure white and pure white on pure black are forbidden.
+
+The Dracula inputs map the official
+[Dracula Solid for Zed](https://github.com/dracula/zed/blob/main/themes/dracula.json) variant because
+`zd` uses opaque window surfaces. The mapping keeps the upstream UI hierarchy and seven syntax
+roles while fitting them into this application's smaller semantic role set. The bundled MIT notice
+covers this derived built-in.
 
 ### Git and lifecycle state
 

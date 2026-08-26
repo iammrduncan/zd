@@ -54,6 +54,32 @@ describe("validated theme configuration", () => {
     expect(homebrew.config.colours["line.focus"]).toBe("#38fe27");
   });
 
+  it("matches the opaque Dracula Solid palette published for Zed", () => {
+    const dracula = BUILT_IN_THEMES.find(({ id }) => id === "dracula")!;
+
+    expect(dracula.config.colours).toMatchObject({
+      "surface.canvas": "#282a36",
+      "surface.sidebar": "#0a080c",
+      "surface.transient": "#1e1925",
+      "surface.selection": "#65547d",
+      "text.primary": "#f8f8f2",
+      "text.muted": "#a186c7",
+      "line.quiet": "#3c324b",
+      "line.focus": "#c9a8f9",
+      "state.added": "#73fb95",
+      "state.changed": "#a2edfd",
+    });
+    expect(dracula.config.syntax).toEqual({
+      keyword: "#ff79c6",
+      type: "#8be9fd",
+      function: "#50fa7b",
+      string: "#f1fa8c",
+      number: "#bd93f9",
+      comment: "#6272a4",
+      punctuation: "#ff79c6",
+    });
+  });
+
   it("bundles the Dracula MIT attribution with the built-in it covers", () => {
     const dracula = BUILT_IN_THEMES.find(({ id }) => id === "dracula")!;
 

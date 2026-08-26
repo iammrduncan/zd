@@ -271,8 +271,8 @@ Themes are versioned, validated data files named `<name>.theme.config` under the
 directory. Invalid, incomplete, unsupported, or unsafe files fail closed and cannot prevent launch.
 Theme data cannot execute code or widen capabilities.
 
-The application ships the current warm light theme, a dark theme, and a Dracula-style theme through
-the same loader. System/light/dark choice, warmth, typography, Focus, wrapping, region geometry,
+The application ships the current warm light theme, a dark theme, and the opaque Dracula Solid for
+Zed palette through the same loader. System/light/dark choice, warmth, typography, Focus, wrapping, region geometry,
 notification sound, and instrumentation are shared workbench preferences with versioned migration
 and safe defaults.
 

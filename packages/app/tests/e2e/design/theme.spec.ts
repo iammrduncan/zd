@@ -62,6 +62,24 @@ test("Dracula replaces the complete workbench palette without remounting", async
   });
 
   expect((await paint(page, "dracula")).background).toBe("rgb(40, 42, 54)");
+  expect(
+    await workbench.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        sidebar: style.getPropertyValue("--surface-sidebar").trim(),
+        selection: style.getPropertyValue("--surface-selection").trim(),
+        muted: style.getPropertyValue("--text-muted").trim(),
+        focus: style.getPropertyValue("--line-focus").trim(),
+        punctuation: style.getPropertyValue("--syntax-punctuation").trim(),
+      };
+    }),
+  ).toEqual({
+    sidebar: "#0a080c",
+    selection: "#65547d",
+    muted: "#a186c7",
+    focus: "#c9a8f9",
+    punctuation: "#ff79c6",
+  });
   await expect(workbench).toBeAttached();
   await expect(workbench).toHaveAttribute("data-theme-probe", "same-node");
 });
