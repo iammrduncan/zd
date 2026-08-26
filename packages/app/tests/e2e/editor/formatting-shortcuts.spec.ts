@@ -13,9 +13,9 @@ async function selectWord(page: Page, source = "word"): Promise<void> {
 
 test.beforeEach(async ({ page }) => openEditor(page));
 
-test("Mod-B wraps the selected Markdown in strong notation", async ({ page }) => {
+test("Mod-Alt-B wraps the selected Markdown in strong notation", async ({ page }) => {
   await selectWord(page);
-  await page.keyboard.press("ControlOrMeta+B");
+  await page.keyboard.press("ControlOrMeta+Alt+B");
   expect(await page.evaluate(() => window.zdEditor!.text())).toBe("**word**");
 });
 
