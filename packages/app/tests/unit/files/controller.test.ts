@@ -264,6 +264,43 @@ describe("FileTreeController", () => {
     );
   });
 
+  it("moves a renamed Git file back over its synthetic deleted entry", async () => {
+    const actions: FileTreeActions = {
+      activateFile: vi.fn(async () => ({ status: "committed" as const })),
+      transferEntries: vi.fn(async () => {}),
+    };
+    const controller = new FileTreeController(
+      sequence([
+        ready("one", [
+          entry("docs", "directory"),
+          entry("docs/planning", "directory"),
+          entry("docs/planning/DESIGN.md"),
+        ]),
+      ]),
+      actions,
+    );
+    await controller.activate(scope);
+    controller.reconcileGit(
+      new Map([
+        ["docs/DESIGN.md", "deleted"],
+        ["docs/planning/DESIGN.md", "added"],
+      ]),
+    );
+
+    await expect(
+      controller.transferPaths(["docs/planning/DESIGN.md"], "docs", "move"),
+    ).resolves.toBe(true);
+    expect(actions.transferEntries).toHaveBeenCalledWith(
+      [
+        {
+          source: { ...scope, relativePath: "docs/planning/DESIGN.md" },
+          destinationPath: "docs/DESIGN.md",
+        },
+      ],
+      "move",
+    );
+  });
+
   it("uses stable copy names and refuses destructive transfer destinations", async () => {
     const actions: FileTreeActions = {
       activateFile: vi.fn(async () => ({ status: "committed" as const })),
