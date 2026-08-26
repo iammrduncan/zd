@@ -7,6 +7,9 @@ import { LanguageDescription, type LanguageSupport } from "@codemirror/language"
 import type { Extension } from "@codemirror/state";
 
 import { codeHighlighting } from "./highlight";
+import { feedbackLanguage } from "./feedback";
+import { todoLanguage } from "./todo";
+import { zigLanguage } from "./zig";
 
 export { codeHighlighting } from "./highlight";
 
@@ -62,6 +65,9 @@ export const LANGUAGE_REGISTRY: readonly LanguageRegistration[] = [
   code("html", "HTML", ["html", "htm"], html()),
   code("css", "CSS", ["css"], css()),
   code("json", "JSON", ["json"], json(), [".eslintrc"]),
+  code("zig", "Zig", ["zig"], zigLanguage()),
+  code("todo", "Todo", [], todoLanguage(), ["todo.txt"]),
+  code("feedback", "Feedback", [], feedbackLanguage(), ["feedback.txt"]),
 ];
 
 export interface DocumentLanguage {
