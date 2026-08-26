@@ -25,6 +25,35 @@ test("a Mermaid fence renders as a themed diagram and Raw Mode restores its sour
   await expect(page.locator(".cm-content")).toContainText("Plan[Plan] --> Ship[Ship]");
 });
 
+test("a Mermaid diagram expands to a full-window viewer with zoom and pan", async ({ page }) => {
+  await openEditor(page, { url: "/dev/editor.html?doc=mermaid" });
+  const diagram = page.locator('.md-mermaid-diagram[aria-label="Mermaid sequence diagram"]');
+
+  await diagram.getByRole("button", { name: "Expand Mermaid diagram" }).click();
+  const viewer = page.getByRole("dialog", { name: "Expanded Mermaid diagram" });
+  const viewport = viewer.locator(".md-mermaid-viewer-viewport");
+  await expect(viewer).toBeVisible();
+  await expect(viewer).toContainText("Writer");
+
+  const before = await viewer.locator("svg").evaluate((svg) => getComputedStyle(svg).transform);
+  await viewer.getByRole("button", { name: "Zoom in" }).click();
+  const zoomed = await viewer.locator("svg").evaluate((svg) => getComputedStyle(svg).transform);
+  expect(zoomed).not.toBe(before);
+
+  const bounds = await viewport.boundingBox();
+  expect(bounds).not.toBeNull();
+  await page.mouse.move(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds!.x + bounds!.width / 2 + 80, bounds!.y + bounds!.height / 2 + 40);
+  await page.mouse.up();
+  const panned = await viewer.locator("svg").evaluate((svg) => getComputedStyle(svg).transform);
+  expect(panned).not.toBe(zoomed);
+
+  await viewer.getByRole("button", { name: "Close expanded Mermaid diagram" }).click();
+  await expect(viewer).toHaveCount(0);
+  await expect(diagram).toBeVisible();
+});
+
 test("a standalone Mermaid file opens as a diagram and can reveal editable source", async ({
   page,
 }) => {

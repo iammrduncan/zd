@@ -113,6 +113,29 @@ test("a cell renders its inline markup rather than showing the source", async ({
   expect(cells.codeText, "the backticks are still on screen").toBe("--hairline");
 });
 
+test("undo and redo from a rendered cell operate on the shared Markdown history", async ({
+  page,
+}) => {
+  const cell = page.locator('.md-editor table [data-table-row="3"][data-table-column="1"]');
+  await cell.fill("Editable hairlines");
+  await expect
+    .poll(() => page.evaluate(() => window.zdEditor!.text()))
+    .toContain("| Table | Editable hairlines |");
+  await cell.click();
+
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect
+    .poll(() => page.evaluate(() => window.zdEditor!.text()))
+    .toContain("| Table | Hairlines only, no frame or striping |");
+  await expect(cell).toContainText("Hairlines only, no frame or striping");
+
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect
+    .poll(() => page.evaluate(() => window.zdEditor!.text()))
+    .toContain("| Table | Editable hairlines |");
+  await expect(cell).toContainText("Editable hairlines");
+});
+
 test("a link in a cell is an anchor with its label, not bracket source", async ({ page }) => {
   const link = await page.locator(".md-editor table").evaluate((el: HTMLTableElement) => {
     const anchor = el.querySelector("td a");
@@ -304,6 +327,43 @@ test("a real pointer drag selects across rendered table cells", async ({ page })
     page.locator(".md-editor table"),
     "the table disappeared after selection",
   ).toBeVisible();
+});
+
+test("cross-table selection has one paint owner and clears on an outside click", async ({
+  page,
+}) => {
+  const first = page.locator(".md-editor table td", { hasText: "Blockquote" });
+  const last = page.locator(".md-editor table td", { hasText: "Hairlines only" });
+  await page.locator(".md-editor table").scrollIntoViewIfNeeded();
+  const [from, to] = await Promise.all([first.boundingBox(), last.boundingBox()]);
+  expect(from).not.toBeNull();
+  expect(to).not.toBeNull();
+
+  await page.mouse.move(from!.x + 3, from!.y + from!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to!.x + to!.width - 3, to!.y + to!.height / 2, { steps: 12 });
+  await page.mouse.up();
+
+  const paint = await page.evaluate(() => {
+    return {
+      selectedCells: document.querySelectorAll("[data-table-selected='true']").length,
+      nativeRanges: document.getSelection()?.rangeCount ?? 0,
+    };
+  });
+  expect(paint.selectedCells).toBeGreaterThan(1);
+  expect(paint.nativeRanges, "the browser painted a second selection over the selected cells").toBe(
+    0,
+  );
+
+  await page.evaluate(() => {
+    const outside = document.createElement("button");
+    outside.type = "button";
+    outside.textContent = "Outside editor";
+    outside.dataset.outsideEditor = "true";
+    document.body.append(outside);
+  });
+  await page.locator("[data-outside-editor]").click();
+  await expect(page.locator("[data-table-selected='true']")).toHaveCount(0);
 });
 
 test("a multi-column table never stacks an unspaced header one character per line", async ({

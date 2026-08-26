@@ -104,6 +104,23 @@ test("a second enter leaves the list", async ({ page }) => {
   expect(demoted, "the list marker was not taken off the line").toBe("prose after the list");
 });
 
+test("a second enter at a split item's text edge leaves instead of piling up empty bullets", async ({
+  page,
+}) => {
+  await page.evaluate(() => window.zdEditor!.setText("- One item with **emphasis**"));
+  const splitAt = "- One item with *".length;
+  await page.evaluate((at) => window.zdEditor!.setCaret(at), splitAt);
+
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+
+  expect(await page.evaluate(() => window.zdEditor!.text().split("\n"))).toEqual([
+    "- One item with *",
+    "*emphasis**",
+  ]);
+  expect(await page.evaluate(() => window.zdEditor!.selection().head)).toBe(splitAt + 1);
+});
+
 test("a nested item continues at its own depth", async ({ page }) => {
   const { line } = await caretAtEndOfLine(page, "another nested item");
   await page.keyboard.press("Enter");
