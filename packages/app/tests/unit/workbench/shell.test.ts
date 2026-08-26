@@ -118,6 +118,7 @@ describe("the root workbench shell", () => {
       threads: mount("threads"),
       thread: mount("thread"),
       file: mount("file"),
+      projectTerminal: mount("project-terminal"),
       files: mount("files"),
       changes: mount("changes"),
     });
@@ -126,12 +127,20 @@ describe("the root workbench shell", () => {
       "threads:threads",
       "thread:thread",
       "file:file",
+      "project-terminal:project-terminal",
       "files:files",
       "changes:changes",
     ]);
 
     unmount();
-    expect(unmounted).toEqual(["changes", "files", "file", "thread", "threads"]);
+    expect(unmounted).toEqual([
+      "changes",
+      "files",
+      "project-terminal",
+      "file",
+      "thread",
+      "threads",
+    ]);
   });
 
   it("tears down mounted sibling regions when one feature cannot mount", async () => {
@@ -170,7 +179,7 @@ describe("the root workbench shell", () => {
       "Files and Changes",
     );
     expect(mountedContent).toHaveBeenCalledExactlyOnceWith(
-      shell.querySelector('[data-centre-surface="file"]'),
+      shell.querySelector('[data-centre-surface="file"] > .zd-centre-content'),
       expect.objectContaining({ state: expect.anything() }),
     );
   });

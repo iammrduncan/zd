@@ -62,12 +62,23 @@ worktree**. The second-line choice is remembered. Drag a thread row to reorder i
 project.
 
 Choose the active thread row again to return to its current or last-opened file. Choose it once more
-to show the still-mounted terminal again; this is the same switch as `Cmd+J` on macOS or `Ctrl+J`
+to show the still-mounted terminal again; this is the same switch as `Cmd+B` on macOS or `Ctrl+B`
 elsewhere.
 
 Use **Terminate and Remove Thread…** in the thread menu to stop a live terminal and remove its row.
 An exited terminal uses **Remove Thread…**. Neither action deletes a Git worktree or branch. If
 termination fails, the row stays visible with the reported failure.
+
+## Use the project terminal
+
+Press `Cmd+J` on macOS or `Ctrl+J` elsewhere to show or hide a shell for the active project. This
+terminal is not a thread and does not add a row to the Projects pane. It stays mounted while hidden
+and each project keeps its own runtime when you switch projects.
+
+The project terminal docks at the bottom of the active file or thread side. Press `Cmd+D` or
+`Ctrl+D` to split it side by side. Press `Cmd+Shift+D` or `Ctrl+Shift+D` to terminate and remove the
+active split while another split remains. Closing a project asks you to terminate any live project
+terminal first.
 
 ## Configure completion attention
 

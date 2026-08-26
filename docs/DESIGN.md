@@ -351,7 +351,7 @@ Side by side shows the active thread on the left of the centre and selected file
 quiet divider separates them. The default split is 42/58 and is resizable. Each side preserves its
 own focus and semantic viewport anchor.
 
-`Cmd+J` / `Ctrl+J` switches centre focus between the current thread and selected file. It uses the
+`Cmd+B` / `Ctrl+B` switches centre focus between the current thread and selected file. It uses the
 complete context restored for the active project, so switching projects does not discard either
 surface. Choosing the already-active thread row performs the same switch to its remembered file;
 choosing that row again returns to the still-mounted thread.
@@ -633,7 +633,7 @@ and do not run.
 Rendered Markdown matches correspond to real source ranges. Hidden source is not claimed as a
 visible match unless Raw Mode exposes it.
 
-## 13. Terminal/thread content
+## 13. Terminal content
 
 A terminal-backed thread renders on `surface.canvas` with `type.code`. It is a content surface, not
 a bottom drawer.
@@ -653,6 +653,18 @@ Terminal requirements:
 
 The surface does not add chat bubbles, avatars, timestamps, typing indicators, decorative prompts,
 or fake agent prose. Output is the terminal's output. Thread metadata stays outside the transcript.
+
+The project terminal is a separate runtime-only dock at the bottom of the active centre side.
+`Cmd+J` / `Ctrl+J` creates it lazily and toggles its visibility. One project-terminal group is
+retained per project; switching projects changes the visible group without stopping either shell.
+The group uses the approved project-root worktree and never creates a `ThreadState`, navigation row,
+attention event, or persisted terminal handle.
+
+`Cmd+D` / `Ctrl+D` splits the visible project terminal side by side. `Cmd+Shift+D` /
+`Ctrl+Shift+D` terminates and removes the active split while another split remains. Project removal
+is refused while its project-terminal processes are live and offers an explicit terminate recovery.
+The dock follows file focus or thread focus in side-by-side mode and reduces that side's available
+content height; it does not cover the active editor or terminal-backed thread.
 
 ## 14. Transient surfaces and commands
 
@@ -681,6 +693,10 @@ activates the previous project and `Cmd+Option+Down` / `Ctrl+Alt+Down` activates
 at either end. `Cmd+N` / `Ctrl+N` starts an ordinary terminal thread at the active project's root.
 If fewer than two projects are open or the active project has no available workspace, the relevant
 command reports itself unavailable and the chord falls through.
+
+`Cmd+B` / `Ctrl+B` switches between the current thread and file. The project-terminal commands are
+available only with an approved active project; split commands are available only while its dock is
+visible, and unsplit requires more than one pane.
 
 The Shortcut Reference is a compact editable table over the same registry. It never becomes a
 second hand-maintained shortcut inventory. Platform-correct key notation, the action name, and reset

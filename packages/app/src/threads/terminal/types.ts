@@ -65,6 +65,7 @@ export interface TerminalThreadMetadata {
 export interface TerminalThreadSurfaceOptions {
   readonly applicationOwnsKey?: (event: KeyboardEvent) => boolean;
   readonly createEmulator?: TerminalEmulatorFactory;
+  readonly kind?: "thread" | "project";
   readonly onTitleChange?: (title: string) => void;
   readonly writeClipboard?: (text: string) => Promise<void>;
 }

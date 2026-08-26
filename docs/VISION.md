@@ -101,13 +101,16 @@ The shell has four semantic regions:
 1. **Threads**, on the left, groups threads beneath their owning projects.
 2. **Current content**, in the centre, shows the active file or active thread.
 3. **Files/Changes**, on the right, navigates the active project and Git state.
-4. **Terminal content**, owned by a terminal-backed thread and shown in the centre rather than as a
-   permanent bottom drawer.
+4. **Project terminal**, a runtime-only shell docked at the bottom of the active centre side. It is
+   scoped per project and does not create a thread.
 
 The centre has two presentation modes:
 
 - **Overlap** shows either the selected thread or the selected file in the centre.
 - **Side by side** shows the active thread next to the selected file.
+
+A terminal-backed thread remains ordinary centre content. The separate project terminal stays
+mounted while hidden, follows the active centre side, and retains one runtime group per project.
 
 Responsive layout may collapse, hide, or temporarily replace navigation regions. It may not create
 a second state owner, discard region selection, or squeeze content below its usable minimum.
@@ -290,7 +293,10 @@ Default application bindings are:
 | Activate project 1…9 | `Cmd+1`…`Cmd+9` | `Ctrl+1`…`Ctrl+9` |
 | Previous / next project | `Cmd+Option+Up` / `Cmd+Option+Down` | `Ctrl+Alt+Up` / `Ctrl+Alt+Down` |
 | New terminal thread in the active project | `Cmd+N` | `Ctrl+N` |
-| Switch between the current thread and file | `Cmd+J` | `Ctrl+J` |
+| Switch between the current thread and file | `Cmd+B` | `Ctrl+B` |
+| Show or hide the active project terminal | `Cmd+J` | `Ctrl+J` |
+| Split the active project terminal | `Cmd+D` | `Ctrl+D` |
+| Close the active project terminal split | `Cmd+Shift+D` | `Ctrl+Shift+D` |
 | Command List | `Cmd+Shift+P` | `Ctrl+Shift+P` |
 | Global summon | `Cmd+Shift+Space` | `Ctrl+Shift+Space` |
 

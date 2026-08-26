@@ -192,7 +192,14 @@ describe("root workbench commands", () => {
 
     expect(byId.get("file.find")?.chord).toEqual({ key: "f", mod: true });
     expect(byId.get("focus.toggle")?.chord).toEqual({ key: "f", mod: true, shift: true });
-    expect(byId.get("centre.toggle")?.chord).toEqual({ key: "j", mod: true });
+    expect(byId.get("centre.toggle")?.chord).toEqual({ key: "b", mod: true });
+    expect(byId.get("projectTerminal.toggle")?.chord).toEqual({ key: "j", mod: true });
+    expect(byId.get("projectTerminal.split")?.chord).toEqual({ key: "d", mod: true });
+    expect(byId.get("projectTerminal.unsplit")?.chord).toEqual({
+      key: "d",
+      mod: true,
+      shift: true,
+    });
     expect(byId.get("files.filter")?.chord).toEqual({ key: "p", mod: true });
     expect(byId.get("files.toggleVisibility")?.chord).toEqual({
       key: "b",

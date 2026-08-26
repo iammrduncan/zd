@@ -21,6 +21,7 @@ import { mountWorkbenchSettings } from "./settings";
 import { FileDraftStore } from "./current-file/drafts";
 import { createRootThreadsAdapter, type RootThreadsAdapter } from "./threads";
 import { mountWorkspaceHome } from "./workspace-home";
+import { mountProjectTerminal } from "./project-terminal";
 
 function recordThreadAction(
   context: WorkbenchRuntimeContext,
@@ -297,6 +298,7 @@ export async function mountWorkbenchFeatures(
         mountActiveThread(threadHost, threadContext, threadsAdapter),
       file: (fileHost, fileContext) =>
         mountCurrentFileWithChanges(fileHost, fileContext, changes.controller, drafts),
+      projectTerminal: mountProjectTerminal,
       files: (filesHost) => mountFileTree(filesHost, files.controller, context.transients),
       changes: (changesHost) => mountChanges(changesHost, changes.controller),
     });

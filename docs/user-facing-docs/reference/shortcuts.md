@@ -17,7 +17,10 @@ but system-managed.
 | Activate project 1 through 9 | `Cmd+1` … `Cmd+9` | `Ctrl+1` … `Ctrl+9` |
 | Activate the previous or next project | `Cmd+Option+Up` / `Cmd+Option+Down` | `Ctrl+Alt+Up` / `Ctrl+Alt+Down` |
 | Start a terminal thread in the active project | `Cmd+N` | `Ctrl+N` |
-| Switch between the current thread and file | `Cmd+J` | `Ctrl+J` |
+| Switch between the current thread and file | `Cmd+B` | `Ctrl+B` |
+| Show or hide the active project terminal | `Cmd+J` | `Ctrl+J` |
+| Split the active project terminal | `Cmd+D` | `Ctrl+D` |
+| Close the active project terminal split | `Cmd+Shift+D` | `Ctrl+Shift+D` |
 | Summon or hide the workbench globally | `Cmd+Shift+Space` | `Ctrl+Shift+Space` |
 | Save the current file | `Cmd+S` | `Ctrl+S` |
 | Show literal Markdown source | `Cmd+E` | `Ctrl+E` |

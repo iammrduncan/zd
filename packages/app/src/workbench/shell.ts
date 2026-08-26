@@ -209,7 +209,11 @@ export async function mountWorkbenchShell(
   threadSurface.dataset.workbenchSlot = "thread";
   threadSurface.setAttribute("aria-label", "Current thread");
   threadSurface.tabIndex = -1;
-  threadSurface.append(quietState("No thread selected."));
+  const threadContent = document.createElement("div");
+  threadContent.className = "zd-centre-content";
+  threadContent.dataset.workbenchSlot = "thread";
+  threadContent.append(quietState("No thread selected."));
+  threadSurface.append(threadContent);
 
   const centreResizer = separator("centre");
   const fileSurface = document.createElement("section");
@@ -218,7 +222,14 @@ export async function mountWorkbenchShell(
   fileSurface.dataset.workbenchSlot = "file";
   fileSurface.setAttribute("aria-label", "Current file");
   fileSurface.tabIndex = -1;
-  centre.append(homeSurface, threadSurface, centreResizer, fileSurface);
+  const fileContent = document.createElement("div");
+  fileContent.className = "zd-centre-content";
+  fileContent.dataset.workbenchSlot = "file";
+  const projectTerminal = document.createElement("section");
+  projectTerminal.dataset.workbenchSlot = "project-terminal";
+  projectTerminal.hidden = true;
+  fileSurface.append(fileContent);
+  centre.append(homeSurface, threadSurface, centreResizer, fileSurface, projectTerminal);
 
   const filesResizer = separator("files");
   const files = document.createElement("aside");
@@ -310,6 +321,7 @@ export async function mountWorkbenchShell(
 
     const sideBySide = regions.centre.mode === "side-by-side";
     const threadSelected = threadOwnsCentre(regions);
+    projectTerminal.dataset.terminalOwner = threadSelected ? "thread" : "file";
     homeSurface.hidden = !homeSelected;
     threadSurface.hidden = homeSelected || (!sideBySide && !threadSelected);
     fileSurface.hidden = homeSelected || (!sideBySide && threadSelected);
@@ -468,8 +480,9 @@ export async function mountWorkbenchShell(
     unmountRegions = await mountRegions(context, [
       [homeSurface, mounts.home],
       [threadsPanel, mounts.threads],
-      [threadSurface, mounts.thread],
-      [fileSurface, mounts.file],
+      [threadContent, mounts.thread],
+      [fileContent, mounts.file],
+      [projectTerminal, mounts.projectTerminal],
       [filesPanel, mounts.files],
       [changesPanel, mounts.changes],
     ]);

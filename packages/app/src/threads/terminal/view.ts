@@ -29,6 +29,15 @@ function terminalLabel(metadata: TerminalThreadMetadata, surface: "input" | "out
   return `${metadata.threadName} terminal ${surface}, ${metadata.projectName}, ${metadata.worktreeLabel}`;
 }
 
+function surfaceLabel(
+  metadata: TerminalThreadMetadata,
+  kind: NonNullable<TerminalThreadSurfaceOptions["kind"]>,
+): string {
+  return kind === "project"
+    ? `${metadata.threadName} terminal`
+    : `${metadata.threadName} terminal thread`;
+}
+
 function binaryBytes(data: string): Uint8Array {
   return Uint8Array.from(data, (character) => character.charCodeAt(0) & 0xff);
 }
@@ -50,9 +59,10 @@ export function mountTerminalThreadSurface(
   metadata: TerminalThreadMetadata,
   options: TerminalThreadSurfaceOptions = {},
 ): TerminalThreadSurface {
+  const kind = options.kind ?? "thread";
   const root = document.createElement("section");
   root.className = "zd-terminal-thread-surface";
-  root.setAttribute("aria-label", `${metadata.threadName} terminal thread`);
+  root.setAttribute("aria-label", surfaceLabel(metadata, kind));
 
   const header = document.createElement("header");
   header.className = "zd-terminal-thread-header";
@@ -307,7 +317,7 @@ export function mountTerminalThreadSurface(
     },
     selectAll: () => emulator.selectAll(),
     updateMetadata: (nextMetadata) => {
-      root.setAttribute("aria-label", `${nextMetadata.threadName} terminal thread`);
+      root.setAttribute("aria-label", surfaceLabel(nextMetadata, kind));
       heading.textContent = `${nextMetadata.threadName} · ${nextMetadata.projectName} · ${nextMetadata.worktreeLabel}`;
       viewport.setAttribute("aria-label", terminalLabel(nextMetadata, "output"));
       emulator.setLabel(terminalLabel(nextMetadata, "input"));

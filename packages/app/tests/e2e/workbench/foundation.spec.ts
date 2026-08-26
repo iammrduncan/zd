@@ -225,7 +225,7 @@ test("thread status and type icons align with the title without entering its lab
   expect(geometry.iconBottom).toBeLessThanOrEqual(geometry.metadataTop + 3);
 });
 
-test("Cmd+J restores and toggles the current thread and file after a project round trip", async ({
+test("Cmd+B restores and toggles the current thread and file after a project round trip", async ({
   page,
 }) => {
   const primary = await page.evaluate(() =>
@@ -256,7 +256,7 @@ test("Cmd+J restores and toggles the current thread and file after a project rou
   await expect(threadSurface).toBeVisible();
   await expect(fileSurface).toBeHidden();
 
-  await page.keyboard.press(`${primary}+j`);
+  await page.keyboard.press(`${primary}+b`);
   await expect(fileSurface).toBeVisible();
   await expect(threadSurface).toBeHidden();
   await expect(fileSurface.locator(".cm-content")).toContainText("bootWorkbench(host, platform)");
@@ -270,7 +270,7 @@ test("Cmd+J restores and toggles the current thread and file after a project rou
     )
     .toBe("file");
 
-  await page.keyboard.press(`${primary}+j`);
+  await page.keyboard.press(`${primary}+b`);
   await expect(threadSurface).toBeVisible();
   await expect(fileSurface).toBeHidden();
   await expect
