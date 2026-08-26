@@ -151,8 +151,21 @@
   background: var(--surface-selection);
 }
 
-.zd-file-tree-row[data-drop-target="true"] {
-  box-shadow: inset 0 calc(var(--hairline) * -2) var(--line-focus);
+.zd-file-tree-row[data-drop-target="true"][data-drop-position="inside"] {
+  border-inline-start-color: var(--line-focus);
+  color: var(--text-primary);
+  background: var(--surface-selection);
+}
+
+.zd-file-tree-row[data-drop-target="true"][data-drop-position="parent"]::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: calc(var(--hairline) * 2);
+  background: var(--line-focus);
+  pointer-events: none;
 }
 
 .zd-file-tree[data-dragging="true"] .zd-file-tree-row {

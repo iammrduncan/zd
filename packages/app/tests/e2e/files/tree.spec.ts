@@ -96,7 +96,7 @@ async function mountFixture(page: Page): Promise<void> {
   });
 }
 
-async function mouseDrag(page: Page, source: Locator, destination: Locator): Promise<void> {
+async function hoverMouseDrag(page: Page, source: Locator, destination: Locator): Promise<void> {
   await expect(source).toBeVisible();
   await expect(destination).toBeVisible();
   let from: Awaited<ReturnType<Locator["boundingBox"]>> = null;
@@ -117,6 +117,10 @@ async function mouseDrag(page: Page, source: Locator, destination: Locator): Pro
     steps: 4,
   });
   await page.mouse.move(to!.x + to!.width / 2, to!.y + to!.height / 2, { steps: 12 });
+}
+
+async function mouseDrag(page: Page, source: Locator, destination: Locator): Promise<void> {
+  await hoverMouseDrag(page, source, destination);
   await page.mouse.up();
 }
 
@@ -233,6 +237,7 @@ test("a real mouse drag moves a file into the folder under the pointer", async (
   await files.locator('[data-file-path="docs/user-facing-docs"]').click();
   const source = files.locator('[data-file-path="docs/screenshots/first.png"]');
   const destination = files.locator('[data-file-path="docs/user-facing-docs"]');
+  await source.click();
   // macOS's webview does not reliably start native HTML drag-and-drop for a button.
   await files.locator("[data-file-tree-viewport]").evaluate((viewport) => {
     viewport.addEventListener(
@@ -244,7 +249,20 @@ test("a real mouse drag moves a file into the folder under the pointer", async (
       true,
     );
   });
-  await mouseDrag(page, source, destination);
+  await hoverMouseDrag(page, source, destination);
+  const dropColors = await destination.evaluate((row) => {
+    const probe = document.createElement("span");
+    probe.style.background = "var(--surface-selection)";
+    document.body.append(probe);
+    const colors = {
+      background: getComputedStyle(row).backgroundColor,
+      selection: getComputedStyle(probe).backgroundColor,
+    };
+    probe.remove();
+    return colors;
+  });
+  expect(dropColors.background).toBe(dropColors.selection);
+  await page.mouse.up();
 
   await expect(files.locator('[data-file-path="docs/user-facing-docs/first.png"]')).toBeVisible();
   await expect(files.locator('[data-file-path="docs/screenshots/first.png"]')).toHaveCount(0);

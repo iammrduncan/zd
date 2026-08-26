@@ -46,15 +46,16 @@ export function fileTreeTransferPlan(
   ) {
     return { transfers: [], problem: "Files cannot be transferred between approved worktrees." };
   }
+  const materialEntries = entries.filter((entry) => entry.gitState !== "deleted");
   const destination = destinationDirectory
-    ? entries.find((entry) => entry.relativePath === destinationDirectory)
+    ? materialEntries.find((entry) => entry.relativePath === destinationDirectory)
     : null;
   if (destinationDirectory !== null && destination?.kind !== "directory") {
     return { transfers: [], problem: "Choose a destination folder." };
   }
 
-  const byPath = new Map(entries.map((entry) => [entry.relativePath, entry]));
-  const occupied = new Set(entries.map((entry) => entry.relativePath));
+  const byPath = new Map(materialEntries.map((entry) => [entry.relativePath, entry]));
+  const occupied = new Set(materialEntries.map((entry) => entry.relativePath));
   const transfers: FileTreeTransfer[] = [];
   for (const path of selectionRoots(new Set(clipboard.paths))) {
     const source = byPath.get(path);
