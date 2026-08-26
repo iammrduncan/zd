@@ -527,6 +527,11 @@ Markdown is rendered prose, selectable, and directly editable.
 - Short source notation remains visible: heading, list, quote, emphasis, and inline-code markers.
 - Rendered constructs hide long delimiters and destinations. Raw Mode reveals literal source for
   the whole document without creating another editor.
+- Markdown Code Mode is an optional shared Reading preference. It presents Markdown as literal
+  source on the full-width code plane with mono typography, line numbers, and syntax colour. It
+  reconfigures the same editor state, so changing it preserves the buffer, caret, selection, undo
+  history, drafts, and viewport. Raw Mode remains the document-local source reveal for the rendered
+  presentation.
 - Block notation hangs left of its text edge so prose keeps one straight measure.
 - Raw HTML is inert text. Remote images are never fetched. Unsafe links never activate.
 - Fenced code uses one continuous `surface.code` plane and the shared code role.
@@ -680,7 +685,7 @@ Initial groups are:
 
 1. **Appearance:** workbench theme, per-surface theme overrides, system/light/dark behavior, warmth,
    prose size, code size, heading scale.
-2. **Reading:** Focus on/off, dim level, granularity, Typewriter Mode, Word Wrap.
+2. **Reading:** Focus on/off, dim level, granularity, Markdown Code Mode, Typewriter Mode, Word Wrap.
 3. **Workbench:** Threads full/collapsed/hidden, Files visible/hidden, centre overlap/side by side,
    region sizes.
 4. **Attention:** desktop notification behavior, global sound off/on, per-agent sound, mute.

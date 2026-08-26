@@ -208,6 +208,8 @@ CodeMirror is the one editor engine for Markdown and supported text files.
 Markdown preserves the current rendered, directly editable reading experience: semantic typography,
 source honesty, rendered tables/code/images/Mermaid diagrams, selection, undo, safe rendering, Raw
 Mode, and the same document position for caret, focus, find, save, and viewport restoration.
+People can instead make Markdown open as a conventional full-width code plane through one shared
+preference. This changes presentation without replacing the buffer or its editing history.
 
 Complete `mermaid` fences render as theme-native diagrams. Standalone `.mmd` and `.mermaid` files
 use the same buffer and open as diagrams by default; Raw Mode reveals their editable source. Invalid

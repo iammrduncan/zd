@@ -29,11 +29,23 @@ describe("versioned workbench Settings preferences", () => {
     });
     expect(parsed.reading.focusDim).toBe(0);
     expect(parsed.reading.granularity).toBe("paragraph");
+    expect(parsed.reading.markdownCodeMode).toBe(false);
     expect(parsed.workbench).toMatchObject({
       threadsWidth: 184,
       filesWidth: 360,
       centreSplit: 0.7,
     });
+  });
+
+  it("persists Markdown code mode as a boolean Reading preference", () => {
+    const preferences = parseWorkbenchSettings({
+      schemaVersion: 1,
+      reading: { markdownCodeMode: true },
+    });
+
+    expect(preferences.reading.markdownCodeMode).toBe(true);
+    expect(saveWorkbenchSettings(preferences)).toBeNull();
+    expect(workbenchSettingsPreferences().reading.markdownCodeMode).toBe(true);
   });
 
   it("keeps a failed write active for the session and reports it locally", () => {

@@ -157,8 +157,10 @@ export async function mountCurrentFile(
     };
     const acceptsPastedImages =
       buffer.editable && (buffer.language.markdown || buffer.language.id === "plain-text");
+    const readingPreferences = workbenchSettingsPreferences().reading;
     mounted = mountEditorBuffer(content, buffer, {
-      wrap: workbenchSettingsPreferences().reading.wordWrap,
+      wrap: readingPreferences.wordWrap,
+      markdownCodeMode: readingPreferences.markdownCodeMode,
       onSave: async (text) => {
         const save = context.instrumentation.startSpan("file.save", diagnosticContext);
         if (!active || openedGeneration !== generation) {
@@ -361,11 +363,16 @@ export async function mountCurrentFile(
       available: () =>
         Boolean(
           commandEditor() &&
-          (mounted?.buffer.language.markdown || mounted?.buffer.language.diagram),
+          ((mounted?.buffer.language.markdown && !commandEditor()?.isMarkdownCodeMode()) ||
+            mounted?.buffer.language.diagram),
         ),
       run: () => {
         const editor = commandEditor();
-        if (!editor || (!mounted?.buffer.language.markdown && !mounted?.buffer.language.diagram)) {
+        if (
+          !editor ||
+          (!mounted?.buffer.language.diagram &&
+            (!mounted?.buffer.language.markdown || editor.isMarkdownCodeMode()))
+        ) {
           return false;
         }
         editor.toggleRaw();

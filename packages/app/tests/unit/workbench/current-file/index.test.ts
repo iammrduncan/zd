@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EditorView } from "@codemirror/view";
+import { undo } from "@codemirror/commands";
 import type { BoundedFileRead } from "@/editor";
 import { createUnavailableInstrumentationClient } from "@/instrumentation";
 import type { FileStamp, Platform } from "@/platform";
@@ -11,6 +12,12 @@ import type { LaunchRequest } from "@/workbench/resources";
 import type { FileResource, ProjectGrant } from "@/workbench/resources";
 import { createWorkbenchStateOwner, workbenchStateFromGrants } from "@/workbench/state";
 import { TransientCoordinator } from "@/workbench/transients";
+import {
+  applyWorkbenchSettings,
+  forgetWorkbenchSettingsPreferences,
+  parseWorkbenchSettings,
+  saveWorkbenchSettings,
+} from "@/workbench/settings-preferences";
 import {
   clearCommands,
   commands,
@@ -113,10 +120,68 @@ function context(read: BoundedFileRead, relativePath = "src/main.ts") {
   };
 }
 
-beforeEach(clearCommands);
-afterEach(clearCommands);
+beforeEach(() => {
+  clearCommands();
+  forgetWorkbenchSettingsPreferences();
+});
+afterEach(() => {
+  clearCommands();
+  forgetWorkbenchSettingsPreferences();
+});
 
 describe("the root current-file owner", () => {
+  it("switches Markdown into a true code plane without replacing its editor state", async () => {
+    const source = "# Plan\n\nEdit **source** and [links](README.md).";
+    const fixture = context(
+      { status: "text", text: source, byteLength: source.length, writable: true },
+      "docs/plan.md",
+    );
+    saveWorkbenchSettings(
+      parseWorkbenchSettings({ schemaVersion: 1, reading: { markdownCodeMode: true } }),
+    );
+    const host = document.createElement("div");
+    document.body.append(host);
+
+    const unmount = await mountCurrentFile(host, fixture.runtime);
+    const editorHost = host.querySelector<HTMLElement>(".md-editor")!;
+    const original = EditorView.findFromDOM(editorHost)!;
+    original.dispatch({ changes: { from: source.length, insert: "\nunsaved" } });
+    original.dispatch({ selection: { anchor: 3 } });
+
+    expect(editorHost.dataset.language).toBe("code");
+    expect(host.querySelector(".cm-lineNumbers")).not.toBeNull();
+    expect(host.querySelector(".md-line-h1")).toBeNull();
+    expect(host.querySelector(".md-syn-keyword")?.textContent).toContain("#");
+    expect(
+      commands()
+        .find(({ id }) => id === "document.raw")
+        ?.available?.(),
+    ).toBe(false);
+
+    const rendered = parseWorkbenchSettings({
+      schemaVersion: 1,
+      reading: { markdownCodeMode: false },
+    });
+    applyWorkbenchSettings(rendered, fixture.runtime.state);
+
+    expect(EditorView.findFromDOM(editorHost)).toBe(original);
+    expect(original.state.doc.toString()).toContain("unsaved");
+    expect(original.state.selection.main.head).toBe(3);
+    expect(editorHost.dataset.language).toBe("markdown");
+    expect(host.querySelector(".cm-lineNumbers")).toBeNull();
+    expect(host.querySelector(".md-line-h1")?.textContent).toContain("Plan");
+    expect(
+      commands()
+        .find(({ id }) => id === "document.raw")
+        ?.available?.(),
+    ).toBe(true);
+    expect(undo(original)).toBe(true);
+    expect(original.state.doc.toString()).toBe(source);
+
+    unmount();
+    host.remove();
+  });
+
   it("mounts code, Find, and the distinct explicit Focus command through one editor", async () => {
     const fixture = context({
       status: "text",

@@ -295,6 +295,9 @@ export function mountWorkbenchSettings(
         (granularity) =>
           commit({ ...preferences, reading: { ...preferences.reading, granularity } }),
       ),
+      toggle("Markdown Code Mode", preferences.reading.markdownCodeMode, (markdownCodeMode) =>
+        commit({ ...preferences, reading: { ...preferences.reading, markdownCodeMode } }),
+      ),
       toggle("Typewriter", preferences.reading.typewriter, (typewriter) =>
         commit({ ...preferences, reading: { ...preferences.reading, typewriter } }),
       ),

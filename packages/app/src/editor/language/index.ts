@@ -2,16 +2,17 @@ import { css } from "@codemirror/lang-css";
 import { html } from "@codemirror/lang-html";
 import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { rust } from "@codemirror/lang-rust";
 import { LanguageDescription, type LanguageSupport } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 
-import { codeHighlighting } from "./highlight";
+import { codeHighlighting, markdownSourceHighlighting } from "./highlight";
 import { feedbackLanguage } from "./feedback";
 import { todoLanguage } from "./todo";
 import { zigLanguage } from "./zig";
 
-export { codeHighlighting } from "./highlight";
+export { codeHighlighting, markdownSourceHighlighting } from "./highlight";
 
 export const LANGUAGE_REGISTRY_VERSION = 1 as const;
 
@@ -105,6 +106,21 @@ export const PLAIN_TEXT_DOCUMENT: DocumentLanguage = {
 export const codeLanguages: readonly LanguageDescription[] = LANGUAGE_REGISTRY.flatMap(
   ({ description }) => (description ? [description] : []),
 );
+
+/** Literal Markdown parsing for the optional full-width code presentation. */
+export function markdownCodeSupport(): Extension {
+  return [
+    markdown({
+      base: markdownLanguage,
+      codeLanguages,
+      addKeymap: false,
+      completeHTMLTags: false,
+      pasteURLAsLink: false,
+    }),
+    codeHighlighting(),
+    markdownSourceHighlighting(),
+  ];
+}
 
 function fileName(path: string): string {
   return (path.split(/[\\/]/).pop() ?? "").toLowerCase();

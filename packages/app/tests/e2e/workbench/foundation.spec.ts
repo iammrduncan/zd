@@ -544,6 +544,55 @@ test("Settings presents every durable preference group", async ({ page }) => {
   ]);
 });
 
+test("Settings switches Markdown into a persistent code plane without replacing the editor", async ({
+  page,
+}) => {
+  await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
+  const editor = page.locator(".current-file .md-editor");
+  await expect(editor).toHaveAttribute("data-language", "markdown");
+  await editor.locator(".cm-editor").evaluate((element) => {
+    (window as typeof window & { zdMarkdownEditorElement?: Element }).zdMarkdownEditorElement =
+      element;
+  });
+
+  await page.keyboard.press("ControlOrMeta+,");
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  await settings.getByRole("switch", { name: "Markdown Code Mode" }).click();
+
+  await expect(editor).toHaveAttribute("data-language", "code");
+  await expect(editor.locator(".cm-lineNumbers")).toBeVisible();
+  await expect(editor.locator(".md-line-h1")).toHaveCount(0);
+  await expect(editor.locator(".md-syn-keyword")).not.toHaveCount(0);
+  expect(
+    await editor
+      .locator(".cm-editor")
+      .evaluate(
+        (element) =>
+          (window as typeof window & { zdMarkdownEditorElement?: Element })
+            .zdMarkdownEditorElement === element,
+      ),
+    "the setting replaced CodeMirror instead of reconfiguring it",
+  ).toBe(true);
+
+  await page.reload();
+  await page.locator(".current-file .cm-editor").waitFor();
+  await page.getByRole("treeitem", { name: "README.md, Markdown file, modified" }).click();
+  await expect(page.locator(".current-file-path")).toHaveText("README.md");
+  await expect(page.locator(".current-file .md-editor")).toHaveAttribute("data-language", "code");
+  await expect(page.locator(".current-file .cm-lineNumbers")).toBeVisible();
+
+  await page.keyboard.press("ControlOrMeta+,");
+  await page
+    .getByRole("dialog", { name: "Settings" })
+    .getByRole("switch", { name: "Markdown Code Mode" })
+    .click();
+  await expect(page.locator(".current-file .md-editor")).toHaveAttribute(
+    "data-language",
+    "markdown",
+  );
+  await expect(page.locator(".current-file .md-line-h1")).not.toHaveCount(0);
+});
+
 test("Settings applies representative appearance, reading, and workbench values immediately and after restart", async ({
   page,
 }) => {
