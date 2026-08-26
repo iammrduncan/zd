@@ -17,6 +17,7 @@ export interface WorkbenchSettingsPreferences {
     readonly focus: boolean;
     readonly focusDim: number;
     readonly granularity: ReadingGranularity;
+    readonly markdownCodeMode: boolean;
     readonly typewriter: boolean;
     readonly wordWrap: boolean;
   };
@@ -37,6 +38,7 @@ const defaults: WorkbenchSettingsPreferences = {
     focus: false,
     focusDim: 0.9,
     granularity: "paragraph",
+    markdownCodeMode: false,
     typewriter: false,
     wordWrap: true,
   },
@@ -85,6 +87,10 @@ export function parseWorkbenchSettings(value: unknown): WorkbenchSettingsPrefere
         ["line", "paragraph", "section"],
         defaults.reading.granularity,
       ),
+      markdownCodeMode:
+        typeof reading.markdownCodeMode === "boolean"
+          ? reading.markdownCodeMode
+          : defaults.reading.markdownCodeMode,
       typewriter:
         typeof reading.typewriter === "boolean" ? reading.typewriter : defaults.reading.typewriter,
       wordWrap:

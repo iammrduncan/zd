@@ -14,7 +14,7 @@ import { clipboardImagePaste, type ClipboardImage } from "./clipboard-image";
 import { caretFocus, dropCaret, hasCaret } from "./focus";
 import { markdownStructure } from "./markdown/continuation";
 import { isTypewriter, setTypewriter, typewriterMode } from "./typewriter";
-import { MARKDOWN_DOCUMENT, type DocumentLanguage } from "./language";
+import { MARKDOWN_DOCUMENT, markdownCodeSupport, type DocumentLanguage } from "./language";
 import { listIndentation } from "./markdown/lists";
 import { formatMarkdown, type MarkdownFormat } from "./markdown/format";
 import { jumpFocusBlock, settledMotion } from "./motion";
@@ -116,6 +116,10 @@ export interface Editor {
   toggleRaw(): boolean;
   /** True while the literal source is revealed. */
   isRaw(): boolean;
+  /** Present Markdown as a full code plane while preserving this editor state. */
+  setMarkdownCodeMode(enabled: boolean): boolean;
+  /** True while a Markdown document uses the full code presentation. */
+  isMarkdownCodeMode(): boolean;
   /**
    * Turn soft wrapping on or off, immediately. Returns the state it landed in.
    *
@@ -218,6 +222,8 @@ export interface EditorOptions {
    * Omitted means markdown, which is what every existing caller meant.
    */
   language?: DocumentLanguage;
+  /** Open Markdown with literal source, code typography, syntax colour, and line numbers. */
+  markdownCodeMode?: boolean;
   /**
    * Do lines wrap when the document opens?
    *
@@ -282,7 +288,10 @@ export function createEditor(
    * file never flashes through the prose face (§2: "Nothing flashes, jumps, or
    * reflows while you work").
    */
-  parent.dataset.language = language.markdown ? "markdown" : language.diagram ? "mermaid" : "code";
+  let markdownCodeMode = language.markdown && (options.markdownCodeMode ?? false);
+  const presentedLanguage = () =>
+    language.diagram ? "mermaid" : language.markdown && !markdownCodeMode ? "markdown" : "code";
+  parent.dataset.language = presentedLanguage();
   parent.dataset.editable = String(!readOnly);
   let focusMode = options.focus ?? false;
   parent.dataset.focusMode = String(focusMode);
@@ -306,7 +315,30 @@ export function createEditor(
    * position, which recreating the view would all throw away.
    */
   const wrapping = new Compartment();
+  const presentationChrome = new Compartment();
+  const markdownEditing = new Compartment();
+  const languagePresentation = new Compartment();
   let wrapped = options.wrap ?? true;
+
+  const codeChrome = () =>
+    language.diagram || (language.markdown && !markdownCodeMode)
+      ? []
+      : [lineNumbers(), highlightActiveLine(), highlightActiveLineGutter()];
+  const markdownEditingExtensions = () =>
+    language.markdown && !markdownCodeMode ? [markdownStructure(), listIndentation()] : [];
+  const languagePresentationExtensions = () =>
+    language.markdown
+      ? markdownCodeMode
+        ? markdownCodeSupport()
+        : [
+            markdownNotation(options.resolveMarkdownImage, options.onOpenMarkdownLink),
+            markdownTables(),
+            hiddenNotationRows(),
+            mermaidDiagrams("markdown"),
+          ]
+      : language.diagram
+        ? mermaidDiagrams("standalone")
+        : (language.support ?? []);
 
   /** Recheck against `written` and report only a crossing. */
   function recheck(): void {
@@ -330,9 +362,7 @@ export function createEditor(
         rawModeState(),
         EditorState.readOnly.of(readOnly),
         EditorView.editable.of(!readOnly),
-        language.markdown || language.diagram
-          ? []
-          : [lineNumbers(), highlightActiveLine(), highlightActiveLineGutter()],
+        presentationChrome.of(codeChrome()),
         history(),
         editorFindExtension(),
         EditorView.updateListener.of((update) => {
@@ -375,7 +405,7 @@ export function createEditor(
          * §6.1 behaviours, and performing them in a TypeScript file would be the
          * same defect as drawing a heading in it.
          */
-        language.markdown ? [markdownStructure(), listIndentation()] : [],
+        markdownEditing.of(markdownEditingExtensions()),
         // Pairing and wrapping. After the §6.1 structure keys, which own Enter and
         // Backspace first. See pairing.ts, and notation.ts for which characters
         // pair in markdown.
@@ -388,21 +418,7 @@ export function createEditor(
         // See motion.ts: the commands are the library's, the invariant is ours.
         settledMotion(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        language.markdown
-          ? [
-              markdownNotation(options.resolveMarkdownImage, options.onOpenMarkdownLink),
-              // Separate from the notation plugin because a table is a block
-              // decoration and CodeMirror only accepts those from a StateField.
-              // See table.ts.
-              markdownTables(),
-              // Also a StateField, and for the same reason — hiding a whole row is
-              // a block decoration. See notation/rows.ts.
-              hiddenNotationRows(),
-              mermaidDiagrams("markdown"),
-            ]
-          : language.diagram
-            ? mermaidDiagrams("standalone")
-            : (language.support ?? []),
+        languagePresentation.of(languagePresentationExtensions()),
         caretFocus(),
         options.onSelectionChange || options.onCommentActivate
           ? reviewAnnotations({
@@ -427,7 +443,7 @@ export function createEditor(
   find = createEditorFind(parent, view, {
     markdown: language.markdown,
     readOnly,
-    raw: () => isRaw(view.state),
+    raw: () => isRaw(view.state) || markdownCodeMode,
   });
   const documentFind = find;
   recheck();
@@ -540,6 +556,21 @@ export function createEditor(
       return next;
     },
     isRaw: () => isRaw(view.state),
+    setMarkdownCodeMode: (enabled) => {
+      if (!language.markdown || enabled === markdownCodeMode) return markdownCodeMode;
+      markdownCodeMode = enabled;
+      parent.dataset.language = presentedLanguage();
+      view.dispatch({
+        effects: [
+          presentationChrome.reconfigure(codeChrome()),
+          markdownEditing.reconfigure(markdownEditingExtensions()),
+          languagePresentation.reconfigure(languagePresentationExtensions()),
+        ],
+      });
+      documentFind.refresh();
+      return markdownCodeMode;
+    },
+    isMarkdownCodeMode: () => markdownCodeMode,
     toggleWrap: () => {
       wrapped = !wrapped;
       // An empty extension rather than a `false` flag: CodeMirror has no "off" for

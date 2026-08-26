@@ -13,6 +13,9 @@ export function attachReadingSettings(
   const applyPreferences = (preferences: WorkbenchSettingsPreferences): void => {
     const current = editor();
     if (!current) return;
+    if (current.isMarkdownCodeMode() !== preferences.reading.markdownCodeMode) {
+      current.setMarkdownCodeMode(preferences.reading.markdownCodeMode);
+    }
     if (current.isFocusMode() !== preferences.reading.focus) current.toggleFocus();
     if (current.isTypewriter() !== preferences.reading.typewriter) current.toggleTypewriter();
     if (current.isWrapped() !== preferences.reading.wordWrap) current.toggleWrap();

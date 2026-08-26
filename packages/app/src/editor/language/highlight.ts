@@ -59,3 +59,30 @@ const CATEGORIES = HighlightStyle.define([
 export function codeHighlighting(): Extension {
   return syntaxHighlighting(CATEGORIES);
 }
+
+const MARKDOWN_SOURCE = HighlightStyle.define([
+  {
+    tag: [
+      tags.heading,
+      tags.heading1,
+      tags.heading2,
+      tags.heading3,
+      tags.heading4,
+      tags.heading5,
+      tags.heading6,
+    ],
+    class: "md-syn-keyword",
+  },
+  { tag: [tags.link, tags.url], class: "md-syn-string" },
+  { tag: [tags.emphasis, tags.strong, tags.strikethrough], class: "md-syn-type" },
+  { tag: tags.monospace, class: "md-syn-function" },
+  {
+    tag: [tags.contentSeparator, tags.list, tags.quote, tags.meta],
+    class: "md-syn-punctuation",
+  },
+]);
+
+/** Extra source roles used only when Markdown is presented as a code plane. */
+export function markdownSourceHighlighting(): Extension {
+  return syntaxHighlighting(MARKDOWN_SOURCE);
+}
