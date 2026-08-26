@@ -45,6 +45,7 @@ export interface WorkbenchRegionMounts {
   readonly threads?: WorkbenchMount;
   readonly thread?: WorkbenchMount;
   readonly file: WorkbenchMount;
+  readonly projectTerminal?: WorkbenchMount;
   readonly files?: WorkbenchMount;
   readonly changes?: WorkbenchMount;
 }

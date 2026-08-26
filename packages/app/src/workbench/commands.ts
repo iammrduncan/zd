@@ -214,7 +214,7 @@ export function attachWorkbenchCommands(
     register({
       id: "centre.toggle",
       category: "Workbench",
-      chord: { key: "j", mod: true },
+      chord: { key: "b", mod: true },
       description: "Switch between the current thread and file",
       available: () => centreToggleTarget(context) !== null,
       run: () => {
@@ -226,6 +226,30 @@ export function attachWorkbenchCommands(
         target.focus({ preventScroll: true });
         return true;
       },
+    }),
+    register({
+      id: "projectTerminal.toggle",
+      category: "Workbench",
+      chord: { key: "j", mod: true },
+      description: "Show or hide the active project's terminal",
+      available: () => commandTargetAvailable("projectTerminal.toggle"),
+      run: () => runCommandTarget("projectTerminal.toggle"),
+    }),
+    register({
+      id: "projectTerminal.split",
+      category: "Workbench",
+      chord: { key: "d", mod: true },
+      description: "Split the active project terminal",
+      available: () => commandTargetAvailable("projectTerminal.split"),
+      run: () => runCommandTarget("projectTerminal.split"),
+    }),
+    register({
+      id: "projectTerminal.unsplit",
+      category: "Workbench",
+      chord: { key: "d", mod: true, shift: true },
+      description: "Close the active project terminal split",
+      available: () => commandTargetAvailable("projectTerminal.unsplit"),
+      run: () => runCommandTarget("projectTerminal.unsplit"),
     }),
     register({
       id: "command.list",

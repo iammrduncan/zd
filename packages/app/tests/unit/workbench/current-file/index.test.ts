@@ -214,6 +214,11 @@ describe("the root current-file owner", () => {
       "document.formatCode",
       "document.formatLink",
     ]);
+    expect(commands().find(({ id }) => id === "document.formatBold")?.chord).toEqual({
+      key: "b",
+      mod: true,
+      alt: true,
+    });
 
     expect(runCommandTarget("file.find")).toBe(true);
     expect(host.querySelector<HTMLElement>(".editor-find")?.hidden).toBe(false);

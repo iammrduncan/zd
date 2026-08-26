@@ -1,0 +1,82 @@
+.zd-thread-surface,
+.zd-file-surface {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.zd-thread-surface[hidden],
+.zd-file-surface[hidden] {
+  display: none;
+}
+
+.zd-centre-content {
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+.zd-project-terminal {
+  position: absolute;
+  z-index: 2;
+  inset-block-end: 0;
+  inset-inline: 0;
+  min-inline-size: 0;
+  block-size: var(--project-terminal-height);
+  overflow: hidden;
+  border-block-start: var(--hairline) solid var(--line-quiet);
+  background: var(--surface-canvas);
+}
+
+.zd-workbench-centre {
+  --project-terminal-height: clamp(180px, 34vh, 360px);
+}
+
+.zd-workbench-centre:has(> .zd-project-terminal:not([hidden])[data-terminal-owner="thread"])
+  .zd-thread-surface,
+.zd-workbench-centre:has(> .zd-project-terminal:not([hidden])[data-terminal-owner="file"])
+  .zd-file-surface {
+  padding-block-end: var(--project-terminal-height);
+}
+
+.zd-workbench[data-centre-mode="side-by-side"] .zd-project-terminal[data-terminal-owner="thread"] {
+  inset-inline-end: auto;
+  inline-size: var(--workbench-centre-split);
+}
+
+.zd-workbench[data-centre-mode="side-by-side"] .zd-project-terminal[data-terminal-owner="file"] {
+  inset-inline-start: calc(var(--workbench-centre-split) + var(--hairline));
+}
+
+.zd-project-terminal[hidden],
+.zd-project-terminal-group[hidden] {
+  display: none;
+}
+
+.zd-project-terminal-group {
+  display: grid;
+  grid-template-columns: repeat(var(--project-terminal-panes, 1), minmax(0, 1fr));
+  block-size: 100%;
+  min-inline-size: 0;
+}
+
+.zd-project-terminal-pane {
+  min-inline-size: 0;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+.zd-project-terminal-pane + .zd-project-terminal-pane {
+  border-inline-start: var(--hairline) solid var(--line-quiet);
+}
+
+.zd-project-terminal-pane[data-active="true"] {
+  box-shadow: inset 0 var(--hairline) 0 var(--line-focus);
+}
+
+@media (max-width: 75rem) {
+  .zd-workbench[data-centre-mode="side-by-side"] .zd-project-terminal {
+    inset-inline: 0;
+    inline-size: auto;
+  }
+}

@@ -194,6 +194,23 @@ describe("the terminal thread surface", () => {
     expect(document.activeElement).toBe(host.querySelector("textarea"));
   });
 
+  it("labels a project terminal without presenting it as a thread", () => {
+    const terminal = TerminalThreadSession.attach(adapter(), session);
+    const emulator = new FakeEmulator();
+    const host = document.createElement("div");
+    const surface = mountTerminalThreadSurface(
+      host,
+      terminal,
+      { ...metadata, threadName: "Project" },
+      { createEmulator: () => emulator, kind: "project" },
+    );
+
+    expect(surface.element.getAttribute("aria-label")).toBe("Project terminal");
+    expect(host.querySelector("textarea")?.getAttribute("aria-label")).toContain(
+      "Project terminal input",
+    );
+  });
+
   it("forwards text and binary input, preserves app shortcuts, and copies grapheme selections", async () => {
     const native = adapter();
     const terminal = TerminalThreadSession.attach(native, session);

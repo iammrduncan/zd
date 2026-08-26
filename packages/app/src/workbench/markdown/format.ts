@@ -12,7 +12,7 @@ const FORMAT_COMMANDS: readonly FormatCommand[] = [
   {
     id: "document.formatBold",
     format: "bold",
-    chord: { key: "b", mod: true },
+    chord: { key: "b", mod: true, alt: true },
     description: "Make the selected Markdown bold",
   },
   {

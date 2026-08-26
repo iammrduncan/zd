@@ -46,6 +46,7 @@
 }
 
 .zd-workbench-centre {
+  position: relative;
   grid-column: 3;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -239,7 +240,7 @@
       [data-focus-region="files"]
     )
     .zd-file-surface {
-    display: block;
+    display: grid;
     grid-area: 1 / 1;
   }
 }
