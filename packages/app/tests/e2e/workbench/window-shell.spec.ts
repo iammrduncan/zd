@@ -216,6 +216,7 @@ test("applies responsive regions in the specified suppression order", async ({ p
   await page.setViewportSize({ width: 1000, height: 800 });
   await expect(files).toBeVisible();
   await expect(threads).toBeVisible();
+  await expect.poll(async () => (await threads.boundingBox())?.width).toBeLessThan(236);
   const [compactThreads, compactCentre, compactFiles] = await Promise.all([
     threads.boundingBox(),
     centre.boundingBox(),
