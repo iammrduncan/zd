@@ -4,6 +4,31 @@ Notable user-facing changes to zd are recorded here.
 
 ## [Unreleased]
 
+## [0.2.9] - 2026-08-27
+
+### Added
+
+- Added a project terminal that docks below the active centre surface, stays with its project, and
+  supports side-by-side terminal splits.
+- Added a persistent Markdown Code Mode plus syntax highlighting for feedback files, task files,
+  and Zig source.
+- Added a full-window Mermaid viewer with zoom and pan controls.
+
+### Changed
+
+- Refined the Light, Dracula, and Homebrew themes, including the official Dracula Solid palette
+  and clearer Git and task-state accents.
+- Made the website download action show the exact current release version.
+
+### Fixed
+
+- Stabilized global quick access across displays and macOS Spaces so the workbench appears once,
+  centered and focused on the active workspace.
+- Fixed Markdown list continuation, task markers, inline code, table undo and selection behavior,
+  and viewport movement while editing rendered tables.
+- Preserved feedback screenshot paste and fixed file-tree moves when a file returns to its original
+  folder.
+
 ## [0.2.8] - 2026-08-25
 
 ### Fixed
@@ -136,7 +161,8 @@ Notable user-facing changes to zd are recorded here.
   reference.
 - macOS-first Tauri application scaffolding with Windows support and best-effort Linux support.
 
-[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.8...HEAD
+[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.9...HEAD
+[0.2.9]: https://github.com/iammrduncan/zd/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/iammrduncan/zd/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/iammrduncan/zd/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/iammrduncan/zd/compare/v0.2.5...v0.2.6
