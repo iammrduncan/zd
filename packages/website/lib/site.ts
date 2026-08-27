@@ -11,6 +11,7 @@ export const SITE_DESCRIPTION =
   "Read and edit rendered Markdown beside local terminal agents, projects, files, and Git in one fast, intentionally minimal workbench.";
 export const REPOSITORY_URL = "https://github.com/iammrduncan/zd";
 export const RELEASE_URL = `${REPOSITORY_URL}/releases/latest`;
+export const RELEASE_LABEL = `v${websitePackage.version}`;
 
 type PageMetadata = {
   description: string;
