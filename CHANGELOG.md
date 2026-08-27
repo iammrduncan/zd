@@ -4,7 +4,7 @@ Notable user-facing changes to zd are recorded here.
 
 ## [Unreleased]
 
-## [0.2.9] - 2026-08-27
+## [0.2.10] - 2026-08-27
 
 ### Added
 
@@ -161,8 +161,8 @@ Notable user-facing changes to zd are recorded here.
   reference.
 - macOS-first Tauri application scaffolding with Windows support and best-effort Linux support.
 
-[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.9...HEAD
-[0.2.9]: https://github.com/iammrduncan/zd/compare/v0.2.8...v0.2.9
+[Unreleased]: https://github.com/iammrduncan/zd/compare/v0.2.10...HEAD
+[0.2.10]: https://github.com/iammrduncan/zd/compare/v0.2.8...v0.2.10
 [0.2.8]: https://github.com/iammrduncan/zd/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/iammrduncan/zd/compare/v0.2.6...v0.2.7
 [0.2.6]: https://github.com/iammrduncan/zd/compare/v0.2.5...v0.2.6
