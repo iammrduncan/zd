@@ -6,7 +6,13 @@ import draculaWorkbenchScreenshot from "../../../docs/user-facing-docs/assets/zd
 import sideBySideScreenshot from "../../../docs/user-facing-docs/assets/zd-workbench-side-by-side.png";
 import readerScreenshot from "../../../docs/user-facing-docs/assets/zd-reader.jpeg";
 import commentsScreenshot from "../../../docs/user-facing-docs/assets/zd-comments.png";
-import { pageMetadata, RELEASE_URL, SITE_DESCRIPTION, softwareApplicationJsonLd } from "@/lib/site";
+import {
+  pageMetadata,
+  RELEASE_LABEL,
+  RELEASE_URL,
+  SITE_DESCRIPTION,
+  softwareApplicationJsonLd,
+} from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
   description: SITE_DESCRIPTION,
@@ -30,7 +36,7 @@ export default function Home() {
         </p>
         <div className="hero-actions">
           <a className="button button-primary" href={RELEASE_URL}>
-            Download latest release
+            Download {RELEASE_LABEL}
           </a>
           <a className="button" href="/docs/">
             Read the docs
