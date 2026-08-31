@@ -4,6 +4,7 @@ import type { Platform } from "@/platform";
 export type WorkbenchHost = Pick<
   Platform,
   | "launchRequest"
+  | "durableState"
   | "projectGrants"
   | "recentWorkspaces"
   | "saveWorkspace"

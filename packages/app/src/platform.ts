@@ -36,6 +36,21 @@ import {
 import { connectServedHostClient } from "@/platform/served-client";
 import { createServedWorkbenchHost } from "@/platform/served";
 import { composePlatform, type ClientShell } from "@/platform/composition";
+import {
+  createDurableStateAdapter,
+  createMemoryDurableStateAdapter,
+  type DurableStateAdapter,
+} from "@/platform/durable-state";
+
+export type {
+  DurableFileDraft,
+  DurableReviewComment,
+  DurableReviewLedger,
+  DurableStateAdapter,
+  DurableStateBundle,
+  DurableStateMutation,
+  DurableStateRevision,
+} from "@/platform/durable-state";
 
 export type { ClientShell, WorkbenchHost } from "@/platform/composition";
 
@@ -154,6 +169,8 @@ export function unavailableThreadWorktree(): Promise<CreateThreadWorktreeResult>
 
 export interface Platform {
   readonly kind: "tauri" | "browser";
+  /** Closed, revisioned host persistence for recovery-critical workbench state. */
+  readonly durableState: DurableStateAdapter;
   /** What the process was launched to open. */
   launchRequest(): Promise<LaunchRequest>;
   /** A native file-open request is waiting. Returns an unsubscribe. */
@@ -268,17 +285,40 @@ const unavailableNotifications: AttentionNotificationAdapter = {
 
 /** Honest attention capabilities for typed fixtures that do not own a desktop window. */
 export const unavailableAttentionPlatform = {
+  durableState: {
+    load: async () => ({
+      revision: { preferences: 0, project: 0 },
+      preferences: null,
+      workbench: null,
+      drafts: [],
+      reviewLedgers: [],
+    }),
+    snapshot: () => ({
+      revision: { preferences: 0, project: 0 },
+      preferences: null,
+      workbench: null,
+      drafts: [],
+      reviewLedgers: [],
+    }),
+    mutate: async () => false,
+    flush: async () => {},
+    onProblem: () => () => {},
+  },
   showWorkbench: async () => "ordinary" as const,
   isWindowFocused: async () => false,
   onWindowFocusChanged: () => () => {},
   notifications: unavailableNotifications,
 } satisfies Pick<
   Platform,
-  "showWorkbench" | "isWindowFocused" | "onWindowFocusChanged" | "notifications"
+  "durableState" | "showWorkbench" | "isWindowFocused" | "onWindowFocusChanged" | "notifications"
 >;
 
 const tauri: Platform = {
   kind: "tauri",
+  durableState: createDurableStateAdapter({
+    describe: () => invoke<unknown>("describe_durable_state"),
+    apply: (request) => invoke<unknown>("apply_durable_state", { request }),
+  }),
   launchRequest: () => invoke<LaunchRequest>("launch_request"),
   onOpenRequested: (handler) => {
     let active = true;
@@ -486,6 +526,7 @@ const tauri: Platform = {
  */
 const browser: Platform = {
   kind: "browser",
+  durableState: createMemoryDurableStateAdapter(),
   launchRequest: async () => homeLaunch(),
   onOpenRequested: () => () => {},
   pendingOpenRequest: async () => null,
