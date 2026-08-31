@@ -9,6 +9,7 @@ import { bootWorkbench, type WorkbenchMount } from "@/workbench/boot";
 import { homeLaunch, type ProjectGrant } from "@/workbench/resources";
 import { clearCommands, commands, executeCommand } from "@/workbench/shortcuts";
 import { forgetPreferences, setDiagnosticsEnabled, themePreference } from "@/workbench/preferences";
+import { workbenchStateFromGrants } from "@/workbench/state";
 
 const project: ProjectGrant = {
   id: "project-test",
@@ -171,6 +172,65 @@ describe("one workbench boot", () => {
 
     expect(platform.enableDiagnostics).toHaveBeenCalledOnce();
     expect(mountedTheme).toEqual(expect.objectContaining({ selected: "current-dark" }));
+    teardown();
+  });
+
+  it("restores and republishes the workbench snapshot through durable state", async () => {
+    const opened = launch("/work/README.md");
+    const base = workbenchStateFromGrants([project], opened);
+    const stored = {
+      ...base,
+      regions: {
+        ...base.regions,
+        threads: { visibility: "collapsed" as const, width: 299 },
+        focus: "threads" as const,
+      },
+    };
+    const mutate = vi.fn(async () => true);
+    const platform: Platform = {
+      ...stubPlatform("/work/README.md"),
+      usesHostDurableState: true,
+      durableState: {
+        load: async () => ({
+          revision: { preferences: 0, project: 1 },
+          preferences: null,
+          workbench: stored,
+          drafts: [],
+          reviewLedgers: [],
+        }),
+        snapshot: () => ({
+          revision: { preferences: 0, project: 1 },
+          preferences: null,
+          workbench: stored,
+          drafts: [],
+          reviewLedgers: [],
+        }),
+        mutate,
+        flush: async () => {},
+        onProblem: () => () => {},
+      },
+    };
+    let restoredFocus = "";
+
+    const teardown = await bootWorkbench(
+      document.createElement("div"),
+      platform,
+      (_host, context) => {
+        restoredFocus = context.state.snapshot().regions.focus;
+        context.state.setWindowPresentation("quick-access");
+        return () => {};
+      },
+    );
+
+    expect(restoredFocus).toBe("threads");
+    await vi.waitFor(() =>
+      expect(mutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: "replace-workbench",
+          record: expect.objectContaining({ window: { presentation: "quick-access" } }),
+        }),
+      ),
+    );
     teardown();
   });
 
