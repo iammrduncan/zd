@@ -4,7 +4,7 @@ Status: **canonical and binding**
 
 Applies to: the complete `zd` workbench
 
-Date: 2026-08-21
+Date: 2026-08-31
 
 This document supersedes the ZenSuite miniapp design contract. It preserves the established editor
 typography and interaction character while defining the project, thread, terminal, file, Git,
@@ -88,16 +88,17 @@ of those intents; the input source does not create different state semantics. Th
 remembered project/worktree/thread/file tuple, validates its ownership, runs transition guards, and
 publishes the complete context once.
 
-A launch without a path presents one central project selector before the workbench regions. It
-offers the native folder picker and a bounded recent list containing both single projects and
-multi-project workspaces. Every distinct ordered set of open projects is saved automatically as a
-workspace setup. The native shell persists and reapproves its roots; the webview stores and submits
-only opaque project or workspace identities.
+A desktop launch without a path presents one central project selector before the workbench regions.
+It offers a folder picker on the same computer as the host and a bounded recent list containing both
+single projects and multi-project workspaces. Every distinct ordered set of open projects is saved
+automatically as a workspace setup. The host persists and reapproves its roots; the client stores
+and submits only opaque project or workspace identities. `zd serve <folder>` starts with its
+CLI-approved folder and does not offer a browser path picker that could widen host authority.
 
 ### Local-first is behavioral
 
 There are no cloud badges, account avatars, telemetry prompts, or ambient sync states. Remote image
-fetching is blocked. Agent-generated markup is untrusted. Native grants, terminal processes,
+fetching is blocked. Agent-generated markup is untrusted. Host grants, terminal processes, client
 notifications, and diagnostics are specific and inspectable.
 
 ## 4. One shared design system
@@ -298,9 +299,11 @@ content. Side by side narrows the reading measure only to its minimum before cha
 
 ## 8. Window and quick access
 
-One process owns one root workbench window. Native content may extend behind the operating-system
-titlebar where supported; the web surface begins below its one quiet drag strip. The application
-paints no title text or substitute caption.
+The desktop client shell owns one root workbench window. Host operations do not own window state.
+Native content may extend behind the operating-system titlebar where supported; the web surface
+begins below its one quiet drag strip. The application paints no title text or substitute caption.
+A browser client uses ordinary browser window behavior and reports desktop-only commands as
+unavailable.
 
 Ordinary window behavior:
 
@@ -394,7 +397,7 @@ Threads is a project/thread hierarchy, not a dashboard.
 - Hover uses a reduced selection wash and never changes metrics.
 - Project and thread order is stable while status updates arrive.
 
-Worktree labels are live native Git identity, not launch-time display strings. A checkout updates
+Worktree labels are live host Git identity, not launch-time display strings. A checkout updates
 the project hierarchy, thread supporting text, and terminal metadata from the refreshed approved
 grant when Git HEAD changes; the webview never derives a branch name from a path or shell output.
 
@@ -825,9 +828,11 @@ warmest setting.
 
 ## 21. Performance is part of the aesthetic
 
-CodeMirror and Lezer own incremental document work. Browser layout owns typography. The thin Tauri
-shell owns files, Git, PTYs, windows, notifications, and platform configuration. Each deep module
-keeps its complexity below a narrow typed boundary.
+CodeMirror and Lezer own incremental document work. Browser layout owns typography. The `zd` host
+owns project grants, files, Git, filesystem watchers, PTYs, host persistence, and host diagnostics.
+The thin Tauri client shell owns its window, global shortcut, local notifications, external links,
+and other viewing-computer behavior. Browser and Tauri clients use the same versioned host protocol.
+Each deep module keeps its complexity below a narrow typed boundary.
 
 The implementation must:
 
@@ -855,7 +860,9 @@ Tests live beside their deep module or at a real integration boundary.
 | --- | --- |
 | `packages/app/tests/unit/` | State, commands, editor, themes, filters, lifecycles, settings |
 | `packages/app/tests/e2e/` | Rendered typography, layout, focus, editing, terminal, accessibility |
-| `packages/tauri/src/` tests | Native authority, CLI, Git, PTY, window, notification, cleanup |
+| `packages/host/` tests | Grants, paths, files, Git, watchers, PTYs, persistence, cleanup |
+| `packages/server/` tests | Authentication, protocol, real resources, events, reconnect, shutdown |
+| `packages/tauri/src/` tests | CLI dispatch, child supervision, window, notification, shell bridge |
 | `packages/scripts/tests/unit/` | Repository layout, docs, release, planning and diagnostics tooling |
 | Native release checks | Spaces/displays, focus restoration, file dialogs, process cleanup, scaling |
 

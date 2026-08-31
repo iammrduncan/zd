@@ -13,13 +13,14 @@ changes through a [Zen Suite Improvement Proposal (ZSIP)](../zsip/README.md).
 
 ### Workbench and platform
 
-- [0001: Use Tauri with a portable web frontend](suite/0001-use-tauri-with-portable-web-frontend_H.md)
+- [0001: Use Tauri with a portable web frontend](suite/0001-use-tauri-with-portable-web-frontend_H.md) — superseded
 - [0002: Put native authority behind one platform boundary](suite/0002-put-native-authority-behind-platform-boundary_H.md)
 - [0003: Scope file access to the launch workspace](suite/0003-scope-file-access-to-launch-workspace_H.md) — superseded
 - [0004: Dispatch application commands from the suite registry](suite/0004-dispatch-application-commands-from-suite-registry_H.md) — superseded
 - [0005: Own one versioned workbench state](suite/0005-own-one-versioned-workbench-state_H.md)
 - [0006: Scope file access to approved project grants](suite/0006-scope-file-access-to-approved-project-grants_H.md)
 - [0007: Dispatch commands from one workbench registry](suite/0007-dispatch-commands-from-one-workbench-registry_H.md)
+- [0008: Serve one host backend to browser and desktop clients](suite/0008-serve-one-host-backend-to-browser-and-desktop-clients_H.md)
 
 ### Editor and current file
 
