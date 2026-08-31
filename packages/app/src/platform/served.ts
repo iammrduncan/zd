@@ -159,6 +159,7 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
   };
 
   return {
+    usesHostDurableState: true,
     launchRequest,
     durableState,
     projectGrants: async () => (await grants()).projects,

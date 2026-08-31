@@ -7,6 +7,24 @@ import {
 } from "@/notifications";
 import type { Chord } from "./shortcuts";
 import { forgetWorkbenchSettingsPreferences } from "./settings-preferences";
+import {
+  ATTENTION_DESKTOP,
+  ATTENTION_MUTED,
+  ATTENTION_SOUND,
+  ATTENTION_VOLUME,
+  DIAGNOSTICS_ENABLED,
+  PROJECT_DISCLOSURE,
+  SHORTCUT_BINDINGS,
+  SURFACE_THEMES,
+  THEME_SELECTION,
+  THREAD_SECONDARY_LINE,
+  WORD_WRAP,
+  readPreference,
+  resetPreferenceStore,
+  writePreference,
+} from "./preference-store";
+
+export { configureDurablePreferences } from "./preference-store";
 
 /**
  * Durable workbench preferences.
@@ -22,20 +40,6 @@ import { forgetWorkbenchSettingsPreferences } from "./settings-preferences";
  * Without this a failed write would be silently undone by the next read, so the
  * toggle would appear not to work at all rather than merely not to persist.
  */
-const session = new Map<string, string>();
-
-const WORD_WRAP = "zd.wordWrap";
-const DIAGNOSTICS_ENABLED = "zd.diagnosticsEnabled";
-const ATTENTION_DESKTOP = "zd.attentionDesktop";
-const ATTENTION_SOUND = "zd.attentionSound";
-const ATTENTION_MUTED = "zd.attentionMuted";
-const ATTENTION_VOLUME = "zd.attentionVolume";
-const SHORTCUT_BINDINGS = "zd.shortcutBindings.v1";
-const THEME_SELECTION = "zd.themeSelection.v1";
-const SURFACE_THEMES = "zd.surfaceThemes.v1";
-const THREAD_SECONDARY_LINE = "zd.threadSecondaryLine.v1";
-const PROJECT_DISCLOSURE = "zd.projectDisclosure.v1";
-
 export type ThreadSecondaryLine = "app" | "directory" | "worktree";
 
 function attentionSoundKey(agent: SupportedAttentionAgent): string {
@@ -43,25 +47,11 @@ function attentionSoundKey(agent: SupportedAttentionAgent): string {
 }
 
 function read(key: string): string | null {
-  const remembered = session.get(key);
-  if (remembered !== undefined) return remembered;
-
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    // Storage exists as a property and throws on access — the documented shape of
-    // a blocked webview. Nothing to report: the default is a complete answer.
-    return null;
-  }
+  return readPreference(key);
 }
 
 function write(key: string, value: string): void {
-  session.set(key, value);
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    // Kept in memory above, so this session still behaves. Only tomorrow forgets.
-  }
+  writePreference(key, value);
 }
 
 /**
@@ -303,6 +293,6 @@ export function setProjectExpanded(projectId: string, expanded: boolean): void {
  * test's choice the next test's default.
  */
 export function forgetPreferences(): void {
-  session.clear();
+  resetPreferenceStore();
   forgetWorkbenchSettingsPreferences();
 }

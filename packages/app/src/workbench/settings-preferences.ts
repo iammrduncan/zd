@@ -1,7 +1,13 @@
 import type { WorkbenchStateOwner } from "./state";
 import { applyWarmth } from "@/design/warmth";
+import {
+  WORKBENCH_SETTINGS,
+  forgetPreference,
+  readPreference,
+  writePreference,
+} from "./preference-store";
 
-const KEY = "zd.workbenchSettings.v1";
+const KEY = WORKBENCH_SETTINGS;
 
 export type ReadingGranularity = "line" | "paragraph" | "section";
 
@@ -51,8 +57,6 @@ const defaults: WorkbenchSettingsPreferences = {
     centreSplit: 0.42,
   },
 };
-
-let remembered: string | null = null;
 
 function bounded(value: unknown, fallback: number, minimum: number, maximum: number): number {
   return typeof value === "number" && Number.isFinite(value)
@@ -120,14 +124,7 @@ export function parseWorkbenchSettings(value: unknown): WorkbenchSettingsPrefere
 }
 
 export function workbenchSettingsPreferences(): WorkbenchSettingsPreferences {
-  let stored = remembered;
-  if (stored === null) {
-    try {
-      stored = window.localStorage.getItem(KEY);
-    } catch {
-      stored = null;
-    }
-  }
+  const stored = readPreference(KEY);
   if (!stored) return defaults;
   try {
     return parseWorkbenchSettings(JSON.parse(stored));
@@ -138,13 +135,7 @@ export function workbenchSettingsPreferences(): WorkbenchSettingsPreferences {
 
 export function saveWorkbenchSettings(preferences: WorkbenchSettingsPreferences): string | null {
   const normalized = parseWorkbenchSettings(preferences);
-  remembered = JSON.stringify(normalized);
-  try {
-    window.localStorage.setItem(KEY, remembered);
-    return null;
-  } catch (cause) {
-    return `This change is active for this session but could not be stored: ${cause instanceof Error ? cause.message : String(cause)}`;
-  }
+  return writePreference(KEY, JSON.stringify(normalized));
 }
 
 export function applyWorkbenchSettings(
@@ -183,5 +174,5 @@ export function applyWorkbenchSettings(
 }
 
 export function forgetWorkbenchSettingsPreferences(): void {
-  remembered = null;
+  forgetPreference(KEY);
 }

@@ -3,6 +3,7 @@ import type { Platform } from "@/platform";
 /** Operating-system authority shared by browser and desktop clients. */
 export type WorkbenchHost = Pick<
   Platform,
+  | "usesHostDurableState"
   | "launchRequest"
   | "durableState"
   | "projectGrants"
