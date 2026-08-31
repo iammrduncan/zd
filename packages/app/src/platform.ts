@@ -33,6 +33,11 @@ import {
   type ProjectGrant,
   type RecentWorkspace,
 } from "@/workbench/resources";
+import { connectServedHostClient } from "@/platform/served-client";
+import { createServedWorkbenchHost } from "@/platform/served";
+import { composePlatform, type ClientShell } from "@/platform/composition";
+
+export type { ClientShell, WorkbenchHost } from "@/platform/composition";
 
 /**
  * The only file in the frontend that knows what shell it is running in.
@@ -581,6 +586,30 @@ const browser: Platform = {
     window.open(url, "_blank", "noopener,noreferrer");
   },
 };
+
+const browserShell: ClientShell = {
+  onOpenRequested: browser.onOpenRequested,
+  pendingOpenRequest: browser.pendingOpenRequest,
+  acceptOpenRequest: browser.acceptOpenRequest,
+  chooseProject: browser.chooseProject,
+  recoverProjectGrant: browser.recoverProjectGrant,
+  registerGlobalSummon: browser.registerGlobalSummon,
+  onWindowPresentationChanged: browser.onWindowPresentationChanged,
+  toggleQuickAccess: browser.toggleQuickAccess,
+  hideQuickAccess: browser.hideQuickAccess,
+  showWorkbench: browser.showWorkbench,
+  isWindowFocused: browser.isWindowFocused,
+  onWindowFocusChanged: browser.onWindowFocusChanged,
+  notifications: browser.notifications,
+  onCloseRequested: browser.onCloseRequested,
+  closeWindow: browser.closeWindow,
+  openExternal: browser.openExternal,
+};
+
+export async function connectServedPlatform(secret: string): Promise<Platform> {
+  const client = await connectServedHostClient({ origin: window.location.origin, secret });
+  return composePlatform("browser", createServedWorkbenchHost(client), browserShell);
+}
 
 export function detectPlatform(): Platform {
   return "__TAURI_INTERNALS__" in window ? tauri : browser;
