@@ -153,6 +153,7 @@ describe("served WorkbenchHost", () => {
     ).rejects.toThrow();
     await expect(served.git.status(scope)).resolves.toMatchObject({
       availability: "unavailable",
+      problem: "Git inspection is unavailable in the read-only served workbench",
     });
     await expect(
       served.fileTree.mutate?.({

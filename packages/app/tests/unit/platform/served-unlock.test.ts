@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { detectPlatform } from "@/platform";
-import { isServedPage, mountServedUnlock } from "@/platform/served-unlock";
+import { isServedPage, mountServedLimits, mountServedUnlock } from "@/platform/served-unlock";
 
 describe("served host unlock", () => {
   it("detects only the server-injected served-host marker", () => {
@@ -14,6 +14,18 @@ describe("served host unlock", () => {
 
     expect(isServedPage(ordinary)).toBe(false);
     expect(isServedPage(served)).toBe(true);
+  });
+
+  it("states every packet-zero limit after the workbench unlocks", () => {
+    const host = document.createElement("main");
+
+    mountServedLimits(host);
+
+    const notice = host.querySelector('[role="status"][aria-label="Served workbench limits"]');
+    expect(notice?.textContent).toContain("Save, file changes, Git, automatic file updates");
+    expect(notice?.textContent).toContain(
+      "terminals, project picker, recent workspaces, and other project roots are unavailable",
+    );
   });
 
   it("keeps the secret in the password field only until submission", async () => {

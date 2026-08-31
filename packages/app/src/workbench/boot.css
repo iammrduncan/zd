@@ -92,3 +92,20 @@
   min-height: var(--type-supporting-line);
   margin: var(--space-2) 0 0;
 }
+
+.zd-served-limit-notice {
+  position: fixed;
+  z-index: 30;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  max-width: min(34rem, calc(100vw - var(--space-4) - var(--space-4)));
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-inline-start: 2px solid var(--line-focus);
+  background: var(--surface-transient);
+  color: var(--text-secondary);
+  font-family: var(--type-supporting-family);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+  pointer-events: none;
+}
