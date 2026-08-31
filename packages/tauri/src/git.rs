@@ -16,12 +16,12 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::cli::LaunchState;
-use crate::git_process::{run_git, GitRunError};
 use history::{
     full_commit_id, page_size, parse_comparison, parse_cursor, parse_history, HistoryCursor,
     MAX_HISTORY_OFFSET,
 };
 use status::parse_status;
+use zd_host::git_process::{run_git, GitRunError};
 
 pub use diff::diff_for;
 pub use types::{

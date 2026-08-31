@@ -3,8 +3,8 @@ use std::path::Path;
 use std::time::Duration;
 
 use crate::cli::LaunchState;
-use crate::git_process::run_git;
 use crate::grants::ResourceRef;
+use zd_host::git_process::run_git;
 
 use super::status::stable_id;
 use super::types::{

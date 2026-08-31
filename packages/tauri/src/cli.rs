@@ -66,6 +66,7 @@ impl LaunchState {
             .clone()
     }
 
+    #[cfg(any(target_os = "macos", test))]
     pub fn queue(&self, request: NativeOpenRequest) {
         let mut session = self.0.lock().expect("launch state was poisoned");
         let request = resolve_open_request(&mut session.grants, request);
@@ -301,6 +302,7 @@ pub fn remove_project_grant(
 }
 
 /// Turn the first local file in a native open event into a workbench request.
+#[cfg(any(target_os = "macos", test))]
 pub fn opened_request(urls: &[tauri::Url]) -> Option<NativeOpenRequest> {
     let path = urls.iter().find_map(|url| url.to_file_path().ok())?;
     Some(NativeOpenRequest {

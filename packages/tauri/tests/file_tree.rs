@@ -4,15 +4,13 @@
 mod cli;
 #[path = "../src/file_tree.rs"]
 mod file_tree;
-#[path = "../src/git_process.rs"]
-mod git_process;
 #[path = "../src/grants.rs"]
 mod grants;
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use file_tree::{
+use zd_host::{
     snapshot_in, FileTreeEntry, FileTreeEntryKind, FileTreeRequest, FileTreeResult, TreeLimits,
 };
 

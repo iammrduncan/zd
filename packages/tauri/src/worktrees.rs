@@ -10,8 +10,8 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::cli::LaunchState;
-use crate::git_process::{run_git, GitOutput, GitRunError};
 use crate::grants::WorktreeGrant;
+use zd_host::git_process::{run_git, GitOutput, GitRunError};
 
 const MAX_NAME_BYTES: usize = 128;
 const MAX_REVISION_BYTES: usize = 512;

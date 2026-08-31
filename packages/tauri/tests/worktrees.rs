@@ -2,8 +2,6 @@
 
 #[path = "../src/cli.rs"]
 mod cli;
-#[path = "../src/git_process.rs"]
-mod git_process;
 #[path = "../src/grants.rs"]
 mod grants;
 #[path = "../src/worktrees.rs"]

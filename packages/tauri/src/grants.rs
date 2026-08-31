@@ -1,3 +1,1 @@
-pub use zd_host::{
-    ApprovedProject, GrantAvailability, GrantStore, ProjectGrant, ResourceRef, WorktreeGrant,
-};
+pub use zd_host::{GrantStore, ProjectGrant, ResourceRef, WorktreeGrant};
