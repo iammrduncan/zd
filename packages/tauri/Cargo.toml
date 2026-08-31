@@ -29,6 +29,7 @@ notify-debouncer-mini = "0.7.0"
 portable-pty = "0.9.0"
 sysinfo = { version = "=0.39.6", default-features = false, features = ["system"] }
 trash = "5.2.6"
+zd-host = { path = "../host" }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

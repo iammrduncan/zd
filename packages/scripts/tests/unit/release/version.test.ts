@@ -12,6 +12,7 @@ const fixtures: string[] = [];
 function makeFixture(version = "1.2.3"): string {
   const root = mkdtempSync(join(tmpdir(), "zd-release-version-"));
   fixtures.push(root);
+  mkdirSync(join(root, "packages/host"), { recursive: true });
   mkdirSync(join(root, "packages/tauri"), { recursive: true });
   mkdirSync(join(root, "packages/website"), { recursive: true });
   writeFileSync(
@@ -27,12 +28,16 @@ function makeFixture(version = "1.2.3"): string {
     '{"name":"zd","version":"0.9.0","packages":{"":{"name":"zd","version":"0.9.0"},"packages/website":{"name":"@zd/website","version":"0.9.0"}}}\n',
   );
   writeFileSync(
+    join(root, "packages/host/Cargo.toml"),
+    '[package]\nname = "zd-host"\nversion = "0.9.0"\nedition = "2021"\n',
+  );
+  writeFileSync(
     join(root, "packages/tauri/Cargo.toml"),
     '[package]\nname = "zd"\nversion = "0.9.0"\nedition = "2021"\n',
   );
   writeFileSync(
-    join(root, "packages/tauri/Cargo.lock"),
-    '[[package]]\nname = "zd"\nversion = "0.9.0"\ndependencies = []\n',
+    join(root, "Cargo.lock"),
+    '[[package]]\nname = "zd"\nversion = "0.9.0"\ndependencies = []\n\n[[package]]\nname = "zd-host"\nversion = "0.9.0"\ndependencies = []\n',
   );
   writeFileSync(
     join(root, "packages/tauri/tauri.conf.json"),
@@ -68,7 +73,7 @@ describe("the release version synchronizer", () => {
     expect(result.status, result.stdout + result.stderr).toBe(0);
   });
 
-  it("copies the package version into workspace, lockfile, and native metadata", () => {
+  it("copies the package version into Rust workspace, lockfile, and native metadata", () => {
     const root = makeFixture();
 
     const result = run(root);
@@ -87,8 +92,15 @@ describe("the release version synchronizer", () => {
     expect(
       JSON.parse(readFileSync(join(root, "packages/website/package.json"), "utf8")),
     ).toHaveProperty("version", "1.2.3");
+    expect(cargoVersion(join(root, "packages/host/Cargo.toml"))).toBe("1.2.3");
     expect(cargoVersion(join(root, "packages/tauri/Cargo.toml"))).toBe("1.2.3");
-    expect(cargoVersion(join(root, "packages/tauri/Cargo.lock"))).toBe("1.2.3");
+    const cargoLock = readFileSync(join(root, "Cargo.lock"), "utf8");
+    expect(
+      cargoLock.match(/name = "zd"\nversion = "([^"]+)"/)?.[1],
+    ).toBe("1.2.3");
+    expect(
+      cargoLock.match(/name = "zd-host"\nversion = "([^"]+)"/)?.[1],
+    ).toBe("1.2.3");
     expect(tauri.version).toBe("../../package.json");
   });
 
