@@ -50,6 +50,11 @@ impl Assets {
             Err(_) => return not_found(),
         };
         let relative = selected.strip_prefix(&self.root).unwrap_or(&selected);
+        let bytes = if relative == Path::new("index.html") {
+            mark_served_page(bytes)
+        } else {
+            bytes
+        };
         let content_type = content_type(relative);
         let cache = if relative == Path::new("index.html") {
             "no-store"
@@ -68,6 +73,23 @@ impl Assets {
             return None;
         }
         Some(resolved)
+    }
+}
+
+fn mark_served_page(bytes: Vec<u8>) -> Vec<u8> {
+    const MARKER: &str = "<meta name=\"zd-served-host\" content=\"1\">";
+    let index = match String::from_utf8(bytes) {
+        Ok(index) => index,
+        Err(error) => return error.into_bytes(),
+    };
+    if index.contains(MARKER) {
+        return index.into_bytes();
+    }
+    match index.find("</head>") {
+        Some(position) => {
+            format!("{}{MARKER}{}", &index[..position], &index[position..]).into_bytes()
+        }
+        None => format!("{MARKER}{index}").into_bytes(),
     }
 }
 

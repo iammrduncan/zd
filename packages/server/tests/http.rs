@@ -75,7 +75,9 @@ async fn application_assets_have_closed_types_cache_rules_and_csp() {
         .to_str()
         .unwrap()
         .contains("default-src 'self'"));
-    assert!(String::from_utf8(index).unwrap().contains("served app"));
+    let index = String::from_utf8(index).unwrap();
+    assert!(index.contains("served app"));
+    assert!(index.contains("<meta name=\"zd-served-host\" content=\"1\">"));
 
     let (status, headers, javascript) = get(&server, "/assets/app.123.js").await;
     assert_eq!(status, 200);

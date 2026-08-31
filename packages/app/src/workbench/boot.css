@@ -23,3 +23,72 @@
   line-height: var(--type-supporting-line);
   pointer-events: none;
 }
+
+.zd-served-unlock {
+  width: min(34rem, calc(100vw - var(--space-4) - var(--space-4)));
+  margin: max(18vh, var(--space-5)) auto 0;
+  color: var(--text-primary);
+  font-family: var(--type-supporting-family);
+}
+
+.zd-served-unlock h1 {
+  margin: 0 0 var(--space-4);
+  font-family: var(--type-h2-family);
+  font-size: var(--type-h2-size);
+  font-weight: var(--type-h2-weight);
+}
+
+.zd-served-unlock p,
+.zd-served-unlock label {
+  color: var(--text-secondary);
+  font-size: var(--type-supporting-size);
+  line-height: var(--type-supporting-line);
+}
+
+.zd-served-unlock form,
+.zd-served-unlock label {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.zd-served-unlock form {
+  margin-top: var(--space-4);
+}
+
+.zd-served-unlock input {
+  min-height: 2rem;
+  padding: var(--space-2) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line-quiet);
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.zd-served-unlock input:focus {
+  border-bottom-color: var(--line-focus);
+}
+
+.zd-served-unlock button {
+  justify-self: start;
+  min-height: 2rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-link);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.zd-served-unlock :disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.zd-served-unlock-status {
+  min-height: var(--type-supporting-line);
+  margin: var(--space-2) 0 0;
+}
