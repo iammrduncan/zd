@@ -64,17 +64,21 @@ if (!packageLock.packages?.[""]) throw new Error("package-lock.json has no root 
 packageLock.packages[""].version = version;
 websiteLockPackage.version = version;
 
-const cargoManifestPath = resolve(root, "packages/tauri/Cargo.toml");
-const cargoLockPath = resolve(root, "packages/tauri/Cargo.lock");
-const cargoManifestSource = readFileSync(cargoManifestPath, "utf8");
+const cargoPackages = [
+  [resolve(root, "packages/host/Cargo.toml"), "zd-host"],
+  [resolve(root, "packages/tauri/Cargo.toml"), "zd"],
+];
+const cargoManifestUpdates = cargoPackages.map(([path, name]) => {
+  const source = readFileSync(path, "utf8");
+  const updated = replaceCargoPackageVersion(source, "[package]", name, version);
+  return [path, updated, source === updated];
+});
+const cargoLockPath = resolve(root, "Cargo.lock");
 const cargoLockSource = readFileSync(cargoLockPath, "utf8");
-const cargoManifestUpdated = replaceCargoPackageVersion(
-  cargoManifestSource,
-  "[package]",
-  "zd",
-  version,
+const cargoLockUpdated = cargoPackages.reduce(
+  (source, [, name]) => replaceCargoPackageVersion(source, "[[package]]", name, version),
+  cargoLockSource,
 );
-const cargoLockUpdated = replaceCargoPackageVersion(cargoLockSource, "[[package]]", "zd", version);
 const tauriPath = resolve(root, "packages/tauri/tauri.conf.json");
 const tauri = readJson(tauriPath);
 const tauriSynchronized = tauri.version === "../../package.json";
@@ -83,7 +87,7 @@ tauri.version = "../../package.json";
 const updates = [
   [websitePackagePath, formatJson(websitePackage), websitePackageSynchronized],
   [packageLockPath, formatJson(packageLock), packageLockSynchronized],
-  [cargoManifestPath, cargoManifestUpdated, cargoManifestSource === cargoManifestUpdated],
+  ...cargoManifestUpdates,
   [cargoLockPath, cargoLockUpdated, cargoLockSource === cargoLockUpdated],
   [tauriPath, formatJson(tauri), tauriSynchronized],
 ];

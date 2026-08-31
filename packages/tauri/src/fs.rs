@@ -9,11 +9,13 @@ use std::path::{Path, PathBuf};
 use crate::cli::LaunchState;
 use crate::grants::ResourceRef;
 use tauri_plugin_opener::OpenerExt;
+use zd_host::read_bounded_file_at;
+#[cfg(test)]
+use zd_host::read_bounded_file_with_limits as bounded_file_read;
+pub use zd_host::BoundedFileRead;
 
 pub(crate) mod mutations;
 
-const EDITABLE_FILE_LIMIT: u64 = 8 * 1024 * 1024;
-const FILE_PREVIEW_LIMIT: usize = 64 * 1024;
 const PROJECT_IMAGE_LIMIT: u64 = 16 * 1024 * 1024;
 
 /// One file in the retained bounded Markdown listing, named for opening and display.
@@ -32,37 +34,6 @@ pub struct WorkspaceListing {
     pub worktree_id: String,
     pub root: String,
     pub files: Vec<WorkspaceFile>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-#[serde(
-    tag = "status",
-    rename_all = "kebab-case",
-    rename_all_fields = "camelCase"
-)]
-pub enum BoundedFileRead {
-    Text {
-        text: String,
-        byte_length: u64,
-        writable: bool,
-        reason: Option<String>,
-    },
-    Binary {
-        byte_length: u64,
-    },
-    Undecodable {
-        byte_length: u64,
-    },
-    Missing,
-    Denied,
-    OverLimit {
-        byte_length: u64,
-        limit: u64,
-        preview: Option<String>,
-    },
-    Unavailable {
-        problem: String,
-    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -107,89 +78,6 @@ fn project_image_read(path: &Path, limit: u64) -> Result<ProjectImage, String> {
     Ok(ProjectImage { media_type, bytes })
 }
 
-fn read_failure(error: &std::io::Error) -> BoundedFileRead {
-    match error.kind() {
-        std::io::ErrorKind::NotFound => BoundedFileRead::Missing,
-        std::io::ErrorKind::PermissionDenied => BoundedFileRead::Denied,
-        _ => BoundedFileRead::Unavailable {
-            problem: "The file could not be read".to_string(),
-        },
-    }
-}
-
-fn safe_preview(bytes: Vec<u8>) -> Option<String> {
-    if bytes.contains(&0) {
-        return None;
-    }
-    String::from_utf8(bytes).ok()
-}
-
-fn bounded_file_read(path: &Path, limit: u64, preview_limit: usize) -> BoundedFileRead {
-    let metadata = match std::fs::metadata(path) {
-        Ok(metadata) => metadata,
-        Err(error) => return read_failure(&error),
-    };
-    if !metadata.is_file() {
-        return BoundedFileRead::Unavailable {
-            problem: "The selected resource is not a regular file".to_string(),
-        };
-    }
-
-    let mut file = match std::fs::File::open(path) {
-        Ok(file) => file,
-        Err(error) => return read_failure(&error),
-    };
-    let byte_length = metadata.len();
-    if byte_length > limit {
-        let mut preview = Vec::with_capacity(preview_limit.min(byte_length as usize));
-        if let Err(error) = (&mut file)
-            .take(preview_limit as u64)
-            .read_to_end(&mut preview)
-        {
-            return read_failure(&error);
-        }
-        return BoundedFileRead::OverLimit {
-            byte_length,
-            limit,
-            preview: safe_preview(preview),
-        };
-    }
-
-    let mut bytes = Vec::with_capacity(byte_length as usize);
-    if let Err(error) = (&mut file)
-        .take(limit.saturating_add(1))
-        .read_to_end(&mut bytes)
-    {
-        return read_failure(&error);
-    }
-    if bytes.len() as u64 > limit {
-        let current_length = file
-            .metadata()
-            .map_or(bytes.len() as u64, |current| current.len());
-        bytes.truncate(preview_limit.min(bytes.len()));
-        return BoundedFileRead::OverLimit {
-            byte_length: current_length,
-            limit,
-            preview: safe_preview(bytes),
-        };
-    }
-    if bytes.contains(&0) {
-        return BoundedFileRead::Binary { byte_length };
-    }
-    let text = match String::from_utf8(bytes) {
-        Ok(text) => text,
-        Err(_) => return BoundedFileRead::Undecodable { byte_length },
-    };
-    let writable = !metadata.permissions().readonly()
-        && std::fs::OpenOptions::new().write(true).open(path).is_ok();
-    BoundedFileRead::Text {
-        text,
-        byte_length,
-        writable,
-        reason: (!writable).then(|| "The filesystem does not grant write access".to_string()),
-    }
-}
-
 #[tauri::command]
 pub fn read_bounded_file(
     launch: tauri::State<'_, LaunchState>,
@@ -203,7 +91,7 @@ pub fn read_bounded_file(
             }
         }
     };
-    bounded_file_read(&path, EDITABLE_FILE_LIMIT, FILE_PREVIEW_LIMIT)
+    read_bounded_file_at(&path)
 }
 
 #[tauri::command]

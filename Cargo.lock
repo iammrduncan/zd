@@ -5522,6 +5522,16 @@ dependencies = [
  "tauri-plugin-opener",
  "trash",
  "windows-sys 0.61.2",
+ "zd-host",
+]
+
+[[package]]
+name = "zd-host"
+version = "0.2.10"
+dependencies = [
+ "ignore",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

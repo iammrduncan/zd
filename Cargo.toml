@@ -1,0 +1,3 @@
+[workspace]
+members = ["packages/host", "packages/tauri"]
+resolver = "2"
