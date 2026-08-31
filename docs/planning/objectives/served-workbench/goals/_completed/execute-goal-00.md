@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- [ADR 0008](../../../../adr/suite/0008-serve-one-host-backend-to-browser-and-desktop-clients_H.md),
-  [`VISION.md`](../../../../VISION.md), and [`DESIGN.md`](../../../../DESIGN.md) are the authority for
+- [ADR 0008](../../../../../adr/suite/0008-serve-one-host-backend-to-browser-and-desktop-clients_H.md),
+  [`VISION.md`](../../../../../VISION.md), and [`DESIGN.md`](../../../../../DESIGN.md) are the authority for
   one host backend and separate client-shell behavior.
 - The current Rust grant, bounded file-read, and file-tree tests must be green before extraction.
 - This goal owns the shared platform boundary, Rust host/server composition, root build metadata, and
@@ -21,7 +21,7 @@ decisions are outside this goal.
 ## `/goal` objective
 
 This goal delivers work packet 0 from
-[`02-DELIVERY-PLAN.md:7-25`](../02-DELIVERY-PLAN.md#work-packet-0-read-only-served-host-walking-skeleton).
+[`02-DELIVERY-PLAN.md:7-25`](../../02-DELIVERY-PLAN.md#work-packet-0-read-only-served-host-walking-skeleton).
 
 Produce the smallest real end-to-end proof that the current TypeScript workbench can use a
 Tauri-free Rust host through a secure loopback protocol. A person must be able to approve one folder
@@ -139,8 +139,8 @@ At minimum, prove:
 
 ## Engineering constraints
 
-- Follow the repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../GOOD_ENGINEERING_H.md),
-  and [`DESIGN.md`](../../../../DESIGN.md). Add tests with every code change and write a failing
+- Follow the repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../../GOOD_ENGINEERING_H.md),
+  and [`DESIGN.md`](../../../../../DESIGN.md). Add tests with every code change and write a failing
   regression test before fixing any error discovered during execution.
 - Keep `packages/app/src/platform.ts` as the only production Tauri import boundary. Product modules
   must not import WebSocket, server URLs, or Tauri APIs directly.

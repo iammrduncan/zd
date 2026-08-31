@@ -1,6 +1,6 @@
 # Served workbench
 
-**Phase:** Executing
+**Phase:** Planning
 **Started:** 2026-08-31
 
 This objective makes one `zd` host authoritative for browser and Tauri clients. It replaces a future
@@ -9,9 +9,9 @@ host, a standard protected tunnel, and one observable protocol.
 
 ## Needs the owner
 
-Nothing is waiting on an owner decision. The first goal is read-only and applies the accepted
-loopback, single-controller, shared-host direction. Later goals remain uncut until its evidence fixes
-the public host and protocol shapes.
+Nothing is waiting on an owner decision. The read-only walking skeleton proved the accepted
+loopback, single-controller, shared-host direction. Its evidence now fixes the public host and
+protocol shapes needed to cut the remaining work packets.
 
 ## Plan documents
 
@@ -31,13 +31,13 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 
 **Open**
 
-| Goal | Delivers | Prerequisites | Needs owner |
-| --- | --- | --- | --- |
-| [Execute goal 00](goals/execute-goal-00.md) | One authenticated read-only served host that opens a real project file in a real browser | Current grant/file tests green | No |
+None while the remaining work packets are converted into executable goals.
 
 **Completed**
 
-None.
+| Goal | Summary | Outcome |
+| --- | --- | --- |
+| [Execute goal 00](goals/_completed/execute-goal-00.md) | [Summary](goals/_completed/summary-goal-00.md) | One authenticated read-only served host opens a real project file in a real browser. |
 
 ## What this objective will not do
 
