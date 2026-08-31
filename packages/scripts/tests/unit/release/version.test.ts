@@ -13,6 +13,7 @@ function makeFixture(version = "1.2.3"): string {
   const root = mkdtempSync(join(tmpdir(), "zd-release-version-"));
   fixtures.push(root);
   mkdirSync(join(root, "packages/host"), { recursive: true });
+  mkdirSync(join(root, "packages/server"), { recursive: true });
   mkdirSync(join(root, "packages/tauri"), { recursive: true });
   mkdirSync(join(root, "packages/website"), { recursive: true });
   writeFileSync(
@@ -32,12 +33,16 @@ function makeFixture(version = "1.2.3"): string {
     '[package]\nname = "zd-host"\nversion = "0.9.0"\nedition = "2021"\n',
   );
   writeFileSync(
+    join(root, "packages/server/Cargo.toml"),
+    '[package]\nname = "zd-server"\nversion = "0.9.0"\nedition = "2021"\n',
+  );
+  writeFileSync(
     join(root, "packages/tauri/Cargo.toml"),
     '[package]\nname = "zd"\nversion = "0.9.0"\nedition = "2021"\n',
   );
   writeFileSync(
     join(root, "Cargo.lock"),
-    '[[package]]\nname = "zd"\nversion = "0.9.0"\ndependencies = []\n\n[[package]]\nname = "zd-host"\nversion = "0.9.0"\ndependencies = []\n',
+    '[[package]]\nname = "zd"\nversion = "0.9.0"\ndependencies = []\n\n[[package]]\nname = "zd-host"\nversion = "0.9.0"\ndependencies = []\n\n[[package]]\nname = "zd-server"\nversion = "0.9.0"\ndependencies = []\n',
   );
   writeFileSync(
     join(root, "packages/tauri/tauri.conf.json"),
@@ -93,6 +98,7 @@ describe("the release version synchronizer", () => {
       JSON.parse(readFileSync(join(root, "packages/website/package.json"), "utf8")),
     ).toHaveProperty("version", "1.2.3");
     expect(cargoVersion(join(root, "packages/host/Cargo.toml"))).toBe("1.2.3");
+    expect(cargoVersion(join(root, "packages/server/Cargo.toml"))).toBe("1.2.3");
     expect(cargoVersion(join(root, "packages/tauri/Cargo.toml"))).toBe("1.2.3");
     const cargoLock = readFileSync(join(root, "Cargo.lock"), "utf8");
     expect(
@@ -100,6 +106,9 @@ describe("the release version synchronizer", () => {
     ).toBe("1.2.3");
     expect(
       cargoLock.match(/name = "zd-host"\nversion = "([^"]+)"/)?.[1],
+    ).toBe("1.2.3");
+    expect(
+      cargoLock.match(/name = "zd-server"\nversion = "([^"]+)"/)?.[1],
     ).toBe("1.2.3");
     expect(tauri.version).toBe("../../package.json");
   });

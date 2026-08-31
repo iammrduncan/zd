@@ -1,0 +1,23 @@
+[package]
+name = "zd-server"
+version = "0.2.10"
+description = "Loopback workbench server for zd"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/iammrduncan/zd"
+
+[dependencies]
+axum = { version = "0.8", features = ["ws"] }
+base64 = "0.22"
+futures-util = "0.3"
+getrandom = "0.4"
+http = "1"
+mime_guess = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+subtle = "2.6"
+tokio = { version = "1", features = ["fs", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+zd-host = { path = "../host" }
+
+[dev-dependencies]
+tokio-tungstenite = "0.28"
