@@ -5,6 +5,7 @@ import { unavailableTerminalAdapter } from "@/terminal";
 import type { WorkbenchHost } from "@/platform/composition";
 import type { LaunchRequest, ProjectGrant } from "@/workbench/resources";
 import type { ServedHostClient } from "./served-client";
+import { createDurableStateAdapter } from "./durable-state";
 
 interface SessionDescription {
   readonly protocolVersion: 1;
@@ -22,7 +23,7 @@ interface SessionDescription {
     readonly fileWatch: "unavailable";
     readonly git: "unavailable";
     readonly terminal: "unavailable";
-    readonly durableState: "unavailable";
+    readonly durableState: "read-write";
     readonly projectPicker: "unavailable";
     readonly recentWorkspaces: "unavailable";
   };
@@ -91,9 +92,11 @@ function assertReadOnly(description: SessionDescription): void {
     capabilities.projectGrants !== "read-only" ||
     capabilities.fileTree !== "read-only" ||
     capabilities.fileRead !== "read-only" ||
+    capabilities.durableState !== "read-write" ||
     Object.entries(capabilities).some(
       ([name, access]) =>
-        !["projectGrants", "fileTree", "fileRead"].includes(name) && access !== "unavailable",
+        !["projectGrants", "fileTree", "fileRead", "durableState"].includes(name) &&
+        access !== "unavailable",
     )
   ) {
     throw new Error("the served host did not provide the packet-zero read-only capabilities");
@@ -112,6 +115,10 @@ function forceReadOnly(read: BoundedFileRead): BoundedFileRead {
 
 export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHost {
   const grants = () => client.request<GrantList>("projectGrants.list", {});
+  const durableState = createDurableStateAdapter({
+    describe: () => client.request("state.describe", {}),
+    apply: (request) => client.request("state.apply", request),
+  });
   let launch: Promise<LaunchRequest> | null = null;
   const launchRequest = () => {
     launch ??= Promise.all([
@@ -153,6 +160,7 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
 
   return {
     launchRequest,
+    durableState,
     projectGrants: async () => (await grants()).projects,
     recentWorkspaces: () => unavailable("Recent workspaces"),
     saveWorkspace: () => unavailable("Workspace persistence"),

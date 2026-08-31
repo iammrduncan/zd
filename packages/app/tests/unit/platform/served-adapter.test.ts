@@ -23,7 +23,7 @@ function client(): ServedHostClient {
             fileWatch: "unavailable",
             git: "unavailable",
             terminal: "unavailable",
-            durableState: "unavailable",
+            durableState: "read-write",
             projectPicker: "unavailable",
             recentWorkspaces: "unavailable",
           },
@@ -77,6 +77,19 @@ function client(): ServedHostClient {
           writable: true,
           reason: null,
         };
+      case "state.describe":
+        return {
+          revision: { preferences: 0, project: 0 },
+          preferences: null,
+          workbench: null,
+          drafts: [],
+          reviewLedgers: [],
+        };
+      case "state.apply":
+        return {
+          status: "applied",
+          revision: { preferences: 1, project: 0 },
+        };
       default:
         throw new Error(`unexpected method ${method}`);
     }
@@ -126,6 +139,23 @@ describe("served WorkbenchHost", () => {
       byteLength: 5,
       writable: false,
       reason: "Served workbenches are read-only",
+    });
+  });
+
+  it("uses the same revisioned durable-state adapter as the desktop shell", async () => {
+    const served = createServedWorkbenchHost(client());
+    await served.durableState.load();
+
+    const stored = served.durableState.mutate({
+      kind: "replace-preferences",
+      record: { schemaVersion: 1, theme: "current-dark" },
+    });
+    await served.durableState.flush();
+
+    await expect(stored).resolves.toBe(true);
+    expect(served.durableState.snapshot().preferences).toEqual({
+      schemaVersion: 1,
+      theme: "current-dark",
     });
   });
 
