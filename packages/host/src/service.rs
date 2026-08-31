@@ -1,9 +1,11 @@
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Mutex;
 
 use serde::Serialize;
 
-use crate::identity;
+use crate::durable::DurableStateStore;
+use crate::{durable, identity};
 use crate::{
     read_bounded_file_at, snapshot_in, BoundedFileRead, FileTreeRequest, FileTreeResult,
     GrantStore, ProjectGrant, ResourceRef, TreeLimits,
@@ -26,7 +28,10 @@ struct HostState {
 
 /// One authority owner for an approved workbench session.
 #[derive(Debug)]
-pub struct HostService(Mutex<HostState>);
+pub struct HostService {
+    state: Mutex<HostState>,
+    durable: Option<DurableStateStore>,
+}
 
 impl HostService {
     pub fn open_project(root: &Path) -> Result<Self, String> {
@@ -38,12 +43,15 @@ impl HostService {
             relative_path: None,
             problem: None,
         };
-        Ok(Self(Mutex::new(HostState { launch, grants })))
+        Ok(Self {
+            state: Mutex::new(HostState { launch, grants }),
+            durable: None,
+        })
     }
 
     pub fn open_project_with_state(root: &Path, state_directory: &Path) -> Result<Self, String> {
         let identity = identity::open_project(root, state_directory)?;
-        Self::open_project_with_identity(root, identity)
+        Self::open_project_with_identity(root, identity, state_directory)
     }
 
     pub fn recover_project_with_state(
@@ -52,13 +60,15 @@ impl HostService {
         state_directory: &Path,
     ) -> Result<Self, String> {
         let identity = identity::recover_project(project_id, root, state_directory)?;
-        Self::open_project_with_identity(root, identity)
+        Self::open_project_with_identity(root, identity, state_directory)
     }
 
     fn open_project_with_identity(
         root: &Path,
         identity: identity::ProjectIdentity,
+        state_directory: &Path,
     ) -> Result<Self, String> {
+        let durable = DurableStateStore::new(state_directory, identity.project_id.clone())?;
         let mut grants = GrantStore::default();
         let approved = grants.approve_project_with_identity(
             root,
@@ -71,11 +81,14 @@ impl HostService {
             relative_path: None,
             problem: None,
         };
-        Ok(Self(Mutex::new(HostState { launch, grants })))
+        Ok(Self {
+            state: Mutex::new(HostState { launch, grants }),
+            durable: Some(durable),
+        })
     }
 
     pub fn launch_request(&self) -> HostLaunchRequest {
-        self.0
+        self.state
             .lock()
             .expect("host state was poisoned")
             .launch
@@ -83,7 +96,7 @@ impl HostService {
     }
 
     pub fn project_grants(&self) -> Vec<ProjectGrant> {
-        self.0
+        self.state
             .lock()
             .expect("host state was poisoned")
             .grants
@@ -92,7 +105,7 @@ impl HostService {
 
     pub fn file_tree_snapshot(&self, request: &FileTreeRequest) -> FileTreeResult {
         let root = self
-            .0
+            .state
             .lock()
             .expect("host state was poisoned")
             .grants
@@ -112,7 +125,7 @@ impl HostService {
 
     pub fn read_bounded_file(&self, resource: &ResourceRef) -> BoundedFileRead {
         let path = self
-            .0
+            .state
             .lock()
             .expect("host state was poisoned")
             .grants
@@ -123,5 +136,33 @@ impl HostService {
                 problem: "File authority is unavailable".to_string(),
             },
         }
+    }
+
+    pub fn describe_durable_state(&self) -> Result<durable::DurableStateBundle, String> {
+        let (durable, worktree_ids) = self.durable_scope()?;
+        durable.describe(&worktree_ids)
+    }
+
+    pub fn apply_durable_state(
+        &self,
+        request: &durable::DurableStateApply,
+    ) -> Result<durable::DurableStateApplyResult, String> {
+        let (durable, worktree_ids) = self.durable_scope()?;
+        durable.apply(&worktree_ids, request)
+    }
+
+    fn durable_scope(&self) -> Result<(&DurableStateStore, HashSet<String>), String> {
+        let durable = self.durable.as_ref().ok_or_else(|| {
+            "durable state is unavailable: persistence was not configured".to_string()
+        })?;
+        let worktree_ids = self
+            .state
+            .lock()
+            .expect("host state was poisoned")
+            .grants
+            .worktree_ids(durable.project_id())?
+            .into_iter()
+            .collect();
+        Ok((durable, worktree_ids))
     }
 }
