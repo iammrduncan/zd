@@ -15,6 +15,7 @@ pub use atomic_write::atomic_write;
 pub use durable::{
     DurableFileDraft, DurableReviewComment, DurableReviewLedger, DurableStateApply,
     DurableStateApplyResult, DurableStateBundle, DurableStateMutation, DurableStateRevision,
+    DurableStateSession,
 };
 pub use file_tree::{
     snapshot_in, FileTreeEntry, FileTreeEntryKind, FileTreeRequest, FileTreeResult, TreeLimits,
