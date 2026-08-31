@@ -10,7 +10,6 @@ mod file_tree;
 mod file_tree_watch;
 mod fs;
 mod git;
-mod git_process;
 mod grants;
 pub mod instrumentation;
 pub mod notifications;

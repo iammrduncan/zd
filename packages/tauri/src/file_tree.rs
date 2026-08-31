@@ -1,8 +1,6 @@
 use crate::cli::LaunchState;
 
-pub use zd_host::{
-    snapshot_in, FileTreeEntry, FileTreeEntryKind, FileTreeRequest, FileTreeResult, TreeLimits,
-};
+use zd_host::{snapshot_in, FileTreeRequest, FileTreeResult, TreeLimits};
 
 #[tauri::command]
 pub fn file_tree_snapshot(

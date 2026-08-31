@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
+#[cfg(target_os = "macos")]
 use tauri::Emitter;
 
 #[cfg(target_os = "macos")]
@@ -124,11 +125,13 @@ pub struct ActionStore {
     inner: Mutex<ActionStoreInner>,
 }
 
+#[cfg(target_os = "macos")]
 struct ActionRouter {
     app: tauri::AppHandle,
     store: Arc<ActionStore>,
 }
 
+#[cfg(target_os = "macos")]
 impl ActionRouter {
     fn deliver(&self, notification_id: &str, native: NativeNotificationAction) {
         let Some(action) = self.store.record_action(notification_id, native) else {
@@ -151,6 +154,7 @@ struct NativeAttentionCapabilities {
 }
 
 impl NativeAttentionCapabilities {
+    #[cfg(any(target_os = "macos", test))]
     fn with_notification_problem(problem: String) -> Self {
         Self {
             notification_problem: Some(problem),
@@ -456,7 +460,7 @@ pub fn pending_notification_actions(
 #[tauri::command]
 pub async fn play_completion_sound(
     state: tauri::State<'_, NotificationState>,
-    app: tauri::AppHandle,
+    _app: tauri::AppHandle,
     request: CompletionSoundRequest,
 ) -> Result<CompletionSoundResult, String> {
     if let Err(problem) = validate_sound_request(&request) {
@@ -473,7 +477,7 @@ pub async fn play_completion_sound(
     }
 
     #[cfg(target_os = "macos")]
-    let played = macos::play_sound_on_main(&app, request).await;
+    let played = macos::play_sound_on_main(&_app, request).await;
     #[cfg(not(target_os = "macos"))]
     let played: Result<(), String> = Err("completion sounds are unavailable".into());
     Ok(match played {
