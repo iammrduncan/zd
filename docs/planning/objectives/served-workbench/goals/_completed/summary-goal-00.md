@@ -1,8 +1,10 @@
 # Summary — goal 00: Open a real project read-only through a served zd host
 
-**Completed:** 2026-08-31  
+**Completed:** 2026-08-31
+
 **Commits:** `f37f388`, `5eba738`, `3693311`, `bfa5845`, `d4938c2`, `ca65c52`,
-`477388e`, `858064d`  
+`477388e`, `858064d`
+
 **Goal file:** [`execute-goal-00.md`](execute-goal-00.md)
 
 ## Action needed from the owner
