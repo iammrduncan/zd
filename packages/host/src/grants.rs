@@ -96,6 +96,17 @@ impl GrantStore {
     }
 
     pub fn approve_project(&mut self, requested: &Path) -> Result<ApprovedProject, String> {
+        let project_id = self.identity("project");
+        let worktree_id = self.identity("worktree");
+        self.approve_project_with_identity(requested, project_id, worktree_id)
+    }
+
+    pub(crate) fn approve_project_with_identity(
+        &mut self,
+        requested: &Path,
+        project_id: String,
+        worktree_id: String,
+    ) -> Result<ApprovedProject, String> {
         let root = canonical_directory(requested)?;
         if let Some(existing) = self.projects.iter().find(|project| project.root == root) {
             return Ok(ApprovedProject {
@@ -117,8 +128,6 @@ impl GrantStore {
 
         let name = display_name(&root);
         let worktree_name = worktree_label(&root);
-        let project_id = self.identity("project");
-        let worktree_id = self.identity("worktree");
         self.projects.push(ProjectRecord {
             id: project_id,
             name: name.clone(),
@@ -277,7 +286,7 @@ impl GrantStore {
     }
 }
 
-fn canonical_directory(requested: &Path) -> Result<PathBuf, String> {
+pub(crate) fn canonical_directory(requested: &Path) -> Result<PathBuf, String> {
     let root = requested
         .canonicalize()
         .map_err(|error| format!("{}: {error}", requested.display()))?;

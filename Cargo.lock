@@ -5743,6 +5743,7 @@ dependencies = [
 name = "zd-host"
 version = "0.2.10"
 dependencies = [
+ "getrandom 0.4.3",
  "ignore",
  "serde",
  "serde_json",
