@@ -57,6 +57,22 @@ pub(crate) fn open_project(
     state_directory: &Path,
 ) -> Result<ProjectIdentity, String> {
     let root = canonical_directory(requested)?;
+    remember_root(root, state_directory)
+}
+
+pub(crate) fn remember_legacy_project(
+    requested: &Path,
+    state_directory: &Path,
+) -> Result<ProjectIdentity, String> {
+    let root = match canonical_directory(requested) {
+        Ok(root) => root,
+        Err(_) if is_normal_absolute(requested) => requested.to_path_buf(),
+        Err(_) => return Err(unavailable("legacy root is invalid")),
+    };
+    remember_root(root, state_directory)
+}
+
+fn remember_root(root: PathBuf, state_directory: &Path) -> Result<ProjectIdentity, String> {
     with_catalog(state_directory, |catalog| {
         if let Some(project) = catalog.projects.iter().find(|project| project.root == root) {
             return Ok((identity_of(project)?, false));
@@ -82,6 +98,29 @@ pub(crate) fn open_project(
             },
             true,
         ))
+    })
+}
+
+pub(crate) fn project_roots(
+    project_ids: &[String],
+    state_directory: &Path,
+) -> Result<Vec<PathBuf>, String> {
+    if project_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    with_catalog(state_directory, |catalog| {
+        let roots = project_ids
+            .iter()
+            .map(|project_id| {
+                catalog
+                    .projects
+                    .iter()
+                    .find(|project| project.id == *project_id)
+                    .map(|project| project.root.clone())
+                    .ok_or_else(|| unavailable("workspace project is unknown"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok((roots, false))
     })
 }
 
