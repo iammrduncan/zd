@@ -8,6 +8,7 @@ pub mod git_process;
 mod grants;
 mod identity;
 mod service;
+mod workspaces;
 
 pub use atomic_write::atomic_write;
 pub use file_tree::{
@@ -21,3 +22,7 @@ pub use grants::{
     ApprovedProject, GrantAvailability, GrantStore, ProjectGrant, ResourceRef, WorktreeGrant,
 };
 pub use service::{HostLaunchRequest, HostService};
+pub use workspaces::{
+    RecentWorkspace, RecentWorkspaceKind, WorkspaceStore, MAX_PROJECTS_PER_WORKSPACE,
+    MAX_RECENT_WORKSPACES,
+};
