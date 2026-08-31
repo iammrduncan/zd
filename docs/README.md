@@ -18,6 +18,7 @@ workbench, and command are named `zd`; the name is complete and is not expanded 
 | Current expanded-scope plan | [Expanded-scope goal](planning/goals/expanded-scope/goal.md) |
 | Frontend implementation owners | [App source map](../packages/app/src/README.md) |
 | Native implementation owners | [Native source map](../packages/tauri/src/README.md) |
+| Experimental served-host development | [Run the served host](_internal/served-host.md) |
 | Product and architecture proposals | [ZenSuite Improvement Proposals](zsip/README.md) |
 | Release operations | [Releasing `zd`](_internal/releasing.md) |
 
