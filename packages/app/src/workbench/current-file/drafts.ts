@@ -1,4 +1,5 @@
 import type { FileResource } from "../resources";
+import type { DurableStateAdapter } from "@/platform";
 
 const DRAFT_KEY_PREFIX = "zd.fileDraft.v1:";
 const DRAFT_SCHEMA_VERSION = 1 as const;
@@ -52,9 +53,18 @@ export class FileDraftStore {
   readonly #drafts = new Map<string, FileDraft>();
   readonly #listeners = new Set<() => void>();
   readonly #pending = new Map<string, FileDraft | null>();
+  readonly #durable: DurableStateAdapter | null;
   #flushQueued = false;
 
-  constructor(readonly storage: Storage | null = availableStorage()) {
+  constructor(
+    readonly storage: Storage | null = availableStorage(),
+    initial: readonly FileDraft[] = [],
+    durable: DurableStateAdapter | null = null,
+  ) {
+    this.#durable = durable;
+    for (const draft of initial) {
+      if (validDraft(draft)) this.#drafts.set(identity(draft), { ...draft });
+    }
     if (!storage) return;
     try {
       for (let index = 0; index < storage.length; index += 1) {
@@ -70,6 +80,10 @@ export class FileDraftStore {
     }
   }
 
+  static fromDurable(durable: DurableStateAdapter): FileDraftStore {
+    return new FileDraftStore(null, durable.snapshot().drafts, durable);
+  }
+
   get(resource: FileResource): FileDraft | null {
     const draft = this.#drafts.get(identity(resource));
     return draft ? { ...draft } : null;
@@ -83,15 +97,23 @@ export class FileDraftStore {
       updatedAt: Date.now(),
     };
     this.#drafts.set(identity(resource), draft);
-    this.#pending.set(storageKey(resource), draft);
-    this.#queueFlush();
+    if (this.#durable) {
+      void this.#durable.mutate({ kind: "put-draft", draft });
+    } else {
+      this.#pending.set(storageKey(resource), draft);
+      this.#queueFlush();
+    }
     this.#publish();
   }
 
   clear(resource: FileResource): void {
     if (!this.#drafts.delete(identity(resource))) return;
-    this.#pending.set(storageKey(resource), null);
-    this.#queueFlush();
+    if (this.#durable) {
+      void this.#durable.mutate({ kind: "remove-draft", ...resource });
+    } else {
+      this.#pending.set(storageKey(resource), null);
+      this.#queueFlush();
+    }
     this.#publish();
   }
 
