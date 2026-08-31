@@ -46,6 +46,7 @@ impl Drop for Scratch {
 
 pub struct TestServer {
     pub project: Scratch,
+    pub state: Scratch,
     pub assets: Scratch,
     pub running: RunningServer,
 }
@@ -53,6 +54,7 @@ pub struct TestServer {
 impl TestServer {
     pub async fn start(name: &str) -> Self {
         let project = Scratch::new(&format!("{name}-project"));
+        let state = Scratch::new(&format!("{name}-state"));
         let assets = Scratch::new(&format!("{name}-assets"));
         std::fs::create_dir_all(assets.join("assets")).expect("create assets directory");
         std::fs::write(
@@ -67,12 +69,16 @@ impl TestServer {
         .expect("write JavaScript asset");
         std::fs::write(project.join("notes.md"), "hello from a real host\n")
             .expect("write project fixture");
-        let host = Arc::new(HostService::open_project(project.path()).expect("approve project"));
+        let host = Arc::new(
+            HostService::open_project_with_state(project.path(), state.path())
+                .expect("approve persisted project"),
+        );
         let running = start(host, ServerConfig::new(assets.path().to_path_buf(), 0))
             .await
             .expect("start served host");
         Self {
             project,
+            state,
             assets,
             running,
         }

@@ -9,6 +9,7 @@ repository = "https://github.com/iammrduncan/zd"
 [dependencies]
 axum = { version = "0.8", features = ["ws"] }
 base64 = "0.22"
+dirs = "6"
 futures-util = "0.3"
 getrandom = "0.4"
 http = "1"

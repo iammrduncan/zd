@@ -9,9 +9,9 @@ use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use subtle::ConstantTimeEq;
-use zd_host::{BoundedFileRead, FileTreeRequest, HostService, ResourceRef};
+use zd_host::{BoundedFileRead, DurableStateApply, FileTreeRequest, HostService, ResourceRef};
 
-use crate::{MAX_REPORTED_DURATION_MICROS, PROTOCOL_VERSION};
+use crate::{MAX_REPORTED_DURATION_MICROS, MAX_RESPONSE_MESSAGE_BYTES, PROTOCOL_VERSION};
 
 #[derive(Clone)]
 pub struct ProtocolState {
@@ -284,7 +284,7 @@ fn dispatch(state: &ProtocolState, method: &str, params: Value) -> Result<Value,
                     "fileWatch": "unavailable",
                     "git": "unavailable",
                     "terminal": "unavailable",
-                    "durableState": "unavailable",
+                    "durableState": "read-write",
                     "projectPicker": "unavailable",
                     "recentWorkspaces": "unavailable",
                 },
@@ -293,6 +293,22 @@ fn dispatch(state: &ProtocolState, method: &str, params: Value) -> Result<Value,
         "projectGrants.list" => {
             parse_params::<EmptyParams>(params)?;
             Ok(json!({ "projects": state.host.project_grants() }))
+        }
+        "state.describe" => {
+            parse_params::<EmptyParams>(params)?;
+            let bundle = state
+                .host
+                .describe_durable_state()
+                .map_err(|_| durable_state_failure())?;
+            serde_json::to_value(bundle).map_err(|_| durable_state_failure())
+        }
+        "state.apply" => {
+            let request = parse_params::<DurableStateApply>(params)?;
+            let outcome = state
+                .host
+                .apply_durable_state(&request)
+                .map_err(|_| durable_state_failure())?;
+            serde_json::to_value(outcome).map_err(|_| durable_state_failure())
         }
         "fileTree.snapshot" => {
             let request = parse_params::<FileTreeRequest>(params)?;
@@ -320,6 +336,13 @@ fn dispatch(state: &ProtocolState, method: &str, params: Value) -> Result<Value,
             code: "unknown-method",
             message: "The requested host method is unavailable",
         }),
+    }
+}
+
+fn durable_state_failure() -> ProtocolFailure {
+    ProtocolFailure {
+        code: "durable-state-unavailable",
+        message: "Durable state is unavailable",
     }
 }
 
@@ -404,6 +427,9 @@ async fn send_error(
 
 async fn send(socket: &mut WebSocket, value: &impl Serialize) -> Result<(), ()> {
     let serialized = serde_json::to_string(value).map_err(|_| ())?;
+    if serialized.len() > MAX_RESPONSE_MESSAGE_BYTES {
+        return Err(());
+    }
     socket
         .send(Message::Text(serialized.into()))
         .await

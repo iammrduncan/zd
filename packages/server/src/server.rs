@@ -20,7 +20,7 @@ use zd_host::HostService;
 
 use crate::assets::Assets;
 use crate::protocol::{serve_socket, ProtocolState};
-use crate::MAX_MESSAGE_BYTES;
+use crate::{MAX_MESSAGE_BYTES, MAX_RESPONSE_MESSAGE_BYTES};
 
 pub struct ServerConfig {
     assets_root: PathBuf,
@@ -142,7 +142,7 @@ async fn websocket(
     }
     upgrade
         .write_buffer_size(8 * 1024)
-        .max_write_buffer_size(2 * MAX_MESSAGE_BYTES)
+        .max_write_buffer_size(2 * MAX_RESPONSE_MESSAGE_BYTES)
         .max_frame_size(MAX_MESSAGE_BYTES)
         .max_message_size(MAX_MESSAGE_BYTES)
         .on_upgrade(move |socket| serve_socket(socket, state.protocol))
