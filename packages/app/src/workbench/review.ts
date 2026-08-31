@@ -1,4 +1,4 @@
-import type { Platform, WorkspaceFile } from "@/platform";
+import type { DurableReviewLedger, Platform, WorkspaceFile } from "@/platform";
 import type { CommentTag, ReviewSelection } from "@/editor/review";
 import { resourceKey, type FileResource } from "./resources";
 
@@ -78,6 +78,11 @@ function focusDeleteButton(host: ParentNode, commentId?: string): boolean {
 /** Own review comments across the worktrees visited by one workbench window. */
 export function mountReview(host: HTMLElement, platform: Platform): Review {
   const commentsByScope = new Map<string, ReviewComment[]>();
+  const hostLedgers = new Map<string, DurableReviewLedger>(
+    (platform.usesHostDurableState ? platform.durableState.snapshot().reviewLedgers : []).map(
+      (ledger) => [`${ledger.projectId}\0${ledger.worktreeId}`, ledger] as const,
+    ),
+  );
   const listeners = new Map<string, Set<(tags: readonly CommentTag[]) => void>>();
   const writes = new Map<string, Promise<void>>();
   let pending: { file: WorkspaceFile; selection: ReviewSelection } | null = null;
@@ -89,6 +94,11 @@ export function mountReview(host: HTMLElement, platform: Platform): Review {
     const known = commentsByScope.get(key);
     if (known) return known;
     const comments = (() => {
+      if (platform.usesHostDurableState) {
+        return (hostLedgers.get(key)?.comments ?? []).filter(isComment).map((comment) => ({
+          ...comment,
+        }));
+      }
       try {
         const stored = localStorage.getItem(storageKey(resource));
         const parsed: unknown = stored ? JSON.parse(stored) : [];
@@ -105,6 +115,18 @@ export function mountReview(host: HTMLElement, platform: Platform): Review {
     const key = scopeKey(resource);
     const next = [...comments];
     commentsByScope.set(key, next);
+    if (platform.usesHostDurableState) {
+      void platform.durableState.mutate({
+        kind: "replace-review-ledger",
+        ledger: {
+          schemaVersion: 1,
+          projectId: resource.projectId,
+          worktreeId: resource.worktreeId,
+          comments: next,
+        },
+      });
+      return;
+    }
     try {
       localStorage.setItem(storageKey(resource), JSON.stringify(next));
     } catch {
