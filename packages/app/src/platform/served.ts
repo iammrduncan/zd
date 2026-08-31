@@ -1,6 +1,6 @@
 import type { BoundedFileRead } from "@/editor";
 import type { FileTreeAdapter, FileTreeResult } from "@/files";
-import { unavailableGitAdapter } from "@/git";
+import type { GitAdapter } from "@/git";
 import { unavailableTerminalAdapter } from "@/terminal";
 import type { WorkbenchHost } from "@/platform/composition";
 import type { LaunchRequest, ProjectGrant } from "@/workbench/resources";
@@ -31,6 +31,51 @@ interface SessionDescription {
 interface GrantList {
   readonly projects: readonly ProjectGrant[];
 }
+
+const GIT_UNAVAILABLE = "Git inspection is unavailable in the read-only served workbench";
+
+const servedGitAdapter = {
+  status: async (scope) => ({
+    scope,
+    availability: "unavailable" as const,
+    entries: [],
+    truncated: false,
+    problem: GIT_UNAVAILABLE,
+  }),
+  history: async (request) => ({
+    scope: request.scope,
+    availability: "unavailable" as const,
+    commits: [],
+    nextCursor: null,
+    truncated: false,
+    problem: GIT_UNAVAILABLE,
+  }),
+  compare: async (request) => ({
+    scope: request.scope,
+    availability: "unavailable" as const,
+    baseCommitId: request.baseCommitId,
+    headCommitId: request.headCommitId,
+    entries: [],
+    truncated: false,
+    problem: GIT_UNAVAILABLE,
+  }),
+  diff: async (request) => {
+    const buffer = (revision: string) => ({
+      status: "unavailable" as const,
+      identity: `unavailable:${request.source.changeId}:${revision}`,
+      path: "",
+      revision,
+      problem: GIT_UNAVAILABLE,
+    });
+    return {
+      scope: request.scope,
+      availability: "unavailable" as const,
+      base: buffer("base"),
+      head: buffer("head"),
+      problem: GIT_UNAVAILABLE,
+    };
+  },
+} satisfies GitAdapter;
 
 function unavailable(capability: string): Promise<never> {
   return Promise.reject(
@@ -141,7 +186,7 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
     revealDiagnostics: () => unavailable("Host diagnostics"),
     terminal: unavailableTerminalAdapter,
     fileTree,
-    git: unavailableGitAdapter,
+    git: servedGitAdapter,
     workspaceFiles: () => unavailable("Workspace file listings"),
     readTextFile: async (resource) => {
       const read = forceReadOnly(

@@ -2,6 +2,9 @@ import type { Platform } from "@/platform";
 
 type Connector = (secret: string) => Promise<Platform>;
 
+const SERVED_LIMITS =
+  "Read-only served workbench. Save, file changes, Git, automatic file updates, terminals, project picker, recent workspaces, and other project roots are unavailable.";
+
 function problem(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
@@ -62,4 +65,13 @@ export function mountServedUnlock(host: HTMLElement, connect: Connector): Promis
 
 export function isServedPage(documentRoot: Document = document): boolean {
   return documentRoot.querySelector('meta[name="zd-served-host"][content="1"]') !== null;
+}
+
+export function mountServedLimits(host: HTMLElement): void {
+  const notice = document.createElement("p");
+  notice.className = "zd-served-limit-notice";
+  notice.setAttribute("role", "status");
+  notice.setAttribute("aria-label", "Served workbench limits");
+  notice.textContent = SERVED_LIMITS;
+  host.append(notice);
 }
