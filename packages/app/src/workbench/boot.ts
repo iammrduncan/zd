@@ -28,6 +28,7 @@ import { TransientCoordinator } from "./transients";
 import { applyWorkbenchSettings, workbenchSettingsPreferences } from "./settings-preferences";
 import { attachWorkspacePersistence } from "./workspace-home";
 import { SurfaceThemeController } from "./surface-themes";
+import { attachDurableWorkbench, restoreDurableWorkbench } from "./durable-workbench";
 
 export type { WorkbenchMount } from "./runtime";
 
@@ -70,6 +71,7 @@ export async function bootWorkbench(
   document.title = "zd";
 
   const localNotices: string[] = [];
+  let durableWorkbench: Readonly<Record<string, unknown>> | null = null;
   const detachDurableProblems = platform.durableState.onProblem((notice) => {
     if (!localNotices.includes(notice)) localNotices.push(notice);
     showLocalNotices(host, localNotices);
@@ -77,6 +79,7 @@ export async function bootWorkbench(
   if (platform.usesHostDurableState) {
     try {
       const durable = await platform.durableState.load();
+      durableWorkbench = durable.workbench;
       localNotices.push(
         ...configureDurablePreferences(durable.preferences, (record) => {
           void platform.durableState.mutate({ kind: "replace-preferences", record });
@@ -122,8 +125,13 @@ export async function bootWorkbench(
       .then((files) => ({ files, problem: null }))
       .catch((cause: unknown) => ({ files: [], problem: reasonFor(cause) })),
   ]);
-  const initialState = workbenchStateFromGrants(grants, launch);
+  const initialState = platform.usesHostDurableState
+    ? restoreDurableWorkbench(durableWorkbench, grants, launch)
+    : workbenchStateFromGrants(grants, launch);
   const state = createWorkbenchStateOwner({ ...initialState, theme: themePreference() });
+  const detachDurableWorkbench = platform.usesHostDurableState
+    ? attachDurableWorkbench(state, platform.durableState)
+    : NOTHING;
   const storedSettings = workbenchSettingsPreferences();
   setWordWrap(storedSettings.reading.wordWrap);
   applyWorkbenchSettings(storedSettings, state);
@@ -195,6 +203,7 @@ export async function bootWorkbench(
     await launchSpan?.end("failed");
     await instrumentation.disable();
     detachDiagnostics();
+    detachDurableWorkbench();
     rootCommands.detach();
     detachThemeCommands();
     detachCommandList();
@@ -236,6 +245,7 @@ export async function bootWorkbench(
     detachWorkspacePersistence();
     unmount();
     detachDiagnostics();
+    detachDurableWorkbench();
     detachDurableProblems();
     void platform.durableState.flush();
     void instrumentation.disable();

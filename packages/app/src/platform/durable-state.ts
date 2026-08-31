@@ -36,14 +36,16 @@ export interface DurableStateBundle {
   readonly reviewLedgers: readonly DurableReviewLedger[];
 }
 
+export type DurableVersionedRecord = Readonly<object>;
+
 export type DurableStateMutation =
   | {
       readonly kind: "replace-preferences";
-      readonly record: Readonly<Record<string, unknown>>;
+      readonly record: DurableVersionedRecord;
     }
   | {
       readonly kind: "replace-workbench";
-      readonly record: Readonly<Record<string, unknown>>;
+      readonly record: DurableVersionedRecord;
     }
   | { readonly kind: "put-draft"; readonly draft: DurableFileDraft }
   | {
@@ -262,10 +264,16 @@ export function createDurableStateAdapter(transport: DurableStateTransport): Dur
   const applyLocally = (mutation: DurableStateMutation) => {
     switch (mutation.kind) {
       case "replace-preferences":
-        bundle = { ...bundle, preferences: { ...mutation.record } };
+        bundle = {
+          ...bundle,
+          preferences: { ...mutation.record } as Readonly<Record<string, unknown>>,
+        };
         break;
       case "replace-workbench":
-        bundle = { ...bundle, workbench: { ...mutation.record } };
+        bundle = {
+          ...bundle,
+          workbench: { ...mutation.record } as Readonly<Record<string, unknown>>,
+        };
         break;
       case "put-draft":
         bundle = {
