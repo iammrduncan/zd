@@ -283,7 +283,7 @@ export async function mountCurrentFile(
     }
     const draft = drafts.get(resource);
     let savedText: string | undefined;
-    if (draft && read.status === "text" && read.writable) {
+    if (draft && read.status === "text") {
       if (draft.text === read.text) {
         drafts.clear(resource);
       } else {
@@ -292,6 +292,9 @@ export async function mountCurrentFile(
           ...read,
           text: draft.text,
           byteLength: new TextEncoder().encode(draft.text).byteLength,
+          ...(!read.writable && {
+            reason: `${read.reason ?? "This file is read-only"}. A recovered draft is shown for copying.`,
+          }),
         };
       }
     }

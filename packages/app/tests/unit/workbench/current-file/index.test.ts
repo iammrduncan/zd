@@ -431,6 +431,34 @@ describe("the root current-file owner", () => {
     host.remove();
   });
 
+  it("shows a recovered draft read-only when the served file cannot be edited", async () => {
+    const fixture = context({
+      status: "text",
+      text: "const value = 1;",
+      byteLength: 16,
+      writable: false,
+      reason: "Served workbenches are read-only",
+    });
+    const host = document.createElement("div");
+    document.body.append(host);
+    const drafts = new FileDraftStore(window.localStorage);
+    drafts.save(resource("src/main.ts"), "const recovered = 2;");
+
+    const unmount = await mountCurrentFile(host, fixture.runtime, { drafts });
+
+    await vi.waitFor(() =>
+      expect(
+        EditorView.findFromDOM(
+          host.querySelector<HTMLElement>(".md-editor")!,
+        )?.state.doc.toString(),
+      ).toBe("const recovered = 2;"),
+    );
+    expect(host.querySelector(".cm-content")?.getAttribute("contenteditable")).toBe("false");
+
+    unmount();
+    host.remove();
+  });
+
   it("switches files without losing the dirty buffer and restores it on return", async () => {
     const fixture = context({
       status: "text",
