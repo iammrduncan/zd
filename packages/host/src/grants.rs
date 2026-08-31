@@ -101,6 +101,20 @@ impl GrantStore {
         self.approve_project_with_identity(requested, project_id, worktree_id)
     }
 
+    /// Approve a project with the stable identities owned by the host catalog.
+    pub fn approve_project_with_state(
+        &mut self,
+        requested: &Path,
+        state_directory: &Path,
+    ) -> Result<ApprovedProject, String> {
+        let identity = crate::identity::open_project(requested, state_directory)?;
+        self.approve_project_with_identity(
+            requested,
+            identity.project_id,
+            identity.root_worktree_id,
+        )
+    }
+
     pub(crate) fn approve_project_with_identity(
         &mut self,
         requested: &Path,
@@ -244,6 +258,27 @@ impl GrantStore {
         root_worktree.name = worktree_label(&root);
         root_worktree.root = root;
         Ok(describe_project(project))
+    }
+
+    /// Recover a trusted project root while preserving the catalog identities.
+    pub fn recover_project_with_state(
+        &mut self,
+        project_id: &str,
+        requested: &Path,
+        state_directory: &Path,
+    ) -> Result<ProjectGrant, String> {
+        let expected_worktree_id = self
+            .projects
+            .iter()
+            .find(|project| project.id == project_id)
+            .and_then(|project| project.worktrees.first())
+            .map(|worktree| worktree.id.clone())
+            .ok_or_else(|| format!("unknown project grant {project_id}"))?;
+        let identity = crate::identity::recover_project(project_id, requested, state_directory)?;
+        if identity.project_id != project_id || identity.root_worktree_id != expected_worktree_id {
+            return Err("identity catalog is unavailable: recovered identity mismatch".into());
+        }
+        self.recover_project(project_id, requested)
     }
 
     pub fn remove_project(&mut self, project_id: &str) -> Result<ProjectGrant, String> {

@@ -6,6 +6,7 @@
 
 mod cli;
 mod clipboard_images;
+mod durable_state;
 mod file_tree;
 mod file_tree_watch;
 mod fs;
@@ -56,20 +57,23 @@ pub fn run() {
      * opaque identities. Accepting a queued request changes only active context;
      * earlier grants stay valid so inactive dirty work is not stranded.
      */
-    let launch = cli::LaunchState::new(cli::launch_from_environment());
+    let launch_request = cli::launch_from_environment();
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .manage(launch)
         .manage(file_tree_watch::FileTreeWatchState::default())
         .manage(quick_access::QuickAccessState::default())
         .manage(terminal_runtime::TerminalState::default())
-        .setup(|app| {
+        .setup(move |app| {
             app.manage(notifications::NotificationState::new(app.handle().clone()));
             let configuration = app.path().app_config_dir()?;
+            app.manage(cli::LaunchState::new_persisted(
+                launch_request.clone(),
+                configuration.clone(),
+            ));
             app.manage(workspaces::WorkspaceState::new(
                 configuration.join("workspaces-v1.json"),
             ));
@@ -83,6 +87,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             cli::launch_request,
             cli::project_grants,
+            durable_state::describe_durable_state,
+            durable_state::apply_durable_state,
             projects::choose_project,
             projects::recover_project_grant,
             workspaces::recent_workspaces,

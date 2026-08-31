@@ -13,6 +13,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 
 use serde::Serialize;
+use zd_host::DurableStateSession;
 
 use crate::grants::{GrantStore, ProjectGrant, ResourceRef, WorktreeGrant};
 
@@ -45,21 +46,36 @@ struct LaunchSession {
 /// discard unsaved work. Its grant is additive; accepting changes only the
 /// native active launch request, under the same lock that owns the pending queue.
 #[derive(Debug)]
-pub struct LaunchState(Mutex<LaunchSession>);
+pub struct LaunchState {
+    session: Mutex<LaunchSession>,
+    state_directory: Option<PathBuf>,
+}
 
 impl LaunchState {
+    #[cfg(test)]
     pub fn new(current: NativeOpenRequest) -> Self {
+        Self::from_state_directory(current, None)
+    }
+
+    pub fn new_persisted(current: NativeOpenRequest, state_directory: PathBuf) -> Self {
+        Self::from_state_directory(current, Some(state_directory))
+    }
+
+    fn from_state_directory(current: NativeOpenRequest, state_directory: Option<PathBuf>) -> Self {
         let mut grants = GrantStore::default();
-        let current = resolve_open_request(&mut grants, current);
-        Self(Mutex::new(LaunchSession {
-            current,
-            pending: VecDeque::new(),
-            grants,
-        }))
+        let current = resolve_open_request(&mut grants, current, state_directory.as_deref());
+        Self {
+            session: Mutex::new(LaunchSession {
+                current,
+                pending: VecDeque::new(),
+                grants,
+            }),
+            state_directory,
+        }
     }
 
     pub fn current(&self) -> LaunchRequest {
-        self.0
+        self.session
             .lock()
             .expect("launch state was poisoned")
             .current
@@ -68,14 +84,18 @@ impl LaunchState {
 
     #[cfg(any(target_os = "macos", test))]
     pub fn queue(&self, request: NativeOpenRequest) {
-        let mut session = self.0.lock().expect("launch state was poisoned");
-        let request = resolve_open_request(&mut session.grants, request);
+        let mut session = self.session.lock().expect("launch state was poisoned");
+        let request = resolve_open_request(
+            &mut session.grants,
+            request,
+            self.state_directory.as_deref(),
+        );
         session.pending.push_back(request);
     }
 
     pub fn has_pending(&self) -> bool {
         !self
-            .0
+            .session
             .lock()
             .expect("launch state was poisoned")
             .pending
@@ -83,7 +103,7 @@ impl LaunchState {
     }
 
     pub fn pending(&self) -> Option<LaunchRequest> {
-        self.0
+        self.session
             .lock()
             .expect("launch state was poisoned")
             .pending
@@ -92,28 +112,58 @@ impl LaunchState {
     }
 
     pub fn accept_pending(&self) -> Option<LaunchRequest> {
-        let mut session = self.0.lock().expect("launch state was poisoned");
+        let mut session = self.session.lock().expect("launch state was poisoned");
         let request = session.pending.pop_front()?;
         session.current = request.clone();
         Some(request)
     }
 
     pub fn project_grants(&self) -> Vec<ProjectGrant> {
-        let mut session = self.0.lock().expect("launch state was poisoned");
+        let mut session = self.session.lock().expect("launch state was poisoned");
         session.grants.projects()
     }
 
-    pub fn approve_project(&self, root: &Path) -> Result<ProjectGrant, String> {
-        let mut session = self.0.lock().expect("launch state was poisoned");
-        session
+    pub fn durable_state(&self) -> Result<DurableStateSession, String> {
+        let state_directory = self.state_directory.as_deref().ok_or_else(|| {
+            "durable state is unavailable: persistence was not configured".to_string()
+        })?;
+        let mut session = self.session.lock().expect("launch state was poisoned");
+        let project_id = session
+            .current
+            .project
+            .as_ref()
+            .map(|project| project.id.clone())
+            .ok_or_else(|| "durable state is unavailable: no project is active".to_string())?;
+        let project = session
             .grants
-            .approve_project(root)
-            .map(|approved| approved.project)
+            .projects()
+            .into_iter()
+            .find(|project| project.id == project_id)
+            .ok_or_else(|| "durable state is unavailable: active grant is missing".to_string())?;
+        DurableStateSession::new(state_directory, &project)
+    }
+
+    pub fn approve_project(&self, root: &Path) -> Result<ProjectGrant, String> {
+        let mut session = self.session.lock().expect("launch state was poisoned");
+        let approved = match self.state_directory.as_deref() {
+            Some(state_directory) => session
+                .grants
+                .approve_project_with_state(root, state_directory),
+            None => session.grants.approve_project(root),
+        }?;
+        Ok(approved.project)
     }
 
     pub fn recover_project(&self, project_id: &str, root: &Path) -> Result<ProjectGrant, String> {
-        let mut session = self.0.lock().expect("launch state was poisoned");
-        let recovered = session.grants.recover_project(project_id, root)?;
+        let mut session = self.session.lock().expect("launch state was poisoned");
+        let recovered = match self.state_directory.as_deref() {
+            Some(state_directory) => {
+                session
+                    .grants
+                    .recover_project_with_state(project_id, root, state_directory)?
+            }
+            None => session.grants.recover_project(project_id, root)?,
+        };
         refresh_request_project(&mut session.current, &recovered);
         for request in &mut session.pending {
             refresh_request_project(request, &recovered);
@@ -122,7 +172,7 @@ impl LaunchState {
     }
 
     pub fn resolve(&self, resource: &ResourceRef) -> Result<PathBuf, String> {
-        self.0
+        self.session
             .lock()
             .expect("launch state was poisoned")
             .grants
@@ -130,7 +180,7 @@ impl LaunchState {
     }
 
     pub fn root(&self, project_id: &str, worktree_id: &str) -> Result<PathBuf, String> {
-        self.0
+        self.session
             .lock()
             .expect("launch state was poisoned")
             .grants
@@ -138,7 +188,7 @@ impl LaunchState {
     }
 
     pub fn project_root(&self, project_id: &str) -> Result<PathBuf, String> {
-        self.0
+        self.session
             .lock()
             .expect("launch state was poisoned")
             .grants
@@ -146,7 +196,7 @@ impl LaunchState {
     }
 
     pub fn approve_worktree(&self, project_id: &str, root: &Path) -> Result<WorktreeGrant, String> {
-        self.0
+        self.session
             .lock()
             .expect("launch state was poisoned")
             .grants
@@ -154,7 +204,7 @@ impl LaunchState {
     }
 
     pub fn remove_project(&self, project_id: &str) -> Result<ProjectGrant, String> {
-        let mut session = self.0.lock().expect("launch state was poisoned");
+        let mut session = self.session.lock().expect("launch state was poisoned");
         let pending = session.pending.iter().any(|request| {
             request
                 .project
@@ -198,13 +248,21 @@ fn home_request() -> LaunchRequest {
     }
 }
 
-fn resolve_open_request(grants: &mut GrantStore, request: NativeOpenRequest) -> LaunchRequest {
+fn resolve_open_request(
+    grants: &mut GrantStore,
+    request: NativeOpenRequest,
+    state_directory: Option<&Path>,
+) -> LaunchRequest {
     let Some(raw_path) = request.path else {
         return home_request();
     };
     let path = Path::new(&raw_path);
     let root = scope_for(&raw_path);
-    let approved = match grants.approve_project(&root) {
+    let approval = match state_directory {
+        Some(state_directory) => grants.approve_project_with_state(&root, state_directory),
+        None => grants.approve_project(&root),
+    };
+    let approved = match approval {
         Ok(approved) => approved,
         Err(problem) => {
             return LaunchRequest {
@@ -613,5 +671,65 @@ mod tests {
             .problem
             .as_deref()
             .is_some_and(|problem| problem.contains("missing")));
+    }
+
+    #[test]
+    fn persisted_launches_reuse_the_host_project_and_root_worktree_identities() {
+        let scratch = Scratch::new("persisted-identities");
+        let project = scratch.join("project");
+        let state_directory = scratch.join("state");
+        std::fs::create_dir_all(&project).unwrap();
+        let request = NativeOpenRequest {
+            path: Some(project.to_string_lossy().into_owned()),
+        };
+
+        let first = LaunchState::new_persisted(request.clone(), state_directory.clone()).current();
+        let second = LaunchState::new_persisted(request, state_directory).current();
+
+        assert_eq!(
+            first.project.as_ref().unwrap().id,
+            second.project.as_ref().unwrap().id
+        );
+        assert_eq!(first.worktree_id, second.worktree_id);
+        assert!(first.project.as_ref().unwrap().id.len() > "project-0000000000000001".len());
+    }
+
+    #[test]
+    fn persisted_launches_use_the_shared_host_durable_state_service() {
+        let scratch = Scratch::new("durable-state");
+        let project = scratch.join("project");
+        let state_directory = scratch.join("state");
+        std::fs::create_dir_all(&project).unwrap();
+        let launch = LaunchState::new_persisted(
+            NativeOpenRequest {
+                path: Some(project.to_string_lossy().into_owned()),
+            },
+            state_directory,
+        );
+        let durable = launch.durable_state().unwrap();
+        let initial = durable.describe().unwrap();
+
+        let outcome = durable
+            .apply(&zd_host::DurableStateApply {
+                expected_revision: initial.revision,
+                mutation: zd_host::DurableStateMutation::ReplacePreferences {
+                    record: serde_json::json!({"schemaVersion": 1, "theme": "current-dark"}),
+                },
+            })
+            .unwrap();
+
+        assert!(matches!(
+            outcome,
+            zd_host::DurableStateApplyResult::Applied { .. }
+        ));
+        assert_eq!(
+            launch
+                .durable_state()
+                .unwrap()
+                .describe()
+                .unwrap()
+                .preferences,
+            Some(serde_json::json!({"schemaVersion": 1, "theme": "current-dark"}))
+        );
     }
 }

@@ -105,6 +105,36 @@ pub enum DurableStateApplyResult {
     },
 }
 
+/// A trusted, project-scoped view of durable state for native shell wrappers.
+#[derive(Debug)]
+pub struct DurableStateSession {
+    store: DurableStateStore,
+    allowed_worktree_ids: HashSet<String>,
+}
+
+impl DurableStateSession {
+    pub fn new(state_directory: &Path, project: &crate::ProjectGrant) -> Result<Self, String> {
+        let store = DurableStateStore::new(state_directory, project.id.clone())?;
+        let allowed_worktree_ids = project
+            .worktrees
+            .iter()
+            .map(|worktree| worktree.id.clone())
+            .collect();
+        Ok(Self {
+            store,
+            allowed_worktree_ids,
+        })
+    }
+
+    pub fn describe(&self) -> Result<DurableStateBundle, String> {
+        self.store.describe(&self.allowed_worktree_ids)
+    }
+
+    pub fn apply(&self, request: &DurableStateApply) -> Result<DurableStateApplyResult, String> {
+        self.store.apply(&self.allowed_worktree_ids, request)
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct DurableStateStore {
     state_directory: PathBuf,
