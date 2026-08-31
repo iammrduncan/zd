@@ -187,19 +187,19 @@ async fn oversized_messages_close_without_disclosing_state() {
     let server = TestServer::start("oversized").await;
     let mut socket = connect_same_origin(&server).await;
     let oversized = "x".repeat(zd_server::MAX_MESSAGE_BYTES + 1);
-    socket
-        .send(Message::Text(oversized.into()))
-        .await
-        .expect("send oversized message");
-
-    let response = timeout(Duration::from_secs(1), socket.next())
-        .await
-        .expect("an oversized message closes with bounded latency");
-    assert!(matches!(
-        response,
-        None | Some(Err(_)) | Some(Ok(Message::Close(_)))
-    ));
-    let description = format!("{response:?}");
+    let description = match socket.send(Message::Text(oversized.into())).await {
+        Err(error) => format!("{error:?}"),
+        Ok(()) => {
+            let response = timeout(Duration::from_secs(1), socket.next())
+                .await
+                .expect("an oversized message closes with bounded latency");
+            assert!(matches!(
+                response,
+                None | Some(Err(_)) | Some(Ok(Message::Close(_)))
+            ));
+            format!("{response:?}")
+        }
+    };
     assert!(!description.contains("notes.md"));
     assert!(!description.contains(&server.project.path().to_string_lossy().into_owned()));
 

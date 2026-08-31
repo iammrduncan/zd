@@ -47,7 +47,6 @@ async fn session_description_has_a_closed_read_only_capability_manifest() {
         "fileWatch",
         "git",
         "terminal",
-        "durableState",
         "projectPicker",
         "recentWorkspaces",
     ] {
@@ -57,12 +56,125 @@ async fn session_description_has_a_closed_read_only_capability_manifest() {
         );
     }
     assert_eq!(
+        response["result"]["capabilities"]["durableState"],
+        "read-write"
+    );
+    assert_eq!(
         response["result"]["capabilities"]
             .as_object()
             .expect("capability object")
             .len(),
         11
     );
+
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn durable_state_is_closed_revisioned_and_scoped_to_the_session() {
+    let server = TestServer::start("durable-state").await;
+    let mut socket = authenticated(&server).await;
+    let grants = request(&mut socket, "grants-state", "projectGrants.list", json!({})).await;
+    let project = &grants["result"]["projects"][0];
+    let project_id = project["id"].as_str().unwrap();
+    let worktree_id = project["worktrees"][0]["id"].as_str().unwrap();
+
+    let initial = request(&mut socket, "state-1", "state.describe", json!({})).await;
+    assert_timing(&initial, "state-1");
+    assert_eq!(
+        initial["result"]["revision"],
+        json!({"preferences": 0, "project": 0})
+    );
+    assert_eq!(initial["result"]["preferences"], Value::Null);
+    assert_eq!(initial["result"]["drafts"], json!([]));
+
+    let preferences = request(
+        &mut socket,
+        "state-2",
+        "state.apply",
+        json!({
+            "expectedRevision": {"preferences": 0, "project": 0},
+            "mutation": {
+                "kind": "replace-preferences",
+                "record": {"schemaVersion": 1, "theme": "current-dark"},
+            },
+        }),
+    )
+    .await;
+    assert_eq!(preferences["result"]["status"], "applied");
+    assert_eq!(
+        preferences["result"]["revision"],
+        json!({"preferences": 1, "project": 0})
+    );
+    let draft = request(
+        &mut socket,
+        "state-3",
+        "state.apply",
+        json!({
+            "expectedRevision": {"preferences": 1, "project": 0},
+            "mutation": {
+                "kind": "put-draft",
+                "draft": {
+                    "schemaVersion": 1,
+                    "projectId": project_id,
+                    "worktreeId": worktree_id,
+                    "relativePath": "notes.md",
+                    "text": "unsaved through the socket",
+                    "updatedAt": 42,
+                },
+            },
+        }),
+    )
+    .await;
+    assert_eq!(draft["result"]["status"], "applied");
+    assert_eq!(draft["result"]["revision"]["project"], 1);
+
+    let restored = request(&mut socket, "state-4", "state.describe", json!({})).await;
+    assert_eq!(restored["result"]["preferences"]["theme"], "current-dark");
+    assert_eq!(
+        restored["result"]["drafts"][0]["text"],
+        "unsaved through the socket"
+    );
+    assert_eq!(restored["result"]["drafts"][0]["projectId"], project_id);
+
+    let stale = request(
+        &mut socket,
+        "state-5",
+        "state.apply",
+        json!({
+            "expectedRevision": {"preferences": 0, "project": 0},
+            "mutation": {
+                "kind": "replace-workbench",
+                "record": {"schemaVersion": 2, "private": "not returned"},
+            },
+        }),
+    )
+    .await;
+    assert_eq!(stale["result"]["status"], "reload-required");
+    assert_eq!(
+        stale["result"]["currentRevision"],
+        json!({"preferences": 1, "project": 1})
+    );
+    assert_eq!(stale["result"].as_object().unwrap().len(), 2);
+    assert!(!stale["result"].to_string().contains("private"));
+
+    let widened = request(
+        &mut socket,
+        "state-6",
+        "state.apply",
+        json!({
+            "expectedRevision": {"preferences": 1, "project": 1},
+            "mutation": {
+                "kind": "remove-draft",
+                "projectId": project_id,
+                "worktreeId": worktree_id,
+                "relativePath": "notes.md",
+                "root": "/tmp/foreign",
+            },
+        }),
+    )
+    .await;
+    assert_eq!(widened["code"], "invalid-params");
 
     server.shutdown().await;
 }

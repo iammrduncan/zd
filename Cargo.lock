@@ -5755,6 +5755,7 @@ version = "0.2.10"
 dependencies = [
  "axum",
  "base64 0.22.1",
+ "dirs",
  "futures-util",
  "getrandom 0.4.3",
  "http",
