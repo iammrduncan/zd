@@ -280,6 +280,20 @@ impl GrantStore {
             .ok_or_else(|| format!("unknown or removed project grant {project_id}"))
     }
 
+    pub(crate) fn worktree_ids(&self, project_id: &str) -> Result<Vec<String>, String> {
+        self.projects
+            .iter()
+            .find(|project| project.id == project_id)
+            .map(|project| {
+                project
+                    .worktrees
+                    .iter()
+                    .map(|worktree| worktree.id.clone())
+                    .collect()
+            })
+            .ok_or_else(|| format!("unknown or removed project grant {project_id}"))
+    }
+
     pub fn resolve(&self, resource: &ResourceRef) -> Result<PathBuf, String> {
         let root = self.root(&resource.project_id, &resource.worktree_id)?;
         resolve_relative(&root, &resource.relative_path)

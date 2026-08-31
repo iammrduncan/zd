@@ -1,6 +1,7 @@
 //! Transport-neutral host authority for the `zd` workbench.
 
 mod atomic_write;
+mod durable;
 mod file_tree;
 mod files;
 #[doc(hidden)]
@@ -11,6 +12,10 @@ mod service;
 mod workspaces;
 
 pub use atomic_write::atomic_write;
+pub use durable::{
+    DurableFileDraft, DurableReviewComment, DurableReviewLedger, DurableStateApply,
+    DurableStateApplyResult, DurableStateBundle, DurableStateMutation, DurableStateRevision,
+};
 pub use file_tree::{
     snapshot_in, FileTreeEntry, FileTreeEntryKind, FileTreeRequest, FileTreeResult, TreeLimits,
 };
