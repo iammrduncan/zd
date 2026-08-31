@@ -10,6 +10,7 @@ export default tseslint.config(
       "packages/website/.next",
       "packages/website/out",
       "node_modules",
+      "target",
       "packages/tauri",
       "packages/app/assets",
       "coverage",

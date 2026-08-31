@@ -34,9 +34,19 @@ function fakeApplication(root: string) {
   return resolve(root, "source", "zd.app");
 }
 
+function fakeSystemCommands(root: string) {
+  const commands = resolve(root, "commands");
+  const ditto = resolve(commands, "ditto");
+  mkdirSync(commands);
+  writeFileSync(ditto, '#!/bin/sh\nset -eu\ncp -R "$1" "$2"\n');
+  chmodSync(ditto, 0o755);
+  return commands;
+}
+
 function install(root: string, source: string) {
   const applications = resolve(root, "Applications");
   const bin = resolve(root, "bin");
+  const commands = fakeSystemCommands(root);
   const result = spawnSync("bash", [INSTALLER], {
     cwd: ROOT,
     encoding: "utf8",
@@ -45,6 +55,7 @@ function install(root: string, source: string) {
       ZD_APP_SOURCE: source,
       ZD_APPLICATIONS_DIR: applications,
       ZD_BIN_DIR: bin,
+      PATH: `${commands}:${process.env.PATH ?? ""}`,
     },
   });
   return { applications, bin, result };
