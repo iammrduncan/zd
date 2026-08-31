@@ -1,0 +1,269 @@
+## Outcome
+
+A literal Tauri wrapper is viable: the desktop process should own only the window and supervision, spawn the same `zd serve` backend used from the CLI, then navigate the `main` webview to its loopback origin.
+
+The important exception is Windows. The current release binary is linked as a GUI-subsystem executable, so one physical `zd.exe` is not yet proven to provide normal foreground CLI behavior. The safest cross-platform interpretation of “same executable” is:
+
+- macOS/Linux: the wrapper may self-spawn with `current_exe()` as `zd serve`.
+- Windows: package a console `zd.exe` containing `serve` and a thin GUI wrapper that launches that exact CLI artifact. Both use the same backend crate. A one-PE design needs a Windows experiment before it is promised.
+
+No files were changed.
+
+## Established facts
+
+### Current launch and Tauri composition
+
+- The executable has no mode dispatch. It always calls the Tauri application at [main.rs](/home/mbox01/github/zd/packages/tauri/src/main.rs:4).
+- Release Windows builds use `#![windows_subsystem = "windows"]` at [main.rs](/home/mbox01/github/zd/packages/tauri/src/main.rs:1).
+- Current parsing takes the first non-flag argument as a path, so `zd serve .` presently opens a path named `serve`; see [cli.rs](/home/mbox01/github/zd/packages/tauri/src/cli.rs:311).
+- `run()` creates launch/grant state, file watchers, quick access, terminals, notifications, workspace persistence, and diagnostics inside the Tauri process at [lib.rs](/home/mbox01/github/zd/packages/tauri/src/lib.rs:54).
+- It registers filesystem, Git, terminal, watcher, diagnostic, notification, workspace, and window commands through one large Tauri invoke handler at [lib.rs](/home/mbox01/github/zd/packages/tauri/src/lib.rs:85).
+- Every window close is currently prevented until the frontend approves it at [lib.rs](/home/mbox01/github/zd/packages/tauri/src/lib.rs:138).
+- Diagnostics, terminals, and watchers are shut down only on Tauri `RunEvent::Exit` at [lib.rs](/home/mbox01/github/zd/packages/tauri/src/lib.rs:161).
+- macOS open events queue a grant-backed request and notify the frontend at [lib.rs](/home/mbox01/github/zd/packages/tauri/src/lib.rs:174).
+
+### Current frontend boundary
+
+- The typed `Platform` contract is [platform.ts](/home/mbox01/github/zd/packages/app/src/platform.ts:150).
+- Its Tauri implementation routes files, Git, PTYs, watchers, diagnostics, and window lifecycle through `invoke`/`listen` at [platform.ts](/home/mbox01/github/zd/packages/app/src/platform.ts:275).
+- Browser mode explicitly has no real filesystem, terminal, or Git backend at [platform.ts](/home/mbox01/github/zd/packages/app/src/platform.ts:477).
+- Runtime selection currently checks only `__TAURI_INTERNALS__` at [platform.ts](/home/mbox01/github/zd/packages/app/src/platform.ts:585). A served page inside Tauri therefore needs an explicit served-backend adapter; otherwise it can select the wrong transport.
+- Close handling is directly tied to the Tauri window API at [platform.ts](/home/mbox01/github/zd/packages/app/src/platform.ts:455). Safe-close needs either a tiny wrapper lifecycle bridge or a backend-mediated wrapper control channel.
+
+### Build and packaging
+
+- Tauri dev launches Vite on fixed port 1420; release embeds `packages/app/dist` at [tauri.conf.json](/home/mbox01/github/zd/packages/tauri/tauri.conf.json:6).
+- The configured window is labelled `main` at [tauri.conf.json](/home/mbox01/github/zd/packages/tauri/tauri.conf.json:12). Quick-access code repeatedly looks up that exact label, for example [quick_access.rs](/home/mbox01/github/zd/packages/tauri/src/quick_access.rs:249).
+- The current CSP is for Tauri-bundled content and IPC, not a dynamic external HTTP origin, at [tauri.conf.json](/home/mbox01/github/zd/packages/tauri/tauri.conf.json:27).
+- There is no HTTP server/runtime dependency in [Cargo.toml](/home/mbox01/github/zd/packages/tauri/Cargo.toml:19), nor an `externalBin`/resource declaration in current Tauri configuration.
+- The macOS installer already links `/usr/local/bin/zd` to the exact application executable at [install.sh](/home/mbox01/github/zd/packaging/macos/install.sh:7) and [install.sh](/home/mbox01/github/zd/packaging/macos/install.sh:38). Its tests verify that link and the current CLI launch forms at [install.test.ts](/home/mbox01/github/zd/packages/scripts/tests/unit/release/macos/install.test.ts:68).
+- Release CI packages macOS app/DMG artifacts and one Windows NSIS executable; there is no Linux release job at [release.yml](/home/mbox01/github/zd/.github/workflows/release.yml:44) and [release.yml](/home/mbox01/github/zd/.github/workflows/release.yml:91).
+- Playwright currently tests Vite or Vite preview, never the real backend or Tauri wrapper; see [playwright.config.ts](/home/mbox01/github/zd/playwright.config.ts:28) and [playwright.release.config.ts](/home/mbox01/github/zd/playwright.release.config.ts:3).
+
+### Existing process ownership
+
+- PTYs already have explicit descendant ownership: Unix process groups and Windows kill-on-close Job Objects at [terminal/process.rs](/home/mbox01/github/zd/packages/tauri/src/terminal/process.rs:14).
+- Terminal shutdown attempts every session and clears the manager at [terminal/mod.rs](/home/mbox01/github/zd/packages/tauri/src/terminal/mod.rs:437), with a `Drop` fallback at [terminal/mod.rs](/home/mbox01/github/zd/packages/tauri/src/terminal/mod.rs:471).
+- Termination kills descendants, waits on the child, and joins the output reader at [terminal/process.rs](/home/mbox01/github/zd/packages/tauri/src/terminal/process.rs:148) and [terminal/mod.rs](/home/mbox01/github/zd/packages/tauri/src/terminal/mod.rs:525).
+
+### Official lifecycle constraints
+
+- Binding `127.0.0.1:0` asks the OS for a free port while retaining ownership of the listener; `local_addr()` returns the selected port. This avoids probe-then-bind races. [Rust `TcpListener`](https://doc.rust-lang.org/std/net/struct.TcpListener.html)
+- Tauri can create or navigate a webview to a `WebviewUrl::External`, reject navigation using `on_navigation`, and observe page-load start/finish. Its resource-response hook does not run for external URLs, so the HTTP server must send CSP and other response headers. [Tauri `WebviewWindowBuilder`](https://docs.rs/tauri/latest/tauri/webview/struct.WebviewWindowBuilder.html)
+- Remote pages do not receive Tauri API access by default; remote access must be enabled through URL-scoped capabilities. The same documentation says registered app commands are allowed to app windows/webviews by default unless constrained through `AppManifest::commands`. [Tauri capabilities](https://v2.tauri.app/security/capabilities/)
+- `App::run` never returns and ultimately uses `std::process::exit`; `run_return` exists when cleanup must happen after the event loop. [Tauri `App`](https://docs.rs/tauri/latest/tauri/struct.App.html)
+- Rust `Child` has no `Drop` cleanup. Dropping the handle leaves the process running, and terminated children must be waited on to avoid zombies. [Rust `Child`](https://doc.rust-lang.org/std/process/struct.Child.html)
+- The Windows `"windows"` subsystem detaches from an existing console; `"console"` is the default and attaches or creates a console. [Rust Windows subsystem reference](https://doc.rust-lang.org/stable/reference/runtime.html#the-windows_subsystem-attribute)
+- Tauri’s official sidecar packaging uses `externalBin` and requires target-triple-suffixed binaries per architecture. [Tauri sidecars](https://v2.tauri.app/develop/sidecar/)
+- Tauri’s single-instance plugin must be registered first and supplies the second invocation’s arguments and cwd. [Tauri single-instance plugin](https://v2.tauri.app/plugin/single-instance/)
+
+## Claims
+
+- Human direction requires one `zd serve` implementation for browser and Tauri clients, with Tauri reduced to a wrapper.
+- “This removes two real production filesystem/terminal implementations” is not established by the repository. There is currently one production backend—Tauri—and an unavailable browser adapter. The benefit is preventing a second implementation when remote access is added.
+- Current architecture documents still claim Tauri/native code owns local authority and mark remote projects out of scope: [VISION.md](/home/mbox01/github/zd/docs/VISION.md:321), [VISION.md](/home/mbox01/github/zd/docs/VISION.md:366), and [ADR 0002](/home/mbox01/github/zd/docs/adr/suite/0002-put-native-authority-behind-platform-boundary_H.md:16). Human direction supersedes that scope, but a successor decision is required.
+- Vision’s “one running process” statement at [VISION.md](/home/mbox01/github/zd/docs/VISION.md:72) conflicts literally with a wrapper plus child. The intended invariant should become one desktop application instance owning one server instance and one workbench window.
+
+## Recommended lifecycle
+
+### Startup and readiness
+
+1. Dispatch CLI mode before product launch parsing:
+
+   - `zd serve [path]` runs only the server.
+   - `zd`, `zd <folder>`, and `zd <file>` enter desktop mode.
+   - Reserve `serve`; require `zd ./serve` to open a folder with that name.
+
+2. In desktop mode, establish single-instance ownership before spawning anything. A secondary invocation forwards its args and cwd to the primary instance and exits without creating a second server.
+
+3. Create one hidden `main` wrapper window containing only a bundled startup/error page. Register only wrapper-level plugins and lifecycle behavior.
+
+4. The primary wrapper starts the trusted CLI artifact with arguments equivalent to:
+
+   ```text
+   zd serve <launch-path> --supervised
+   ```
+
+   Preserve the invocation cwd. Do not ask the child to reparse a path already accidentally resolved relative to the bundle directory.
+
+5. The child itself binds `127.0.0.1:0`, retains that listener, installs mandatory routes/assets/authentication, and only then emits one bounded, versioned readiness record on its private stdout/control pipe:
+
+   ```json
+   {
+     "type": "ready",
+     "schemaVersion": 1,
+     "protocolVersion": 1,
+     "appVersion": "0.2.10",
+     "pid": 1234,
+     "instanceId": "opaque-id",
+     "origin": "http://127.0.0.1:49152"
+   }
+   ```
+
+   Authentication bootstrap material belongs in a private channel selected by the security design and must never enter diagnostics or ordinary logs.
+
+6. The wrapper drains stdout and stderr from process start, validates a small maximum readiness-line size, schema/protocol/app versions, literal loopback host, PID, and early-exit state. A final `/health/ready` request may prove the listener is serving, not merely bound.
+
+7. Use a bounded startup deadline. Timeout, malformed readiness, wrong version/origin, or pre-ready exit causes shutdown/kill plus mandatory `wait`; show one actionable failure in the bundled startup shell.
+
+8. Navigate the existing `main` webview to the exact returned origin, install an exact-origin navigation guard, then show it. The backend HTTP responses—not Tauri configuration—must carry CSP and other web security headers.
+
+9. Treat Tauri `PageLoadEvent::Finished` as navigation completion only. The served client should separately report `client.connected` and `workbench.first-useful-frame`.
+
+### Reload and reopening
+
+- Reload navigates the same webview to the same server instance. It must not spawn another process.
+- Record and assert that PID, `instanceId`, and generation remain unchanged across reload.
+- Reconnect must cancel stale subscriptions and identify the new client session.
+- Reload behavior for live PTYs is presently undefined because the frontend has handles but no list/reattach protocol. The first goal must either implement reattachment or explicitly refuse reload while live state cannot be recovered.
+- Dock/Spotlight reopen and quick access continue to show the same `main` window.
+- A second OS launch or file association forwards a trusted open request to the existing backend; it does not create another server or widen grants from arbitrary browser input.
+
+### Crash behavior
+
+- Before readiness: show the bundled startup failure, terminate any remaining child, and reap it.
+- After readiness: mark the current page disconnected and preserve its in-memory content. Do not immediately navigate away and destroy potentially recoverable frontend state.
+- Do not automatically restart in v1. Restarting beneath live grants, watchers, terminals, and browser state risks duplicate authority and orphaned processes. A later explicit Retry action may spawn a new generation only after the old child is confirmed reaped.
+- Record exit code/signal, whether readiness had occurred, server generation, and active-resource counts.
+
+### Shutdown
+
+- Browser disconnect or reload does not stop a directly launched `zd serve`.
+- Hiding or quick-access dismissal does not stop a wrapper-owned server.
+- Final desktop quit, after current safe-close confirmation:
+
+  1. Atomically enter `shutting-down` once.
+  2. Send a graceful shutdown request over the private supervisor channel.
+  3. Server stops accepting new work.
+  4. Server flushes diagnostics/durable state.
+  5. Server shuts down watchers.
+  6. Server terminates and reaps every PTY/process tree.
+  7. Server closes network listeners and exits.
+  8. Wrapper waits for a bounded grace period.
+  9. If needed, wrapper force-kills its owned process containment and still waits/reaps.
+  10. Let the Tauri event loop return and run a final idempotent cleanup guard.
+
+- Prefer `App::run_return`; neither `Drop` nor code after current `App::run` is a reliable final supervisor boundary.
+- Direct `zd serve` should route SIGINT/SIGTERM through the same server shutdown path.
+- Wrapper death should close a dedicated close-on-exec control pipe; server EOF initiates graceful shutdown.
+
+## Process ownership risks
+
+- **Dropped child handle:** Rust does not kill or reap it.
+- **Pipe backpressure:** capturing stdout/stderr without continuously draining both can deadlock the backend.
+- **Self-spawn recursion:** CLI dispatch must occur before Tauri startup, and supervised mode must not re-enter desktop mode.
+- **Port race:** selecting a free port and closing it before the server binds is unsafe; the server must bind port zero itself.
+- **PTY descendants:** on Unix, PTYs create separate sessions/process groups and can escape a wrapper-owned server process group. Graceful server cleanup is therefore primary. A catastrophic server kill can still orphan PTYs unless stronger containment is added.
+- **Windows nested jobs:** the wrapper may own the server in one Job Object while the existing terminal code places PTYs in per-session jobs. This topology needs a real Windows test.
+- **Parent-death pipe inheritance:** the supervisor descriptor must be close-on-exec so terminal descendants cannot keep it open and suppress EOF.
+- **`current_exe()` stability:** symlinks, replacement during update, and platform behavior vary. Spawn immediately and reject a mismatched version handshake. [Rust `current_exe`](https://doc.rust-lang.org/std/env/fn.current_exe.html)
+- **Automatic restart:** can create two authorities if the prior generation is not conclusively dead.
+- **Free-port origin changes:** browser `localStorage` is origin-scoped, so random ports can make existing drafts/preferences appear lost. This needs a storage migration or stable client-side owner.
+
+## Packaging and platform constraints
+
+- macOS already supports one signed physical executable: the installed CLI symlink and app launch target are identical.
+- A self-spawning macOS child remains inside the signed bundle; packaging tests should verify `zd serve` from the installed link.
+- Windows needs an explicit artifact decision:
+
+  - Recommended: console `zd.exe` plus thin GUI wrapper, with the wrapper spawning the exact console artifact.
+  - Alternative: one GUI-subsystem PE plus console attachment/stdio handling, but this must be prototyped on real Windows before specification.
+  - If packaged as a Tauri sidecar, account for target-triple naming, installer inclusion, signing, and checksum tests.
+
+- Production assets need one authoritative provider. Current Tauri embedding does not make them automatically available to a standalone server. Prefer server-owned embedded assets plus only a tiny wrapper startup page; otherwise define and test resource paths for every bundle type.
+- Development asset behavior is unresolved. Current Tauri goes directly to Vite. Options are:
+
+  - Simple first slice: build/watch static assets and serve them through `zd serve`; manual reload is acceptable.
+  - Follow-up: reverse-proxy Vite and its HMR WebSocket through the server origin.
+
+  Do not silently promise current HMR while also claiming exact served parity.
+- Tauri’s localhost plugin should not be used: it would create a Tauri-specific asset-serving path rather than the authoritative backend.
+- Preserve window label `main` unless all quick-access and lifecycle lookups are migrated.
+- Do not grant the served external origin the old Tauri filesystem/Git/terminal command surface. Remove those invoke handlers from the wrapper. If a tiny lifecycle bridge remains, constrain it explicitly in the app manifest/capability configuration.
+
+## Observability fields
+
+The current frontend schema contains only project/worktree/thread/session/logical-path context and rejects unknown fields at [schema.ts](/home/mbox01/github/zd/packages/app/src/instrumentation/schema.ts:5) and [schema.ts](/home/mbox01/github/zd/packages/app/src/instrumentation/schema.ts:72). The manifest likewise lacks process-role metadata at [format.rs](/home/mbox01/github/zd/packages/tauri/src/instrumentation/format.rs:135). A versioned extension is required.
+
+Record, only when local diagnostics are enabled:
+
+| Area | Fields/spans |
+|---|---|
+| Correlation | `launchId`, `serverInstanceId`, `serverGeneration`, `clientSessionId`, `requestId`, `traceId` |
+| Identity | `processRole` (`desktop-wrapper`, `server`, `browser-client`), `appVersion`, `protocolVersion`, local wrapper/server PID |
+| Startup | `wrapper.start`, `server.spawn`, `listener.bound`, `server.ready`, `webview.navigation.started`, `webview.navigation.finished`, `client.connected`, `workbench.first-useful-frame` |
+| Request path | client total elapsed, client send/receive/render durations, server queue/dispatch/handler/serialization durations, stable route/operation ID, outcome, response-byte bucket |
+| Streaming | WebSocket reconnect count, queue depth/high-water mark, dropped/coalesced event count, terminal-output bytes bucket |
+| Lifecycle | shutdown trigger, graceful requested, grace duration, forced kill, reap outcome, exit code/signal, ready-before-exit, active terminal/watch/request counts |
+| Reload | old/new client session IDs, same server instance/generation, stale subscription cleanup outcome |
+
+For remote hosts, do not subtract client and server wall-clock timestamps. Measure each leg with its own monotonic clock; report client round trip and server phase durations separately.
+
+Never record auth tokens, bootstrap URLs/nonces, headers, arguments, environment, absolute paths, terminal content, document content, or raw error text.
+
+## Integration-test cut points
+
+1. **CLI parser tests in `cli.rs`:**
+
+   - `zd serve`, `zd serve .`, missing/extra arguments.
+   - Preserve `zd`, `zd .`, `zd file.md`.
+   - `zd ./serve` remains a path.
+   - Correct invocation cwd and no accidental recursive desktop launch.
+
+2. **Server lifecycle tests:**
+
+   - Bind port zero and retain the listener.
+   - Readiness is emitted only after static/API/WS routes are usable.
+   - Static index/assets have correct MIME, cache, and CSP headers.
+   - Shutdown order is idempotent and refuses new work once draining.
+   - Parent-pipe EOF and SIGINT/SIGTERM use the same cleanup path.
+
+3. **Supervisor unit tests with injected process operations:**
+
+   - Timeout, early exit, malformed/oversized/duplicate readiness.
+   - Wrong host, PID, version, or protocol.
+   - stdout/stderr are continuously drained.
+   - Graceful exit, forced kill, mandatory reap, and duplicate shutdown requests.
+   - No automatic restart after a ready server crashes.
+
+4. **Real binary integration test:**
+
+   - Spawn the built `zd serve` binary against a temporary approved root.
+   - Parse readiness, GET health/index, connect WebSocket, perform one real scoped file operation and one PTY lifecycle.
+   - Gracefully stop and assert the server and descendants are gone.
+
+5. **Browser parity Playwright suite:**
+
+   - Run against real `zd serve`, not only Vite.
+   - Cover grant-scoped file access, tree/watch, terminal, reconnect, and a backend loss.
+   - Assert request IDs and timing evidence distinguish browser rendering, round-trip, and backend work.
+
+6. **Wrapper supervision smoke test:**
+
+   - One server PID/instance per primary wrapper.
+   - Reload preserves PID/instance.
+   - Second app invocation forwards args/cwd and does not spawn.
+   - Backend death produces a disconnected/failure state.
+   - Quit removes backend, watcher, and PTY descendants.
+
+7. **Packaged macOS/Windows tests:**
+
+   - Installed macOS `zd serve` is the same signed app executable and serves assets.
+   - Windows installer contains the chosen console/server artifact and GUI wrapper topology.
+   - Codesigning/signing remains valid after embedding the server artifact.
+   - The served origin cannot invoke removed native filesystem/terminal commands.
+
+## Gaps requiring an owner decision
+
+1. One physical Windows executable versus console CLI plus GUI wrapper.
+2. Authentication/bootstrap transfer from wrapper to served webview.
+3. How safe-close, native focus, global shortcuts, notifications, folder picker, and file associations cross the literal wrapper boundary.
+4. Reload/reattach semantics for live terminals and frontend-owned workbench state.
+5. Random-port browser persistence.
+6. Static asset embedding and development/HMR policy.
+7. Whether second desktop invocations are in the first goal.
+8. Expected containment after an ungraceful backend crash with live Unix PTYs.
+9. Whether Linux packaging is in scope.
+10. Successor ADR/VISION language for remote authority and the two-process desktop model.
+
+Rust tooling was unavailable in this environment, so no compile/runtime experiment was performed; this research is source- and official-documentation-based.

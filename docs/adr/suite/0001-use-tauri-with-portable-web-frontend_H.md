@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Superseded by
+[0008: Serve one host backend to browser and desktop clients](0008-serve-one-host-backend-to-browser-and-desktop-clients_H.md).
 
 ## Context
 

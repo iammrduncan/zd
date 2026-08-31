@@ -1,0 +1,172 @@
+# Line 2 research: protocol and remote security
+
+_Date: 2026-08-31. Read-only research; no files changed._
+
+## Established facts
+
+### Repository authority model
+
+- The frontend already has one intended portability boundary, `Platform`; product code should not depend directly on Tauri. The browser adapter currently disables filesystem, Git, and terminal operations. [ADR 0002](/home/mbox01/github/zd/docs/adr/suite/0002-put-native-authority-behind-platform-boundary_H.md:16), [platform.ts](/home/mbox01/github/zd/packages/app/src/platform.ts:535)
+- Accepted ADR 0006 requires native-owned canonical project/worktree grants. Ordinary frontend requests use opaque IDs and relative paths and cannot supply or widen roots. It also explicitly says remote projects require a separate authority decision. [ADR 0006](/home/mbox01/github/zd/docs/adr/suite/0006-scope-file-access-to-approved-project-grants_H.md:20)
+- The implementation canonicalizes the approved root, rejects absolute paths and parent traversal, and checks resolved targets remain beneath the canonical root. [grants.rs](/home/mbox01/github/zd/packages/tauri/src/grants.rs:98), [path resolution](/home/mbox01/github/zd/packages/tauri/src/grants.rs:344)
+- Grant IDs are sequential process-local identifiers, not credentials. Serialized grants currently include absolute root strings. A network session therefore needs independent authentication, and remote path disclosure needs a deliberate decision. [grants.rs](/home/mbox01/github/zd/packages/tauri/src/grants.rs:28)
+- Terminal startup does not accept an executable, arguments, environment, or arbitrary cwd from the frontend. It starts the user’s configured shell in an approved cwd. Once started, however, an authenticated controller can type arbitrary shell commands. The server session token therefore effectively grants the remote OS user’s shell authority, not merely project-file access. [terminal/mod.rs](/home/mbox01/github/zd/packages/tauri/src/terminal/mod.rs:141), [shell startup](/home/mbox01/github/zd/packages/tauri/src/terminal/mod.rs:246)
+- Current runtime structures are single-process rather than multi-principal. A new watcher replaces the existing watcher for a scope, and terminal reads drain shared output. Two independent browser controllers would race or consume one another’s state. [file_tree_watch.rs](/home/mbox01/github/zd/packages/tauri/src/file_tree_watch.rs:128), [terminal drain](/home/mbox01/github/zd/packages/tauri/src/terminal/mod.rs:394)
+- The current VISION calls network/process authority explicit, but lists remote projects and collaboration as out of scope. The owner’s new direction supersedes that product intent, but the accepted documents have not yet been reconciled. [VISION](/home/mbox01/github/zd/docs/VISION.md:51), [out of scope](/home/mbox01/github/zd/docs/VISION.md:366)
+
+### Browser and transport security
+
+- An origin is a scheme/host/port tuple. Two loopback ports are different origins. [RFC 6454](https://datatracker.ietf.org/doc/html/rfc6454#section-5)
+- Browsers send `Origin` during a WebSocket handshake. Servers should reject unacceptable origins before upgrade. Non-browser clients can forge `Origin`, so it prevents browser cross-site attacks but is not authentication. [RFC 6455 §§10.1–10.2](https://datatracker.ietf.org/doc/html/rfc6455#section-10.2)
+- The browser WebSocket constructor accepts a URL and subprotocols, but no arbitrary `Authorization` header. WebSocket handshake credentials mode is `include`, making cookie-authenticated sockets susceptible to ambient-authority mistakes. [WHATWG WebSockets](https://websockets.spec.whatwg.org/#the-websocket-interface)
+- Cookies are not isolated by port. This is a poor property for unrelated services on random loopback ports. [RFC 6265 §8.5](https://datatracker.ietf.org/doc/html/rfc6265#section-8.5)
+- Bearer credentials should use headers rather than URI query parameters because URLs are commonly retained in logs and history. [RFC 6750 §§2.1, 2.3](https://datatracker.ietf.org/doc/html/rfc6750#section-2.3)
+- `http://127.0.0.1` and `http://[::1]` are considered potentially trustworthy for secure-context browser features. That classification does not encrypt a remote hop. [Secure Contexts §3.1](https://www.w3.org/TR/secure-contexts/#is-origin-trustworthy)
+- `ssh -L` forwards a locally bound socket through SSH’s encrypted channel. An explicit `127.0.0.1` bind keeps the forward local to the client machine. [OpenSSH `ssh(1)`](https://man.openbsd.org/ssh#L)
+- Binding `127.0.0.1:0` lets the operating system allocate the port atomically; the bound port can then be obtained from `local_addr`. No separate, racy “find free port” operation is needed. [Tokio `TcpListener`](https://docs.rs/tokio/latest/tokio/net/struct.TcpListener.html#method.bind)
+- Non-loopback WebSocket deployments need TLS for confidentiality, integrity, and server authentication. [RFC 6455 §10.6](https://datatracker.ietf.org/doc/html/rfc6455#section-10.6)
+- Tailscale Serve is an example of a managed proxy that can keep the backend on loopback while exposing tailnet-restricted HTTPS under access controls. [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve)
+
+## Claims
+
+These are owner or repository assertions, not independently verified outcomes:
+
+- `zd serve .` should approve `.` as the initial project root, start the host backend on a free port, and serve the existing TypeScript application.
+- The browser and Tauri application should use the same backend and platform protocol.
+- Tauri should become a lifecycle/window wrapper that starts the server and loads its URL; it should not retain separate filesystem, Git, terminal, or watcher implementations.
+- The requested first use case is one owner connecting to one server, not accounts, collaboration, or mutually distrusting users.
+
+## Inferences and recommendation
+
+### Recommended v1 boundary
+
+Use one loopback-only server:
+
+```text
+Browser or Tauri webview
+        │ HTTP: packaged frontend only
+        │ WebSocket: authenticated typed Platform protocol
+        ▼
+zd host bound to 127.0.0.1:<OS-assigned port>
+        │
+        ├── grants / files / Git
+        ├── PTYs
+        ├── watchers
+        └── workbench runtime state
+```
+
+For remote use, carry that exact endpoint through an SSH local forward. Do not add a direct network-bind mode in v1.
+
+`zd serve .` must canonicalize and approve `.` before exposing privileged operations. The directory is an authority root, never an HTTP document root. Project HTML, Markdown, SVG, or JavaScript must not be served as executable content at the trusted application origin.
+
+### Minimal protocol
+
+The smallest coherent protocol is:
+
+- `GET /` and packaged `/assets/*`: inert frontend only.
+- Optional unauthenticated readiness endpoint containing no grant, path, token, or runtime data.
+- One versioned WebSocket endpoint for all privileged `Platform` requests, responses, and asynchronous events.
+
+A single privileged socket avoids splitting ordinary commands across HTTP while terminal input and events use WebSocket. It also removes privileged HTTP mutation endpoints—and therefore most conventional HTTP CSRF—from the first slice.
+
+The socket should use closed message envelopes containing a protocol version, request ID, message type, method/event name, and typed payload. Add bounds for frames, reassembled messages, pending requests, terminal queues, and unauthenticated connections.
+
+If implementation research instead selects HTTP RPC plus WebSocket events, every privileged HTTP request must require `Authorization: Bearer`, exact Origin validation for mutations, JSON-only content types, `Cache-Control: no-store`, and no permissive CORS.
+
+### Authentication and session handling
+
+- Generate a process-scoped 32-byte random owner secret after binding.
+- The secret expires when the server exits. Do not introduce accounts, refresh tokens, persistent sessions, or grant-specific credentials in v1.
+- Do not use cookies, query parameters, grant IDs, WebSocket subprotocol names, argv, durable configuration, or logs to carry the secret.
+- For WebSocket, require authentication in the first application frame. Before success, send no state or events and accept no commands. Use a short timeout, bounded unauthenticated connection count, constant-time comparison, and immediate close on failure.
+- Store the accepted secret in memory or origin-scoped `sessionStorage`; never `localStorage`. `sessionStorage` provides refresh survival while remaining scoped to the loopback origin. [HTML Web Storage](https://html.spec.whatwg.org/multipage/webstorage.html#the-sessionstorage-attribute)
+- The safest browser bootstrap is to print the URL and secret separately and show a one-time unlock form.
+- If one-click Tauri startup is required, a URL fragment is a possible bootstrap because fragments are removed before an HTTP request is sent. It must be copied immediately to memory/session storage and removed with `history.replaceState` before subresource loading, navigation, or telemetry. This needs explicit tests; it should not silently become a general URL-token mechanism. [RFC 3986 §3.5](https://datatracker.ietf.org/doc/html/rfc3986#section-3.5)
+
+### Host, Origin, and cross-site controls
+
+- Bind exactly `127.0.0.1:0` by default. Use numeric loopback in generated URLs; do not depend on `localhost` resolution.
+- V1 should expose no `--host`, wildcard, LAN, or public-bind option. An optional explicit `--port` is reasonable for predictable tunnels.
+- Validate every request authority/`Host`. Accept only literal `127.0.0.1` with a valid port; reject missing, malformed, DNS-name, or foreign authorities.
+- For WebSocket, require a present, non-`null` Origin equal to `http://` plus the validated request authority. Reject before `101`.
+- Comparing Origin with request authority supports an SSH tunnel whose local port differs from the remote server port.
+- Origin checking is defense against cross-site WebSocket hijacking. The secret remains required because scripts outside browsers can forge Origin.
+- Serve API and frontend from one origin and emit no CORS allow headers. Browser Local Network Access prompts may add defense in depth, but correctness must not depend on browser-specific behavior. [Local Network Access draft](https://wicg.github.io/local-network-access/#scope-of-mitigation)
+- Apply a restrictive CSP: application assets only, connections limited to the exact socket, and at least `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, and `form-action 'none'`. Preserve the current inert-markup and blocked-remote-resource rules. [CSP3](https://www.w3.org/TR/CSP/)
+
+### Controller and grant semantics
+
+V1 should allow one active authenticated controller. A second connection should be rejected or require an explicit takeover that closes the old connection; silent concurrent control is unsafe with the current watcher and terminal-drain model.
+
+The initial vertical slice should expose only the startup grant created from CLI `.`. Browser-side root selection, recent-workspace recovery, arbitrary paths, and persistence-based authority widening should be deferred. Structured Git worktree creation may remain only if its existing grant rules survive unchanged.
+
+Reconnect should reauthenticate using the same process token and receive a complete authoritative snapshot. Events should carry an epoch and monotonically increasing sequence so a client can detect a missed stream and resnapshot.
+
+### Remote UX
+
+Free-port workflow:
+
+```sh
+# Remote machine
+zd serve .
+# Ready: 127.0.0.1:R
+# Secret: <process owner secret>
+
+# Local machine
+ssh -N -o ExitOnForwardFailure=yes \
+  -L 127.0.0.1:L:127.0.0.1:R user@host
+
+# Browser
+http://127.0.0.1:L/
+```
+
+For fewer manual substitutions, support an explicit port:
+
+```sh
+# Remote
+zd serve --port 7331 .
+
+# Local
+ssh -N -o ExitOnForwardFailure=yes \
+  -L 127.0.0.1:7331:127.0.0.1:7331 user@host
+```
+
+The browser sees a trustworthy loopback origin. SSH supplies remote-host authentication and encryption. The `zd` server owns neither certificates nor SSH credentials.
+
+The Tauri wrapper should launch the same server on port zero, receive a structured readiness record over a private child-process channel, load the resulting loopback URL, and own child shutdown. That lifecycle bootstrap must not grow into a second domain API.
+
+### Diagnosing slowness
+
+The common protocol can directly address the owner’s original observability concern:
+
+- Client heartbeat round-trip estimates transport/tunnel latency.
+- Each response reports queue and handler duration, without content or paths.
+- Client instrumentation measures rendering and input delay independently.
+- Request IDs correlate these timings without logging source text, terminal output, tokens, or full paths.
+
+This distinguishes browser work, network delay, backend queueing, and host operation time.
+
+## Alternatives and tradeoffs
+
+| Approach | Benefit | Why reject or defer |
+|---|---|---|
+| Loopback plus SSH forwarding | No public listener, SSH host authentication and encryption, secure-context loopback origin, no certificate management | Requires SSH and a short tunnel setup. Recommended v1 because its operational complexity is visible and bounded. |
+| Direct LAN or `0.0.0.0` bind | One immediately reachable URL | Plain HTTP/WS exposes bearer credentials, files, and terminal traffic. Safe support requires HTTPS/WSS, certificate and hostname lifecycle, explicit public origins, firewall guidance, abuse limits, and broader testing. A firewall is not application authentication. |
+| Built-in self-signed TLS | Avoids an external proxy | Browser/device trust installation and certificate failure UX become product responsibilities. |
+| Managed overlay or reverse proxy | Stable HTTPS URL, remote-device access, optional central policy | Good follow-up, but introduces external dependencies, proxy lifecycle, canonical-origin configuration, Host rewriting, WebSocket forwarding, and trusted identity-header rules. Keep the backend loopback-only and add explicit `--public-origin https://…` semantics later. Do not trust forwarded headers by default. |
+| Cookie session | Authenticates the WebSocket handshake automatically | Cookies are ambient and not isolated by port, which is hazardous for random-port loopback services. |
+| Token in query or WebSocket URL | Easy browser bootstrap | Credentials leak into URL-oriented logs and history. First-frame authentication avoids this. |
+| Serving workspace files directly | Simple file URLs and previews | Makes untrusted project content executable at the application origin and bypasses the grant/resource boundary. |
+
+## Gaps and owner decisions
+
+1. **Architecture record:** This direction changes accepted remote-scope and native-authority decisions. Planning should include a successor ADR plus VISION/DESIGN updates; it must not silently overrule ADR 0006.
+2. **Terminal threat model:** Confirm that possession of the server token intentionally grants an interactive shell with the remote OS user’s authority, including access outside the approved project through typed terminal input.
+3. **Controller policy:** Confirm one active controller and choose “reject second connection” versus “explicit takeover.”
+4. **Token bootstrap:** Choose separate URL plus unlock secret for browser v1, and specify the Tauri secret handoff. A fragment bootstrap should require leakage tests.
+5. **Origin and persistence:** A free port creates a new browser origin each launch. Existing browser-local state must either become ephemeral or move behind server-owned versioned state.
+6. **Path disclosure:** Decide whether remote clients may receive the absolute `ProjectGrant.root`; current code exposes it despite opaque-resource language.
+7. **Reconnect:** Specify snapshot/resubscription behavior after an SSH interruption, especially for terminal output already drained from bounded queues.
+8. **Resource controls:** Define per-session request, message, file-read, terminal-output, watcher, and slow-client limits before accepting network traffic.
+9. **Browser/Tauri evidence:** Test Host/Origin rejection, pre-auth silence, token redaction, `L != R` tunnels, workspace-content isolation, secure-context behavior, and reconnection across the supported browser/webview matrix.
+10. **Future proxy mode:** Requires a separate threat model covering TLS termination, canonical public origin, trusted proxy peers and headers, proxy identity, and public-versus-tailnet reachability.

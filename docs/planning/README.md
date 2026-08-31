@@ -16,6 +16,11 @@ Planning records sequence or inform work. They never override current human dire
 The current product expansion is coordinated by the
 [expanded-scope execution plan](goals/expanded-scope/goal.md).
 
+## Active objectives
+
+- [Served workbench](objectives/served-workbench/README.md) — one host backend for browser and Tauri
+  clients; the first executable goal is a read-only browser-to-Rust walking skeleton.
+
 ## Historical snapshots
 
 - The [prototype wrap-up goals](objectives/_completed/summary-wrap-up.md) are summarized superseded

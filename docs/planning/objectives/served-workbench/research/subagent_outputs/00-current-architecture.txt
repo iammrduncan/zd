@@ -1,0 +1,183 @@
+## Current architecture research
+
+### Established facts
+
+#### Startup and composition
+
+- The executable always starts Tauri through `zd_lib::run()`; there is no `serve` mode in `packages/tauri/src/main.rs:4`.
+- Current argument handling treats the first non-flag argument as a path. Today, `zd serve .` would attempt to open `serve` as a path (`packages/tauri/src/cli.rs:311-323`).
+- Tauri creates process-global launch/grant, watcher, terminal, notification, workspace, quick-access, and diagnostic state, then registers native commands in `packages/tauri/src/lib.rs:54-137`.
+- Exit cleanup terminates PTYs and watchers in `packages/tauri/src/lib.rs:161-171`.
+- The installed macOS `zd` command is already a symlink to the application executable (`packaging/macos/install.sh:9-38`), so one binary could dispatch GUI and `serve` modes.
+
+#### Frontend/native seam
+
+- `packages/app/src/platform.ts:1-3` is the only production frontend file that imports Tauri APIs. Its comment at lines 37-43 explicitly identifies it as the shell-aware boundary.
+- The full `Platform` contract is at `packages/app/src/platform.ts:150-248`; the Tauri implementation is at lines 275-475; browser behavior is at lines 477-583.
+- `packages/app/src/main.ts:1-10` detects a platform and passes it into `bootWorkbench`.
+- `packages/app/src/workbench/boot.ts:63-105` launches through the injected platform, loads grants and themes, and creates the frontend-owned workbench state.
+- `packages/app/src/workbench/runtime.ts:25-40` retains the injected platform; feature composition at `packages/app/src/workbench/features.ts:255-319` passes narrower adapters into files, Git, terminal, thread, attention, and shell modules.
+- The frontend’s versioned workbench state remains client-owned in `packages/app/src/workbench/state-owner.ts:39-112`, consistent with `docs/adr/suite/0005-own-one-versioned-workbench-state_H.md`.
+
+Existing reusable boundaries include:
+
+- `FileTreeAdapter`: `packages/app/src/files/types.ts:71-81`
+- `GitAdapter`: `packages/app/src/git/types.ts:124-129`
+- `TerminalAdapter`: `packages/app/src/terminal/index.ts:58-68`
+- `ProjectGrantPlatform`: `packages/app/src/workbench/projects.ts:7-12`
+- Workspace picking: `packages/app/src/workbench/workspace-home.ts:8-9`
+- Thread scope/runtime picks: `packages/app/src/workbench/thread-scope.ts:8-11` and `packages/app/src/workbench/threads.ts:38-40`
+- Attention/notification pick: `packages/app/src/workbench/notifications.ts:8-11`
+
+#### Browser versus Tauri behavior
+
+There is only one production filesystem, Git, and terminal backend today: Rust/Tauri.
+
+- Browser launch returns the home state; grants are empty; workspace, filesystem, Git, file-tree, and terminal operations are unavailable or throw (`packages/app/src/platform.ts:482-571`).
+- Browser-local production behavior is limited mainly to DOM focus/blur, `window.open`, and a no-op close operation (`packages/app/src/platform.ts:513-523,572-582`).
+- This limitation is documented in `docs/user-facing-docs/explanation/architecture.md:52-53` and `docs/user-facing-docs/how-to/develop.md:3-30`.
+- Unit tests deliberately verify unavailable browser behavior and Tauri command payloads in `packages/app/tests/unit/platform/boundary.test.ts:34-584`.
+
+The apparent browser backend is a test fixture:
+
+- `packages/app/src/workbench/fixture.ts:274-565` provides in-memory terminal, Git, grant, diagnostic, file-tree, watcher, read, and write behavior.
+- It is mounted through `packages/app/dev/workbench.html:9`.
+- Performance fixtures also imitate backend behavior in `tests/e2e/threads/terminal-performance-fixture.ts:26-74` and `tests/e2e/changes/changes-performance-fixture.ts:151-165`.
+
+#### Files and grants
+
+- Frontend file authority is expressed as `projectId`, optional `worktreeId`, and `relativePath`, not an arbitrary absolute path (`packages/app/src/workbench/resources.ts:19-24`).
+- Current-file open and save call injected platform operations in `packages/app/src/workbench/current-file/index.ts:163-180,261-299`.
+- File-tree snapshots, mutations, watches, reads, writes, stamps, and images cross the Tauri boundary in `packages/app/src/platform.ts:379-454`.
+- Native `GrantStore` owns canonical approved roots in `packages/tauri/src/grants.rs:77-138`.
+- Relative resolution rejects absolute paths, parent traversal, and symlink escape in `packages/tauri/src/grants.rs:344-385`.
+- `LaunchState` owns current and queued launch requests plus the grant store (`packages/tauri/src/cli.rs:34-179`).
+- Bounded reads and atomic saves are implemented in ordinary Rust functions in `packages/tauri/src/fs.rs:193-225,289-342`.
+- File-tree snapshot logic has a transport-neutral core in `packages/tauri/src/file_tree.rs:124-149`.
+- Native picker behavior is Tauri-specific (`packages/tauri/src/projects.rs:1-45`).
+
+#### Git and worktrees
+
+- The TypeScript contract is in `packages/app/src/git/types.ts:1-129`; `packages/app/src/git/adapter.ts:13-43` maps it onto injected command invocation.
+- Native scope resolution and Git service functions are in `packages/tauri/src/git.rs:137-475`; the Tauri command wrappers are confined to lines 476-500.
+- The fixed subprocess runner is in `packages/tauri/src/git/process.rs`.
+- Worktree creation has a reusable core in `packages/tauri/src/worktrees.rs:344-417` and a thin command wrapper at lines 419-425.
+- Native integration coverage exists in `packages/tauri/tests/git_service.rs:109-521`; frontend adapter coverage exists in `packages/app/tests/unit/git/adapter.test.ts:63-158`.
+
+#### Terminals
+
+- Frontend terminal requests intentionally omit arbitrary executable, argv, cwd, and environment fields (`packages/app/src/terminal/index.ts:1-68`).
+- `packages/app/src/threads/terminal/session.ts:49-300` validates output scope/order and delegates start, input, resize, output read, and termination to the adapter.
+- Root threads subscribe once to output-ready edges and then pull bounded output (`packages/app/src/workbench/threads.ts:69-84,339-353`).
+- The reusable PTY/session core is Tauri-free in `packages/tauri/src/terminal/mod.rs:62-404`, `terminal/output.rs`, and `terminal/process.rs`.
+- `packages/tauri/src/terminal_runtime.rs:43-191` is the Tauri state/event adapter.
+- Output reads drain one shared queue (`packages/tauri/src/terminal/mod.rs:394-404`).
+
+#### Events
+
+Current native-to-client signals are:
+
+| Signal | Producer | Consumer |
+|---|---|---|
+| Open request | `packages/tauri/src/lib.rs:174-183` | `packages/app/src/platform.ts:278-293` |
+| File-tree watch | `packages/tauri/src/file_tree_watch.rs:164-180` | `packages/app/src/platform.ts:382-444` |
+| Terminal output ready | `packages/tauri/src/terminal_runtime.rs:130-140` | `packages/app/src/platform.ts:362-371` |
+| Notification action | `packages/tauri/src/notifications.rs:128-137` | `packages/app/src/platform.ts:337-352` |
+| Window presentation | `packages/tauri/src/quick_access.rs:171-172` | `packages/app/src/platform.ts:308-317` |
+
+Focus and close use direct Tauri window APIs at `packages/app/src/platform.ts:321-330,455-472`. These are viewer-shell operations, not remote-host operations.
+
+#### Native reuse boundary
+
+Much of the Rust implementation is reusable in substance, but it is not exposed as a cohesive backend API:
+
+- Most modules are private in `packages/tauri/src/lib.rs:7-24`.
+- Integration tests source-import private modules rather than importing a public service API, for example `packages/tauri/tests/file_tree.rs:1-10`, `git_service.rs:1-11`, and `terminal_spike.rs:1-2`.
+- Grants, terminal core, Git process/service logic, worktrees, file-tree snapshotting, mutations, and diagnostics are largely transport-neutral below their Tauri wrappers.
+- Tauri-specific concerns include native window lifecycle, project pickers, quick access, native notifications, native event emission, and revealing/opening resources on the viewing computer.
+
+#### Build and tests
+
+- Vite owns browser development and production asset builds (`package.json:15-19`); Tauri development is separate (`package.json:25-27`).
+- Vite uses port 1420 and treats `TAURI_DEV_HOST` as a development asset-host setting (`vite.config.ts:4-32`).
+- Tauri loads Vite in development and packages `packages/app/dist` in releases (`packages/tauri/tauri.conf.json:6-11`).
+- The current CSP does not describe a dynamic HTTP or WebSocket backend (`packages/tauri/tauri.conf.json:27-29`).
+- `packages/tauri/Cargo.toml:19-31` has no direct HTTP/WebSocket server dependency.
+- There is no standalone asset-serving or asset-embedding path for `zd serve`.
+- Vitest exercises a jsdom boundary (`vitest.config.ts:10-19`).
+- Playwright runs Chromium against Vite and explicitly does not exercise Tauri (`playwright.config.ts:28-49`).
+- Rust integration tests strongly cover real files, Git, grants, worktrees, and PTYs, but there is no browser-to-real-backend contract test.
+
+#### Proven duplication
+
+There is no duplicated production backend implementation. Proven duplication consists of:
+
+- In-memory browser test fixtures.
+- Manually mirrored TypeScript/Rust DTOs:
+  - Resources: `packages/app/src/workbench/resources.ts:1-39` and `packages/tauri/src/grants.rs:18-53`
+  - Terminal: `packages/app/src/terminal/index.ts:15-68` and `packages/tauri/src/terminal/mod.rs:62-216`
+  - File tree: `packages/app/src/files/types.ts:4-81` and `packages/tauri/src/file_tree.rs:22-113`
+  - Git: `packages/app/src/git/types.ts:1-129` and `packages/tauri/src/git/types.rs:1-209`
+- Manually mirrored command names between frontend adapters and `packages/tauri/src/lib.rs:85-137`.
+- No generated protocol/schema source was found.
+
+### Claims supported by the repository
+
+1. The served-workbench direction fits the existing frontend architecture. Feature code is already transport-independent above `Platform` and its narrower adapters.
+
+2. The objective should not be described as removing two existing production implementations. It prevents a future second implementation by making Tauri and browsers use one served backend.
+
+3. “Tauri becomes a literal wrapper” is accurate only for host authority. Tauri must still retain client-shell responsibilities such as its window, native picker, focus/close behavior, global summon, native notification interaction, and opening links on the viewing computer.
+
+4. “Everything runs through the backend” should mean files, grants, workspaces/worktrees, Git, PTYs, watchers, and host diagnostics. Moving editor/workbench state server-side would contradict the existing state-owner architecture and is unnecessary for this goal.
+
+5. Existing Rust logic should be placed behind one public backend service boundary before HTTP/WebSocket routes are added. Adding routes directly beside the current Tauri commands would preserve two orchestration paths and increase DTO/validation drift.
+
+6. Current diagnostics cannot reliably separate client rendering time, transport time, server queue/handler time, and subprocess/filesystem time. Frontend instrumentation creates local trace/span IDs (`packages/app/src/instrumentation/client.ts:132-151`) but does not propagate a cross-boundary request identifier.
+
+### Inferences for the plan
+
+- Split the broad `Platform` conceptually into:
+
+  - `WorkbenchBackend`: launch grants, projects/workspaces, worktrees, files, Git, PTYs, watchers, and backend diagnostics.
+  - `ClientShell`: focus/close, external links, native presentation, notifications, shortcuts, and any viewer-local picker behavior.
+
+  Compose a server-backed backend with either a browser shell or Tauri shell while leaving product modules unchanged.
+
+- Make the first version explicitly single-client or single-controller. The watcher registry replaces an existing watcher for the same scope (`packages/tauri/src/file_tree_watch.rs:128-149`), and terminal reads drain shared output. Existing semantics are not multicast-safe.
+
+- Preserve edge notification plus bounded pull for file watches and PTY output. The existing model is transport-friendly for one client and avoids putting unbounded output into event messages.
+
+- Use `zd serve <approved-root>` to create the initial grant before listening. Remote project browsing and native picker parity need not be part of the first small goal.
+
+- A safe incremental slice is files first: launch grant, file tree, bounded read/write, mutation, and watch through one shared host service. Git and PTY can follow unless terminal access is required for the first usable milestone.
+
+- If PTY support is included initially, specify disconnect disposal and exclude reload reattachment and multi-client behavior. The current contract has no list or attach operation.
+
+- An SSH local forward to a loopback-bound service gives remote access without embedding SSH transport logic into zd. Direct LAN exposure is a separate security product.
+
+### Gaps requiring an explicit decision
+
+1. **Origin persistence:** A free port creates a new browser origin. Preferences, drafts, settings, and review comments use localStorage (`workbench/preferences.ts:11-65`, `workbench/current-file/drafts.ts:139-170`, `workbench/review.ts:78-111`). This conflicts with draft recovery requirements in `docs/DESIGN.md:532-536` unless the origin is stable or persistence moves.
+
+2. **Reload and reconnect:** Terminal handles are client-runtime state, with no reattach protocol. A reload can orphan a remote PTY.
+
+3. **Multiple clients:** Watchers, terminal queues, grants, and mutations currently have process-global or single-consumer semantics.
+
+4. **Server security:** Binding address, per-run authentication, Origin checks, secret handling, request/body/concurrency bounds, and non-loopback policy are unspecified. Sequential grant and terminal IDs are identifiers, not credentials.
+
+5. **Transport contract:** Version negotiation, typed error envelope, event reconnect/replay, cancellation, timeouts, idempotency, and PTY framing remain undefined.
+
+6. **Shell/backend ownership:** Remote project selection, recent workspaces, custom themes, native notification actions, external URL opening, and revealing diagnostic files need explicit ownership.
+
+7. **Lifecycle:** The plan must distinguish a user-started persistent `zd serve` process from a Tauri-supervised child that stops with its wrapper.
+
+8. **Assets and CSP:** The repository has no standalone static asset server. The wrapper must choose between loading the loopback-served UI or loading bundled assets that connect to loopback; the latter requires CSP changes.
+
+9. **Distribution:** Current release automation produces macOS and Windows artifacts but no Linux server artifact. Windows release builds also use the GUI subsystem, which affects console output for `zd serve`.
+
+10. **Verification:** No real browser↔backend integration harness exists. The goal needs at least one browser-to-real-host test plus parity coverage proving browser and Tauri wrappers use the same backend path.
+
+11. **Documentation authority:** `VISION.md` and accepted ADRs currently assign authority to Tauri and exclude remote projects. The new direction should be recorded as a successor ADR rather than rewriting accepted history.
+
+No files were changed.

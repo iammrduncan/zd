@@ -1,6 +1,6 @@
 # zd workbench vision
 
-Date: 2026-08-21
+Date: 2026-08-31
 
 Status: **canonical and binding**
 
@@ -48,8 +48,8 @@ The restraint of iA Writer, OmmWriter, and the existing `zd` editor remains the 
   become decorative controls.
 - State changes are immediate and geometrically stable. Nothing unrelated jumps when a project,
   thread, file, theme, or Git snapshot changes.
-- Local behavior is the default. Network access, process authority, and notifications are explicit
-  capabilities, not ambient assumptions.
+- Host-local behavior is the default. Network access, process authority, and notifications are
+  explicit capabilities, not ambient assumptions.
 - Performance is part of the aesthetic. Idle work, delayed input, flicker, and unbounded background
   activity are product defects.
 
@@ -63,17 +63,22 @@ The supported launch forms are:
 zd
 zd <folder>
 zd <file>
+zd serve <folder>
 ```
 
 Bare `zd`, Dock, Spotlight, and Start menu activation open the existing workbench or its quiet home
 state. Folder and file activation resolve or add a project, then use the same safe context switch as
-in-app navigation. The former `zd md` launch form is not a compatibility alias.
+in-app navigation. `zd serve <folder>` starts a workbench host for that approved folder and prints
+the loopback connection information for a browser or protected tunnel. The former `zd md` launch
+form is not a compatibility alias.
 
-One running process owns one root workbench window. The initial product does not create independent
-document windows. A global shortcut reuses the root window in a temporary quick-access presentation:
-it appears on the active display and Space, accepts input, and hides on repeated summon, Escape, or
-focus loss. Hiding is not closing and never destroys work. Ordinary activation restores normal window
-behavior.
+One host owns one workbench session. The initial served product admits one controlling client; it is
+not a collaboration server. A desktop launch adds one Tauri client shell and one root workbench
+window. It does not create independent document windows. A global shortcut reuses that root window
+in a temporary quick-access presentation: it appears on the active display and Space, accepts input,
+and hides on repeated summon, Escape, or focus loss. Hiding is not closing and never destroys work.
+Ordinary activation restores normal window behavior. A browser client uses its browser window and
+does not pretend to have desktop-only window behavior.
 
 ## 5. Workbench state and regions
 
@@ -121,8 +126,8 @@ decides what happens to dirty text, running processes, unavailable paths, or wor
 
 ## 6. Projects and worktrees
 
-A project is a user-approved local folder with a stable opaque ID, canonical root, display name,
-order, availability state, and native filesystem grant.
+A project is a user-approved folder on the workbench host with a stable opaque ID, canonical root,
+display name, order, availability state, and host-owned filesystem grant.
 
 - One session holds multiple projects without restarting.
 - Adding the same canonical root activates the existing project.
@@ -156,9 +161,10 @@ output alone does not infer completion.
 A person can create, rename, reorder, activate, close, and remove threads. Closing a live process or
 a context with dirty work requires the owning feature's explicit safe action.
 
-Native code owns pseudoterminal creation, cwd, structured environment policy, resize, input/output,
+The `zd` host owns pseudoterminal creation, cwd, structured environment policy, resize, input/output,
 exit status, descendant cleanup, and disposal. The frontend receives a bounded terminal-session API,
-not generic arbitrary-command IPC.
+not generic arbitrary-command IPC. Possession of a host-session credential grants the ability to type
+commands with that host user's authority; project file grants are not a shell sandbox.
 
 Terminal presentation supports Unicode, grapheme-safe selection, copy/paste, keyboard input,
 resize/reflow, search, accessible focus, and bounded scrollback. Processes remain alive across project
@@ -245,7 +251,7 @@ are detected and reconciled; failures preserve the buffer and explain the refusa
 
 Pasting a supported screenshot into editable Markdown or plain text saves it below the active
 project's `docs/screenshots` directory and inserts a document-relative Markdown image link only
-after that native write succeeds. A refused or failed image write leaves the document unchanged.
+after that host write succeeds. A refused or failed image write leaves the document unchanged.
 Code buffers keep ordinary clipboard behavior and never translate an image into Markdown.
 
 ## 10. Attention and notifications
@@ -318,17 +324,29 @@ raw prompts, terminal transcripts, document contents, secrets, environment dumps
 paths. A diagnostic fixture must let an agent reconstruct one slow interaction and one memory-growth
 interval without private content.
 
+Every host request carries one request ID. The client measures input-to-send, socket round trip, and
+receive-to-render on its monotonic clock. The host measures queue, operation, and serialization on
+its monotonic clock. Diagnostics label those measurements as client, host, and transport residual;
+they never subtract wall-clock timestamps from different computers or present the residual as exact
+network time.
+
 ## 14. Security and authority
 
-The Tauri shell remains thin. Product modules use the typed platform boundary; only native code owns
-operating-system authority.
+The `zd` host owns operating-system authority. Product modules use a typed host boundary for remote
+or local work and a separate client-shell boundary for presentation on the viewing computer. The
+Tauri shell launches and supervises the same `zd serve` executable used from a terminal; it does not
+retain another file, Git, watcher, or pseudoterminal backend.
 
-- File access is a native-owned set of explicit project/worktree grants.
+- File access is a host-owned set of explicit project/worktree grants.
 - Every path operation canonicalizes its target and rejects parent or symbolic-link escape.
 - The frontend may choose among existing grants but cannot widen them by supplying a path.
+- `zd serve` approves its startup folder before listening, binds loopback by default, authenticates
+  its controlling client, and requires a protected tunnel for access from another computer.
+- Project content is data. The host never serves project HTML, scripts, SVG, or other workspace
+  files as trusted application assets.
 - Markdown, Mermaid, and agent-produced markup are untrusted. Raw HTML is inert, remote images are
   blocked, generated diagrams admit only inert local SVG, unsafe links do not activate, and HTTP(S)
-  links open through the operating system.
+  links open on the viewing computer.
 - Terminal authority is expressed through structured sessions, never generic command execution.
 - Notification content is privacy-minimal.
 - Theme files are validated data, not plugins.
@@ -368,7 +386,8 @@ requires evidence and an explicit decision; it is not hidden behind a larger tim
 - ACP transport or a first-party `zd` agent.
 - Language servers, completion, diagnostics, refactoring, debugging, or a general IDE.
 - A generic arbitrary-command IPC API.
-- Remote projects, cloud sync, accounts, collaboration, or mobile delivery.
+- Direct public-internet hosting, cloud sync, accounts, multi-client collaboration, or mobile
+  delivery.
 - An executable plugin framework. Installable themes are validated data.
 - Git mutation: stage, commit, branch, merge, rebase, fetch, push, or conflict resolution.
 - Workspace-wide content search; current-file Find and file-tree filtering remain separate.
@@ -383,7 +402,8 @@ across project, thread, file, terminal, and notification boundaries.
 
 Final acceptance requires:
 
-1. the three launch forms enter one workbench;
+1. the desktop launch forms and `zd serve <folder>` enter the same workbench through one host
+   boundary;
 2. multiple projects and terminal-backed threads survive repeated switching;
 3. Markdown retains its established rendered editing behavior;
 4. files, Git history, comparisons, and read-only diffs remain scoped and responsive;
