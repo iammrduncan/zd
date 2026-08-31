@@ -122,6 +122,16 @@ than pulling later packets into it.
 
 ## Coverage status
 
-Only work packet 0 is cut as an executable goal in this planning change. Packets 1–4 remain planned
-but intentionally uncut: their exact owned files and acceptance values depend on the public host and
-protocol shapes proven by packet 0. Cutting them now would turn assumptions into contracts.
+Work packet 0 is complete in goal 00. Its evidence fixed the host, protocol, browser, and test shapes
+needed to cut the remaining work:
+
+- goal 01 delivers stable identities and durable host state from the first half of packet 1;
+- goal 02 completes packet 1 by moving non-streaming file, Git, worktree, theme, and diagnostic
+  authority behind the host;
+- goal 03 delivers packet 2's watchers, PTYs, event sequencing, and reconnect behavior;
+- goal 04 delivers packet 3's stable CLI and literal Tauri wrapper; and
+- goal 05 delivers packet 4's macOS, Windows, and Linux release evidence.
+
+The goals are serialized because every packet changes the host/protocol integration shape consumed
+by the next. Goal 03 remains the highest-risk packet because it must reconcile process lifetime,
+bounded output, tunnel interruption, replay gaps, and cross-platform descendant cleanup.
