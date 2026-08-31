@@ -52,4 +52,78 @@ describe("Markdown review comments", () => {
     review.unmount();
     host.remove();
   });
+
+  it("restores and writes the closed host review ledger", async () => {
+    const mutate = vi.fn(async () => true);
+    const host = document.createElement("div");
+    document.body.append(host);
+    const review = mountReview(host, {
+      usesHostDurableState: true,
+      durableState: {
+        load: vi.fn(),
+        snapshot: () => ({
+          revision: { preferences: 0, project: 1 },
+          preferences: null,
+          workbench: null,
+          drafts: [],
+          reviewLedgers: [
+            {
+              schemaVersion: 1,
+              projectId: file.resource.projectId,
+              worktreeId: file.resource.worktreeId,
+              comments: [
+                {
+                  id: "comment-1",
+                  relative: file.relative,
+                  startLine: 2,
+                  endLine: 2,
+                  selected: "Existing",
+                  comment: "Keep this",
+                },
+              ],
+            },
+          ],
+        }),
+        mutate,
+        flush: vi.fn(async () => {}),
+        onProblem: () => () => {},
+      },
+      writeTextFile: vi.fn(async () => {}),
+    } as unknown as Platform);
+    const reviewed = review.document(file);
+    const renderTags = vi.fn();
+
+    reviewed.connect(renderTags);
+    reviewed.selection({
+      from: 1,
+      to: 4,
+      startLine: 4,
+      endLine: 4,
+      text: "New",
+      rect: { left: 10, bottom: 20 },
+    });
+    const composer = host.querySelector<HTMLFormElement>(".md-comment-composer")!;
+    composer.querySelector<HTMLTextAreaElement>("textarea")!.value = "Add this";
+    composer.requestSubmit();
+
+    expect(renderTags).toHaveBeenCalledWith([
+      expect.objectContaining({ line: 2, text: "Keep this" }),
+    ]);
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "replace-review-ledger",
+        ledger: expect.objectContaining({
+          projectId: file.resource.projectId,
+          comments: expect.arrayContaining([
+            expect.objectContaining({ id: "comment-1" }),
+            expect.objectContaining({ comment: "Add this" }),
+          ]),
+        }),
+      }),
+    );
+    expect(localStorage.length).toBe(0);
+
+    review.unmount();
+    host.remove();
+  });
 });
