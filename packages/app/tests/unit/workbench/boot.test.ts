@@ -5,6 +5,7 @@ import { setTheme } from "@/design/appearance";
 import { unavailableFileTreeAdapter } from "@/files";
 import { unavailableGitAdapter } from "@/git";
 import { unavailableTerminalAdapter } from "@/terminal";
+import { createDurableStateAdapter } from "@/platform/durable-state";
 import { bootWorkbench, type WorkbenchMount } from "@/workbench/boot";
 import { homeLaunch, type ProjectGrant } from "@/workbench/resources";
 import { clearCommands, commands, executeCommand } from "@/workbench/shortcuts";
@@ -172,6 +173,42 @@ describe("one workbench boot", () => {
 
     expect(platform.enableDiagnostics).toHaveBeenCalledOnce();
     expect(mountedTheme).toEqual(expect.objectContaining({ selected: "current-dark" }));
+    teardown();
+  });
+
+  it("imports Tauri-origin preferences before using them and removes only confirmed data", async () => {
+    localStorage.setItem("zd.diagnosticsEnabled", "true");
+    let revision = { preferences: 0, project: 0 };
+    const durableState = createDurableStateAdapter({
+      describe: async () => ({
+        revision,
+        preferences: null,
+        workbench: null,
+        drafts: [],
+        reviewLedgers: [],
+      }),
+      apply: async () => {
+        revision = { ...revision, preferences: revision.preferences + 1 };
+        return { status: "applied", revision };
+      },
+    });
+    const platform: Platform = {
+      ...stubPlatform(),
+      kind: "tauri",
+      usesHostDurableState: true,
+      durableState,
+    };
+    platform.enableDiagnostics = vi.fn(async () => ({
+      enabled: true,
+      sessionId: "session-migrated",
+      backgroundSampling: true,
+      problem: null,
+    }));
+
+    const teardown = await bootWorkbench(document.createElement("div"), platform, () => () => {});
+
+    expect(platform.enableDiagnostics).toHaveBeenCalledOnce();
+    expect(localStorage.getItem("zd.diagnosticsEnabled")).toBeNull();
     teardown();
   });
 

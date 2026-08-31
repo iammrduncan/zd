@@ -29,6 +29,7 @@ import { applyWorkbenchSettings, workbenchSettingsPreferences } from "./settings
 import { attachWorkspacePersistence } from "./workspace-home";
 import { SurfaceThemeController } from "./surface-themes";
 import { attachDurableWorkbench, restoreDurableWorkbench } from "./durable-workbench";
+import { migrateLegacyPreferences, migrateLegacyProjectState } from "./durable-migration";
 
 export type { WorkbenchMount } from "./runtime";
 
@@ -56,6 +57,14 @@ function reasonFor(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
+function originStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Boot the one workbench and return its complete teardown.
  *
@@ -72,13 +81,22 @@ export async function bootWorkbench(
 
   const localNotices: string[] = [];
   let durableWorkbench: Readonly<Record<string, unknown>> | null = null;
+  let durableLoaded = false;
+  const legacyStorage = platform.kind === "tauri" ? originStorage() : null;
   const detachDurableProblems = platform.durableState.onProblem((notice) => {
     if (!localNotices.includes(notice)) localNotices.push(notice);
     showLocalNotices(host, localNotices);
   });
   if (platform.usesHostDurableState) {
     try {
-      const durable = await platform.durableState.load();
+      let durable = await platform.durableState.load();
+      durableLoaded = true;
+      if (legacyStorage) {
+        localNotices.push(
+          ...(await migrateLegacyPreferences(platform.durableState, legacyStorage)),
+        );
+        durable = platform.durableState.snapshot();
+      }
       durableWorkbench = durable.workbench;
       localNotices.push(
         ...configureDurablePreferences(durable.preferences, (record) => {
@@ -125,6 +143,14 @@ export async function bootWorkbench(
       .then((files) => ({ files, problem: null }))
       .catch((cause: unknown) => ({ files: [], problem: reasonFor(cause) })),
   ]);
+  if (durableLoaded && legacyStorage && launch.project && launch.worktreeId) {
+    localNotices.push(
+      ...(await migrateLegacyProjectState(platform.durableState, legacyStorage, {
+        projectId: launch.project.id,
+        worktreeId: launch.worktreeId,
+      })),
+    );
+  }
   const initialState = platform.usesHostDurableState
     ? restoreDurableWorkbench(durableWorkbench, grants, launch)
     : workbenchStateFromGrants(grants, launch);
