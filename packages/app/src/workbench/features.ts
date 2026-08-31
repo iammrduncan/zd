@@ -270,7 +270,9 @@ export async function mountWorkbenchFeatures(
     context.instrumentation,
   );
   const stopAttention = attention.attach();
-  const drafts = new FileDraftStore();
+  const drafts = context.platform.usesHostDurableState
+    ? FileDraftStore.fromDurable(context.platform.durableState)
+    : new FileDraftStore();
   const files = createWorkbenchFilesRuntime(
     context.state,
     context.platform.fileTree,

@@ -50,4 +50,39 @@ describe("file draft recovery", () => {
       "changed notes",
     );
   });
+
+  it("loads and writes host drafts without using origin storage", async () => {
+    const mutate = vi.fn(async () => true);
+    const durable = {
+      load: vi.fn(),
+      snapshot: () => ({
+        revision: { preferences: 0, project: 1 },
+        preferences: null,
+        workbench: null,
+        drafts: [{ schemaVersion: 1 as const, ...main, text: "host draft", updatedAt: 1 }],
+        reviewLedgers: [],
+      }),
+      mutate,
+      flush: vi.fn(async () => {}),
+      onProblem: () => () => {},
+    };
+    const drafts = FileDraftStore.fromDurable(durable);
+
+    expect(drafts.get(main)?.text).toBe("host draft");
+    drafts.save(main, "live change");
+    drafts.clear(main);
+
+    expect(window.localStorage.length).toBe(0);
+    expect(mutate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        kind: "put-draft",
+        draft: expect.objectContaining({ text: "live change" }),
+      }),
+    );
+    expect(mutate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ kind: "remove-draft", relativePath: main.relativePath }),
+    );
+  });
 });
