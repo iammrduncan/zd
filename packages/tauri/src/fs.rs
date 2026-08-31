@@ -3,8 +3,8 @@
 //! Directory walking, watching, and recovery arrive with the sessions that need
 //! them (2.1, 3.1).
 
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::io::Read;
+use std::path::Path;
 
 use crate::cli::LaunchState;
 use crate::grants::ResourceRef;
@@ -290,49 +290,7 @@ pub struct FileStamp {
 /// symlink case for free — which is arriving anyway with the path scoping in
 /// audit M2. Revisit it there, not before.
 pub(crate) fn atomic_write(path: &Path, contents: &str) -> std::io::Result<()> {
-    let directory = path.parent().unwrap_or_else(|| Path::new("."));
-    let temporary = temporary_beside(path);
-
-    // A scope, so the handle is closed before the rename — Windows refuses to
-    // replace a file that is still open.
-    {
-        let mut file = std::fs::File::create(&temporary)?;
-        file.write_all(contents.as_bytes())?;
-        file.sync_all()?;
-    }
-
-    // Keep whatever mode the document already had. A fresh temporary is created
-    // with the process umask, so without this a save would silently relax or
-    // tighten the permissions on someone's file.
-    if let Ok(existing) = std::fs::metadata(path) {
-        let _ = std::fs::set_permissions(&temporary, existing.permissions());
-    }
-
-    if let Err(error) = std::fs::rename(&temporary, path) {
-        let _ = std::fs::remove_file(&temporary);
-        return Err(error);
-    }
-
-    // The rename itself needs flushing too, or the directory entry can be lost
-    // while both files' contents survive. Best effort: some platforms refuse to
-    // open a directory, and a save that worked should not report failure.
-    if let Ok(handle) = std::fs::File::open(directory) {
-        let _ = handle.sync_all();
-    }
-
-    Ok(())
-}
-
-/// A sibling path for the temporary, hidden and marked so it is recognisable if
-/// a crash ever leaves one behind.
-fn temporary_beside(path: &Path) -> PathBuf {
-    let name = path.file_name().unwrap_or_default().to_string_lossy();
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|since| since.as_nanos())
-        .unwrap_or(0);
-
-    path.with_file_name(format!(".{name}.zd-{stamp}.tmp"))
+    zd_host::atomic_write(path, contents.as_bytes())
 }
 
 /// Hand a link to the system browser.
@@ -361,9 +319,9 @@ fn is_web_url(url: &str) -> bool {
 mod tests {
     use super::{
         atomic_write, bounded_file_read, is_web_url, project_image_read, stamp_of,
-        temporary_beside, workspace_files_in, BoundedFileRead, ProjectImage,
+        workspace_files_in, BoundedFileRead, ProjectImage,
     };
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
 
     /// A directory of our own under the system temp dir, removed on drop.
     struct Scratch(PathBuf);
@@ -630,19 +588,6 @@ mod tests {
             .map(|entry| entry.unwrap().file_name())
             .collect();
         assert_eq!(left, vec![std::ffi::OsString::from("notes.md")]);
-    }
-
-    #[test]
-    fn the_temporary_is_a_sibling_of_the_target() {
-        // The whole guarantee rests on this: rename is only atomic within one
-        // filesystem, and the system temp directory is routinely a different
-        // mount. A temporary anywhere else silently downgrades the save to a
-        // copy-and-delete.
-        let target = Path::new("/some/deep/place/notes.md");
-        let temporary = temporary_beside(target);
-
-        assert_eq!(temporary.parent(), target.parent());
-        assert_ne!(temporary.file_name(), target.file_name());
     }
 
     #[test]

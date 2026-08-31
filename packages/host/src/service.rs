@@ -3,6 +3,7 @@ use std::sync::Mutex;
 
 use serde::Serialize;
 
+use crate::identity;
 use crate::{
     read_bounded_file_at, snapshot_in, BoundedFileRead, FileTreeRequest, FileTreeResult,
     GrantStore, ProjectGrant, ResourceRef, TreeLimits,
@@ -31,6 +32,39 @@ impl HostService {
     pub fn open_project(root: &Path) -> Result<Self, String> {
         let mut grants = GrantStore::default();
         let approved = grants.approve_project(root)?;
+        let launch = HostLaunchRequest {
+            project: Some(approved.project),
+            worktree_id: Some(approved.worktree_id),
+            relative_path: None,
+            problem: None,
+        };
+        Ok(Self(Mutex::new(HostState { launch, grants })))
+    }
+
+    pub fn open_project_with_state(root: &Path, state_directory: &Path) -> Result<Self, String> {
+        let identity = identity::open_project(root, state_directory)?;
+        Self::open_project_with_identity(root, identity)
+    }
+
+    pub fn recover_project_with_state(
+        project_id: &str,
+        root: &Path,
+        state_directory: &Path,
+    ) -> Result<Self, String> {
+        let identity = identity::recover_project(project_id, root, state_directory)?;
+        Self::open_project_with_identity(root, identity)
+    }
+
+    fn open_project_with_identity(
+        root: &Path,
+        identity: identity::ProjectIdentity,
+    ) -> Result<Self, String> {
+        let mut grants = GrantStore::default();
+        let approved = grants.approve_project_with_identity(
+            root,
+            identity.project_id,
+            identity.root_worktree_id,
+        )?;
         let launch = HostLaunchRequest {
             project: Some(approved.project),
             worktree_id: Some(approved.worktree_id),

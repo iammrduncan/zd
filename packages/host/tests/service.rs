@@ -37,6 +37,10 @@ fn startup_scope(host: &HostService) -> (String, String) {
     (project.id, worktree_id)
 }
 
+fn persisted_host(project: &Path, state: &Path) -> HostService {
+    HostService::open_project_with_state(project, state).expect("open persisted host")
+}
+
 #[test]
 fn startup_project_drives_tree_and_bounded_file_authority() {
     let scratch = Scratch::new("startup");
@@ -85,6 +89,82 @@ fn startup_project_must_be_an_existing_directory() {
 
     assert!(HostService::open_project(&file).is_err());
     assert!(HostService::open_project(&scratch.join("missing")).is_err());
+}
+
+#[test]
+fn project_and_root_worktree_identities_survive_a_fresh_host_process() {
+    let project = Scratch::new("stable-project");
+    let state = Scratch::new("stable-state");
+
+    let first = persisted_host(project.path(), state.path());
+    let first_scope = startup_scope(&first);
+    drop(first);
+
+    let second = persisted_host(&project.join("."), state.path());
+    let second_scope = startup_scope(&second);
+
+    assert_eq!(second_scope, first_scope);
+    assert!(first_scope.0.starts_with("project-"));
+    assert!(first_scope.1.starts_with("worktree-"));
+    assert!(!first_scope
+        .0
+        .contains(&project.path().to_string_lossy().into_owned()));
+    assert_ne!(first_scope.0, "project-0000000000000001");
+}
+
+#[test]
+fn remembered_identities_do_not_authorize_other_roots() {
+    let alpha = Scratch::new("catalog-alpha");
+    let beta = Scratch::new("catalog-beta");
+    let state = Scratch::new("catalog-state");
+
+    let alpha_host = persisted_host(alpha.path(), state.path());
+    let alpha_id = startup_scope(&alpha_host).0;
+    drop(alpha_host);
+
+    let beta_host = persisted_host(beta.path(), state.path());
+    let grants = beta_host.project_grants();
+
+    assert_eq!(grants.len(), 1);
+    assert_ne!(grants[0].id, alpha_id);
+    assert_eq!(
+        grants[0].root,
+        beta.path().canonicalize().unwrap().to_string_lossy()
+    );
+}
+
+#[test]
+fn a_corrupt_identity_catalog_is_preserved_and_fails_closed() {
+    let project = Scratch::new("corrupt-project");
+    let state = Scratch::new("corrupt-state");
+    let catalog = state.join("host-identities-v1.json");
+    std::fs::write(&catalog, b"{not valid json").expect("write corrupt catalog");
+
+    let problem = HostService::open_project_with_state(project.path(), state.path())
+        .expect_err("corrupt state must stop startup");
+
+    assert!(problem.contains("identity catalog"));
+    assert_eq!(std::fs::read(&catalog).unwrap(), b"{not valid json");
+}
+
+#[test]
+fn trusted_root_recovery_preserves_the_project_and_root_worktree_ids() {
+    let original = Scratch::new("recover-original");
+    let replacement = Scratch::new("recover-replacement");
+    let state = Scratch::new("recover-state");
+    let first = persisted_host(original.path(), state.path());
+    let first_scope = startup_scope(&first);
+    drop(first);
+
+    let recovered =
+        HostService::recover_project_with_state(&first_scope.0, replacement.path(), state.path())
+            .expect("recover trusted project root");
+
+    assert_eq!(startup_scope(&recovered), first_scope);
+    assert_eq!(
+        recovered.project_grants()[0].root,
+        replacement.path().canonicalize().unwrap().to_string_lossy()
+    );
 }
 
 #[test]
