@@ -1,9 +1,11 @@
 //! Loopback HTTP and WebSocket adapter for [`zd_host::HostService`].
 
 mod assets;
+mod cli;
 mod protocol;
 mod server;
 
+pub use cli::ServeArgs;
 pub use server::{start, RunningServer, ServerConfig};
 
 pub const PROTOCOL_VERSION: u16 = 1;

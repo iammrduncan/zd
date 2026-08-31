@@ -144,6 +144,16 @@ describe("package ownership", () => {
     expect(rootPackage.scripts["app:open"]).toBe(cwdPreservingLaunch);
   });
 
+  it("builds the packaged app before starting the experimental served host", () => {
+    const rootPackage = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+
+    expect(rootPackage.scripts["app:serve"]).toBe(
+      "npm run build && cargo run -p zd-server --",
+    );
+  });
+
   it("keeps the desktop runtime network-closed by default", () => {
     const config = JSON.parse(
       readFileSync(resolve(ROOT, "packages/tauri/tauri.conf.json"), "utf8"),

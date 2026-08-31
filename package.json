@@ -24,6 +24,7 @@
     "release:check": "node packages/scripts/release/check-tag.mjs",
     "app": "ZD_CWD=\"$INIT_CWD\" tauri dev --config packages/tauri/tauri.conf.json -- --",
     "app:open": "ZD_CWD=\"$INIT_CWD\" tauri dev --config packages/tauri/tauri.conf.json -- --",
+    "app:serve": "npm run build && cargo run -p zd-server --",
     "tauri": "tauri",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
