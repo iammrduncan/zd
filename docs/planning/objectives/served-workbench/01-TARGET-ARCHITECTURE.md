@@ -138,6 +138,21 @@ One request ID crosses client and host. The client records input-to-send, round 
 receive-to-render on its monotonic clock. The host records queue, dispatch, operation, and
 serialization on its monotonic clock. Heartbeat round trip tracks current tunnel/socket latency.
 
+| If this grows | Inspect this owner first |
+| --- | --- |
+| Client input-to-send | Browser event handling, encoding, and local scheduling |
+| Host queue | Remote host saturation or an operation waiting for host capacity |
+| Host operation | The remote filesystem, Git process, watcher, PTY, or persistence owner |
+| Heartbeat round trip | The WebSocket, SSH tunnel, and scheduling on both endpoints |
+| Client receive-to-render | Browser decoding, state reconciliation, layout, and paint |
+
+```text
+local browser                    protected transport                  remote host
+input ── input-to-send ── send ───────┬──────────────────────► queue ── operation
+render ◄─ receive-to-render ◄─ receive┴──────────────────────── serialize ◄──┘
+                      └──── round trip / transport residual ────┘
+```
+
 Do not subtract wall-clock timestamps from different computers. The residual between client round
 trip and host work includes transport, encoding, and scheduling; label it that way. Never record
 tokens, content, terminal output, environment, full paths, or raw errors.

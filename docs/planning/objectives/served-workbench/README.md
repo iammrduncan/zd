@@ -1,6 +1,6 @@
 # Served workbench
 
-**Phase:** Planning
+**Phase:** Executing
 **Started:** 2026-08-31
 
 This objective makes one `zd` host authoritative for browser and Tauri clients. It replaces a future
@@ -9,9 +9,9 @@ host, a standard protected tunnel, and one observable protocol.
 
 ## Needs the owner
 
-Nothing is waiting on an owner decision. The read-only walking skeleton proved the accepted
-loopback, single-controller, shared-host direction. Its evidence now fixes the public host and
-protocol shapes needed to cut the remaining work packets.
+Nothing is waiting on an owner decision. Goal 00 proved the loopback, single-controller, shared-host
+direction. Goals 01–05 apply those shapes in order; they are serialized on the shared host/protocol
+boundary.
 
 ## Plan documents
 
@@ -31,7 +31,13 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 
 **Open**
 
-None while the remaining work packets are converted into executable goals.
+| Goal | Delivers | Prerequisites | Needs owner |
+| --- | --- | --- | --- |
+| [Execute goal 01](goals/execute-goal-01.md) | Stable host identities and durable workbench state across ports/restarts | Goal 00 | No |
+| [Execute goal 02](goals/execute-goal-02.md) | Served editing, file operations, Git/worktrees, themes, and diagnostics through one host | Goal 01 | No |
+| [Execute goal 03](goals/execute-goal-03.md) | Bounded watcher/PTY events and explicit reconnect/cleanup | Goal 02 | No |
+| [Execute goal 04](goals/execute-goal-04.md) | Stable `zd serve` CLI and a literal supervised Tauri client shell | Goal 03 | No |
+| [Execute goal 05](goals/execute-goal-05.md) | Verified macOS, Windows, and Linux release artifacts | Goal 04 | No |
 
 **Completed**
 
