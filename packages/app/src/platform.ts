@@ -169,6 +169,8 @@ export function unavailableThreadWorktree(): Promise<CreateThreadWorktreeResult>
 
 export interface Platform {
   readonly kind: "tauri" | "browser";
+  /** Whether this client must ignore origin storage and use the host snapshot. */
+  readonly usesHostDurableState: boolean;
   /** Closed, revisioned host persistence for recovery-critical workbench state. */
   readonly durableState: DurableStateAdapter;
   /** What the process was launched to open. */
@@ -285,6 +287,7 @@ const unavailableNotifications: AttentionNotificationAdapter = {
 
 /** Honest attention capabilities for typed fixtures that do not own a desktop window. */
 export const unavailableAttentionPlatform = {
+  usesHostDurableState: false,
   durableState: {
     load: async () => ({
       revision: { preferences: 0, project: 0 },
@@ -310,11 +313,17 @@ export const unavailableAttentionPlatform = {
   notifications: unavailableNotifications,
 } satisfies Pick<
   Platform,
-  "durableState" | "showWorkbench" | "isWindowFocused" | "onWindowFocusChanged" | "notifications"
+  | "usesHostDurableState"
+  | "durableState"
+  | "showWorkbench"
+  | "isWindowFocused"
+  | "onWindowFocusChanged"
+  | "notifications"
 >;
 
 const tauri: Platform = {
   kind: "tauri",
+  usesHostDurableState: true,
   durableState: createDurableStateAdapter({
     describe: () => invoke<unknown>("describe_durable_state"),
     apply: (request) => invoke<unknown>("apply_durable_state", { request }),
@@ -526,6 +535,7 @@ const tauri: Platform = {
  */
 const browser: Platform = {
   kind: "browser",
+  usesHostDurableState: false,
   durableState: createMemoryDurableStateAdapter(),
   launchRequest: async () => homeLaunch(),
   onOpenRequested: () => () => {},

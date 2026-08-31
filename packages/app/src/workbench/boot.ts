@@ -13,6 +13,7 @@ import { registerThemeCommands } from "./theme-commands";
 import { attachWorkbenchDiagnostics } from "./diagnostics";
 import {
   diagnosticsEnabled,
+  configureDurablePreferences,
   setDiagnosticsEnabled,
   setSurfaceThemePreferences,
   setThemePreference,
@@ -41,12 +42,13 @@ function saySoOnScreen(host: HTMLElement, message: string): void {
 
 function showLocalNotices(host: HTMLElement, notices: readonly string[]): void {
   if (notices.length === 0) return;
-  const line = document.createElement("p");
+  const line =
+    host.querySelector<HTMLParagraphElement>(".zd-local-notice") ?? document.createElement("p");
   line.className = "zd-local-notice";
   line.setAttribute("role", "status");
   line.setAttribute("aria-label", "Configuration notice");
-  line.textContent = notices.join(" ");
-  host.append(line);
+  line.textContent = [...new Set(notices)].slice(0, 8).join(" ");
+  if (!line.isConnected) host.append(line);
 }
 
 function reasonFor(cause: unknown): string {
@@ -67,6 +69,27 @@ export async function bootWorkbench(
 ): Promise<Unmount> {
   document.title = "zd";
 
+  const localNotices: string[] = [];
+  const detachDurableProblems = platform.durableState.onProblem((notice) => {
+    if (!localNotices.includes(notice)) localNotices.push(notice);
+    showLocalNotices(host, localNotices);
+  });
+  if (platform.usesHostDurableState) {
+    try {
+      const durable = await platform.durableState.load();
+      localNotices.push(
+        ...configureDurablePreferences(durable.preferences, (record) => {
+          void platform.durableState.mutate({ kind: "replace-preferences", record });
+        }),
+      );
+    } catch {
+      localNotices.push("Durable workbench state is unavailable for this session.");
+      configureDurablePreferences(null, (record) => {
+        void platform.durableState.mutate({ kind: "replace-preferences", record });
+      });
+    }
+  }
+
   const instrumentation = createInstrumentationClient(() => ({
     enable: platform.enableDiagnostics,
     disable: platform.disableDiagnostics,
@@ -86,6 +109,7 @@ export async function bootWorkbench(
   } catch (cause) {
     await launchSpan?.end("failed");
     await instrumentation.disable();
+    detachDurableProblems();
     saySoOnScreen(host, `zd could not start: ${reasonFor(cause)}`);
     return NOTHING;
   }
@@ -105,7 +129,7 @@ export async function bootWorkbench(
   applyWorkbenchSettings(storedSettings, state);
   const detachDiagnostics = attachWorkbenchDiagnostics(state, instrumentation);
   const catalog = loadThemeCatalog(themeFiles.files);
-  const localNotices = catalog.notices.map(({ source, problem }) => `Theme ${source}: ${problem}`);
+  localNotices.push(...catalog.notices.map(({ source, problem }) => `Theme ${source}: ${problem}`));
   if (diagnosticProblem) localNotices.push(`Local diagnostics: ${diagnosticProblem}`);
   if (themeFiles.problem) {
     localNotices.push(`Theme configuration directory: ${themeFiles.problem}`);
@@ -182,6 +206,7 @@ export async function bootWorkbench(
     detachTransientDismiss();
     detachChrome();
     detachShortcuts();
+    detachDurableProblems();
     saySoOnScreen(host, `zd could not start: ${reasonFor(cause)}`);
     return NOTHING;
   }
@@ -211,6 +236,8 @@ export async function bootWorkbench(
     detachWorkspacePersistence();
     unmount();
     detachDiagnostics();
+    detachDurableProblems();
+    void platform.durableState.flush();
     void instrumentation.disable();
   };
 }

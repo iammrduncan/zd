@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   attentionSettings,
   clearShortcutBinding,
+  configureDurablePreferences,
   diagnosticsEnabled,
   forgetPreferences,
   setAttentionAgentSound,
@@ -55,6 +56,38 @@ describe("word wrap", () => {
     // claim: the value is in storage and not in a variable.
     forgetPreferences();
     expect(wordWrap()).toBe(false);
+  });
+
+  it("uses a hydrated host snapshot without touching origin storage", () => {
+    const persisted: unknown[] = [];
+    configureDurablePreferences(
+      {
+        schemaVersion: 1,
+        values: {
+          "zd.wordWrap": "false",
+          "zd.themeSelection.v1": JSON.stringify({
+            selected: "current-dark",
+            lastValid: "current-dark",
+          }),
+        },
+      },
+      (record) => persisted.push(record),
+    );
+
+    expect(wordWrap()).toBe(false);
+    expect(themePreference()).toEqual({
+      selected: "current-dark",
+      lastValid: "current-dark",
+    });
+    setWordWrap(true);
+
+    expect(window.localStorage.length).toBe(0);
+    expect(persisted).toEqual([
+      expect.objectContaining({
+        schemaVersion: 1,
+        values: expect.objectContaining({ "zd.wordWrap": "true" }),
+      }),
+    ]);
   });
 
   it("falls back to the default rather than trusting a value it did not write", () => {

@@ -114,6 +114,66 @@ beforeEach(() => {
 });
 
 describe("one workbench boot", () => {
+  it("hydrates host preferences before the first state-dependent work", async () => {
+    localStorage.setItem(
+      "zd.themeSelection.v1",
+      JSON.stringify({ selected: "legacy-light", lastValid: "legacy-light" }),
+    );
+    const durableState: Platform["durableState"] = {
+      load: async () => ({
+        revision: { preferences: 1, project: 0 },
+        preferences: {
+          schemaVersion: 1,
+          values: {
+            "zd.diagnosticsEnabled": "true",
+            "zd.themeSelection.v1": JSON.stringify({
+              selected: "current-dark",
+              lastValid: "current-dark",
+            }),
+          },
+        },
+        workbench: null,
+        drafts: [],
+        reviewLedgers: [],
+      }),
+      snapshot: () => ({
+        revision: { preferences: 1, project: 0 },
+        preferences: null,
+        workbench: null,
+        drafts: [],
+        reviewLedgers: [],
+      }),
+      mutate: async () => true,
+      flush: async () => {},
+      onProblem: () => () => {},
+    };
+    const platform: Platform = {
+      ...stubPlatform(),
+      usesHostDurableState: true,
+      durableState,
+    };
+    platform.enableDiagnostics = vi.fn(async () => ({
+      enabled: true,
+      sessionId: "session-durable",
+      backgroundSampling: true,
+      problem: null,
+    }));
+    let mountedTheme: unknown = null;
+
+    const teardown = await bootWorkbench(
+      document.createElement("div"),
+      platform,
+      (_host, context) => {
+        mountedTheme = context.state.snapshot().theme;
+        return () => {};
+      },
+    );
+
+    expect(platform.enableDiagnostics).toHaveBeenCalledOnce();
+    expect(mountedTheme).toEqual(expect.objectContaining({ selected: "current-dark" }));
+    teardown();
+  });
+
   it("shows the project and workspace selector for a launch without a path", async () => {
     const platform = stubPlatform();
     platform.projectGrants = async () => [];
