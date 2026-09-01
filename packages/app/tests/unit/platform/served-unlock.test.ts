@@ -16,17 +16,17 @@ describe("served host unlock", () => {
     expect(isServedPage(served)).toBe(true);
   });
 
-  it("distinguishes remote host capabilities from unavailable streaming and shell authority", () => {
+  it("distinguishes remote runtime authority from desktop-only capabilities", () => {
     const host = document.createElement("main");
 
     mountServedLimits(host);
 
     const notice = host.querySelector('[role="status"][aria-label="Served workbench limits"]');
     expect(notice?.textContent).toContain(
-      "Editing, file changes, Git, themes, and diagnostics run on the remote host",
+      "Editing, automatic file updates, Git, terminals, themes, and diagnostics run on the remote host",
     );
     expect(notice?.textContent).toContain(
-      "Automatic file updates, terminals, project picker, recent workspaces, and other project roots are unavailable",
+      "Project picker, recent workspaces, other project roots, and desktop notifications are unavailable",
     );
   });
 

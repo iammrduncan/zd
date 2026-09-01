@@ -28,6 +28,7 @@ arbitrary filesystem paths or commands.
 | [`quick_access.rs`](quick_access.rs) | Own native summon registration and root-window presentation. |
 | [`instrumentation/`](instrumentation/) | Write, rotate, sample, and retain local opt-in diagnostics. |
 | [`terminal_runtime.rs`](terminal_runtime.rs) | Adapt host-owned terminal sessions to Tauri managed state, commands, and events. |
+| [`packages/host/src/terminal/`](../../host/src/terminal/) | Own portable terminal sessions, bounded output, process containment, and cleanup. |
 | [`notifications.rs`](notifications.rs) | Validate bounded attention requests and retain ID-only action routing. |
 | [`notifications/`](notifications/) | Present native macOS notifications and completion sounds. |
 

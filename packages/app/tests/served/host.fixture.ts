@@ -16,6 +16,8 @@ interface ServedHostFixture {
   readonly url: string;
   readonly secret: string;
   restart(): Promise<Readiness>;
+  createExternalFile(): Promise<void>;
+  isProcessRunning(pid: number): boolean;
   readFixtureFile(): Promise<string>;
   readFixtureDocs(): Promise<readonly string[]>;
   readFixtureScreenshots(): Promise<readonly string[]>;
@@ -290,6 +292,21 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
               throw new Error("the served host restart reused its previous port");
             }
             return restarted;
+          },
+          createExternalFile: () =>
+            writeFile(
+              join(projectRoot, "external-watch.md"),
+              "created outside the browser\n",
+              "utf8",
+            ),
+          isProcessRunning: (pid) => {
+            try {
+              process.kill(pid, 0);
+              return true;
+            } catch (cause) {
+              if ((cause as NodeJS.ErrnoException).code === "ESRCH") return false;
+              throw cause;
+            }
           },
           readFixtureFile: () => readFile(join(projectRoot, "notes.md"), "utf8"),
           readFixtureDocs: () => readdir(join(projectRoot, "docs")),

@@ -132,6 +132,8 @@ export function mountTerminalThreadSurface(
 
   const render = (snapshot: TerminalThreadSnapshot) => {
     root.dataset.terminalStatus = snapshot.status;
+    if (snapshot.sessionId) root.dataset.terminalSessionId = snapshot.sessionId;
+    else delete root.dataset.terminalSessionId;
     const problems: string[] = [];
     if (snapshot.droppedBytes > 0) {
       problems.push(`${snapshot.droppedBytes} earlier output bytes were released.`);

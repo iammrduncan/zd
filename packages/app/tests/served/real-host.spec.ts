@@ -1,5 +1,5 @@
 import { expect, test } from "./host.fixture";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 interface SeededState {
   readonly projectId: string;
@@ -190,7 +190,19 @@ async function seedDurableState(page: Page, url: string, secret: string): Promis
   );
 }
 
-test("edits through the real host while excluded streaming and shell capabilities stay closed", async ({
+async function terminalPid(output: Locator, marker: string): Promise<string> {
+  const pattern = new RegExp(`${marker}(\\d+)`, "u");
+  await expect.poll(() => output.innerText()).toMatch(pattern);
+  return (await output.innerText()).match(pattern)![1]!;
+}
+
+async function enterTerminalCommand(terminal: Locator, command: string): Promise<void> {
+  const input = terminal.getByRole("textbox", { name: /Project terminal input/u });
+  await input.pressSequentially(command, { delay: 5 });
+  await input.press("Enter");
+}
+
+test("edits, watches, and runs a reconnectable shell through the real host", async ({
   page,
   servedHost,
 }) => {
@@ -209,9 +221,8 @@ test("edits through the real host while excluded streaming and shell capabilitie
   expect(page.url()).not.toContain(servedHost.secret);
 
   const files = page.getByRole("complementary", { name: "Files and Changes" });
-  await expect(files.locator(".zd-file-tree-notice")).toContainText(
-    "Automatic file-tree updates are unavailable",
-  );
+  await servedHost.createExternalFile();
+  await expect(files.locator('[data-file-path="external-watch.md"]')).toBeVisible();
   await files.locator('[data-file-path="notes.md"]').click();
 
   const buffer = page.locator('.editor-buffer[data-buffer-kind="editable"]');
@@ -328,10 +339,45 @@ test("edits through the real host while excluded streaming and shell capabilitie
   await page.keyboard.press("ControlOrMeta+j");
   const terminal = page.locator("[data-project-terminal]");
   await expect(terminal).toBeVisible();
-  await expect(terminal).toContainText("Terminal input is unavailable.");
+  await expect(terminal.locator(".zd-terminal-thread-surface")).toHaveAttribute(
+    "data-terminal-status",
+    "running",
+  );
+  const originalSessionId = await terminal
+    .locator(".zd-terminal-thread-surface")
+    .getAttribute("data-terminal-session-id");
+  if (!originalSessionId) throw new Error("the project terminal did not expose its session ID");
+  const terminalOutput = terminal.locator(".xterm-rows");
+  await enterTerminalCommand(terminal, "printf '__ZD_PID__%s\\n' \"$$\"");
+  const originalPid = await terminalPid(terminalOutput, "__ZD_PID__");
+
+  await page.context().setOffline(true);
+  await page.waitForTimeout(250);
+  await page.context().setOffline(false);
+  await page.waitForTimeout(1_500);
+  await enterTerminalCommand(terminal, "printf '__ZD_PID_AFTER__%s\\n' \"$$\"");
+  expect(await terminalPid(terminalOutput, "__ZD_PID_AFTER__")).toBe(originalPid);
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Connect to zd" })).toBeVisible();
+  await page.getByLabel("Process secret").fill(servedHost.secret);
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.locator(".zd-workbench")).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+j");
+  const reattachedTerminal = page.locator("[data-project-terminal]");
+  await expect(reattachedTerminal).toBeVisible();
+  await expect(reattachedTerminal.locator(".zd-terminal-thread-surface")).toHaveAttribute(
+    "data-terminal-status",
+    "running",
+  );
+  await expect(reattachedTerminal.locator(".zd-terminal-thread-surface")).toHaveAttribute(
+    "data-terminal-session-id",
+    originalSessionId,
+  );
+  expect(servedHost.isProcessRunning(Number(originalPid))).toBe(true);
 
   await expect(page.getByRole("status", { name: "Served workbench limits" })).toContainText(
-    "project picker, recent workspaces, and other project roots are unavailable",
+    "Project picker, recent workspaces, other project roots, and desktop notifications are unavailable",
   );
   expect(await page.evaluate(() => fetch("/notes.md").then((response) => response.status))).toBe(
     404,
@@ -346,6 +392,44 @@ test("edits through the real host while excluded streaming and shell capabilitie
   expect(requestedUrls.length).toBeGreaterThan(0);
   expect(requestedUrls.every((url) => !url.includes(servedHost.secret))).toBe(true);
   expect(consoleMessages.every((message) => !message.includes(servedHost.secret))).toBe(true);
+});
+
+test("reports terminal loss after the controller grace period expires", async ({
+  page,
+  servedHost,
+}) => {
+  test.slow();
+  await page.goto(servedHost.url);
+  await page.getByLabel("Process secret").fill(servedHost.secret);
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.locator(".zd-workbench")).toBeVisible();
+
+  await page.keyboard.press("ControlOrMeta+j");
+  const terminal = page.locator("[data-project-terminal]");
+  await expect(terminal).toBeVisible();
+  await expect(terminal.locator(".zd-terminal-thread-surface")).toHaveAttribute(
+    "data-terminal-status",
+    "running",
+  );
+  await enterTerminalCommand(terminal, "printf '__ZD_GRACE_PID__%s\\n' \"$$\"");
+  const pid = Number(await terminalPid(terminal.locator(".xterm-rows"), "__ZD_GRACE_PID__"));
+
+  const browserContext = page.context();
+  await page.close();
+  await expect.poll(() => servedHost.isProcessRunning(pid), { timeout: 35_000 }).toBe(false);
+
+  const reconnectedPage = await browserContext.newPage();
+  await reconnectedPage.goto(servedHost.url);
+  await reconnectedPage.getByLabel("Process secret").fill(servedHost.secret);
+  await reconnectedPage.getByRole("button", { name: "Unlock" }).click();
+  await expect(reconnectedPage.locator(".zd-workbench")).toBeVisible();
+  await reconnectedPage.keyboard.press("ControlOrMeta+j");
+  await expect(reconnectedPage.locator("[data-project-terminal]")).toContainText(
+    "Terminal output stopped unexpectedly.",
+    {
+      timeout: 10_000,
+    },
+  );
 });
 
 test("restores stable identities and all durable records in a new process and origin", async ({
