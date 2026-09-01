@@ -9,9 +9,9 @@ reachable served host and one observable protocol.
 
 ## Needs the owner
 
-Nothing. The owner corrected the remote contract: the client is only a browser and connects
-directly without a tunnel or helper. Goal 02 completed that correction and its Linux browser gate;
-goal 03 is ready to start.
+Goal 03 has one open platform result. Run `cargo test --workspace` on native Windows, or approve a
+contract change that moves the Windows result to Goal 05. The Linux host cannot count the gated
+Windows Job Object test as evidence. This result blocks Goal 03 completion and Goal 04.
 
 ## Plan documents
 
@@ -33,7 +33,7 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 
 | Goal | Delivers | Prerequisites | Needs owner |
 | --- | --- | --- | --- |
-| [Execute goal 03](goals/execute-goal-03.md) | Bounded watcher/PTY events and explicit reconnect/cleanup | Goal 02 | No |
+| [Execute goal 03](goals/execute-goal-03.md) | Bounded watcher/PTY events and explicit reconnect/cleanup | Goal 02 | [Yes — Windows result](goals/summary-goal-03.md) |
 | [Execute goal 04](goals/execute-goal-04.md) | Stable `zd serve` CLI and a literal supervised Tauri client shell | Goal 03 | No |
 | [Execute goal 05](goals/execute-goal-05.md) | Verified macOS, Windows, and Linux release artifacts | Goal 04 | No |
 
