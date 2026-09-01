@@ -11,9 +11,11 @@ pub struct ServeArgs {
 
 impl ServeArgs {
     pub fn parse(arguments: &[String]) -> Result<Self, String> {
+        let invocation_directory = std::env::current_dir()
+            .map_err(|error| format!("could not inspect the invocation directory: {error}"))?;
         let mut project = None;
         let mut bind = None;
-        let mut port = 0;
+        let mut port = None;
         let mut state_directory = None;
         let mut index = 0;
         while index < arguments.len() {
@@ -33,13 +35,18 @@ impl ServeArgs {
                     );
                 }
                 "--port" => {
+                    if port.is_some() {
+                        return Err("--port may be supplied only once".to_string());
+                    }
                     index += 1;
                     let value = arguments
                         .get(index)
                         .ok_or_else(|| "--port requires a number".to_string())?;
-                    port = value
-                        .parse::<u16>()
-                        .map_err(|_| "--port must be between 0 and 65535".to_string())?;
+                    port = Some(
+                        value
+                            .parse::<u16>()
+                            .map_err(|_| "--port must be between 0 and 65535".to_string())?,
+                    );
                 }
                 "--state-dir" => {
                     if state_directory.is_some() {
@@ -60,11 +67,19 @@ impl ServeArgs {
             }
             index += 1;
         }
-        let project = project.ok_or_else(|| "zd serve requires a folder".to_string())?;
+        let project = project
+            .map(|path| {
+                if path.is_absolute() {
+                    path
+                } else {
+                    invocation_directory.join(path)
+                }
+            })
+            .unwrap_or(invocation_directory);
         Ok(Self {
             project,
             bind: bind.unwrap_or(Ipv4Addr::UNSPECIFIED),
-            port,
+            port: port.unwrap_or(0),
             state_directory,
         })
     }
