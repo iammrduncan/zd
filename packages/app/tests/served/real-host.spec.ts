@@ -1,4 +1,194 @@
 import { expect, test } from "./host.fixture";
+import type { Page } from "@playwright/test";
+
+interface SeededState {
+  readonly projectId: string;
+  readonly worktreeId: string;
+}
+
+async function seedDurableState(page: Page, url: string, secret: string): Promise<SeededState> {
+  await page.goto(url);
+  return page.evaluate(
+    async ({ secret: processSecret }) => {
+      const endpoint = new URL("/api/host", window.location.origin);
+      endpoint.protocol = endpoint.protocol === "https:" ? "wss:" : "ws:";
+      const socket = new WebSocket(endpoint);
+      const inbox: unknown[] = [];
+      const waiters: Array<(message: unknown) => void> = [];
+      socket.addEventListener("message", ({ data }) => {
+        const message: unknown = JSON.parse(String(data));
+        const waiter = waiters.shift();
+        if (waiter) waiter(message);
+        else inbox.push(message);
+      });
+      const receive = (): Promise<unknown> => {
+        const queued = inbox.shift();
+        return queued === undefined
+          ? new Promise((resolveMessage) => waiters.push(resolveMessage))
+          : Promise.resolve(queued);
+      };
+      await new Promise<void>((resolveOpen, rejectOpen) => {
+        socket.addEventListener("open", () => resolveOpen(), { once: true });
+        socket.addEventListener("error", () => rejectOpen(new Error("socket failed")), {
+          once: true,
+        });
+      });
+      socket.send(
+        JSON.stringify({
+          protocolVersion: 1,
+          type: "authenticate",
+          secret: processSecret,
+        }),
+      );
+      const authenticated = (await receive()) as Record<string, unknown>;
+      if (authenticated.type !== "authenticated") throw new Error("authentication failed");
+
+      let sequence = 0;
+      const request = async <Result>(method: string, params: object): Promise<Result> => {
+        const requestId = `seed-${++sequence}`;
+        const response = receive();
+        socket.send(
+          JSON.stringify({
+            protocolVersion: 1,
+            type: "request",
+            requestId,
+            method,
+            params,
+          }),
+        );
+        const message = (await response) as Record<string, unknown>;
+        if (message.type !== "response" || message.requestId !== requestId) {
+          throw new Error("host request failed");
+        }
+        return message.result as Result;
+      };
+      const grants = await request<{
+        projects: Array<{
+          id: string;
+          name: string;
+          root: string;
+          availability: string;
+          worktrees: Array<{
+            id: string;
+            name: string;
+            root: string;
+            availability: string;
+          }>;
+        }>;
+      }>("projectGrants.list", {});
+      const project = grants.projects[0];
+      const worktree = project?.worktrees[0];
+      if (!project || !worktree) throw new Error("startup grant is missing");
+      let revision = (
+        await request<{ revision: { preferences: number; project: number } }>("state.describe", {})
+      ).revision;
+      const apply = async (mutation: object) => {
+        const outcome = await request<{
+          status: string;
+          revision?: { preferences: number; project: number };
+        }>("state.apply", { expectedRevision: revision, mutation });
+        if (outcome.status !== "applied" || !outcome.revision) {
+          throw new Error("durable mutation was not applied");
+        }
+        revision = outcome.revision;
+      };
+      await apply({
+        kind: "replace-preferences",
+        record: {
+          schemaVersion: 1,
+          values: {
+            "zd.themeSelection.v1": JSON.stringify({
+              selected: "dark",
+              lastValid: "dark",
+            }),
+            "zd.workbenchSettings.v1": JSON.stringify({
+              schemaVersion: 1,
+              reading: { wordWrap: false },
+            }),
+          },
+        },
+      });
+      const resource = {
+        projectId: project.id,
+        worktreeId: worktree.id,
+        relativePath: "notes.md",
+      };
+      const fileId = `file:${project.id}\0${worktree.id}\0notes.md`;
+      await apply({
+        kind: "replace-workbench",
+        record: {
+          schemaVersion: 2,
+          projects: [
+            {
+              id: project.id,
+              name: project.name,
+              root: project.root,
+              availability: project.availability,
+            },
+          ],
+          worktrees: [
+            {
+              id: worktree.id,
+              projectId: project.id,
+              name: worktree.name,
+              root: worktree.root,
+              availability: worktree.availability,
+            },
+          ],
+          threads: [],
+          openFiles: [{ id: fileId, ...resource, bufferId: `buffer:${fileId.slice(5)}` }],
+          active: {
+            projectId: project.id,
+            worktreeId: worktree.id,
+            threadId: null,
+            fileId,
+          },
+          regions: {
+            threads: { visibility: "collapsed", width: 236 },
+            files: { visibility: "visible", width: 280, tab: "files" },
+            centre: { mode: "overlap", split: 0.42 },
+            focus: "file",
+          },
+          window: { presentation: "ordinary" },
+          theme: { selected: "dark", lastValid: "dark" },
+        },
+      });
+      await apply({
+        kind: "put-draft",
+        draft: {
+          schemaVersion: 1,
+          ...resource,
+          text: "# Recovered across a new port\n\nUnsaved remote work.\n",
+          updatedAt: 42,
+        },
+      });
+      await apply({
+        kind: "replace-review-ledger",
+        ledger: {
+          schemaVersion: 1,
+          projectId: project.id,
+          worktreeId: worktree.id,
+          comments: [
+            {
+              id: "restart-comment",
+              relative: "notes.md",
+              startLine: 1,
+              endLine: 1,
+              selected: "Recovered across a new port",
+              comment: "Review survived the restart",
+            },
+          ],
+        },
+      });
+      await new Promise<void>((resolveClose) => {
+        socket.addEventListener("close", () => resolveClose(), { once: true });
+        socket.close();
+      });
+      return { projectId: project.id, worktreeId: worktree.id };
+    },
+    { secret },
+  );
+}
 
 test("opens a real host file read-only and refuses packet-zero exclusions", async ({
   page,
@@ -76,4 +266,42 @@ test("opens a real host file read-only and refuses packet-zero exclusions", asyn
   expect(requestedUrls.length).toBeGreaterThan(0);
   expect(requestedUrls.every((url) => !url.includes(servedHost.secret))).toBe(true);
   expect(consoleMessages.every((message) => !message.includes(servedHost.secret))).toBe(true);
+});
+
+test("restores stable identities and all durable records in a new process and origin", async ({
+  page,
+  servedHost,
+}) => {
+  const original = { url: servedHost.url, secret: servedHost.secret };
+  const seeded = await seedDurableState(page, original.url, original.secret);
+
+  const restarted = await servedHost.restart();
+
+  expect(new URL(restarted.url).port).not.toBe(new URL(original.url).port);
+  expect(restarted.secret).not.toBe(original.secret);
+  const persisted = await servedHost.readPersistedState();
+  expect(persisted).not.toContain(original.secret);
+  expect(persisted).not.toContain(restarted.secret);
+
+  await page.goto(restarted.url);
+  await page.getByLabel("Process secret").fill(restarted.secret);
+  await page.getByRole("button", { name: "Unlock" }).click();
+
+  await expect(page.locator(".zd-workbench")).toBeVisible();
+  await expect(page.locator(`[data-project-id="${seeded.projectId}"]`)).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme-name", "dark");
+  const buffer = page.locator('.editor-buffer[data-buffer-kind="read-only"]');
+  await expect(buffer).toContainText("Recovered across a new port");
+  await expect(buffer.locator(".cm-content")).not.toHaveClass(/cm-lineWrapping/u);
+  await page.getByRole("button", { name: "View Markdown feedback" }).click();
+  await expect(page.getByRole("dialog", { name: "Feedback" })).toContainText(
+    "Review survived the restart",
+  );
+
+  const browserState = await page.evaluate(() => ({
+    local: Object.entries(localStorage),
+    session: Object.entries(sessionStorage),
+  }));
+  expect(browserState).toEqual({ local: [], session: [] });
+  expect(JSON.stringify(browserState)).not.toContain(restarted.secret);
 });
