@@ -9,9 +9,11 @@ host, a standard protected tunnel, and one observable protocol.
 
 ## Needs the owner
 
-Nothing is waiting on an owner decision. Goal 00 proved the loopback, single-controller, shared-host
-direction. Goals 01–05 apply those shapes in order; they are serialized on the shared host/protocol
-boundary.
+Goal 02's host/protocol/browser implementation is complete, but its required normal Playwright gate
+has nine pre-existing Linux failures in editor and design files outside the goal's ownership. Decide
+whether to authorize that browser-gate repair now or provide a supported macOS run. The
+[goal 02 summary](goals/summary-goal-02.md) records the exact failures and causality check. Goal 03
+cannot start until goal 02 is complete.
 
 ## Plan documents
 
@@ -33,7 +35,7 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 
 | Goal | Delivers | Prerequisites | Needs owner |
 | --- | --- | --- | --- |
-| [Execute goal 02](goals/execute-goal-02.md) | Served editing, file operations, Git/worktrees, themes, and diagnostics through one host | Goal 01 | No |
+| [Execute goal 02](goals/execute-goal-02.md) | Served editing, file operations, Git/worktrees, themes, and diagnostics through one host; implementation complete, normal browser gate halted | Goal 01 | Browser-gate scope decision |
 | [Execute goal 03](goals/execute-goal-03.md) | Bounded watcher/PTY events and explicit reconnect/cleanup | Goal 02 | No |
 | [Execute goal 04](goals/execute-goal-04.md) | Stable `zd serve` CLI and a literal supervised Tauri client shell | Goal 03 | No |
 | [Execute goal 05](goals/execute-goal-05.md) | Verified macOS, Windows, and Linux release artifacts | Goal 04 | No |
