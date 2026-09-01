@@ -28,7 +28,11 @@ describe("the desktop served boundary", () => {
       sessionEpoch: "YWFhYWFhYWFhYWFhYWFhYQ",
       secret: "a".repeat(43),
     };
-    invoke.mockResolvedValueOnce(bootstrap).mockResolvedValueOnce("quick-access");
+    invoke
+      .mockResolvedValueOnce(bootstrap)
+      .mockResolvedValueOnce("quick-access")
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
     const request = vi.fn(async (method: string) => {
       if (method === "session.snapshot") {
         return {
@@ -55,6 +59,8 @@ describe("the desktop served boundary", () => {
 
     await expect(platform.projectGrants()).resolves.toEqual([]);
     await expect(platform.toggleQuickAccess()).resolves.toBe("quick-access");
+    await expect(platform.chooseProject()).resolves.toBeNull();
+    await expect(platform.recoverProjectGrant("project-1")).resolves.toBeNull();
     expect(connect).toHaveBeenCalledExactlyOnceWith({
       origin: bootstrap.origin,
       secret: bootstrap.secret,
@@ -63,7 +69,12 @@ describe("the desktop served boundary", () => {
       ["session.snapshot", {}],
       ["projectGrants.list", {}],
     ]);
-    expect(invoke.mock.calls).toEqual([["take_desktop_bootstrap"], ["toggle_quick_access"]]);
+    expect(invoke.mock.calls).toEqual([
+      ["take_desktop_bootstrap"],
+      ["toggle_quick_access"],
+      ["choose_project"],
+      ["recover_project_grant", { projectId: "project-1" }],
+    ]);
     expect(document.documentElement.outerHTML).not.toContain(bootstrap.secret);
     expect(window.localStorage.getItem("zd-desktop-secret")).toBeNull();
     expect(window.sessionStorage.getItem("zd-desktop-secret")).toBeNull();

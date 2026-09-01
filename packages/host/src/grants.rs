@@ -15,8 +15,8 @@ use crate::git_process::run_git;
 const BRANCH_LABEL_LIMIT: usize = 4 * 1024;
 const BRANCH_LABEL_TIMEOUT: Duration = Duration::from_secs(5);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub enum GrantAvailability {
     Available,
     Missing,
@@ -25,8 +25,8 @@ pub enum GrantAvailability {
     Unavailable,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WorktreeGrant {
     pub id: String,
     pub name: String,
@@ -34,8 +34,8 @@ pub struct WorktreeGrant {
     pub availability: GrantAvailability,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectGrant {
     pub id: String,
     pub name: String,

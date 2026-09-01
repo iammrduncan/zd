@@ -2,9 +2,15 @@ mod process;
 mod validation;
 
 use std::ffi::{OsStr, OsString};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc, Condvar, Mutex, MutexGuard, Weak};
 use std::time::{Duration, Instant};
+
+use zd_host::{HostLaunchRequest, ProjectGrant};
+use zd_server::{
+    WrapperControl, WrapperResponse, MAX_WRAPPER_IDENTITY_BYTES, MAX_WRAPPER_PATH_BYTES,
+    WRAPPER_PROTOCOL_VERSION,
+};
 
 pub use validation::{validate_readiness, ValidatedReadiness};
 
@@ -106,6 +112,7 @@ impl Supervisor {
             state.bootstrap_available = false;
             state.problem = None;
             state.command = Some(commands);
+            state.control_sequence = 0;
             state.generation
         };
 
@@ -213,6 +220,86 @@ impl Supervisor {
         snapshot(&state)
     }
 
+    pub fn approve_project_path(&self, path: &Path) -> Result<ProjectGrant, String> {
+        let path = control_path(path)?;
+        match self.request_control(|request_id| WrapperControl::ApproveProject {
+            wrapper_protocol_version: WRAPPER_PROTOCOL_VERSION,
+            request_id,
+            path,
+        })? {
+            WrapperResponse::ProjectApproved { project, .. } => Ok(project),
+            WrapperResponse::Refused { problem, .. } => Err(problem),
+            _ => Err("the desktop host returned the wrong control response".to_string()),
+        }
+    }
+
+    pub fn recover_project_path(
+        &self,
+        project_id: String,
+        path: &Path,
+    ) -> Result<ProjectGrant, String> {
+        let project_id = control_identity(project_id)?;
+        let path = control_path(path)?;
+        match self.request_control(|request_id| WrapperControl::RecoverProject {
+            wrapper_protocol_version: WRAPPER_PROTOCOL_VERSION,
+            request_id,
+            project_id,
+            path,
+        })? {
+            WrapperResponse::ProjectApproved { project, .. } => Ok(project),
+            WrapperResponse::Refused { problem, .. } => Err(problem),
+            _ => Err("the desktop host returned the wrong control response".to_string()),
+        }
+    }
+
+    pub fn approve_open_path(&self, path: &Path) -> Result<HostLaunchRequest, String> {
+        let path = control_path(path)?;
+        match self.request_control(|request_id| WrapperControl::ApproveOpen {
+            wrapper_protocol_version: WRAPPER_PROTOCOL_VERSION,
+            request_id,
+            path,
+        })? {
+            WrapperResponse::OpenApproved { intent, .. } => Ok(intent),
+            WrapperResponse::Refused { problem, .. } => Err(problem),
+            _ => Err("the desktop host returned the wrong control response".to_string()),
+        }
+    }
+
+    fn request_control(
+        &self,
+        build: impl FnOnce(String) -> WrapperControl,
+    ) -> Result<WrapperResponse, String> {
+        let _request = self
+            .inner
+            .control_request
+            .lock()
+            .map_err(|_| "the desktop host control channel is unavailable".to_string())?;
+        let (command, request_id) = {
+            let mut state = self.inner.lock();
+            if state.phase != SupervisorPhase::Ready {
+                return Err("the desktop host control channel is unavailable".to_string());
+            }
+            state.control_sequence = state.control_sequence.saturating_add(1);
+            let request_id = format!("control-{}-{}", state.generation, state.control_sequence);
+            let command = state
+                .command
+                .clone()
+                .ok_or_else(|| "the desktop host control channel is unavailable".to_string())?;
+            (command, request_id)
+        };
+        let (response, received) = mpsc::sync_channel(1);
+        command
+            .send(process::ProcessCommand::Request {
+                control: build(request_id.clone()),
+                request_id,
+                response,
+            })
+            .map_err(|_| "the desktop host control channel closed".to_string())?;
+        received
+            .recv_timeout(STARTUP_WAIT)
+            .map_err(|_| "the desktop host control response timed out".to_string())?
+    }
+
     pub fn shutdown(&self) -> Result<(), String> {
         let command = {
             let mut state = self.inner.lock();
@@ -253,6 +340,7 @@ impl Supervisor {
 pub(super) struct Inner {
     state: Mutex<State>,
     changed: Condvar,
+    control_request: Mutex<()>,
 }
 
 impl Default for Inner {
@@ -260,6 +348,7 @@ impl Default for Inner {
         Self {
             state: Mutex::new(State::default()),
             changed: Condvar::new(),
+            control_request: Mutex::new(()),
         }
     }
 }
@@ -309,6 +398,7 @@ struct State {
     bootstrap_available: bool,
     problem: Option<String>,
     command: Option<mpsc::Sender<process::ProcessCommand>>,
+    control_sequence: u64,
 }
 
 impl Default for State {
@@ -320,8 +410,34 @@ impl Default for State {
             bootstrap_available: false,
             problem: None,
             command: None,
+            control_sequence: 0,
         }
     }
+}
+
+fn control_path(path: &Path) -> Result<String, String> {
+    if !path.is_absolute() {
+        return Err("the desktop control path must be absolute".to_string());
+    }
+    let path = path
+        .to_str()
+        .ok_or_else(|| "the desktop control path cannot be represented".to_string())?;
+    if path.len() > MAX_WRAPPER_PATH_BYTES || path.contains('\0') {
+        return Err("the desktop control path is invalid".to_string());
+    }
+    Ok(path.to_string())
+}
+
+fn control_identity(identity: String) -> Result<String, String> {
+    if identity.is_empty()
+        || identity.len() > MAX_WRAPPER_IDENTITY_BYTES
+        || !identity
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return Err("the desktop project identity is invalid".to_string());
+    }
+    Ok(identity)
 }
 
 fn snapshot(state: &State) -> SupervisorSnapshot {

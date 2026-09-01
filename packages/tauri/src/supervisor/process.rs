@@ -4,7 +4,7 @@ use std::sync::{mpsc, Weak};
 use std::time::{Duration, Instant};
 
 use zd_server::{
-    WrapperControl, WrapperReadiness, WrapperStartup, MAX_WRAPPER_FRAME_BYTES,
+    WrapperControl, WrapperReadiness, WrapperResponse, WrapperStartup, MAX_WRAPPER_FRAME_BYTES,
     WRAPPER_PROTOCOL_VERSION,
 };
 
@@ -13,11 +13,17 @@ use super::{validate_readiness, with_inner, Inner, SupervisorLaunch, SupervisorP
 const PROCESS_POLL: Duration = Duration::from_millis(20);
 const STARTUP_DEADLINE: Duration = Duration::from_secs(10);
 const GRACEFUL_SHUTDOWN_DEADLINE: Duration = Duration::from_secs(5);
+const CONTROL_RESPONSE_DEADLINE: Duration = Duration::from_secs(10);
 const STDOUT_QUEUE_DEPTH: usize = 4;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub(super) enum ProcessCommand {
     Shutdown,
+    Request {
+        control: WrapperControl,
+        request_id: String,
+        response: mpsc::SyncSender<Result<WrapperResponse, String>>,
+    },
 }
 
 #[derive(Debug)]
@@ -161,6 +167,11 @@ fn run_protocol(
                 stop_child(child, stdin);
                 return ProcessOutcome::Stopped;
             }
+            Ok(ProcessCommand::Request { response, .. }) => {
+                let _ = response.send(Err(
+                    "the desktop host is not ready for control requests".to_string()
+                ));
+            }
             Err(mpsc::TryRecvError::Empty) => {}
         }
         match child.has_exited() {
@@ -221,6 +232,23 @@ fn run_protocol(
                 stop_child(child, stdin);
                 return ProcessOutcome::Stopped;
             }
+            Ok(ProcessCommand::Request {
+                control,
+                request_id,
+                response,
+            }) => {
+                if let Err(outcome) = exchange_control(
+                    control,
+                    &request_id,
+                    response,
+                    commands,
+                    output,
+                    child,
+                    stdin,
+                ) {
+                    return outcome;
+                }
+            }
             Err(mpsc::RecvTimeoutError::Timeout) => {}
         }
         match output.try_recv() {
@@ -246,6 +274,120 @@ fn run_protocol(
             Ok(false) => {}
         }
     }
+}
+
+fn exchange_control(
+    control: WrapperControl,
+    request_id: &str,
+    response: mpsc::SyncSender<Result<WrapperResponse, String>>,
+    commands: &mpsc::Receiver<ProcessCommand>,
+    output: &mpsc::Receiver<OutputEvent>,
+    child: &mut OwnedChild,
+    stdin: &mut ChildStdin,
+) -> Result<(), ProcessOutcome> {
+    if write_json_line(stdin, &control).is_err() {
+        let problem = "the desktop host control request could not be sent";
+        let _ = response.send(Err(problem.to_string()));
+        return Err(ProcessOutcome::Exited(problem));
+    }
+    let deadline = Instant::now() + CONTROL_RESPONSE_DEADLINE;
+    loop {
+        match commands.try_recv() {
+            Ok(ProcessCommand::Shutdown) | Err(mpsc::TryRecvError::Disconnected) => {
+                let _ = response.send(Err(
+                    "the desktop host control request was cancelled for shutdown".to_string(),
+                ));
+                stop_child(child, stdin);
+                return Err(ProcessOutcome::Stopped);
+            }
+            Ok(ProcessCommand::Request { response, .. }) => {
+                let _ = response.send(Err(
+                    "another desktop host control request is in progress".to_string()
+                ));
+            }
+            Err(mpsc::TryRecvError::Empty) => {}
+        }
+        match child.has_exited() {
+            Ok(true) => {
+                let problem = "the desktop host exited during a control request";
+                let _ = response.send(Err(problem.to_string()));
+                return Err(ProcessOutcome::Exited(problem));
+            }
+            Err(()) => {
+                let problem = "the desktop host could not be checked during a control request";
+                let _ = response.send(Err(problem.to_string()));
+                return Err(ProcessOutcome::Exited(problem));
+            }
+            Ok(false) => {}
+        }
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            let problem = "the desktop host control response timed out";
+            let _ = response.send(Err(problem.to_string()));
+            return Err(ProcessOutcome::Exited(problem));
+        }
+        match output.recv_timeout(remaining.min(PROCESS_POLL)) {
+            Ok(OutputEvent::Frame(frame)) => {
+                let reply = match serde_json::from_slice::<WrapperResponse>(&frame) {
+                    Ok(reply) if response_matches(&control, &reply, request_id) => reply,
+                    _ => {
+                        let problem = "the desktop host returned an invalid control response";
+                        let _ = response.send(Err(problem.to_string()));
+                        return Err(ProcessOutcome::Exited(problem));
+                    }
+                };
+                let _ = response.send(Ok(reply));
+                return Ok(());
+            }
+            Ok(OutputEvent::Eof) | Err(mpsc::RecvTimeoutError::Disconnected) => {
+                let problem = "the desktop host control channel closed";
+                let _ = response.send(Err(problem.to_string()));
+                return Err(ProcessOutcome::Exited(problem));
+            }
+            Ok(OutputEvent::Invalid) => {
+                let problem = "the desktop host returned invalid control output";
+                let _ = response.send(Err(problem.to_string()));
+                return Err(ProcessOutcome::Exited(problem));
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+        }
+    }
+}
+
+fn response_matches(
+    control: &WrapperControl,
+    response: &WrapperResponse,
+    request_id: &str,
+) -> bool {
+    let (version, response_id) = match response {
+        WrapperResponse::ProjectApproved {
+            wrapper_protocol_version,
+            request_id,
+            ..
+        }
+        | WrapperResponse::OpenApproved {
+            wrapper_protocol_version,
+            request_id,
+            ..
+        }
+        | WrapperResponse::Refused {
+            wrapper_protocol_version,
+            request_id,
+            ..
+        } => (*wrapper_protocol_version, request_id),
+    };
+    let response_kind_matches = matches!(response, WrapperResponse::Refused { .. })
+        || matches!(
+            (control, response),
+            (
+                WrapperControl::ApproveProject { .. } | WrapperControl::RecoverProject { .. },
+                WrapperResponse::ProjectApproved { .. }
+            ) | (
+                WrapperControl::ApproveOpen { .. },
+                WrapperResponse::OpenApproved { .. }
+            )
+        );
+    version == WRAPPER_PROTOCOL_VERSION && response_id == request_id && response_kind_matches
 }
 
 fn startup_frame(launch: &SupervisorLaunch) -> Result<WrapperStartup, &'static str> {
@@ -359,5 +501,81 @@ impl OwnedChild {
 impl Drop for OwnedChild {
     fn drop(&mut self) {
         self.force_stop();
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use zd_host::{GrantAvailability, ProjectGrant};
+
+    #[test]
+    fn control_responses_must_match_the_request_kind_version_and_identity() {
+        let control = WrapperControl::ApproveOpen {
+            wrapper_protocol_version: WRAPPER_PROTOCOL_VERSION,
+            request_id: "control-1-1".to_string(),
+            path: "/tmp/selected.txt".to_string(),
+        };
+        let wrong_kind = WrapperResponse::ProjectApproved {
+            wrapper_protocol_version: WRAPPER_PROTOCOL_VERSION,
+            request_id: "control-1-1".to_string(),
+            project: ProjectGrant {
+                id: "project-1".to_string(),
+                name: "project".to_string(),
+                root: "/tmp".to_string(),
+                availability: GrantAvailability::Available,
+                worktrees: Vec::new(),
+            },
+        };
+        let refused = WrapperResponse::Refused {
+            wrapper_protocol_version: WRAPPER_PROTOCOL_VERSION,
+            request_id: "control-1-1".to_string(),
+            problem: "refused".to_string(),
+        };
+
+        assert!(!response_matches(&control, &wrong_kind, "control-1-1"));
+        assert!(response_matches(&control, &refused, "control-1-1"));
+        assert!(!response_matches(&control, &refused, "control-1-2"));
+    }
+
+    #[test]
+    fn shutdown_interrupts_a_stalled_control_response() {
+        let mut child = Command::new("/bin/sh")
+            .args([
+                "-c",
+                "while IFS= read -r line; do case \"$line\" in *shutdown*) exit 0;; esac; done",
+            ])
+            .stdin(Stdio::piped())
+            .spawn()
+            .expect("start inert wrapper child");
+        let mut stdin = child.stdin.take().expect("take inert child input");
+        let mut child = OwnedChild::new(child);
+        let (output_sender, output) = mpsc::sync_channel(1);
+        let (command_sender, commands) = mpsc::channel();
+        let (response, received) = mpsc::sync_channel(1);
+        command_sender
+            .send(ProcessCommand::Shutdown)
+            .expect("queue shutdown");
+        let started = Instant::now();
+
+        let outcome = exchange_control(
+            WrapperControl::ApproveOpen {
+                wrapper_protocol_version: WRAPPER_PROTOCOL_VERSION,
+                request_id: "control-1-1".to_string(),
+                path: "/tmp/selected.txt".to_string(),
+            },
+            "control-1-1",
+            response,
+            &commands,
+            &output,
+            &mut child,
+            &mut stdin,
+        );
+
+        drop(output_sender);
+        assert!(matches!(outcome, Err(ProcessOutcome::Stopped)));
+        assert!(started.elapsed() < Duration::from_secs(1));
+        assert!(received.recv().expect("receive cancellation").is_err());
+        assert!(child.has_exited().expect("check inert child exit"));
     }
 }

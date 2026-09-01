@@ -9,14 +9,19 @@ commands.allow = ["take_desktop_bootstrap"]
 identifier = "allow-desktop-shell"
 description = "Allows the active served main webview to use viewing-computer shell behavior."
 commands.allow = [
+  "accept_open_request",
+  "choose_project",
   "close_window",
+  "has_pending_open_request",
   "hide_quick_access",
   "notification_permission",
   "notification_request_permission",
   "open_external",
+  "pending_open_request",
   "pending_notification_actions",
   "play_completion_sound",
   "register_global_summon",
+  "recover_project_grant",
   "show_thread_notification",
   "show_workbench",
   "toggle_quick_access",

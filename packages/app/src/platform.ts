@@ -659,11 +659,11 @@ const browserShell: ClientShell = {
 };
 
 const tauriShell: ClientShell = {
-  onOpenRequested: () => () => {},
-  pendingOpenRequest: async () => null,
-  acceptOpenRequest: async () => null,
-  chooseProject: async () => null,
-  recoverProjectGrant: async () => null,
+  onOpenRequested: tauri.onOpenRequested,
+  pendingOpenRequest: tauri.pendingOpenRequest,
+  acceptOpenRequest: tauri.acceptOpenRequest,
+  chooseProject: tauri.chooseProject,
+  recoverProjectGrant: tauri.recoverProjectGrant,
   registerGlobalSummon: tauri.registerGlobalSummon,
   onWindowPresentationChanged: tauri.onWindowPresentationChanged,
   toggleQuickAccess: tauri.toggleQuickAccess,

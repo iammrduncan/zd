@@ -39,9 +39,11 @@ fn run_from_environment() -> Result<(), String> {
 fn run_desktop(launch_request: launch::NativeOpenRequest) {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(supervisor::Supervisor::default())
+        .manage(shell::OpenIntentState::default())
         .manage(quick_access::QuickAccessState::default())
         .setup(move |app| {
             app.manage(notifications::NotificationState::new(app.handle().clone()));
@@ -59,6 +61,11 @@ fn run_desktop(launch_request: launch::NativeOpenRequest) {
         })
         .invoke_handler(tauri::generate_handler![
             desktop::take_desktop_bootstrap,
+            shell::choose_project,
+            shell::recover_project_grant,
+            shell::has_pending_open_request,
+            shell::pending_open_request,
+            shell::accept_open_request,
             shell::open_external,
             shell::register_global_summon,
             shell::toggle_quick_access,
@@ -102,8 +109,11 @@ fn run_desktop(launch_request: launch::NativeOpenRequest) {
         #[cfg(target_os = "macos")]
         match event {
             tauri::RunEvent::Opened { urls } => {
-                if launch::opened_request(&urls).is_none() {
+                let Some(request) = launch::opened_request(&urls) else {
                     return;
+                };
+                if let Some(path) = request.path.as_deref() {
+                    shell::queue_native_open(app_handle, std::path::Path::new(path));
                 }
                 quick_access::show_ordinary(app_handle);
             }
