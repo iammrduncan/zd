@@ -32,6 +32,7 @@ export interface TerminalThreadSnapshot extends TerminalTranscriptSnapshot {
 
 export type TerminalThreadOperation =
   | "terminal.start"
+  | "terminal.reattach"
   | "terminal.read"
   | "terminal.write"
   | "terminal.resize"

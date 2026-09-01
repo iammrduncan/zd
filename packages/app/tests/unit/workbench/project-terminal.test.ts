@@ -25,12 +25,11 @@ const grant: ProjectGrant = {
 };
 
 function fixture() {
-  let sequence = 0;
   const terminal: TerminalAdapter = {
     start: vi.fn(async (request) => ({
       projectId: request.projectId,
       worktreeId: request.worktreeId,
-      sessionId: `project-terminal-${++sequence}`,
+      sessionId: request.terminalId,
     })),
     onOutputReady: () => () => {},
     write: vi.fn(async () => undefined),
@@ -60,37 +59,56 @@ function fixture() {
   return { context, state, terminal };
 }
 
+function mountHeadlessSurface(surfaceHost: HTMLElement): TerminalThreadSurface {
+  const element = document.createElement("section");
+  surfaceHost.append(element);
+  return {
+    element,
+    viewportElement: element,
+    closeSearch: () => false,
+    copySelection: async () => false,
+    dispose: () => element.remove(),
+    fit: () => {},
+    focus: () => {},
+    isSearchOpen: () => false,
+    openSearch: () => {},
+    paste: () => {},
+    refreshTheme: () => {},
+    setVisible: (visible) => {
+      element.hidden = !visible;
+    },
+    selectAll: () => {},
+    updateMetadata: () => {},
+  };
+}
+
 beforeEach(clearCommands);
 afterEach(clearCommands);
 
 describe("the runtime-only project terminal", () => {
+  it("detaches its surface without closing the shell when the workbench unloads", async () => {
+    const { context, state, terminal } = fixture();
+    await state.activateProject(grant.id);
+    const host = document.createElement("section");
+    const unmount = mountProjectTerminal(host, context, {
+      mountSurface: mountHeadlessSurface,
+    });
+
+    expect(runCommandTarget("projectTerminal.toggle")).toBe(true);
+    await vi.waitFor(() => expect(terminal.start).toHaveBeenCalledOnce());
+    unmount();
+
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    expect(terminal.terminate).not.toHaveBeenCalled();
+    expect(terminal.dispose).not.toHaveBeenCalled();
+  });
+
   it("does not create thread state and guards project removal until its processes stop", async () => {
     const { context, state, terminal } = fixture();
     await state.activateProject(grant.id);
     const host = document.createElement("section");
     document.body.append(host);
-    const mountSurface = vi.fn((surfaceHost: HTMLElement): TerminalThreadSurface => {
-      const element = document.createElement("section");
-      surfaceHost.append(element);
-      return {
-        element,
-        viewportElement: element,
-        closeSearch: () => false,
-        copySelection: async () => false,
-        dispose: () => element.remove(),
-        fit: () => {},
-        focus: () => {},
-        isSearchOpen: () => false,
-        openSearch: () => {},
-        paste: () => {},
-        refreshTheme: () => {},
-        setVisible: (visible) => {
-          element.hidden = !visible;
-        },
-        selectAll: () => {},
-        updateMetadata: () => {},
-      };
-    });
+    const mountSurface = vi.fn(mountHeadlessSurface);
     const unmount = mountProjectTerminal(host, context, { mountSurface });
 
     expect(runCommandTarget("projectTerminal.toggle")).toBe(true);

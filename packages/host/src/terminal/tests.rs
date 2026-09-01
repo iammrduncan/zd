@@ -83,6 +83,7 @@ fn structured_start_wire_shape_cannot_supply_native_process_authority() {
     let request = TerminalStartRequest {
         project_id: "project-a".to_string(),
         worktree_id: "worktree-a".to_string(),
+        terminal_id: "terminal-a".to_string(),
         viewport: viewport(24, 80),
     };
 
@@ -91,6 +92,7 @@ fn structured_start_wire_shape_cannot_supply_native_process_authority() {
         serde_json::json!({
             "projectId": "project-a",
             "worktreeId": "worktree-a",
+            "terminalId": "terminal-a",
             "viewport": {
                 "rows": 24,
                 "columns": 80,
@@ -103,6 +105,7 @@ fn structured_start_wire_shape_cannot_supply_native_process_authority() {
         serde_json::from_value::<TerminalStartRequest>(serde_json::json!({
             "projectId": "project-a",
             "worktreeId": "worktree-a",
+            "terminalId": "terminal-a",
             "viewport": { "rows": 24, "columns": 80, "pixelWidth": 0, "pixelHeight": 0 },
             "cwd": "/outside",
             "command": "arbitrary",
@@ -110,6 +113,48 @@ fn structured_start_wire_shape_cannot_supply_native_process_authority() {
         }))
         .is_err()
     );
+}
+
+#[test]
+fn stable_identity_reattaches_only_the_exact_terminal_in_the_exact_scope() {
+    let scratch = Scratch::new("reattach");
+    let mut sessions = TerminalSessions::with_output_limit(4 * 1024).unwrap();
+    let approved = scope(&scratch);
+    let handle = sessions
+        .start_shell_with_id(approved.clone(), "terminal-a", viewport(24, 80))
+        .unwrap();
+
+    assert_eq!(handle.session_id, "terminal-a");
+    assert_eq!(
+        sessions
+            .reattach(&approved, "terminal-a", viewport(30, 100))
+            .unwrap(),
+        Some(handle.clone())
+    );
+    assert_eq!(
+        sessions
+            .reattach(&approved, "terminal-missing", viewport(24, 80))
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        sessions
+            .start_shell_with_id(approved.clone(), "terminal-a", viewport(24, 80))
+            .unwrap_err()
+            .kind,
+        TerminalErrorKind::InvalidInput
+    );
+    let other_scope =
+        TerminalScope::from_approved_worktree("project-a", "worktree-other", scratch.path())
+            .unwrap();
+    assert_eq!(
+        sessions
+            .reattach(&other_scope, "terminal-a", viewport(24, 80))
+            .unwrap_err()
+            .kind,
+        TerminalErrorKind::InvalidScope
+    );
+    sessions.dispose(&handle).unwrap();
 }
 
 #[test]

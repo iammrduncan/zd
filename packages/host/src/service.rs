@@ -301,12 +301,35 @@ impl HostService {
             })?;
         let scope =
             TerminalScope::from_approved_worktree(request.project_id, request.worktree_id, root)?;
-        self.terminal_sessions()?.start_shell_with_signals(
+        self.terminal_sessions()?.start_shell_with_id_and_signals(
             scope,
+            request.terminal_id,
             request.viewport,
             output_signal,
             exit_signal,
         )
+    }
+
+    pub fn reattach_terminal(
+        &self,
+        request: TerminalStartRequest,
+    ) -> Result<Option<TerminalSessionHandle>, TerminalError> {
+        let root = self
+            .state
+            .lock()
+            .map_err(|_| terminal_runtime_unavailable())?
+            .grants
+            .root(&request.project_id, &request.worktree_id)
+            .map_err(|_| {
+                TerminalError::new(
+                    TerminalErrorKind::InvalidScope,
+                    "Terminal scope is unavailable",
+                )
+            })?;
+        let scope =
+            TerminalScope::from_approved_worktree(request.project_id, request.worktree_id, root)?;
+        self.terminal_sessions()?
+            .reattach(&scope, &request.terminal_id, request.viewport)
     }
 
     pub fn write_terminal(

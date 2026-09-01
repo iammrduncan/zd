@@ -120,12 +120,39 @@ async fn watches_terminals_snapshot_and_resume_share_the_authenticated_socket() 
         json!({
             "projectId": project_id,
             "worktreeId": worktree_id,
+            "terminalId": "terminal-protocol",
             "viewport": {"rows": 24, "columns": 80, "pixelWidth": 0, "pixelHeight": 0},
         }),
     )
     .await;
     let session = start["result"].clone();
-    assert!(session["sessionId"].as_str().is_some());
+    assert_eq!(session["sessionId"], "terminal-protocol");
+    let reattached = request(
+        &mut socket,
+        "terminal-reattach-1",
+        "terminal.reattach",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "terminalId": "terminal-protocol",
+            "viewport": {"rows": 30, "columns": 100, "pixelWidth": 0, "pixelHeight": 0},
+        }),
+    )
+    .await;
+    assert_eq!(reattached["result"], session);
+    let missing = request(
+        &mut socket,
+        "terminal-reattach-2",
+        "terminal.reattach",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "terminalId": "terminal-missing",
+            "viewport": {"rows": 24, "columns": 80, "pixelWidth": 0, "pixelHeight": 0},
+        }),
+    )
+    .await;
+    assert_eq!(missing["result"], Value::Null);
 
     let command = STANDARD.encode(b"printf '__ZD_PROTOCOL_TERMINAL__\\n'\n");
     let write = request(

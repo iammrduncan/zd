@@ -115,6 +115,7 @@ describe("the terminal-backed thread session", () => {
     const terminal = new TerminalThreadSession(
       adapter,
       { projectId: "project-alpha", worktreeId: "worktree-alpha" },
+      session.sessionId,
       { onLifecycle: lifecycle },
     );
 
@@ -123,6 +124,7 @@ describe("the terminal-backed thread session", () => {
     expect(adapter.start).toHaveBeenCalledExactlyOnceWith({
       projectId: "project-alpha",
       worktreeId: "worktree-alpha",
+      terminalId: session.sessionId,
       viewport,
     });
     expect(adapter.start.mock.calls[0]![0]).not.toHaveProperty("command");

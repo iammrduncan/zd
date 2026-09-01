@@ -83,7 +83,7 @@ export function terminalAdapter() {
     start: vi.fn(async (request): Promise<TerminalSessionHandle> => ({
       projectId: request.projectId,
       worktreeId: request.worktreeId,
-      sessionId: "native-session-secret",
+      sessionId: request.terminalId,
     })),
     write: vi.fn(async () => undefined),
     resize: vi.fn(async () => undefined),

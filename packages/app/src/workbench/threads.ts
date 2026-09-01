@@ -82,6 +82,7 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
       id: "workbench.threads",
       prepareRemoval: ({ projectId }) => this.#prepareProjectRemoval(projectId),
     });
+    this.#restoreDurableSessions();
   }
 
   snapshot(): ThreadWorkbenchSnapshot {
@@ -321,19 +322,9 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     this.#disposed = true;
     this.#stopOutputReady();
     this.#stopProjectRemovalGuard();
-    const sessions = [...this.#sessions.values()];
     this.#sessions.clear();
     this.#automaticNames.clear();
     this.#automaticNameTails.clear();
-    await Promise.all(
-      sessions.map(async (terminal) => {
-        try {
-          if (terminal.snapshot().sessionId) await terminal.dispose();
-        } catch {
-          // Native teardown is best effort here; its manager owns final cleanup.
-        }
-      }),
-    );
   }
 
   #handleOutputReady(handle: TerminalSessionHandle): void {
@@ -403,13 +394,14 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
   }
 
   #createSession(
-    thread: Pick<ThreadState, "id" | "projectId" | "worktreeId" | "agent">,
+    thread: Pick<ThreadState, "id" | "projectId" | "worktreeId" | "agent" | "backingId">,
     revisionBase: number,
   ): TerminalThreadSession {
     const detector = createSupportedAgentDetector(thread.agent);
     return new TerminalThreadSession(
       this.platform.terminal,
       { projectId: thread.projectId, worktreeId: thread.worktreeId },
+      thread.backingId,
       {
         ...(detector ? { detector } : {}),
         onLifecycle: async (signal) => {
@@ -433,6 +425,74 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
         },
       },
     );
+  }
+
+  #restoreDurableSessions(): void {
+    if (!this.platform.terminal.reattach) return;
+    for (const thread of this.owner.snapshot().threads) {
+      if (thread.backingAvailability !== "ready" && thread.backingAvailability !== "starting") {
+        continue;
+      }
+      const terminal = this.#createSession(thread, thread.lifecycleRevision);
+      this.#sessions.set(thread.id, terminal);
+      void this.#restoreSession(thread.id, terminal);
+    }
+  }
+
+  async #restoreSession(threadId: string, terminal: TerminalThreadSession): Promise<void> {
+    let handle: TerminalSessionHandle | null;
+    try {
+      handle = await terminal.restore(this.#initialViewport);
+    } catch {
+      await this.#markRestoreUnavailable(
+        threadId,
+        terminal,
+        "failed",
+        "The terminal session could not be reattached.",
+      );
+      return;
+    }
+    if (this.#disposed || this.#sessions.get(threadId) !== terminal) return;
+    if (!handle) {
+      await this.#markRestoreUnavailable(
+        threadId,
+        terminal,
+        "missing-session",
+        "This thread's terminal process is no longer attached.",
+      );
+      return;
+    }
+    try {
+      await terminal.refresh();
+      await terminal.pollExit();
+    } catch {
+      // The session remains attached so a later output-ready edge can retry the recorded failure.
+    }
+  }
+
+  async #markRestoreUnavailable(
+    threadId: string,
+    terminal: TerminalThreadSession,
+    kind: "failed" | "missing-session",
+    summary: string,
+  ): Promise<void> {
+    if (this.#disposed || this.#sessions.get(threadId) !== terminal) return;
+    this.#sessions.delete(threadId);
+    const thread = this.owner.snapshot().threads.find(({ id }) => id === threadId);
+    if (!thread) return;
+    await this.owner.updateThreadRuntime(threadId, {
+      lifecycle: "unknown",
+      lifecycleSource: thread.lifecycleSource,
+      lifecycleRevision: thread.lifecycleRevision,
+      attentionUnread: thread.attentionUnread,
+      attentionVersion: thread.attentionVersion,
+      backingAvailability: "missing",
+      recovery: {
+        kind,
+        summary,
+        actionLabel: "Restart terminal",
+      },
+    });
   }
 
   async #applyLifecycle(

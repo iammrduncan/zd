@@ -38,6 +38,7 @@ fn host_terminal_contract_is_closed_and_bounded() {
     let widened = serde_json::json!({
         "projectId": "project-a",
         "worktreeId": "worktree-a",
+        "terminalId": "terminal-a",
         "viewport": { "rows": 24, "columns": 80, "pixelWidth": 0, "pixelHeight": 0 },
         "command": "arbitrary",
         "cwd": "/outside",
@@ -55,10 +56,16 @@ fn host_service_resolves_terminal_scopes_snapshots_metadata_and_shuts_down() {
     let request = TerminalStartRequest {
         project_id: launch.project.unwrap().id,
         worktree_id: launch.worktree_id.unwrap(),
+        terminal_id: "terminal-host-test".to_string(),
         viewport: TerminalViewport::new(24, 80, 0, 0).unwrap(),
     };
 
-    let session = host.start_terminal(request, None, None).unwrap();
+    let session = host.start_terminal(request.clone(), None, None).unwrap();
+    assert_eq!(session.session_id, "terminal-host-test");
+    assert_eq!(
+        host.reattach_terminal(request).unwrap(),
+        Some(session.clone())
+    );
     let snapshot = host.terminal_snapshot().unwrap();
     assert_eq!(snapshot.len(), 1);
     assert_eq!(snapshot[0].session, session);

@@ -37,6 +37,7 @@ fn host_with_terminal() -> (Scratch, Arc<HostService>) {
         TerminalStartRequest {
             project_id: launch.project.unwrap().id,
             worktree_id: launch.worktree_id.unwrap(),
+            terminal_id: "terminal-session-runtime".to_string(),
             viewport: TerminalViewport::new(24, 80, 0, 0).unwrap(),
         },
         None,
