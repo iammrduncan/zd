@@ -1,7 +1,7 @@
 [package]
 name = "zd-server"
 version = "0.2.10"
-description = "Loopback workbench server for zd"
+description = "Served workbench host library for zd"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/iammrduncan/zd"
