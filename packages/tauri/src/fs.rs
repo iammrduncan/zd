@@ -71,7 +71,6 @@ pub fn file_stamp(
     zd_host::file_stamp_at(&path)
 }
 
-#[tauri::command]
 pub fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
     if !is_web_url(&url) {
         return Err("refused to open a non-web URL".to_string());

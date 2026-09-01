@@ -31,7 +31,8 @@ pub struct SupervisorSnapshot {
     pub problem: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DesktopBootstrap {
     pub origin: String,
     pub session_epoch: String,
@@ -160,9 +161,17 @@ impl Supervisor {
         snapshot(&self.inner.lock())
     }
 
-    pub fn take_bootstrap(&self) -> Result<DesktopBootstrap, String> {
+    pub fn authorizes_webview(&self, label: &str, url: &tauri::Url) -> bool {
+        authorized_webview(&self.inner.lock(), label, url)
+    }
+
+    pub fn take_bootstrap_for(
+        &self,
+        label: &str,
+        url: &tauri::Url,
+    ) -> Result<DesktopBootstrap, String> {
         let mut state = self.inner.lock();
-        if state.phase != SupervisorPhase::Ready || !state.bootstrap_available {
+        if !authorized_webview(&state, label, url) || !state.bootstrap_available {
             return Err("the desktop bootstrap is unavailable".to_string());
         }
         let readiness = state
@@ -177,17 +186,31 @@ impl Supervisor {
         })
     }
 
-    pub fn rearm_bootstrap(&self, origin: &str) -> bool {
+    pub fn rearm_bootstrap_for(&self, label: &str, url: &tauri::Url) -> bool {
         let mut state = self.inner.lock();
-        let matches_ready_host = state.phase == SupervisorPhase::Ready
-            && state
-                .readiness
-                .as_ref()
-                .is_some_and(|readiness| readiness.origin == origin);
+        let matches_ready_host = authorized_webview(&state, label, url);
         if matches_ready_host {
             state.bootstrap_available = true;
         }
         matches_ready_host
+    }
+
+    pub fn wait_for_terminal(&self, generation: u64) -> SupervisorSnapshot {
+        let mut state = self.inner.lock();
+        while state.generation == generation
+            && matches!(
+                state.phase,
+                SupervisorPhase::Starting | SupervisorPhase::Ready | SupervisorPhase::Stopping
+            )
+            && state.command.is_some()
+        {
+            state = self
+                .inner
+                .changed
+                .wait(state)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+        snapshot(&state)
     }
 
     pub fn shutdown(&self) -> Result<(), String> {
@@ -315,4 +338,16 @@ fn snapshot(state: &State) -> SupervisorSnapshot {
             .map(|readiness| readiness.session_epoch.clone()),
         problem: state.problem.clone(),
     }
+}
+
+fn authorized_webview(state: &State, label: &str, url: &tauri::Url) -> bool {
+    label == "main"
+        && state.phase == SupervisorPhase::Ready
+        && url.scheme() == "http"
+        && url.username().is_empty()
+        && url.password().is_none()
+        && state
+            .readiness
+            .as_ref()
+            .is_some_and(|readiness| url.origin().ascii_serialization() == readiness.origin)
 }

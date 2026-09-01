@@ -364,7 +364,6 @@ async fn platform_request_permission() -> NotificationPermission {
     NotificationPermission::Unsupported
 }
 
-#[tauri::command]
 pub async fn notification_permission(
     state: tauri::State<'_, NotificationState>,
 ) -> Result<NotificationPermission, String> {
@@ -377,7 +376,6 @@ pub async fn notification_permission(
     Ok(platform_permission().await)
 }
 
-#[tauri::command]
 pub async fn notification_request_permission(
     state: tauri::State<'_, NotificationState>,
 ) -> Result<NotificationPermission, String> {
@@ -390,7 +388,6 @@ pub async fn notification_request_permission(
     Ok(platform_request_permission().await)
 }
 
-#[tauri::command]
 pub fn show_thread_notification(
     state: tauri::State<'_, NotificationState>,
     app: tauri::AppHandle,
@@ -450,14 +447,12 @@ pub fn show_thread_notification(
     }
 }
 
-#[tauri::command]
 pub fn pending_notification_actions(
     state: tauri::State<'_, NotificationState>,
 ) -> Vec<NotificationActionV1> {
     state.store.drain()
 }
 
-#[tauri::command]
 pub async fn play_completion_sound(
     state: tauri::State<'_, NotificationState>,
     _app: tauri::AppHandle,

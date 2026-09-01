@@ -337,7 +337,6 @@ fn hide_quick_access_for(app: &tauri::AppHandle) -> Result<WindowPresentation, S
     Ok(WindowPresentation::Ordinary)
 }
 
-#[tauri::command]
 pub fn register_global_summon(
     app: tauri::AppHandle,
     state: tauri::State<'_, QuickAccessState>,
@@ -386,7 +385,6 @@ pub fn register_global_summon(
     status
 }
 
-#[tauri::command]
 pub fn toggle_quick_access(app: tauri::AppHandle) -> Result<WindowPresentation, String> {
     let state = app.state::<QuickAccessState>();
     match presentation(&state)? {
@@ -395,12 +393,10 @@ pub fn toggle_quick_access(app: tauri::AppHandle) -> Result<WindowPresentation, 
     }
 }
 
-#[tauri::command]
 pub fn hide_quick_access(app: tauri::AppHandle) -> Result<WindowPresentation, String> {
     hide_quick_access_for(&app)
 }
 
-#[tauri::command]
 pub fn show_workbench(app: tauri::AppHandle) -> WindowPresentation {
     show_ordinary(&app);
     WindowPresentation::Ordinary

@@ -6,6 +6,7 @@
 
 mod cli;
 mod clipboard_images;
+mod desktop;
 mod dispatch;
 mod durable_state;
 mod file_tree;
@@ -17,6 +18,7 @@ pub mod instrumentation;
 pub mod notifications;
 mod projects;
 mod quick_access;
+mod shell;
 #[doc(hidden)]
 pub mod supervisor;
 mod terminal_runtime;
@@ -27,16 +29,6 @@ mod worktrees;
 #[cfg(target_os = "macos")]
 use tauri::Emitter;
 use tauri::Manager;
-
-/// Close the window, having been told it is safe to.
-///
-/// The counterpart of the refusal below. Only the frontend knows whether there is
-/// unsaved work, so the shell never closes on its own — it asks, and this is the
-/// answer coming back.
-#[tauri::command]
-fn close_window(window: tauri::Window) -> Result<(), String> {
-    window.destroy().map_err(|error| error.to_string())
-}
 
 /// Whether macOS has delivered a file-open request that the current file has not
 /// accepted yet. This closes the small race between the native event and the
@@ -84,6 +76,7 @@ fn run_desktop(launch_request: cli::NativeOpenRequest) {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .manage(supervisor::Supervisor::default())
         .manage(file_tree_watch::FileTreeWatchState::default())
         .manage(quick_access::QuickAccessState::default())
         .manage(terminal_runtime::TerminalState::default())
@@ -102,9 +95,20 @@ fn run_desktop(launch_request: cli::NativeOpenRequest) {
                 instrumentation::DiagnosticState::new(directory, env!("CARGO_PKG_VERSION"))
                     .map_err(std::io::Error::other)?;
             app.manage(diagnostics);
+            desktop::start(
+                app.handle().clone(),
+                launch_request.path.as_deref().map(std::path::PathBuf::from),
+            )
+            .map_err(std::io::Error::other)?;
             Ok(())
         })
+        .on_page_load(|webview, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Started {
+                desktop::page_started(webview, payload.url());
+            }
+        })
         .invoke_handler(tauri::generate_handler![
+            desktop::take_desktop_bootstrap,
             cli::launch_request,
             cli::project_grants,
             durable_state::describe_durable_state,
@@ -134,17 +138,17 @@ fn run_desktop(launch_request: cli::NativeOpenRequest) {
             fs::workspace_files,
             fs::write_text_file,
             fs::file_stamp,
-            fs::open_external,
+            shell::open_external,
             themes::theme_config_files,
-            quick_access::register_global_summon,
-            quick_access::toggle_quick_access,
-            quick_access::hide_quick_access,
-            quick_access::show_workbench,
-            notifications::notification_permission,
-            notifications::notification_request_permission,
-            notifications::show_thread_notification,
-            notifications::pending_notification_actions,
-            notifications::play_completion_sound,
+            shell::register_global_summon,
+            shell::toggle_quick_access,
+            shell::hide_quick_access,
+            shell::show_workbench,
+            shell::notification_permission,
+            shell::notification_request_permission,
+            shell::show_thread_notification,
+            shell::pending_notification_actions,
+            shell::play_completion_sound,
             instrumentation::runtime::diagnostics_status,
             instrumentation::runtime::enable_diagnostics,
             instrumentation::runtime::disable_diagnostics,
@@ -157,7 +161,7 @@ fn run_desktop(launch_request: cli::NativeOpenRequest) {
             terminal_runtime::terminal_poll_exit,
             terminal_runtime::terminal_terminate,
             terminal_runtime::terminal_dispose,
-            close_window,
+            shell::close_window,
         ])
         /*
          * Never close on the first ask. Vision §6.3's promise is that what you
@@ -184,6 +188,7 @@ fn run_desktop(launch_request: cli::NativeOpenRequest) {
 
     app.run(|app_handle, event| {
         if matches!(&event, tauri::RunEvent::Exit) {
+            let _ = app_handle.state::<supervisor::Supervisor>().shutdown();
             app_handle
                 .state::<instrumentation::DiagnosticState>()
                 .shutdown();
