@@ -2,11 +2,13 @@
 
 mod assets;
 mod cli;
+mod foreground;
 mod protocol;
 mod server;
 mod session;
 
 pub use cli::ServeArgs;
+pub use foreground::run_foreground;
 pub use server::{start, RunningServer, ServerConfig};
 #[doc(hidden)]
 pub use session::{

@@ -6,6 +6,7 @@
 
 mod cli;
 mod clipboard_images;
+mod dispatch;
 mod durable_state;
 mod file_tree;
 mod file_tree_watch;
@@ -51,13 +52,30 @@ fn accept_open_request(launch: tauri::State<'_, cli::LaunchState>) -> Option<cli
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    if let Err(problem) = run_from_environment() {
+        eprintln!("zd: {problem}");
+        std::process::exit(2);
+    }
+}
+
+fn run_from_environment() -> Result<(), String> {
+    let arguments = std::env::args().skip(1).collect::<Vec<_>>();
+    let invocation_directory = cli::invocation_directory_from_environment();
+    match dispatch::parse_command(&arguments, &invocation_directory)? {
+        dispatch::LaunchMode::Desktop(launch_request) => {
+            run_desktop(launch_request);
+            Ok(())
+        }
+        dispatch::LaunchMode::Serve(arguments) => zd_server::run_foreground(arguments),
+    }
+}
+
+fn run_desktop(launch_request: cli::NativeOpenRequest) {
     /*
      * Native launch/open events add project grants before the webview sees their
      * opaque identities. Accepting a queued request changes only active context;
      * earlier grants stay valid so inactive dirty work is not stranded.
      */
-    let launch_request = cli::launch_from_environment();
-
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

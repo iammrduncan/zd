@@ -233,10 +233,10 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
       const startHost = async (port: number): Promise<Readiness> => {
         const launched = spawn(
           serverExecutable(root),
-          [projectRoot, "--bind", hostAddress, "--state-dir", stateRoot, "--port", String(port)],
+          [projectRoot, "--bind", hostAddress, "--port", String(port)],
           {
             cwd: root,
-            env: process.env,
+            env: { ...process.env, ZD_TEST_STATE_DIR: stateRoot },
             stdio: ["ignore", "pipe", "pipe"],
           },
         );
