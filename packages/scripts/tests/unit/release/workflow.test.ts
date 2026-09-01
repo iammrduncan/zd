@@ -9,12 +9,24 @@ const RELEASE_GUIDE = resolve(ROOT, "docs/_internal/releasing.md");
 const workflow = () => readFileSync(WORKFLOW, "utf8");
 
 describe("the tagged release workflow", () => {
-  it("runs only for version tags and validates the package version", () => {
+  it("publishes only from version tags and validates the package version", () => {
     const source = workflow();
 
     expect(source).toContain('tags: ["v*.*.*"]');
     expect(source).not.toMatch(/^\s+branches:/m);
     expect(source).toContain('npm run release:check -- "$GITHUB_REF_NAME"');
+  });
+
+  it("supports a manual validation run that cannot publish", () => {
+    const source = workflow();
+
+    expect(source).toMatch(/on:\n[\s\S]*?workflow_dispatch:/);
+    expect(source).toMatch(
+      /- name: Match tag to package version\n\s+if: github\.event_name == 'push'/,
+    );
+    expect(source).toMatch(
+      /publish:\n\s+name: Publish GitHub Release\n\s+if: github\.event_name == 'push' && startsWith\(github\.ref, 'refs\/tags\/v'\)/,
+    );
   });
 
   it("verifies the release before packaging it", () => {
@@ -90,6 +102,8 @@ describe("the tagged release workflow", () => {
   it("documents the tag-to-download release path", () => {
     const guide = readFileSync(RELEASE_GUIDE, "utf8");
 
+    expect(guide).toContain("gh workflow run release.yml --ref <branch>");
+    expect(guide).toContain("does not create or modify a GitHub Release");
     expect(guide).toContain("npm run release:check -- v<version>");
     expect(guide).toContain("git tag -a v<version>");
     expect(guide).toContain("git push origin v<version>");

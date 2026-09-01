@@ -18,6 +18,18 @@ Release work requires a Node version accepted by the `engines.node` range in `pa
 verification belong to the release workflow added with packaging, so the version change remains
 visible for review before any release is created.
 
+## Validate without publishing
+
+Push the branch, then run the complete release matrix without creating a tag:
+
+```sh
+gh workflow run release.yml --ref <branch>
+```
+
+The manual run performs verification, builds and installs both macOS architectures and the Linux
+package, runs their smoke checks, writes checksums, and retains the checked downloads for seven days.
+It skips tag-version validation and does not create or modify a GitHub Release.
+
 ## Publish the release
 
 After the prepared version commit is on `main`, validate and push one annotated tag whose name
