@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { materializeEditorTarget, openEditor } from "./harness";
+import { materializeEditorTarget, openEditor, waitForEditorScrollToSettle } from "./harness";
 
 /*
  * "everything with caret placement and arrow key navigation and text selection
@@ -494,26 +494,35 @@ test("the caret stays on screen when it is walked down the document", async ({ p
   await page.setViewportSize({ width: 1100, height: 700 });
   await page.locator(".cm-content").click();
   await page.evaluate(() => window.zdEditor!.setCaret(40));
-  await page.waitForTimeout(300);
+  /*
+   * `beforeEach` scrolls until the fixture link is materialized. Moving the caret
+   * back to line three therefore starts the deliberate half-second edge return.
+   * Wait for that journey by its state before testing ArrowDown. The former 300ms
+   * sleep sampled the caret while it was still above the window; before scroll
+   * targets were stabilized, the first ArrowDown then jumped from line 3 to line
+   * 22 and made this visibility assertion pass for the wrong reason.
+   */
+  await waitForEditorScrollToSettle(page);
 
   const escaped = await page.evaluate(async () => {
     const gone: number[] = [];
+    const halfRow =
+      document.querySelector<HTMLElement>(".cm-line")!.getBoundingClientRect().height / 2;
     for (let press = 1; press <= 30; press += 1) {
       document
         .querySelector(".cm-content")!
         .dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
       await new Promise((done) => requestAnimationFrame(done));
 
-      const selection = getSelection();
-      if (!selection?.rangeCount) continue;
-      const rect = selection.getRangeAt(0).getBoundingClientRect();
-      if (rect.height === 0) continue;
+      const caret = window.zdEditor!.caretY();
+      if (caret === null) continue;
       // Against the window, not against the surface. The surface is the thing that was
-      // wrong, so measuring inside it would have agreed with the bug.
-      if (rect.y < 0 || rect.bottom > window.innerHeight) gone.push(press);
+      // wrong, so measuring inside it would have agreed with the bug. Ask the editor
+      // for the caret coordinate so blank lines cannot silently escape the assertion.
+      if (caret - halfRow < 0 || caret + halfRow > window.innerHeight) gone.push(press);
     }
     return gone;
   });
 
-  expect(escaped, "the caret went off screen and stayed there").toEqual([]);
+  expect(escaped, "the caret left the window during repeated ArrowDown navigation").toEqual([]);
 });

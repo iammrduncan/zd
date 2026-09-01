@@ -499,7 +499,10 @@ const focus = ViewPlugin.fromClass(
      *
      * `resolve` runs inside the measure phase rather than the range being passed
      * in, so a caller can decline once it sees the current state — the opening
-     * scroll uses that to stand down if a caret arrived first.
+     * scroll uses that to stand down if a caret arrived first. An eased journey
+     * also resolves again when another scroll writer appears. The edge-return
+     * target is the live caret, not the position where that journey began; holding
+     * ArrowDown can move it several rows while the return is still in flight.
      *
      * In a frame because it is a measurement: the block's box comes from
      * `coordsAtPos`, which needs the lines laid out and the prose face landed.
@@ -527,11 +530,13 @@ const focus = ViewPlugin.fromClass(
           const block = resolve(view);
           if (!block) return null;
 
-          const box = focusBox(view, block);
-          return box ? { block, box } : null;
+          return focusBox(view, block);
         },
-        ({ block, box }) => {
-          scrollBoxToAnchor(surface, box, motion, () => focusBox(this.view, block));
+        (box) => {
+          scrollBoxToAnchor(surface, box, motion, () => {
+            const current = resolve(this.view);
+            return current ? focusBox(this.view, current) : null;
+          });
           this.remeasure();
         },
       );
