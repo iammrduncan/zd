@@ -10,8 +10,9 @@ reachable served host and one observable protocol.
 ## Needs the owner
 
 Nothing. The owner deferred Windows beyond this objective. Goal 04 is complete on its Linux,
-Unix-process, direct-browser, and served-browser evidence. The macOS and Linux Goal 05 is ready to
-start.
+Unix-process, direct-browser, and served-browser evidence. Goal 05 is implemented and verified on
+Linux. It remains open until the release jobs produce installed-smoke evidence on native macOS arm64
+and x86_64 runners.
 
 ## Plan documents
 
