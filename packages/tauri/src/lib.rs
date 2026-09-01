@@ -1,8 +1,8 @@
 //! The `zd` desktop shell.
 //!
-//! This side stays thin on purpose. It is a file, git, and window layer; the
-//! product lives in `packages/app/src/`. See
-//! `docs/adr/suite/0001-use-tauri-with-portable-web-frontend_H.md`.
+//! The workbench host runs in one supervised child of this process. This crate
+//! owns CLI dispatch, child lifecycle, and viewing-computer behavior; filesystem,
+//! Git, persistence, watcher, diagnostic, and terminal work stays in `zd-host`.
 
 mod desktop;
 mod dispatch;

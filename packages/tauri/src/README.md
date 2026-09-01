@@ -1,49 +1,41 @@
-# Native source map
+# Desktop shell source map
 
-Status: **current implementation context (2026-08-31)**
+Status: **current implementation context (2026-09-01)**
 
-This directory adapts desktop-only Tauri features to the shared host authority in
-[`packages/host`](../../host). The webview sends stable project, worktree, file, and session
-identities through the typed adapter in [`packages/app/src/platform.ts`](../../app/src/platform.ts).
-Host code resolves those identities against approved grants; frontend callers do not supply
-arbitrary filesystem paths or commands.
+This crate is a desktop wrapper around the same served host that a remote browser uses. It does not
+implement a second filesystem, Git, persistence, watcher, diagnostic, or terminal backend. Those
+operations run in the supervised `zd` child through [`packages/host`](../../host) and
+[`packages/server`](../../server).
 
 ## Composition and authority
 
-| Path | Current responsibility |
+| Path | Responsibility |
 | --- | --- |
-| [`main.rs`](main.rs) | Enter the desktop application through the library builder. |
-| [`lib.rs`](lib.rs) | Compose managed state, register native commands, and own shutdown cleanup. |
-| [`cli.rs`](cli.rs) | Parse launch input, queue native open requests, and expose the current grant lifecycle. |
-| [`grants.rs`](grants.rs) | Mint, resolve, recover, and revoke least-privilege grants with stable identities. |
-| [`projects.rs`](projects.rs) | Choose and recover approved project roots through the native folder picker. |
-| [`fs.rs`](fs.rs) | Perform current grant-scoped listings, reads, file stamps, links, and atomic writes. |
-| [`clipboard_images.rs`](clipboard_images.rs) | Validate and persist bounded clipboard images below fixed project-owned screenshot directories. |
-| [`file_tree.rs`](file_tree.rs) | Scan one approved project/worktree into a bounded ignored-aware tree snapshot. |
-| [`file_tree_watch.rs`](file_tree_watch.rs) | Adapt host-owned path-free watcher signals to Tauri events. |
-| [`git.rs`](git.rs) | Run the fixed read-only status, history, comparison, and diff operations. |
-| [`worktrees.rs`](worktrees.rs) | Create and approve one structured Git worktree without delete or prune authority. |
-| [`workspaces.rs`](workspaces.rs) | Persist bounded recent project sets and reopen their native-owned roots by opaque workspace ID. |
-| [`themes.rs`](themes.rs) | Discover bounded, direct-child theme configuration files. |
+| [`main.rs`](main.rs) | Enter the executable dispatcher. |
+| [`dispatch.rs`](dispatch.rs) | Select desktop, foreground `serve`, or the private wrapper-child mode. |
+| [`launch.rs`](launch.rs) | Resolve one trusted desktop launch path against its invocation directory. |
+| [`lib.rs`](lib.rs) | Compose the Tauri application, plugins, shell commands, and exit cleanup. |
+| [`desktop.rs`](desktop.rs) | Start the supervisor, install the exact-origin capability, navigate after readiness, and report child failure. |
+| [`supervisor/`](supervisor/) | Own one child generation, private bootstrap/control frames, deadlines, shutdown, and reaping. |
+| [`single_instance.rs`](single_instance.rs) | Forward a secondary desktop path to the primary process. |
+| [`shell.rs`](shell.rs) | Expose only trusted picker/open input and viewing-computer behavior to the active served origin. |
 | [`quick_access.rs`](quick_access.rs) | Own native summon registration and root-window presentation. |
-| [`instrumentation/`](instrumentation/) | Write, rotate, sample, and retain local opt-in diagnostics. |
-| [`terminal_runtime.rs`](terminal_runtime.rs) | Adapt host-owned terminal sessions to Tauri managed state, commands, and events. |
-| [`packages/host/src/terminal/`](../../host/src/terminal/) | Own portable terminal sessions, bounded output, process containment, and cleanup. |
-| [`notifications.rs`](notifications.rs) | Validate bounded attention requests and retain ID-only action routing. |
-| [`notifications/`](notifications/) | Present native macOS notifications and completion sounds. |
+| [`notifications.rs`](notifications.rs) | Validate and present native notifications and completion sounds. |
 
-`lib.rs` and the frontend platform adapter are shared integration points. Keep feature complexity
-inside its owning module and propose the narrowest command/interface addition required. Do not add
-a generic path, process-execution, shell-command, or environment-variable escape hatch.
+Absolute picker and file-association paths stay between native code and the child control pipe. The
+webview receives only typed grants or launch intents. Every callable shell command checks that it
+came from the `main` webview at the current child origin.
 
 ## Verification
 
-Module tests live beside their Rust owner. Host-owned grant, file, Git, watcher, and terminal tests
-live under [`packages/host`](../../host). Desktop adapter and lifecycle evidence lives under
-[`packages/tauri/tests/`](../tests/). Run focused Rust tests while iterating, then the repository's
-complete Cargo test and Clippy checks before a native gate closes.
+- [`tests/authority.rs`](../tests/authority.rs) proves retired host commands are absent from Rust
+  registration, Tauri permissions, and the frontend invoke adapter.
+- [`tests/supervisor.rs`](../tests/supervisor.rs) exercises a real host plus executable fake children
+  for readiness framing, pipe pressure, crash, deadlines, and reaping.
+- [`tests/cli_dispatch.rs`](../tests/cli_dispatch.rs) exercises the shipped executable in foreground
+  and wrapper-child modes, including parent-channel loss.
+- Frontend shell composition and disconnect presentation are covered under
+  [`packages/app/tests/unit/platform`](../../app/tests/unit/platform).
 
-The completed implementation sequence and acceptance contracts are recorded in the
-[expanded-scope execution plan](../../../docs/planning/goals/expanded-scope/goal.md). This source
-map describes the current modules; the plan is not a license to widen native authority outside an
-owning feature.
+Run focused tests while iterating. Before closing a native goal, run the full Cargo test, format, and
+strict Clippy gates from the repository root.

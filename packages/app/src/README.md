@@ -19,7 +19,7 @@ affects behavior or architecture.
 | [`workbench/state-owner.ts`](workbench/state-owner.ts) | Serialize guarded project, worktree, thread, and file transitions. |
 | [`workbench/resources.ts`](workbench/resources.ts) | Define ID-scoped launch and file resources shared with native grants. |
 | [`workbench/workspace-home.ts`](workbench/workspace-home.ts) | Present bare-launch project/recent-workspace selection and persist ordered project sets. |
-| [`platform.ts`](platform.ts) | Be the frontend's only importer of Tauri APIs and expose narrow typed adapters. |
+| [`platform.ts`](platform.ts) | Compose the socket-backed workbench host with either the browser shell or the narrow Tauri viewing-computer shell. |
 
 Treat `workbench/boot.ts`, the state facade, `platform.ts`, the command registry, and shared theme
 configuration as integration-owner files. A feature should request a narrow interface change
@@ -41,9 +41,9 @@ instead of creating another state, command, or native-authority owner.
 | [`notifications/`](notifications/) | Attention policy, local preferences, platform request schema, and outcome routing. |
 | [`workbench/`](workbench/) | Root shell, state, settings surfaces, commands, and lifecycle composition. [`workbench/current-file/`](workbench/current-file/) owns bounded file reads, saving, reconciliation, dirty-close safety, and the active editor buffer. |
 
-The native side of grants, files, Git, themes, diagnostics, quick access, terminal sessions, and
-notifications is mapped
-in the [native source map](../../tauri/src/README.md).
+The host side of grants, files, Git, themes, diagnostics, watchers, and terminal sessions is mapped
+in the [`packages/host` source map](../../host/README.md). The desktop-only supervisor, picker, window, quick-access, and
+notification behavior is mapped in the [native source map](../../tauri/src/README.md).
 
 ## Verification
 

@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 // without adding chrome."
 //
 // The atomic write is on the far side of the platform boundary and is tested
-// against a real filesystem in src-tauri/src/fs.rs. What is testable in a
+// against a real filesystem in packages/host/src/atomic_write.rs. What is testable in a
 // browser — where there is deliberately no filesystem at all — is everything on
 // this side of it: that the key reaches a handler with the right text, and that
 // the editor knows whether what is on screen has been written yet.

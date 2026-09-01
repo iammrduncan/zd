@@ -41,6 +41,7 @@ const CONTRIBUTOR_PAGES = [
   "CONTRIBUTING.md",
   "docs/README.md",
   "packages/app/src/README.md",
+  "packages/host/README.md",
   "packages/tauri/src/README.md",
 ];
 const EXPANDED_GOALS = [
@@ -183,10 +184,12 @@ describe("the repository documentation map", () => {
     const contributing = page("CONTRIBUTING.md");
     const hub = page("docs/README.md");
     const app = page("packages/app/src/README.md");
+    const host = page("packages/host/README.md");
     const native = page("packages/tauri/src/README.md");
 
     for (const source of [contributing, hub]) {
       expect(source).toContain("packages/app/src/README.md");
+      expect(source).toContain("packages/host/README.md");
       expect(source).toContain("packages/tauri/src/README.md");
     }
 
@@ -195,9 +198,14 @@ describe("the repository documentation map", () => {
     expect(app).toContain("workbench/current-file/");
     expect(app).toContain("editor/");
     expect(app).toContain("platform.ts");
+    expect(host).toContain("service.rs");
+    expect(host).toContain("grants.rs");
+    expect(host).toContain("terminal/");
     expect(native).toContain("lib.rs");
-    expect(native).toContain("grants.rs");
-    expect(native).toContain("terminal/");
+    expect(native).toContain("supervisor/");
+    expect(native).toContain("shell.rs");
+    expect(native).not.toContain("src/grants.rs");
+    expect(native).not.toContain("src/terminal/");
   });
 
   it("gives user documentation one entry point for every Diátaxis purpose", () => {
