@@ -125,16 +125,15 @@ than pulling later packets into it.
 
 ## Coverage status
 
-Work packet 0 is complete in goal 00. Goal 01 completed the stable-identity and durable-state half of
-work packet 1. Their evidence fixed the host, protocol, browser, persistence, and test shapes needed
-for the remaining work:
+Work packets 0–3 are complete in goals 00–04. Their evidence fixes the host, protocol, browser,
+persistence, terminal, executable, and wrapper shapes that Goal 05 must package:
 
-- goal 02 completes packet 1 by moving non-streaming file, Git, worktree, theme, and diagnostic
+- goal 02 completed packet 1 by moving non-streaming file, Git, worktree, theme, and diagnostic
   authority behind the host;
-- goal 03 delivers packet 2's watchers, PTYs, event sequencing, and reconnect behavior;
-- goal 04 delivers packet 3's stable CLI and literal Tauri wrapper; and
+- goal 03 delivered packet 2's watchers, PTYs, event sequencing, and reconnect behavior;
+- goal 04 delivered packet 3's stable CLI and literal Tauri wrapper; and
 - goal 05 delivers packet 4's macOS, Windows, and Linux release evidence.
 
 The goals are serialized because every packet changes the host/protocol integration shape consumed
-by the next. Goal 03 remains the highest-risk packet because it must reconcile process lifetime,
-bounded output, connection interruption, replay gaps, and cross-platform descendant cleanup.
+by the next. Goal 05 now owns the remaining risk: executable layout, installed-path behavior, and
+native platform smoke evidence.

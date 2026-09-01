@@ -23,9 +23,9 @@ not turn those into transport-shaped product APIs.
 - Browser and Tauri clients use one host implementation.
 - Tauri is a desktop client shell, not a second file or terminal backend.
 - The remote client is only a browser and does not create a tunnel or run a helper.
-- On 2026-09-01, the owner deferred native Windows process-containment execution from Goal 03 to
-  Goal 05. Goal 03 completes on its Linux, Unix-process, and real-browser evidence; Windows behavior
-  remains unverified until the release-platform goal runs it.
+- On 2026-09-01, the owner deferred native Windows process-containment and wrapper execution from
+  Goals 03 and 04 to Goal 05. Those goals complete on Linux, portable Unix-process, and real-browser
+  evidence. Windows behavior remains unverified until the release-platform goal runs it.
 
 ## Planning decisions
 
@@ -43,8 +43,8 @@ not turn those into transport-shaped product APIs.
 
 1. Numeric request, queue, file, watcher, terminal, and shutdown limits need measured fixtures.
 2. Durable state schema and migration need a separate contract.
-3. PTY reattachment and disconnect grace have real Unix evidence. Native Windows execution remains
-   deferred to Goal 05.
+3. PTY reattachment, disconnect grace, and wrapper supervision have real Linux and portable Unix
+   evidence. Native Windows execution remains deferred to Goal 05.
 4. Absolute host-path display needs a privacy/product review for remote clients.
 5. Windows console/GUI names and Linux distribution targets need release experiments.
 6. Public Internet access, direct HTTPS, and managed proxies need a new threat model and architecture
