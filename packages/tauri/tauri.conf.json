@@ -1,13 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "zd",
+  "mainBinaryName": "zd-desktop",
   "version": "../../package.json",
   "identifier": "com.zensuite.zd",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
-    "frontendDist": "../app/dist"
+    "frontendDist": "bootstrap"
   },
   "app": {
     "withGlobalTauri": false,
@@ -34,6 +35,9 @@
     "category": "Productivity",
     "shortDescription": "A fast, local agent workbench",
     "longDescription": "ZenSuite — a fast, local agent workbench for projects, threads, terminals, files, and Git.",
+    "resources": {
+      "../app/dist/": "assets/"
+    },
     "fileAssociations": [
       {
         "ext": ["md", "markdown"],
@@ -50,6 +54,18 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "files": {
+        "Resources/bin/zd": "../../target/release/zd"
+      }
+    },
+    "linux": {
+      "deb": {
+        "files": {
+          "/usr/bin/zd": "../../target/release/zd"
+        }
+      }
+    }
   }
 }

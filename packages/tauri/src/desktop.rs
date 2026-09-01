@@ -29,8 +29,7 @@ pub fn take_desktop_bootstrap(
 }
 
 pub fn start(app: tauri::AppHandle, launch_path: Option<PathBuf>) -> Result<(), String> {
-    let executable = std::env::current_exe()
-        .map_err(|_| "the desktop host executable is unavailable".to_string())?;
+    let executable = crate::executables::console_for_desktop()?;
     let window = app
         .get_webview_window("main")
         .ok_or_else(|| "the main desktop webview is unavailable".to_string())?;
@@ -124,12 +123,26 @@ pub(super) fn should_prevent_close(phase: SupervisorPhase) -> bool {
 }
 
 fn emit_status(window: &tauri::WebviewWindow, phase: &'static str, problem: Option<String>) {
+    if phase == "failed" {
+        let message = problem
+            .as_deref()
+            .unwrap_or("The local workbench host could not start.");
+        let _ = window.eval(startup_status_script(message));
+    }
     let _ = window.emit(HOST_STATUS_EVENT, DesktopHostStatus { phase, problem });
+}
+
+fn startup_status_script(message: &str) -> String {
+    let message =
+        serde_json::to_string(message).unwrap_or_else(|_| "\"zd could not start\"".into());
+    format!(
+        "document.getElementById('zd-startup-status')?.replaceChildren(document.createTextNode({message}));"
+    )
 }
 
 #[cfg(test)]
 mod tests {
-    use super::should_prevent_close;
+    use super::{should_prevent_close, startup_status_script};
     use crate::supervisor::SupervisorPhase;
 
     #[test]
@@ -145,5 +158,14 @@ mod tests {
         ] {
             assert!(!should_prevent_close(phase), "blocked {phase:?}");
         }
+    }
+
+    #[test]
+    fn startup_failure_text_is_serialized_before_native_evaluation() {
+        let script = startup_status_script("failed </script> ' \" safely");
+
+        assert!(script.contains("failed </script> ' \\\" safely"));
+        assert!(script.contains("document.createTextNode"));
+        assert!(!script.contains("innerHTML"));
     }
 }

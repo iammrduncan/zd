@@ -11,8 +11,10 @@ operations run in the supervised `zd` child through [`packages/host`](../../host
 
 | Path | Responsibility |
 | --- | --- |
-| [`main.rs`](main.rs) | Enter the executable dispatcher. |
+| [`main.rs`](main.rs) | Enter the public `zd` console dispatcher. |
+| [`bin/zd-desktop.rs`](bin/zd-desktop.rs) | Enter the private GUI/Tauri executable. |
 | [`dispatch.rs`](dispatch.rs) | Select desktop, foreground `serve`, or the private wrapper-child mode. |
+| [`executables.rs`](executables.rs) | Resolve the installed console and desktop executables from each platform layout. |
 | [`launch.rs`](launch.rs) | Resolve one trusted desktop launch path against its invocation directory. |
 | [`lib.rs`](lib.rs) | Compose the Tauri application, plugins, shell commands, and exit cleanup. |
 | [`desktop.rs`](desktop.rs) | Start the supervisor, install the exact-origin capability, navigate after readiness, and report child failure. |
@@ -32,8 +34,8 @@ came from the `main` webview at the current child origin.
   registration, Tauri permissions, and the frontend invoke adapter.
 - [`tests/supervisor.rs`](../tests/supervisor.rs) exercises a real host plus executable fake children
   for readiness framing, pipe pressure, crash, deadlines, and reaping.
-- [`tests/cli_dispatch.rs`](../tests/cli_dispatch.rs) exercises the shipped executable in foreground
-  and wrapper-child modes, including parent-channel loss.
+- [`tests/cli_dispatch.rs`](../tests/cli_dispatch.rs) exercises the distinct console and desktop
+  roles, foreground and wrapper-child modes, and parent-channel loss.
 - Frontend shell composition and disconnect presentation are covered under
   [`packages/app/tests/unit/platform`](../../app/tests/unit/platform).
 

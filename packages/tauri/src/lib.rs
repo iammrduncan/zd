@@ -6,6 +6,7 @@
 
 mod desktop;
 mod dispatch;
+mod executables;
 mod launch;
 pub mod notifications;
 mod quick_access;
@@ -18,26 +19,63 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    if let Err(problem) = run_from_environment() {
+    run_desktop();
+}
+
+pub fn run_console() {
+    if let Err(problem) = run_console_from_environment() {
         eprintln!("zd: {problem}");
         std::process::exit(2);
     }
 }
 
-fn run_from_environment() -> Result<(), String> {
+pub fn run_desktop() {
+    if let Err(problem) = run_desktop_from_environment() {
+        eprintln!("zd: {problem}");
+        std::process::exit(2);
+    }
+}
+
+fn run_console_from_environment() -> Result<(), String> {
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
     let invocation_directory = launch::invocation_directory_from_environment();
     match dispatch::parse_command(&arguments, &invocation_directory)? {
-        dispatch::LaunchMode::Desktop(launch_request) => {
-            run_desktop(launch_request);
-            Ok(())
-        }
+        dispatch::LaunchMode::Desktop(launch_request) => launch_desktop(launch_request),
         dispatch::LaunchMode::Serve(arguments) => zd_server::run_foreground(arguments),
         dispatch::LaunchMode::WrapperChild => zd_server::run_wrapper_child(),
     }
 }
 
-fn run_desktop(launch_request: launch::NativeOpenRequest) {
+fn run_desktop_from_environment() -> Result<(), String> {
+    let arguments = std::env::args().skip(1).collect::<Vec<_>>();
+    let invocation_directory = launch::invocation_directory_from_environment();
+    match dispatch::parse_command(&arguments, &invocation_directory)? {
+        dispatch::LaunchMode::Desktop(launch_request) => {
+            run_desktop_app(launch_request);
+            Ok(())
+        }
+        dispatch::LaunchMode::Serve(_) | dispatch::LaunchMode::WrapperChild => {
+            Err("zd-desktop accepts only an optional desktop path".to_string())
+        }
+    }
+}
+
+fn launch_desktop(launch_request: launch::NativeOpenRequest) -> Result<(), String> {
+    let executable = executables::desktop_for_console()?;
+    let mut command = std::process::Command::new(executable);
+    if let Some(path) = launch_request.path {
+        command.arg(path);
+    }
+    command
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map(|_| ())
+        .map_err(|_| "the desktop application could not start".to_string())
+}
+
+fn run_desktop_app(launch_request: launch::NativeOpenRequest) {
     let app = tauri::Builder::default()
         .plugin(single_instance::plugin())
         .plugin(tauri_plugin_opener::init())

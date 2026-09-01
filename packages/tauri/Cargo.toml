@@ -6,6 +6,15 @@ authors = ["Duncan"]
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/iammrduncan/zd"
+default-run = "zd"
+
+[[bin]]
+name = "zd"
+path = "src/main.rs"
+
+[[bin]]
+name = "zd-desktop"
+path = "src/bin/zd-desktop.rs"
 
 [lib]
 # The `_lib` suffix keeps the lib name from colliding with the bin name on
