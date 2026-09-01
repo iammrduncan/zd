@@ -32,12 +32,13 @@ external links, and trusted same-machine picker/file-open inputs.
 When the work is complete, the repository must have:
 
 1. one tested top-level CLI dispatcher in the shipped Rust executable: `zd`, `zd <folder>`, and
-   `zd <file>` enter the desktop path; `zd serve [<folder>] [--port <port>]` enters the foreground
-   host, defaults a missing folder to the invocation directory, and rejects unknown options or extra
-   positionals before either runtime starts;
+   `zd <file>` enter the desktop path; `zd serve [<folder>] [--bind <ip>] [--port <port>]` enters the
+   foreground host, defaults a missing folder to the invocation directory, and rejects unknown
+   options or extra positionals before either runtime starts;
 2. direct `zd serve` behavior equivalent to the proven developer server: approve before listen,
-   numeric loopback only, port zero by default, separate URL/secret output after readiness, SIGINT/
-   SIGTERM cleanup, and no Tauri initialization or GUI requirement;
+   all IPv4 interfaces by default, an optional numeric bind restriction, port zero by default,
+   separate connection/secret output after readiness, SIGINT/SIGTERM cleanup, and no Tauri
+   initialization or GUI requirement;
 3. a wrapper-child mode of that same executable using inherited private input/output channels for
    one bounded versioned readiness record and lifecycle controls; the record contains application/
    protocol versions, literal loopback origin, session epoch, and secret, while credentials never
@@ -95,12 +96,13 @@ When the work is complete, the repository must have:
 At minimum, prove:
 
 - the CLI distinguishes a path named `serve` only according to the documented subcommand grammar,
-  resolves relative paths against the invocation directory, accepts `--port` only in serve mode,
-  defaults serve root/port correctly, and rejects missing option values, repeated roots, unknown
-  flags, invalid ports, and extra arguments without initializing Tauri or binding;
-- direct serve prints exactly one credential-free numeric-loopback URL and one separate secret only
-  after health/socket routes accept traffic, while wrapper-child mode prints neither to ordinary
-  stdout/stderr and sends one readiness frame only on its inherited private channel;
+  resolves relative paths against the invocation directory, accepts `--bind` and `--port` only in
+  serve mode, defaults serve root/bind/port correctly, and rejects missing option values, repeated
+  roots, unknown flags, hostnames, invalid IPs/ports, and extra arguments without initializing Tauri
+  or binding;
+- direct serve prints credential-free connection information and one separate secret only after
+  health/socket routes accept traffic, while wrapper-child mode prints neither to ordinary stdout/
+  stderr and sends one readiness frame only on its inherited private channel;
 - the supervisor rejects timeout, EOF, early exit, partial/multiple/oversized frames, invalid JSON,
   wrong app/protocol version, hostname `localhost`, non-loopback/wildcard origin, URL credentials,
   and a readiness secret of the wrong shape; every failure drains and reaps the child;
@@ -150,12 +152,13 @@ At minimum, prove:
   open events.
 - Do not solve Windows console/GUI naming, macOS CLI linking, Linux installers, signing, or release
   publishing here; goal 05 owns artifact topology.
-- Do not add product-managed SSH, public listeners, multiple controllers, or collaboration.
+- Do not add product-managed SSH, public-Internet transport, TLS/proxy identity, multiple
+  controllers, or collaboration.
 
 ## Engineering constraints
 
 - Follow repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../GOOD_ENGINEERING_H.md),
-  [`DESIGN.md`](../../../../DESIGN.md), ADR 0008, and the shutdown order in
+  [`DESIGN.md`](../../../../DESIGN.md), ADR 0009, and the shutdown order in
   [`01-TARGET-ARCHITECTURE.md:100-123`](../01-TARGET-ARCHITECTURE.md#desktop-process-topology).
 - Model child supervision as one explicit state machine with one owner. Do not spread generation,
   readiness, reaping, and shutdown booleans across event callbacks.

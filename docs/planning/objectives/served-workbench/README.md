@@ -4,16 +4,14 @@
 **Started:** 2026-08-31
 
 This objective makes one `zd` host authoritative for browser and Tauri clients. It replaces a future
-choice between custom SSH application messages and a second browser backend with a loopback served
-host, a standard protected tunnel, and one observable protocol.
+choice between custom SSH application messages and a second browser backend with one directly
+reachable served host and one observable protocol.
 
 ## Needs the owner
 
-Goal 02's host/protocol/browser implementation is complete, but its required normal Playwright gate
-has nine pre-existing Linux failures in editor and design files outside the goal's ownership. Decide
-whether to authorize that browser-gate repair now or provide a supported macOS run. The
-[goal 02 summary](goals/summary-goal-02.md) records the exact failures and causality check. Goal 03
-cannot start until goal 02 is complete.
+Nothing. The owner corrected the remote contract: the client is only a browser and must connect
+directly without a tunnel or helper. Goal 02 now owns that correction and the measured Linux browser
+gate repairs required before Goal 03 can start.
 
 ## Plan documents
 
@@ -35,7 +33,7 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 
 | Goal | Delivers | Prerequisites | Needs owner |
 | --- | --- | --- | --- |
-| [Execute goal 02](goals/execute-goal-02.md) | Served editing, file operations, Git/worktrees, themes, and diagnostics through one host; implementation complete, normal browser gate halted | Goal 01 | Browser-gate scope decision |
+| [Execute goal 02](goals/execute-goal-02.md) | Direct browser access, served editing, file operations, Git/worktrees, themes, and diagnostics through one host | Goal 01 | No |
 | [Execute goal 03](goals/execute-goal-03.md) | Bounded watcher/PTY events and explicit reconnect/cleanup | Goal 02 | No |
 | [Execute goal 04](goals/execute-goal-04.md) | Stable `zd serve` CLI and a literal supervised Tauri client shell | Goal 03 | No |
 | [Execute goal 05](goals/execute-goal-05.md) | Verified macOS, Windows, and Linux release artifacts | Goal 04 | No |
@@ -50,7 +48,7 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 ## What this objective will not do
 
 - Build an SSH client, remote installer, cloud service, account system, or collaboration model.
-- Listen directly on a LAN or public interface or trust reverse-proxy identity.
+- Claim plain HTTP is safe on the public Internet or trust reverse-proxy identity.
 - Give a browser arbitrary roots, paths, commands, executables, arguments, or environment access.
 - Add a second filesystem, Git, watcher, or terminal implementation.
 - Move the frontend's runtime workbench-transition owner into the server.

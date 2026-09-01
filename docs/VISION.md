@@ -68,9 +68,9 @@ zd serve <folder>
 
 Bare `zd`, Dock, Spotlight, and Start menu activation open the existing workbench or its quiet home
 state. Folder and file activation resolve or add a project, then use the same safe context switch as
-in-app navigation. `zd serve <folder>` starts a workbench host for that approved folder and prints
-the loopback connection information for a browser or protected tunnel. The former `zd md` launch
-form is not a compatibility alias.
+in-app navigation. `zd serve <folder>` starts a directly reachable workbench host for that approved
+folder and prints its browser connection information. The viewing computer needs only a browser and
+network reachability to the host. The former `zd md` launch form is not a compatibility alias.
 
 One host owns one workbench session. The initial served product admits one controlling client; it is
 not a collaboration server. A desktop launch adds one Tauri client shell and one root workbench
@@ -340,8 +340,10 @@ retain another file, Git, watcher, or pseudoterminal backend.
 - File access is a host-owned set of explicit project/worktree grants.
 - Every path operation canonicalizes its target and rejects parent or symbolic-link escape.
 - The frontend may choose among existing grants but cannot widen them by supplying a path.
-- `zd serve` approves its startup folder before listening, binds loopback by default, authenticates
-  its controlling client, and requires a protected tunnel for access from another computer.
+- `zd serve` approves its startup folder before listening, accepts direct same-origin connections on
+  the host network by default, and authenticates its controlling client before sending project
+  state. The desktop wrapper selects loopback explicitly. Direct plain HTTP requires an already
+  protected network and is not a public-Internet transport.
 - Project content is data. The host never serves project HTML, scripts, SVG, or other workspace
   files as trusted application assets.
 - Markdown, Mermaid, and agent-produced markup are untrusted. Raw HTML is inert, remote images are

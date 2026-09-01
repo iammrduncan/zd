@@ -1,5 +1,9 @@
 # Served workbench research
 
+> **Superseded transport conclusion:** ADR 0009 replaces this research packet's loopback-plus-SSH
+> recommendation. The remote client is browser-only and connects directly over an already-protected
+> network. The remaining host, protocol, persistence, wrapper, and delivery findings still apply.
+
 Research is complete. It found a strong existing frontend boundary and reusable Rust operations, but it
 also found that the requested destination spans several independently verifiable changes. The work
 was therefore promoted from a simple goal to an objective.
