@@ -21,7 +21,7 @@ function transport(apply: DurableStateTransport["apply"]): DurableStateTransport
 
 describe("durable state adapter", () => {
   it("keeps synchronous state current while coalescing closed mutations", async () => {
-    let revision = { preferences: 0, project: 0 };
+    const revision = { preferences: 0, project: 0 };
     const apply = vi.fn(async (request: { mutation: DurableStateMutation }) => {
       if (request.mutation.kind === "replace-preferences") revision.preferences += 1;
       else revision.project += 1;
