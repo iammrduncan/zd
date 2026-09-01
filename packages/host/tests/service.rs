@@ -83,6 +83,33 @@ fn desktop_file_launch_approves_its_parent_and_keeps_only_a_relative_file_name()
 }
 
 #[test]
+fn trusted_desktop_inputs_add_host_grants_and_typed_open_intents() {
+    let state = Scratch::new("desktop-input-state");
+    let project = Scratch::new("desktop-input-project");
+    let file = project.join("notes.md");
+    std::fs::write(&file, "notes\n").expect("write trusted open file");
+    let host = HostService::open_desktop_with_state(None, state.path()).expect("open desktop home");
+
+    let selected = host
+        .approve_trusted_project(project.path())
+        .expect("approve picker project");
+    let intent = host
+        .approve_trusted_open(&file)
+        .expect("approve trusted file open");
+    let recovered_root = Scratch::new("desktop-input-recovered");
+    let recovered = host
+        .recover_trusted_project(&selected.id, recovered_root.path())
+        .expect("recover trusted project root");
+
+    assert_eq!(intent.project.as_ref(), Some(&selected));
+    assert_eq!(intent.relative_path.as_deref(), Some("notes.md"));
+    assert!(intent.worktree_id.is_some());
+    assert_eq!(recovered.id, selected.id);
+    assert_eq!(recovered.root, recovered_root.path().to_string_lossy());
+    assert_eq!(host.project_grants(), vec![recovered]);
+}
+
+#[test]
 fn startup_project_drives_tree_and_bounded_file_authority() {
     let scratch = Scratch::new("startup");
     std::fs::create_dir_all(scratch.join("docs")).expect("create docs");

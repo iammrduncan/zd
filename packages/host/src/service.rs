@@ -3,7 +3,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::durable::DurableStateStore;
 use crate::file_tree_watch::{
@@ -29,8 +29,8 @@ use crate::{
     WorkspaceListing, WorktreeAuthority, WorktreeGrant,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HostLaunchRequest {
     pub project: Option<ProjectGrant>,
     pub worktree_id: Option<String>,
@@ -195,6 +195,67 @@ impl HostService {
             .expect("host state was poisoned")
             .grants
             .projects()
+    }
+
+    pub fn approve_trusted_project(&self, root: &Path) -> Result<ProjectGrant, String> {
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "desktop project approval is unavailable".to_string())?;
+        let approved = match self.state_directory.as_deref() {
+            Some(state_directory) => state
+                .grants
+                .approve_project_with_state(root, state_directory),
+            None => state.grants.approve_project(root),
+        }?;
+        Ok(approved.project)
+    }
+
+    pub fn recover_trusted_project(
+        &self,
+        project_id: &str,
+        root: &Path,
+    ) -> Result<ProjectGrant, String> {
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| "desktop project recovery is unavailable".to_string())?;
+        match self.state_directory.as_deref() {
+            Some(state_directory) => {
+                state
+                    .grants
+                    .recover_project_with_state(project_id, root, state_directory)
+            }
+            None => state.grants.recover_project(project_id, root),
+        }
+    }
+
+    pub fn approve_trusted_open(&self, requested: &Path) -> Result<HostLaunchRequest, String> {
+        let (root, relative_path) = if requested.is_dir() {
+            (requested, None)
+        } else {
+            let parent = requested
+                .parent()
+                .filter(|path| !path.as_os_str().is_empty())
+                .ok_or_else(|| "the trusted desktop path has no parent".to_string())?;
+            let file_name = requested
+                .file_name()
+                .ok_or_else(|| "the trusted desktop path has no file name".to_string())?
+                .to_string_lossy()
+                .into_owned();
+            (parent, Some(file_name))
+        };
+        let project = self.approve_trusted_project(root)?;
+        let worktree_id = project
+            .worktrees
+            .first()
+            .map(|worktree| worktree.id.clone());
+        Ok(HostLaunchRequest {
+            project: Some(project),
+            worktree_id,
+            relative_path,
+            problem: None,
+        })
     }
 
     pub fn start_file_tree_watch(

@@ -18,7 +18,8 @@ pub use session::{
     MAX_EVENT_JOURNAL_EVENTS,
 };
 pub use wrapper::{
-    run_wrapper_child, WrapperControl, WrapperReadiness, WrapperStartup, MAX_WRAPPER_FRAME_BYTES,
+    run_wrapper_child, WrapperControl, WrapperReadiness, WrapperResponse, WrapperStartup,
+    MAX_WRAPPER_FRAME_BYTES, MAX_WRAPPER_IDENTITY_BYTES, MAX_WRAPPER_PATH_BYTES,
     WRAPPER_PROTOCOL_VERSION,
 };
 

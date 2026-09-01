@@ -92,6 +92,25 @@ fn one_supervised_real_child_bootstraps_once_rearms_and_reaps() {
             .expect("take reload bootstrap"),
         first
     );
+    assert!(supervisor
+        .recover_project_path("not a project id".to_string(), Path::new("/tmp"))
+        .is_err());
+    assert!(supervisor
+        .approve_project_path(&PathBuf::from(format!("/{}", "x".repeat(9 * 1024))))
+        .is_err());
+    assert_eq!(supervisor.snapshot().phase, SupervisorPhase::Ready);
+    let selected_root = scratch.join("selected-project");
+    fs::create_dir_all(&selected_root).expect("create selected project");
+    let selected = supervisor
+        .approve_project_path(&selected_root)
+        .expect("approve selected project in child");
+    let selected_file = selected_root.join("selected.md");
+    fs::write(&selected_file, "selected\n").expect("write selected file");
+    let intent = supervisor
+        .approve_open_path(&selected_file)
+        .expect("approve selected file in child");
+    assert_eq!(intent.project.as_ref(), Some(&selected));
+    assert_eq!(intent.relative_path.as_deref(), Some("selected.md"));
     assert!(supervisor.start(real_launch(&scratch)).is_err());
 
     let observer = supervisor.clone();

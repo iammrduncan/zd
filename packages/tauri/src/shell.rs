@@ -1,7 +1,54 @@
+use std::collections::VecDeque;
+#[cfg(target_os = "macos")]
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::{Mutex, MutexGuard};
+
+#[cfg(target_os = "macos")]
+use tauri::{Emitter, Manager};
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
+use zd_host::{HostLaunchRequest, ProjectGrant};
 
 use crate::supervisor::Supervisor;
 use crate::{notifications, quick_access};
+
+#[cfg(any(target_os = "macos", test))]
+const MAX_PENDING_OPEN_INTENTS: usize = 64;
+#[cfg(target_os = "macos")]
+const OPEN_REQUESTED_EVENT: &str = "open-requested";
+
+#[derive(Debug, Default)]
+pub struct OpenIntentState(Mutex<VecDeque<HostLaunchRequest>>);
+
+impl OpenIntentState {
+    fn lock(&self) -> MutexGuard<'_, VecDeque<HostLaunchRequest>> {
+        self.0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    #[cfg(any(target_os = "macos", test))]
+    fn queue(&self, intent: HostLaunchRequest) {
+        let mut pending = self.lock();
+        pending.push_back(intent);
+        while pending.len() > MAX_PENDING_OPEN_INTENTS {
+            pending.pop_front();
+        }
+    }
+
+    fn pending(&self) -> Option<HostLaunchRequest> {
+        self.lock().front().cloned()
+    }
+
+    fn accept(&self) -> Option<HostLaunchRequest> {
+        self.lock().pop_front()
+    }
+
+    fn has_pending(&self) -> bool {
+        !self.lock().is_empty()
+    }
+}
 
 fn authorize(
     window: &tauri::WebviewWindow,
@@ -15,6 +62,96 @@ fn authorize(
     } else {
         Err("the desktop shell refused this webview".to_string())
     }
+}
+
+fn picked_folder(window: &tauri::WebviewWindow, title: &str) -> Result<Option<PathBuf>, String> {
+    window
+        .dialog()
+        .file()
+        .set_title(title)
+        .blocking_pick_folder()
+        .map(|selected| {
+            selected
+                .into_path()
+                .map_err(|_| "the selected project path is unavailable".to_string())
+        })
+        .transpose()
+}
+
+#[tauri::command]
+pub async fn choose_project(
+    window: tauri::WebviewWindow,
+    supervisor: tauri::State<'_, Supervisor>,
+) -> Result<Option<ProjectGrant>, String> {
+    authorize(&window, &supervisor)?;
+    let Some(path) = picked_folder(&window, "Open Project")? else {
+        return Ok(None);
+    };
+    authorize(&window, &supervisor)?;
+    supervisor.approve_project_path(&path).map(Some)
+}
+
+#[tauri::command]
+pub async fn recover_project_grant(
+    window: tauri::WebviewWindow,
+    supervisor: tauri::State<'_, Supervisor>,
+    project_id: String,
+) -> Result<Option<ProjectGrant>, String> {
+    authorize(&window, &supervisor)?;
+    let Some(path) = picked_folder(&window, "Locate Project Folder")? else {
+        return Ok(None);
+    };
+    authorize(&window, &supervisor)?;
+    supervisor.recover_project_path(project_id, &path).map(Some)
+}
+
+#[tauri::command]
+pub fn has_pending_open_request(
+    window: tauri::WebviewWindow,
+    supervisor: tauri::State<'_, Supervisor>,
+    state: tauri::State<'_, OpenIntentState>,
+) -> Result<bool, String> {
+    authorize(&window, &supervisor)?;
+    Ok(state.has_pending())
+}
+
+#[tauri::command]
+pub fn pending_open_request(
+    window: tauri::WebviewWindow,
+    supervisor: tauri::State<'_, Supervisor>,
+    state: tauri::State<'_, OpenIntentState>,
+) -> Result<Option<HostLaunchRequest>, String> {
+    authorize(&window, &supervisor)?;
+    Ok(state.pending())
+}
+
+#[tauri::command]
+pub fn accept_open_request(
+    window: tauri::WebviewWindow,
+    supervisor: tauri::State<'_, Supervisor>,
+    state: tauri::State<'_, OpenIntentState>,
+) -> Result<Option<HostLaunchRequest>, String> {
+    authorize(&window, &supervisor)?;
+    Ok(state.accept())
+}
+
+#[cfg(target_os = "macos")]
+pub fn queue_native_open(app: &tauri::AppHandle, path: &Path) {
+    let supervisor = app.state::<Supervisor>().inner().clone();
+    let app = app.clone();
+    let path = path.to_path_buf();
+    tauri::async_runtime::spawn_blocking(move || {
+        let intent = supervisor
+            .approve_open_path(&path)
+            .unwrap_or_else(|problem| HostLaunchRequest {
+                project: None,
+                worktree_id: None,
+                relative_path: None,
+                problem: Some(problem),
+            });
+        app.state::<OpenIntentState>().queue(intent);
+        let _ = app.emit(OPEN_REQUESTED_EVENT, ());
+    });
 }
 
 #[tauri::command]
@@ -148,7 +285,8 @@ fn is_web_url(url: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::is_web_url;
+    use super::{is_web_url, OpenIntentState, MAX_PENDING_OPEN_INTENTS};
+    use zd_host::HostLaunchRequest;
 
     #[test]
     fn only_http_and_https_may_leave_the_desktop_shell() {
@@ -161,5 +299,22 @@ mod tests {
         ] {
             assert!(!is_web_url(refused));
         }
+    }
+
+    #[test]
+    fn native_open_intents_are_bounded_and_accepted_in_order() {
+        let state = OpenIntentState::default();
+        for index in 0..=MAX_PENDING_OPEN_INTENTS {
+            state.queue(HostLaunchRequest {
+                project: None,
+                worktree_id: None,
+                relative_path: Some(index.to_string()),
+                problem: None,
+            });
+        }
+
+        assert_eq!(state.pending().unwrap().relative_path.as_deref(), Some("1"));
+        assert_eq!(state.accept().unwrap().relative_path.as_deref(), Some("1"));
+        assert!(state.has_pending());
     }
 }
