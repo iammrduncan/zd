@@ -35,6 +35,7 @@
     "package:linux": "bash packaging/linux/package.sh",
     "package:macos": "bash packaging/macos/package.sh",
     "smoke:linux": "bash packaging/linux/smoke.sh",
+    "smoke:macos": "bash packaging/macos/smoke.sh",
     "promo:capture": "node packages/scripts/release/capture-workbench.mjs",
     "promo:render": "swift packaging/macos/render-social-card.swift docs/user-facing-docs/assets/zd-reader.jpeg docs/user-facing-docs/assets/zd-reader-dark.png docs/user-facing-docs/assets/zd-reader-dracula.png packaging/icon.png packages/app/assets/fonts/iAWriterQuattroV.ttf packages/app/assets/fonts/iAWriterQuattroS-Bold.ttf packages/app/assets/fonts/iAWriterMonoS-Regular.ttf docs/user-facing-docs/assets/zd-social-card.png",
     "tokens:unused": "node packages/scripts/audit/unused-tokens.mjs",

@@ -4,7 +4,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
-bundle_dir="$repo_root/packages/tauri/target/release/bundle"
+bundle_dir="$repo_root/target/release/bundle"
 app_path="$bundle_dir/macos/zd.app"
 version="$(node -p "require('$repo_root/package.json').version")"
 architecture="$(uname -m)"
@@ -17,11 +17,20 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$repo_root"
-./node_modules/.bin/tauri build --config packages/tauri/tauri.conf.json --bundles app
+cargo build --locked --release -p zd-desktop --bin zd
+./node_modules/.bin/tauri build \
+  --config packages/tauri/tauri.conf.json \
+  --bundles app \
+  --ci
 
-if ! codesign --verify --deep --strict "$app_path" 2>/dev/null; then
-  codesign --force --sign - "$app_path"
+if [[ ! -x "$app_path/Contents/MacOS/zd-desktop" || ! -x "$app_path/Contents/Resources/bin/zd" ]]; then
+  echo "zd: the application bundle does not contain both executable roles" >&2
+  exit 1
 fi
+
+codesign --force --sign - "$app_path/Contents/Resources/bin/zd"
+codesign --force --sign - "$app_path/Contents/MacOS/zd-desktop"
+codesign --force --sign - "$app_path"
 codesign --verify --deep --strict "$app_path"
 
 mkdir -p "$(dirname "$dmg_path")"

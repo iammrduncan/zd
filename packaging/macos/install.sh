@@ -4,15 +4,15 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
-source_app="${ZD_APP_SOURCE:-$repo_root/packages/tauri/target/release/bundle/macos/zd.app}"
+source_app="${ZD_APP_SOURCE:-$repo_root/target/release/bundle/macos/zd.app}"
 applications_dir="${ZD_APPLICATIONS_DIR:-/Applications}"
 bin_dir="${ZD_BIN_DIR:-/usr/local/bin}"
 destination_app="$applications_dir/zd.app"
-destination_executable="$destination_app/Contents/MacOS/zd"
+destination_executable="$destination_app/Contents/Resources/bin/zd"
 command_path="$bin_dir/zd"
 
-if [[ ! -x "$source_app/Contents/MacOS/zd" ]]; then
-  echo "zd: $source_app does not contain Contents/MacOS/zd; run npm run package:macos first" >&2
+if [[ ! -x "$source_app/Contents/MacOS/zd-desktop" || ! -x "$source_app/Contents/Resources/bin/zd" ]]; then
+  echo "zd: $source_app does not contain the installed zd executable roles; run npm run package:macos first" >&2
   exit 1
 fi
 

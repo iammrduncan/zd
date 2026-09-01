@@ -75,6 +75,14 @@ pub(crate) fn assets_directory() -> Result<PathBuf, String> {
 
 #[cfg(any(not(debug_assertions), test))]
 fn installed_assets_directory(executable: &std::path::Path) -> PathBuf {
+    let canonical;
+    let executable = match std::fs::canonicalize(executable) {
+        Ok(path) => {
+            canonical = path;
+            canonical.as_path()
+        }
+        Err(_) => executable,
+    };
     if let Some(contents) = mac_bundle_contents(executable) {
         return contents.join("Resources/assets");
     }
@@ -161,5 +169,32 @@ mod tests {
             installed_assets_directory(Path::new("/work/target/release/zd")),
             Path::new("/work/target/release/assets")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn installed_assets_follow_the_macos_console_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("zd-macos-link-{stamp}"));
+        let console = root.join("zd.app/Contents/Resources/bin/zd");
+        let command = root.join("bin/zd");
+        std::fs::create_dir_all(console.parent().expect("console parent"))
+            .expect("create bundle console directory");
+        std::fs::create_dir_all(command.parent().expect("command parent"))
+            .expect("create command directory");
+        std::fs::write(&console, b"console").expect("write bundle console");
+        symlink(&console, &command).expect("link installed console");
+
+        assert_eq!(
+            installed_assets_directory(&command),
+            root.join("zd.app/Contents/Resources/assets")
+        );
+
+        std::fs::remove_dir_all(root).expect("remove link fixture");
     }
 }
