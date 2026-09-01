@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Execute goal 02](execute-goal-02.md) is complete. This goal needs the full non-streaming host
+- [Execute goal 02](_completed/execute-goal-02.md) is complete. This goal needs the full non-streaming host
   authority, stable identities, durable state, bounded socket, and real read/write browser harness.
 - The owner may not release this goal independently as the desktop cutover. Tauri still uses its
   temporary adapter until goal 04.

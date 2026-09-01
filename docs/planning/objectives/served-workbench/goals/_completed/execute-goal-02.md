@@ -2,10 +2,10 @@
 
 ## Prerequisites
 
-- [Execute goal 01](_completed/execute-goal-01.md) is complete. This goal needs stable project/worktree IDs,
+- [Execute goal 01](execute-goal-01.md) is complete. This goal needs stable project/worktree IDs,
   scoped durable records, different-port recovery, and green full-repository gates before a served
   client may write.
-- [Execute goal 00](_completed/execute-goal-00.md) supplies the closed authenticated request path,
+- [Execute goal 00](execute-goal-00.md) supplies the closed authenticated request path,
   shared read boundary, timing, and real browser harness. ADR 0009 supersedes that goal's
   loopback-only transport assumption.
 - The owner may release this goal only as an experimental served target. Watchers, terminals, Tauri
@@ -22,7 +22,7 @@ product surface.
 ## `/goal` objective
 
 This goal delivers the capability half of work packet 1 from
-[`02-DELIVERY-PLAN.md:29-41`](../02-DELIVERY-PLAN.md#work-packet-1-durable-file-and-git-authority).
+[`02-DELIVERY-PLAN.md:29-41`](../../02-DELIVERY-PLAN.md#work-packet-1-durable-file-and-git-authority).
 
 Move every non-streaming host operation needed by the current workbench below `HostService`, expose
 it through the closed socket, and enable the existing browser workbench to edit safely. Tauri may
@@ -164,8 +164,8 @@ At minimum, prove:
 
 ## Engineering constraints
 
-- Follow repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../GOOD_ENGINEERING_H.md),
-  [`DESIGN.md`](../../../../DESIGN.md), and ADR 0009. Write the failing boundary/regression test
+- Follow repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../../GOOD_ENGINEERING_H.md),
+  [`DESIGN.md`](../../../../../DESIGN.md), and ADR 0009. Write the failing boundary/regression test
   before moving each implementation and keep every commit independently green.
 - Move deep modules with their tests and preserve history where practical. Tauri wrappers may adapt
   framework state, but must not reimplement validation, command construction, or filesystem work.

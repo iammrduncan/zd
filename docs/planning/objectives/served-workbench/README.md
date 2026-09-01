@@ -9,9 +9,9 @@ reachable served host and one observable protocol.
 
 ## Needs the owner
 
-Nothing. The owner corrected the remote contract: the client is only a browser and must connect
-directly without a tunnel or helper. Goal 02 now owns that correction and the measured Linux browser
-gate repairs required before Goal 03 can start.
+Nothing. The owner corrected the remote contract: the client is only a browser and connects
+directly without a tunnel or helper. Goal 02 completed that correction and its Linux browser gate;
+goal 03 is ready to start.
 
 ## Plan documents
 
@@ -33,7 +33,6 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 
 | Goal | Delivers | Prerequisites | Needs owner |
 | --- | --- | --- | --- |
-| [Execute goal 02](goals/execute-goal-02.md) | Direct browser access, served editing, file operations, Git/worktrees, themes, and diagnostics through one host | Goal 01 | No |
 | [Execute goal 03](goals/execute-goal-03.md) | Bounded watcher/PTY events and explicit reconnect/cleanup | Goal 02 | No |
 | [Execute goal 04](goals/execute-goal-04.md) | Stable `zd serve` CLI and a literal supervised Tauri client shell | Goal 03 | No |
 | [Execute goal 05](goals/execute-goal-05.md) | Verified macOS, Windows, and Linux release artifacts | Goal 04 | No |
@@ -44,6 +43,7 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 | --- | --- | --- |
 | [Execute goal 00](goals/_completed/execute-goal-00.md) | [Summary](goals/_completed/summary-goal-00.md) | One authenticated read-only served host opens a real project file in a real browser. |
 | [Execute goal 01](goals/_completed/execute-goal-01.md) | [Summary](goals/_completed/summary-goal-01.md) | Stable identities and host-owned workbench state survive a new process, port, origin, and secret. |
+| [Execute goal 02](goals/_completed/execute-goal-02.md) | [Summary](goals/_completed/summary-goal-02.md) | A browser connects directly and edits through one durable, grant-scoped file/Git host. |
 
 ## What this objective will not do
 

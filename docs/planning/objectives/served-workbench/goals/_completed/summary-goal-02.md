@@ -1,20 +1,19 @@
 # Summary — goal 02: Edit files and inspect Git through the one host
 
-**Status:** Halted at a required repository gate on 2026-08-31
+**Completed:** 2026-08-31
 
 **Commits:** `9a15bad`, `9c988df`, `6b1a40a`, `8aeeca3`, `b4afad6`, `02ad6f1`,
 `eaf87e8`, `27250cb`, `43c2d54`, `14f2154`, `c736601`, `60da5c7`, `d669912`,
-`28dc0a3`
+`28dc0a3`, `cc1b799`, `797c41c`, `270c2d7`, `65c62d4`, `2a9dbce`, `612040d`
 
 **Goal file:** [`execute-goal-02.md`](execute-goal-02.md)
 
 ## Action needed from the owner
 
-One scope decision blocks formal completion of goal 02 and the start of goal 03.
-
-| # | What | Why it needs you | Blocks |
-| --- | --- | --- | --- |
-| 1 | **Authorize a measured four-file Linux browser-gate repair outside goal 02's owned files, or provide a supported macOS run of the normal Playwright target.** The repair would update three test assumptions and reduce the compact notation gap from 8px to 5px; goal 05 must eventually verify Linux. | The nine failing tests predate goal 02. Read-only Chromium probes identified each cause, but the goal contract forbids silently widening its file ownership to repair them. | Moving goal 02 to `_completed/` and starting goals 03–05. |
+Nothing. The current developer target starts on the remote host with `npm run app:serve -- .`; open
+the printed host URL in a browser. The client needs no SSH tunnel, forwarding command, helper,
+extension, native application, or network-specific setup. Goal 04 still owns stable installed
+`zd serve` dispatch.
 
 ## What was delivered
 
@@ -50,12 +49,23 @@ One scope decision blocks formal completion of goal 02 and the start of goal 03.
     status/history/diff, host theme selection, diagnostic enable/record/disable, terminal refusal,
     project-file HTTP `404`, credential hygiene, and draft/review recovery after a new process,
     port, origin, and secret.
-
-The code and goal-specific evidence are complete. Formal goal completion is not delivered because
-the required normal Playwright target is not green in this Linux environment.
+11. The served host now listens on all IPv4 interfaces by default and accepts an optional numeric
+    `--bind` address. HTTP and WebSocket requests remain exact same-authority and reject forwarding
+    headers, foreign or malformed origins, pre-authentication access, and a second controller.
+12. The real served-browser fixture selects a non-loopback host address and connects directly. The
+    Linux browser gate also now measures the intended macOS keymap, independent image-selection
+    gestures, shipped font contracts, compact notation geometry, and stable editor-scroll targets.
 
 ## What I got wrong
 
+- The first remote-access design kept the listener on loopback and required SSH forwarding. That
+  contradicted the owner's actual contract: `zd serve` must run on any remote host and the browser
+  must connect directly. ADR 0009 supersedes ADR 0008's loopback-only transport decision, and the
+  server now uses a direct same-origin listener over the protected network the operator already
+  chose.
+- I treated the measured Linux gate repair as a new owner decision after the owner had already told
+  me to continue and had corrected the product contract. The four-file repair was narrow and
+  evidence-backed; stopping there added process without protecting scope.
 - The goal 02 prerequisite link initially still pointed to the open-goal location after goal 01 was
   archived. The repository link test found it, and `c736601` points it to `_completed/`.
 - The first real-browser rewrite expected a new Git file to be `added`. The actual fixed Git model
@@ -66,9 +76,11 @@ the required normal Playwright target is not green in this Linux environment.
   visible `img`, the host-created PNG, and the saved Markdown bytes.
 - The first host-theme selector used a partial accessible-name match and also selected every
   per-surface theme group. It now selects the exact global `Theme` group.
-- I expected the normal Playwright target to provide the final green gate. A full run and a serial
-  rerun showed the same nine Linux failures. None of their source, test, configuration, or Node
-  dependency files changed from goal 02's prerequisite commit.
+- After the nine measured Linux failures were repaired, the full run exposed two intermittent
+  editor-motion failures. One was a setup trace that admitted the final two pixels of an earlier
+  animation. The other was a real destination bug: a late selection scroll was misclassified as a
+  document-height correction and shifted the reading anchor. A deterministic 70px regression
+  failed at 69.83px before the fix and now lands within 0.5px.
 
 ## Traps worth knowing
 
@@ -100,6 +112,13 @@ the required normal Playwright target is not green in this Linux environment.
   A read-only style probe measured a 5px gap at exactly 0px with the heading text edge still at 0px;
   4px left 1px of spare room. The narrow repair is a compact-only gap adjustment, not a change to
   the 72px inset or straight prose measure.
+- A changed `scrollTop` does not say why it changed. A selection scroll leaves the target's document
+  coordinate fixed, while an estimated-height correction moves that coordinate. Re-read the target
+  only when another writer appears and translate the journey by the measured target shift, not by
+  the raw scroll delta.
+- Binding directly does not mean trusting a proxy. Same-authority Host and Origin validation stays
+  meaningful because the browser reaches the host itself; forwarded request headers remain a hard
+  refusal. Public-Internet TLS and proxy identity remain separate future decisions.
 
 ## Evidence
 
@@ -110,25 +129,28 @@ the required normal Playwright target is not green in this Linux environment.
 | `cargo clippy --workspace --all-targets -- -D warnings` | Passed for the complete workspace with warnings denied. |
 | `cargo fmt --all -- --check` | Passed. |
 | `npm run test:e2e:served` | Built the production frontend and Rust server; both real-host Chromium tests passed. |
+| Direct remote access | The fixture bound the server to a real non-loopback IPv4 address and Chromium unlocked through that URL. A manual host run also returned readiness and opened the workbench through its Tailscale address without a proxy or SSH tunnel. |
 | Served editing evidence | Chromium changed `notes.md`, saved through Rust, observed the disk bytes, removed its saved draft, created and renamed a file, persisted a PNG, and rendered real Git status, one commit, and a before/working-tree diff. |
 | Restart evidence | A fresh server process used another port and secret, reused the project identity, and restored host preferences, workbench layout, an unsaved editable draft, and its review comment with empty browser local/session storage. |
 | Host theme and diagnostics | Chromium selected `served.theme.config`, enabled then disabled host diagnostics, and observed a stored `diagnostics.enable` span without the secret, file name, or document text. |
 | Transfer and dispatch bounds | 8 MiB decoded text, 16 MiB decoded project/clipboard images, 64 MiB aggregate socket messages, and at most 4 concurrent blocking host jobs. Client and server boundary tests passed. |
 | Protocol negatives | Rejected unknown methods/fields, invalid scopes/revisions/enums, path widening, encoding/type mismatches, oversized payloads, unsupported signatures, and excluded watcher/terminal/picker/root authority. |
-| Normal Playwright target | **Not green:** 426 of 435 tests passed. Nine failed in `fonts.spec.ts`, `images.spec.ts`, `line-boundary.spec.ts`, and `trailing-inset.spec.ts`. A serial run of those four unchanged files reproduced 9 failures and passed 18 tests. |
-| Branch-causality check | `git diff --quiet 4abee23..HEAD` passed for the failed editor/design sources and tests, Playwright config, `package.json`, and `package-lock.json`. Those tests last changed in `000fea9`, before goal 02. |
-| Read-only Linux repair probes | Mac platform emulation made every line-boundary sequence settle; collapsing the caret preserved the image source across all three drag directions; regular/bold/italic widths measured 95/95/94px; compact notation gaps of 8/5/4px put the H6 marker at −3/0/1px without denting the heading edge. |
+| Normal Playwright target | All 435 Chromium tests passed in the complete two-worker target. The prior nine Linux failures and both later motion regressions passed in that run. |
+| Focused motion repetition | The typewriter Enter trace passed 20 consecutive serial runs. The complete caret-return, scroll-easing, and typewriter group passed all 18 tests, including the deterministic competing-scroll case and the older estimated-height correction case. |
+| Linux repair evidence | Mac platform emulation made every line-boundary sequence settle; collapsing the caret preserved the image source across all three drag directions; regular/bold widths agreed while separate tests selected the shipped italic outlines; the 5px compact notation gap kept the H6 marker inside the frame without moving its text edge. |
 | Changed normal-browser evidence | The complete workbench foundation spec ran in the full target, including host-diagnostic wording; all of its tests passed. |
-| Anti-slop checks | The optional Oxlint plugin is not installed, so no machine-clean code claim is made. ESLint passed, and a manual changed-file scan found no disabled tests, placeholders, unexplained suppressions, tautological assertions, or swallowed-error shapes. The structure oracle limitation is recorded above. |
-| `git diff --check` | Passed at the halted-goal boundary. |
+| Documentation and anti-slop checks | ADR governance and objective information-architecture checks passed. The prose checker reported 0 findings across changed documentation. The optional Oxlint plugin is not installed, so no machine-clean code claim is made; ESLint passed and a manual changed-test scan found no disabled, placeholder, tautological, suppression, or swallowed-error shapes. |
+| Formatting and diff hygiene | Every changed file passed Prettier and `git diff --check`. The repository-wide formatter still reports nine unrelated pre-existing files, which this goal did not rewrite. |
 
 ## What this unblocks
 
-- The implementation is technically ready for goal 03's watcher, PTY, reconnect, and cleanup work.
+- Goal 03 can now begin its watcher, PTY, reconnect, and cleanup work.
 - The existing Tauri commands and served browser now exercise one non-streaming host authority.
+- Goal 04 can later make Tauri supervise this same host without retaining a second filesystem, Git,
+  theme, diagnostic, or durable-state implementation.
 
 ## What remains blocked
 
-- Goal 02 cannot be archived while its required normal Playwright target is red.
-- Goal 03 cannot formally start because goal 02 is its prerequisite.
-- Goals 04 and 05 remain transitively blocked.
+- Watch events, PTYs, reconnect sequencing, disconnect grace, and descendant cleanup remain goal 03.
+- Stable CLI dispatch and the literal supervised Tauri wrapper remain goal 04.
+- Cross-platform installed artifact evidence remains goal 05.
