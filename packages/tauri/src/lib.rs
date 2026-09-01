@@ -67,6 +67,7 @@ fn run_from_environment() -> Result<(), String> {
             Ok(())
         }
         dispatch::LaunchMode::Serve(arguments) => zd_server::run_foreground(arguments),
+        dispatch::LaunchMode::WrapperChild => zd_server::run_wrapper_child(),
     }
 }
 

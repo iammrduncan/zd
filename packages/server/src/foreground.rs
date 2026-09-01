@@ -40,7 +40,7 @@ async fn run(arguments: ServeArgs) -> Result<(), String> {
     server.shutdown().await
 }
 
-fn state_directory() -> Result<PathBuf, String> {
+pub(crate) fn state_directory() -> Result<PathBuf, String> {
     #[cfg(debug_assertions)]
     if let Some(directory) = std::env::var_os("ZD_TEST_STATE_DIR") {
         let directory = PathBuf::from(directory);
@@ -52,7 +52,7 @@ fn state_directory() -> Result<PathBuf, String> {
     platform_state_directory()
 }
 
-fn assets_directory() -> Result<PathBuf, String> {
+pub(crate) fn assets_directory() -> Result<PathBuf, String> {
     #[cfg(debug_assertions)]
     if let Some(directory) = std::env::var_os("ZD_TEST_ASSETS_DIR") {
         let directory = PathBuf::from(directory);

@@ -8,6 +8,10 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use zd_server::{
+    WrapperControl, WrapperReadiness, WrapperStartup, PROTOCOL_VERSION, WRAPPER_PROTOCOL_VERSION,
+};
+
 struct ChildGuard(Child);
 
 impl Drop for ChildGuard {
@@ -56,12 +60,15 @@ fn read_lines(child: &mut Child) -> mpsc::Receiver<String> {
     receiver
 }
 
-fn drain_stderr(child: &mut Child) {
-    let mut stderr = child.stderr.take().expect("capture served stderr");
+fn drain_stderr(child: &mut Child) -> mpsc::Receiver<Vec<u8>> {
+    let stderr = child.stderr.take().expect("capture served stderr");
+    let (sender, receiver) = mpsc::channel();
     std::thread::spawn(move || {
-        let mut buffer = [0_u8; 4 * 1024];
-        while stderr.read(&mut buffer).is_ok_and(|read| read > 0) {}
+        let mut output = Vec::new();
+        let _ = stderr.take(16 * 1024).read_to_end(&mut output);
+        let _ = sender.send(output);
     });
+    receiver
 }
 
 fn request(origin: &str, path: &str) -> String {
@@ -126,7 +133,7 @@ fn shipped_zd_dispatches_foreground_serve_and_releases_its_listener() {
         .expect("start shipped serve command");
     let mut child = ChildGuard(child);
     let lines = read_lines(&mut child.0);
-    drain_stderr(&mut child.0);
+    let _errors = drain_stderr(&mut child.0);
     let origin = lines
         .recv_timeout(Duration::from_secs(10))
         .expect("receive served URL")
@@ -155,6 +162,101 @@ fn shipped_zd_dispatches_foreground_serve_and_releases_its_listener() {
     assert!(status.success());
     wait_for_exit(&mut child.0);
     assert!(TcpStream::connect(origin.trim_start_matches("http://")).is_err());
+}
+
+#[test]
+fn private_wrapper_child_reports_once_and_stops_through_its_control_pipe() {
+    let scratch = Scratch::new();
+    let project = scratch.join("project");
+    let assets = scratch.join("assets");
+    let state = scratch.join("state");
+    fs::create_dir_all(&project).expect("create wrapper project");
+    fs::create_dir_all(&assets).expect("create wrapper assets");
+    fs::create_dir_all(&state).expect("create wrapper state directory");
+    fs::write(
+        assets.join("index.html"),
+        "<!doctype html><title>wrapper</title>",
+    )
+    .expect("write wrapper index");
+
+    let child = Command::new(env!("CARGO_BIN_EXE_zd"))
+        .arg("__zd-wrapper-child")
+        .env("ZD_TEST_STATE_DIR", &state)
+        .env("ZD_TEST_ASSETS_DIR", &assets)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("start private wrapper child");
+    let mut child = ChildGuard(child);
+    let mut control = child.0.stdin.take().expect("capture wrapper control input");
+    let lines = read_lines(&mut child.0);
+    let errors = drain_stderr(&mut child.0);
+    serde_json::to_writer(
+        &mut control,
+        &WrapperStartup {
+            wrapper_protocol_version: WRAPPER_PROTOCOL_VERSION,
+            application_version: env!("CARGO_PKG_VERSION").to_string(),
+            launch_path: Some(project.to_string_lossy().into_owned()),
+        },
+    )
+    .expect("write wrapper startup frame");
+    control
+        .write_all(b"\n")
+        .expect("finish wrapper startup frame");
+    control.flush().expect("flush wrapper startup frame");
+
+    let readiness_line = lines
+        .recv_timeout(Duration::from_secs(10))
+        .expect("receive private wrapper readiness");
+    let readiness: WrapperReadiness =
+        serde_json::from_str(&readiness_line).expect("decode private wrapper readiness");
+    assert_eq!(readiness.wrapper_protocol_version, WRAPPER_PROTOCOL_VERSION);
+    assert_eq!(readiness.application_version, env!("CARGO_PKG_VERSION"));
+    assert_eq!(readiness.host_protocol_version, PROTOCOL_VERSION);
+    assert!(readiness.origin.starts_with("http://127.0.0.1:"));
+    assert!(!readiness.session_epoch.is_empty());
+    assert_eq!(readiness.secret.len(), 43);
+    assert!(!readiness.origin.contains(&readiness.secret));
+    assert!(matches!(
+        lines.recv_timeout(Duration::from_millis(100)),
+        Err(mpsc::RecvTimeoutError::Timeout)
+    ));
+    assert!(request(&readiness.origin, "/healthz").starts_with("HTTP/1.1 204"));
+
+    #[cfg(target_os = "linux")]
+    {
+        let process = format!("/proc/{}/", child.0.id());
+        let cmdline = fs::read(format!("{process}cmdline")).expect("read wrapper child arguments");
+        let environment =
+            fs::read(format!("{process}environ")).expect("read wrapper child environment");
+        assert!(!cmdline
+            .windows(readiness.secret.len())
+            .any(|part| part == readiness.secret.as_bytes()));
+        assert!(!environment
+            .windows(readiness.secret.len())
+            .any(|part| part == readiness.secret.as_bytes()));
+    }
+
+    serde_json::to_writer(
+        &mut control,
+        &WrapperControl::Shutdown {
+            wrapper_protocol_version: WRAPPER_PROTOCOL_VERSION,
+        },
+    )
+    .expect("write wrapper shutdown frame");
+    control
+        .write_all(b"\n")
+        .expect("finish wrapper shutdown frame");
+    control.flush().expect("flush wrapper shutdown frame");
+    wait_for_exit(&mut child.0);
+
+    assert!(TcpStream::connect(readiness.origin.trim_start_matches("http://")).is_err());
+    assert!(errors
+        .recv_timeout(Duration::from_secs(2))
+        .expect("collect wrapper stderr")
+        .is_empty());
+    assert!(lines.recv_timeout(Duration::from_millis(100)).is_err());
 }
 
 #[test]

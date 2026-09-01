@@ -65,6 +65,10 @@ impl RunningServer {
         &self.secret
     }
 
+    pub fn session_epoch(&self) -> Arc<str> {
+        self.runtime.epoch()
+    }
+
     pub async fn shutdown(mut self) -> Result<(), String> {
         self.runtime.begin_shutdown();
         if let Some(shutdown) = self.shutdown.take() {
