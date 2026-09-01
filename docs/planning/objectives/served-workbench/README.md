@@ -33,7 +33,6 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 
 | Goal | Delivers | Prerequisites | Needs owner |
 | --- | --- | --- | --- |
-| [Execute goal 01](goals/execute-goal-01.md) | Stable host identities and durable workbench state across ports/restarts | Goal 00 | No |
 | [Execute goal 02](goals/execute-goal-02.md) | Served editing, file operations, Git/worktrees, themes, and diagnostics through one host | Goal 01 | No |
 | [Execute goal 03](goals/execute-goal-03.md) | Bounded watcher/PTY events and explicit reconnect/cleanup | Goal 02 | No |
 | [Execute goal 04](goals/execute-goal-04.md) | Stable `zd serve` CLI and a literal supervised Tauri client shell | Goal 03 | No |
@@ -44,6 +43,7 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 | Goal | Summary | Outcome |
 | --- | --- | --- |
 | [Execute goal 00](goals/_completed/execute-goal-00.md) | [Summary](goals/_completed/summary-goal-00.md) | One authenticated read-only served host opens a real project file in a real browser. |
+| [Execute goal 01](goals/_completed/execute-goal-01.md) | [Summary](goals/_completed/summary-goal-01.md) | Stable identities and host-owned workbench state survive a new process, port, origin, and secret. |
 
 ## What this objective will not do
 

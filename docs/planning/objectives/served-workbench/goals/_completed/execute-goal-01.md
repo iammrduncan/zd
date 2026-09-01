@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Execute goal 00](_completed/execute-goal-00.md) is complete. This goal needs its Tauri-free
+- [Execute goal 00](execute-goal-00.md) is complete. This goal needs its Tauri-free
   `HostService`, authenticated protocol, client adapter, request correlation, and real-host browser
   harness.
 - The owner may not release this goal as served editing. It makes state durable while project files
@@ -18,7 +18,7 @@ are already required by VISION, DESIGN, ADRs 0005/0006/0008, and work packet 1.
 ## `/goal` objective
 
 This goal delivers the persistence and identity half of work packet 1 from
-[`02-DELIVERY-PLAN.md:29-41`](../02-DELIVERY-PLAN.md#work-packet-1-durable-file-and-git-authority).
+[`02-DELIVERY-PLAN.md:29-41`](../../02-DELIVERY-PLAN.md#work-packet-1-durable-file-and-git-authority).
 
 Make a served workbench independent of its browser origin before enabling writes. Starting the same
 approved project on a different loopback port or in a new process must reuse its opaque project and
@@ -138,8 +138,8 @@ At minimum, prove:
 
 ## Engineering constraints
 
-- Follow the repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../GOOD_ENGINEERING_H.md),
-  [`DESIGN.md`](../../../../DESIGN.md), and accepted ADRs 0005, 0006, and 0008. Write a failing
+- Follow the repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../../GOOD_ENGINEERING_H.md),
+  [`DESIGN.md`](../../../../../DESIGN.md), and accepted ADRs 0005, 0006, and 0008. Write a failing
   regression first for every discovered error and make small green commits.
 - Keep handwritten production files below 500 lines when practical; decompose the existing storage
   and integration owners by responsibility instead of adding another oversized facade.
