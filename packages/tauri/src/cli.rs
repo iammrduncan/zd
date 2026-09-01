@@ -196,11 +196,15 @@ impl LaunchState {
     }
 
     pub fn approve_worktree(&self, project_id: &str, root: &Path) -> Result<WorktreeGrant, String> {
-        self.session
-            .lock()
-            .expect("launch state was poisoned")
-            .grants
-            .approve_worktree(project_id, root)
+        let mut session = self.session.lock().expect("launch state was poisoned");
+        match self.state_directory.as_deref() {
+            Some(state_directory) => {
+                session
+                    .grants
+                    .approve_worktree_with_state(project_id, root, state_directory)
+            }
+            None => session.grants.approve_worktree(project_id, root),
+        }
     }
 
     pub fn remove_project(&self, project_id: &str) -> Result<ProjectGrant, String> {
