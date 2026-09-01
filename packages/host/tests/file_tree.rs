@@ -1,12 +1,3 @@
-#![allow(dead_code)]
-
-#[path = "../src/cli.rs"]
-mod cli;
-#[path = "../src/file_tree.rs"]
-mod file_tree;
-#[path = "../src/grants.rs"]
-mod grants;
-
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -56,13 +47,6 @@ fn generous_limits() -> TreeLimits {
         max_ignored_entries: 256,
         max_depth: 64,
     }
-}
-
-#[test]
-fn tauri_command_compiles_against_native_grant_state() {
-    let launch = cli::LaunchState::new(cli::NativeOpenRequest { path: None });
-    assert!(launch.root("project-a", "worktree-a").is_err());
-    let _command = file_tree::file_tree_snapshot;
 }
 
 fn ready(result: FileTreeResult) -> (String, Vec<FileTreeEntry>, bool, bool) {

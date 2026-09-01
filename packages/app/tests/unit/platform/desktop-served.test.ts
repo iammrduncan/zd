@@ -20,6 +20,12 @@ describe("the desktop served boundary", () => {
   afterEach(() => {
     invoke.mockReset();
     genericListen.mockClear();
+    nativeWindow.onCloseRequested.mockReset();
+    nativeWindow.onCloseRequested.mockResolvedValue(vi.fn());
+    nativeWindow.isFocused.mockReset();
+    nativeWindow.isFocused.mockResolvedValue(true);
+    nativeWindow.onFocusChanged.mockReset();
+    nativeWindow.onFocusChanged.mockResolvedValue(vi.fn());
   });
 
   it("uses the private bootstrap once, host socket for work, and Tauri only for shell behavior", async () => {
@@ -90,6 +96,128 @@ describe("the desktop served boundary", () => {
 
     await expect(connectDesktopServedPlatform(connect)).rejects.toThrow("desktop bootstrap origin");
     expect(connect).not.toHaveBeenCalled();
+  });
+
+  it("keeps the desktop half limited to viewing-computer commands", async () => {
+    const bootstrap = {
+      origin: window.location.origin,
+      sessionEpoch: "YWFhYWFhYWFhYWFhYWFhYQ",
+      secret: "a".repeat(43),
+    };
+    invoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "take_desktop_bootstrap":
+          return bootstrap;
+        case "register_global_summon":
+          return {
+            supported: true,
+            registered: true,
+            shortcut: "CmdOrCtrl+Shift+Space",
+            problem: null,
+          };
+        case "toggle_quick_access":
+          return "quick-access";
+        case "hide_quick_access":
+        case "show_workbench":
+          return "ordinary";
+        case "notification_permission":
+        case "notification_request_permission":
+          return "granted";
+        case "show_thread_notification":
+          return { status: "presented", problem: null };
+        case "play_completion_sound":
+          return { status: "played", problem: null };
+        case "close_window":
+        case "open_external":
+          return undefined;
+        default:
+          throw new Error(`unexpected desktop command: ${command}`);
+      }
+    });
+    const request = vi.fn(async (method: string) => {
+      if (method === "session.snapshot") {
+        return {
+          sessionEpoch: bootstrap.sessionEpoch,
+          sequence: 0,
+          resourceStatus: "active",
+          watches: [],
+          terminals: [],
+        };
+      }
+      throw new Error(`unexpected host method: ${method}`);
+    });
+    const client: ServedHostClient = {
+      request: request as unknown as ServedHostClient["request"],
+      onEvent: () => () => {},
+      onSnapshot: () => () => {},
+      recentTimings: () => [],
+      close: () => {},
+    };
+    let nativeClose: ((event: { preventDefault(): void }) => void) | null = null;
+    const unlistenClose = vi.fn();
+    const typedCloseRequest = nativeWindow.onCloseRequested as unknown as {
+      mockImplementation(
+        implementation: (
+          handler: (event: { preventDefault(): void }) => void,
+        ) => Promise<() => void>,
+      ): void;
+    };
+    typedCloseRequest.mockImplementation(async (handler) => {
+      nativeClose = handler;
+      return unlistenClose;
+    });
+    const platform = await connectDesktopServedPlatform(async () => client);
+    const closeRequested = vi.fn();
+    const stopClose = platform.onCloseRequested(closeRequested);
+    const notification = {
+      schemaVersion: 1 as const,
+      notificationId: "attention:thread-alpha:1",
+      eventId: "thread-alpha:1",
+      projectId: "project-alpha",
+      worktreeId: "worktree-alpha",
+      threadId: "thread-alpha",
+      title: "zd" as const,
+      body: "Workbench · Review output · Codex",
+    };
+
+    await expect(platform.registerGlobalSummon()).resolves.toMatchObject({ registered: true });
+    await expect(platform.toggleQuickAccess()).resolves.toBe("quick-access");
+    await expect(platform.hideQuickAccess()).resolves.toBe("ordinary");
+    await expect(platform.showWorkbench()).resolves.toBe("ordinary");
+    await expect(platform.isWindowFocused()).resolves.toBe(true);
+    await expect(platform.notifications.permission()).resolves.toBe("granted");
+    await expect(platform.notifications.requestPermission()).resolves.toBe("granted");
+    await expect(platform.notifications.show(notification)).resolves.toEqual({
+      status: "presented",
+      problem: null,
+    });
+    await expect(
+      platform.notifications.playSound({ sound: "subtle", volume: 0.4 }),
+    ).resolves.toEqual({ status: "played", problem: null });
+    const preventDefault = vi.fn();
+    nativeClose!({ preventDefault });
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(closeRequested).toHaveBeenCalledOnce();
+    await platform.closeWindow();
+    await platform.openExternal("https://example.com");
+    stopClose();
+    await Promise.resolve();
+    expect(unlistenClose).toHaveBeenCalledOnce();
+
+    expect(invoke.mock.calls.map(([command]) => command)).toEqual([
+      "take_desktop_bootstrap",
+      "register_global_summon",
+      "toggle_quick_access",
+      "hide_quick_access",
+      "show_workbench",
+      "notification_permission",
+      "notification_request_permission",
+      "show_thread_notification",
+      "play_completion_sound",
+      "close_window",
+      "open_external",
+    ]);
+    expect(request.mock.calls).toEqual([["session.snapshot", {}]]);
   });
 
   it("keeps the local bootstrap page inert and reports startup failure accessibly", async () => {

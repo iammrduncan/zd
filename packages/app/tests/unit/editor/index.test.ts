@@ -246,7 +246,7 @@ describe("the workbench editor facade", () => {
 // Vision §6.3: "`cmd+s` saves." Where it saves to is not the editor's business
 // — it holds text and a caret, not a path — so what is asserted here is that the
 // key reaches a handler with the current document. The atomic write itself is on
-// the other side of the platform boundary and is tested in src-tauri/src/fs.rs
+// the other side of the platform boundary and is tested in packages/host/src/atomic_write.rs
 // against a real filesystem, because that is the only place it means anything.
 
 describe("saving", () => {

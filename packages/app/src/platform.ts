@@ -14,18 +14,9 @@ import type {
   NotificationPresentationResult,
 } from "@/notifications";
 import type { BoundedFileRead } from "@/editor";
-import {
-  unavailableFileTreeAdapter,
-  type FileTreeAdapter,
-  type FileTreeScope,
-  type FileTreeWatchEvent,
-} from "@/files";
-import { createTauriGitAdapter, unavailableGitAdapter, type GitAdapter } from "@/git";
-import {
-  unavailableTerminalAdapter,
-  type TerminalAdapter,
-  type TerminalSessionHandle,
-} from "@/terminal";
+import { unavailableFileTreeAdapter, type FileTreeAdapter } from "@/files";
+import { unavailableGitAdapter, type GitAdapter } from "@/git";
+import { unavailableTerminalAdapter, type TerminalAdapter } from "@/terminal";
 import {
   homeLaunch,
   type FileResource,
@@ -38,7 +29,6 @@ import type { ServedHostClient } from "@/platform/served-client";
 import { createServedWorkbenchHost } from "@/platform/served";
 import { composePlatform, type ClientShell } from "@/platform/composition";
 import {
-  createDurableStateAdapter,
   createMemoryDurableStateAdapter,
   type DurableStateAdapter,
 } from "@/platform/durable-state";
@@ -63,8 +53,8 @@ export type { ClientShell, WorkbenchHost } from "@/platform/composition";
  * docs/adr/suite/0002-put-native-authority-behind-platform-boundary_H.md.
  */
 /**
- * Identity enough to notice someone else wrote the file. See `file_stamp` in
- * packages/tauri/src/fs.rs, which is what produces it.
+ * Identity enough to notice someone else wrote the file. See the host service's
+ * `file_stamp` operation in packages/host/src/service.rs, which produces it.
  *
  * Here rather than beside the code that reconciles with it — audit finding L1. It
  * describes what a platform command returns, and the platform is the bottom
@@ -130,18 +120,6 @@ export interface CreateThreadWorktreeRequest {
   readonly branch: string;
   readonly baseRevision: string | null;
 }
-
-type NativeFileTreeWatchSignal = FileTreeScope &
-  (
-    | { readonly status: "changed"; readonly watchId: string }
-    | {
-        readonly status: "unavailable";
-        readonly watchId: string;
-        readonly problem: string;
-      }
-  );
-
-let fileTreeWatchSequence = 0;
 
 export type WorktreeRefusalKind =
   | "unknown-project"
@@ -243,7 +221,8 @@ export interface Platform {
   /**
    * Save a UTF-8 text file. Vision §6.3: writes are atomic, so a save that is
    * interrupted leaves the previous document intact rather than a truncated one.
-   * The guarantee lives on the other side of this boundary — see fs.rs.
+   * The guarantee lives on the other side of this boundary — see
+   * packages/host/src/atomic_write.rs.
    */
   writeTextFile(resource: FileResource, contents: string): Promise<void>;
   /** Persist one supported image below the fixed `docs/screenshots` project directory. */
@@ -254,7 +233,7 @@ export interface Platform {
    * Vision §6.3's "detected", and deliberately a question rather than a
    * subscription: a watcher would be a plugin, a background thread, and a stream of
    * events to debounce, none of which is needed to answer "is the file still the
-   * one I read?". See fs.rs.
+   * one I read?". See packages/host/src/service.rs.
    */
   fileStamp(resource: FileResource): Promise<FileStamp | null>;
   /**
@@ -321,213 +300,6 @@ export const unavailableAttentionPlatform = {
   | "onWindowFocusChanged"
   | "notifications"
 >;
-
-const tauri: Platform = {
-  kind: "tauri",
-  usesHostDurableState: true,
-  durableState: createDurableStateAdapter({
-    describe: () => invoke<unknown>("describe_durable_state"),
-    apply: (request) => invoke<unknown>("apply_durable_state", { request }),
-  }),
-  launchRequest: () => invoke<LaunchRequest>("launch_request"),
-  onOpenRequested: (handler) => {
-    let active = true;
-    const pending = listen("open-requested", () => {
-      if (active) handler();
-    }).then(async (unlisten) => {
-      // The native event can arrive before WebKit installs this listener. Its
-      // request remains queued, so ask once after listening and replay it here.
-      const waiting = await invoke<boolean>("has_pending_open_request");
-      if (active && waiting) handler();
-      return unlisten;
-    });
-    return () => {
-      active = false;
-      void pending.then((unlisten) => unlisten());
-    };
-  },
-  pendingOpenRequest: () => invoke<LaunchRequest | null>("pending_open_request"),
-  acceptOpenRequest: () => invoke<LaunchRequest | null>("accept_open_request"),
-  projectGrants: () => invoke<readonly ProjectGrant[]>("project_grants"),
-  recentWorkspaces: () => invoke<readonly RecentWorkspace[]>("recent_workspaces"),
-  saveWorkspace: (projectIds) => invoke<RecentWorkspace>("save_workspace", { projectIds }),
-  openWorkspace: (workspaceId) =>
-    invoke<readonly ProjectGrant[]>("open_workspace", { workspaceId }),
-  chooseProject: () => invoke<ProjectGrant | null>("choose_project"),
-  recoverProjectGrant: (projectId) =>
-    invoke<ProjectGrant | null>("recover_project_grant", { projectId }),
-  createThreadWorktree: (request) => invoke("create_thread_worktree", { request }),
-  removeProjectGrant: (projectId) => invoke<ProjectGrant>("remove_project_grant", { projectId }),
-  themeConfigFiles: () => invoke<readonly ThemeConfigFile[]>("theme_config_files"),
-  registerGlobalSummon: () => invoke<GlobalShortcutRegistration>("register_global_summon"),
-  onWindowPresentationChanged: (handler) => {
-    let active = true;
-    const pending = listen<WindowPresentation>("window-presentation-changed", (event) => {
-      if (active) handler(event.payload);
-    });
-    return () => {
-      active = false;
-      void pending.then((unlisten) => unlisten());
-    };
-  },
-  toggleQuickAccess: () => invoke<WindowPresentation>("toggle_quick_access"),
-  hideQuickAccess: () => invoke<WindowPresentation>("hide_quick_access"),
-  showWorkbench: () => invoke<WindowPresentation>("show_workbench"),
-  isWindowFocused: () => getCurrentWindow().isFocused(),
-  onWindowFocusChanged: (handler) => {
-    let active = true;
-    const pending = getCurrentWindow().onFocusChanged(({ payload }) => {
-      if (active) handler(payload);
-    });
-    return () => {
-      active = false;
-      void pending.then((unlisten) => unlisten());
-    };
-  },
-  notifications: {
-    permission: () => invoke<NotificationPermission>("notification_permission"),
-    requestPermission: () => invoke<NotificationPermission>("notification_request_permission"),
-    show: (request) =>
-      invoke<NotificationPresentationResult>("show_thread_notification", { request }),
-    onAction: (handler) => {
-      let active = true;
-      const pending = listen<NotificationActionV1>("notification-action", (event) => {
-        if (active) handler(event.payload);
-      }).then(async (unlisten) => {
-        const waiting = await invoke<readonly NotificationActionV1[]>(
-          "pending_notification_actions",
-        );
-        if (active) waiting.forEach((action) => handler(action));
-        return unlisten;
-      });
-      return () => {
-        active = false;
-        void pending.then((unlisten) => unlisten());
-      };
-    },
-    playSound: (request) => invoke<CompletionSoundResult>("play_completion_sound", { request }),
-  },
-  diagnosticsStatus: () => invoke<DiagnosticStatus>("diagnostics_status"),
-  enableDiagnostics: () => invoke<DiagnosticStatus>("enable_diagnostics"),
-  disableDiagnostics: () => invoke<DiagnosticStatus>("disable_diagnostics"),
-  recordDiagnostic: (record) => invoke<DiagnosticWriteOutcome>("record_diagnostic", { record }),
-  revealDiagnostics: () => invoke<void>("reveal_diagnostics"),
-  terminal: {
-    start: (request) => invoke("terminal_start", { request }),
-    onOutputReady: (handler) => {
-      let active = true;
-      const pending = listen<TerminalSessionHandle>("terminal-output-ready", (event) => {
-        if (active) handler(event.payload);
-      });
-      return () => {
-        active = false;
-        void pending.then((unlisten) => unlisten());
-      };
-    },
-    write: (session, bytes) => invoke<void>("terminal_write", { session, bytes }),
-    resize: (session, viewport) => invoke<void>("terminal_resize", { session, viewport }),
-    read: (session) => invoke("terminal_read", { session }),
-    pollExit: (session) => invoke("terminal_poll_exit", { session }),
-    terminate: (session) => invoke("terminal_terminate", { session }),
-    dispose: (session) => invoke<void>("terminal_dispose", { session }),
-  },
-  fileTree: {
-    snapshot: (request) => invoke("file_tree_snapshot", { request }),
-    mutate: (request) => invoke("mutate_file_tree", { request }),
-    watch: (scope, listener) => {
-      const request = {
-        ...scope,
-        watchId: `file-tree-watch-${++fileTreeWatchSequence}`,
-      };
-      let active = true;
-      let started = false;
-      const pending = listen<NativeFileTreeWatchSignal>("file-tree-watch", ({ payload }) => {
-        if (
-          !active ||
-          payload.watchId !== request.watchId ||
-          payload.projectId !== scope.projectId ||
-          payload.worktreeId !== scope.worktreeId
-        ) {
-          return;
-        }
-        const event: FileTreeWatchEvent =
-          payload.status === "changed"
-            ? { status: "changed" }
-            : { status: "unavailable", problem: payload.problem };
-        listener(event);
-      })
-        .then(async (unlisten) => {
-          if (!active) return unlisten;
-          try {
-            await invoke<void>("start_file_tree_watch", { request });
-            started = true;
-            if (active) listener({ status: "ready" });
-          } catch {
-            if (active) {
-              listener({
-                status: "unavailable",
-                problem: "Automatic file-tree updates are unavailable.",
-              });
-            }
-          }
-          return unlisten;
-        })
-        .catch(() => {
-          if (active) {
-            listener({
-              status: "unavailable",
-              problem: "Automatic file-tree updates are unavailable.",
-            });
-          }
-          return null;
-        });
-
-      return () => {
-        if (!active) return;
-        active = false;
-        void pending.then(async (unlisten) => {
-          if (started) {
-            try {
-              await invoke<void>("stop_file_tree_watch", { request });
-            } catch {
-              // Native shutdown also drops every active watcher.
-            }
-          }
-          unlisten?.();
-        });
-      };
-    },
-  },
-  git: createTauriGitAdapter((command, payload) => invoke(command, payload)),
-  workspaceFiles: (projectId, worktreeId) =>
-    invoke<WorkspaceListing>("workspace_files", { projectId, worktreeId }),
-  readTextFile: (resource) => invoke<string>("read_text_file", { resource }),
-  readBoundedFile: (resource) => invoke<BoundedFileRead>("read_bounded_file", { resource }),
-  readProjectImage: (resource) => invoke<ProjectImage>("read_project_image", { resource }),
-  writeTextFile: (resource, contents) => invoke<void>("write_text_file", { resource, contents }),
-  saveClipboardImage: (request) => invoke<SavedClipboardImage>("save_clipboard_image", { request }),
-  fileStamp: (resource) => invoke<FileStamp | null>("file_stamp", { resource }),
-  onCloseRequested: (handler) => {
-    /*
-     * Listen at the native window boundary. Cmd+W, the title-bar close button,
-     * and the Window menu all arrive here as the same request. The earlier custom
-     * Rust event put a second relay in that path, and the unit harness only proved
-     * the relay's far side rather than the macOS gesture that enters it.
-     *
-     * Prevent first, then ask the document. The document explicitly calls
-     * `closeWindow` when it is clean or the user confirms a second time.
-     */
-    const pending = getCurrentWindow().onCloseRequested((event) => {
-      event.preventDefault();
-      handler();
-    });
-    return () => {
-      void pending.then((unlisten) => unlisten());
-    };
-  },
-  closeWindow: () => invoke<void>("close_window"),
-  openExternal: (url) => invoke<void>("open_external", { url }),
-};
 
 /**
  * Used by `npm run dev` in a plain browser and by Playwright. It is not a mock
@@ -659,22 +431,84 @@ const browserShell: ClientShell = {
 };
 
 const tauriShell: ClientShell = {
-  onOpenRequested: tauri.onOpenRequested,
-  pendingOpenRequest: tauri.pendingOpenRequest,
-  acceptOpenRequest: tauri.acceptOpenRequest,
-  chooseProject: tauri.chooseProject,
-  recoverProjectGrant: tauri.recoverProjectGrant,
-  registerGlobalSummon: tauri.registerGlobalSummon,
-  onWindowPresentationChanged: tauri.onWindowPresentationChanged,
-  toggleQuickAccess: tauri.toggleQuickAccess,
-  hideQuickAccess: tauri.hideQuickAccess,
-  showWorkbench: tauri.showWorkbench,
-  isWindowFocused: tauri.isWindowFocused,
-  onWindowFocusChanged: tauri.onWindowFocusChanged,
-  notifications: tauri.notifications,
-  onCloseRequested: tauri.onCloseRequested,
-  closeWindow: tauri.closeWindow,
-  openExternal: tauri.openExternal,
+  onOpenRequested: (handler) => {
+    let active = true;
+    const pending = listen("open-requested", () => {
+      if (active) handler();
+    }).then(async (unlisten) => {
+      const waiting = await invoke<boolean>("has_pending_open_request");
+      if (active && waiting) handler();
+      return unlisten;
+    });
+    return () => {
+      active = false;
+      void pending.then((unlisten) => unlisten());
+    };
+  },
+  pendingOpenRequest: () => invoke<LaunchRequest | null>("pending_open_request"),
+  acceptOpenRequest: () => invoke<LaunchRequest | null>("accept_open_request"),
+  chooseProject: () => invoke<ProjectGrant | null>("choose_project"),
+  recoverProjectGrant: (projectId) =>
+    invoke<ProjectGrant | null>("recover_project_grant", { projectId }),
+  registerGlobalSummon: () => invoke<GlobalShortcutRegistration>("register_global_summon"),
+  onWindowPresentationChanged: (handler) => {
+    let active = true;
+    const pending = listen<WindowPresentation>("window-presentation-changed", (event) => {
+      if (active) handler(event.payload);
+    });
+    return () => {
+      active = false;
+      void pending.then((unlisten) => unlisten());
+    };
+  },
+  toggleQuickAccess: () => invoke<WindowPresentation>("toggle_quick_access"),
+  hideQuickAccess: () => invoke<WindowPresentation>("hide_quick_access"),
+  showWorkbench: () => invoke<WindowPresentation>("show_workbench"),
+  isWindowFocused: () => getCurrentWindow().isFocused(),
+  onWindowFocusChanged: (handler) => {
+    let active = true;
+    const pending = getCurrentWindow().onFocusChanged(({ payload }) => {
+      if (active) handler(payload);
+    });
+    return () => {
+      active = false;
+      void pending.then((unlisten) => unlisten());
+    };
+  },
+  notifications: {
+    permission: () => invoke<NotificationPermission>("notification_permission"),
+    requestPermission: () => invoke<NotificationPermission>("notification_request_permission"),
+    show: (request) =>
+      invoke<NotificationPresentationResult>("show_thread_notification", { request }),
+    onAction: (handler) => {
+      let active = true;
+      const pending = listen<NotificationActionV1>("notification-action", (event) => {
+        if (active) handler(event.payload);
+      }).then(async (unlisten) => {
+        const waiting = await invoke<readonly NotificationActionV1[]>(
+          "pending_notification_actions",
+        );
+        if (active) waiting.forEach((action) => handler(action));
+        return unlisten;
+      });
+      return () => {
+        active = false;
+        void pending.then((unlisten) => unlisten());
+      };
+    },
+    playSound: (request) => invoke<CompletionSoundResult>("play_completion_sound", { request }),
+  },
+  onCloseRequested: (handler) => {
+    const pending = getCurrentWindow().onCloseRequested((event) => {
+      event.preventDefault();
+      handler();
+    });
+    return () => {
+      void pending.then((unlisten) => unlisten());
+    };
+  },
+  closeWindow: () => invoke<void>("close_window"),
+  openExternal: (url) => invoke<void>("open_external", { url }),
 };
 
 interface DesktopBootstrap {
@@ -728,5 +562,8 @@ export function isTauriWindow(): boolean {
 }
 
 export function detectPlatform(): Platform {
-  return isTauriWindow() ? tauri : browser;
+  if (isTauriWindow()) {
+    throw new Error("the desktop workbench must connect through its served host");
+  }
+  return browser;
 }

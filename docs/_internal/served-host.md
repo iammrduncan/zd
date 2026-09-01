@@ -1,103 +1,88 @@
-# Run the experimental served host
+# Run a served workbench from source
 
-The served-host target proves that a browser can use the same Rust host boundary as the desktop
-application. It is a development target, not an installed `zd serve` command. This first slice can
-list one approved project and open bounded text files. It is intentionally read-only.
+Use `zd serve` when the workbench and all host operations must run on another machine. The viewing
+computer needs only a browser with network access to that machine; it does not run zd, open an SSH
+tunnel, or install a helper.
 
-```mermaid
-flowchart LR
-  browser[Browser workbench] -->|HTTP assets and one authenticated WebSocket| server[zd-server]
-  tauri[Tauri commands] --> host[zd-host HostService]
-  server --> host
-  host --> grant[One approved project grant]
-  grant --> files[Bounded tree and file reads]
-```
-
-The browser and Tauri paths share `zd-host`; they do not contain separate grant, tree, or file-read
-implementations. Later work will move mutation, Git, file watching, terminal sessions, and durable
-workbench state behind this same host boundary.
-
-## Run it on the same machine
-
-From the repository root, run:
+From the repository root on the host machine, run:
 
 ```sh
-npm run app:serve -- /absolute/path/to/project
+npm run app:serve -- /absolute/path/to/project --bind <protected-network-ip>
 ```
 
-The command builds the web application, approves the supplied directory, binds an available port on
-`127.0.0.1`, and prints two separate lines after the routes are ready:
+Use the host's numeric Tailscale or other protected-network IPv4 address for
+`<protected-network-ip>`. Omit the project to approve the current directory. Omit `--bind` to listen
+on all IPv4 interfaces, or use `--bind 127.0.0.1` for a same-machine browser.
+
+The command builds the web application, starts the Rust host on an available port, and prints two
+lines after the HTTP and WebSocket routes are ready:
 
 ```text
-zd serve URL: http://127.0.0.1:<ephemeral-port>/
+zd serve URL: http://<numeric-ip>:<ephemeral-port>
 zd serve secret: <process-secret>
 ```
 
-Open the URL, enter the process secret in the unlock page, and select **Unlock**. The secret is sent
-in the first WebSocket frame. It is not put in the URL, cookies, browser storage, diagnostics, or
-ordinary application logs.
+Open the printed URL from the viewing computer. Enter the separate process secret and select
+**Unlock**. Keep the command running while you work. Press `Ctrl+C` in its shell to stop the host,
+watchers, and terminal processes.
 
-Use `Ctrl+C` in the command shell to stop the host.
+## Use a fixed port
 
-## Connect through SSH
-
-Start the host on the remote machine and keep that shell open:
+Add `--port <port>` when a firewall rule or network policy requires one known port:
 
 ```sh
-npm run app:serve -- /absolute/path/to/project
+npm run app:serve -- /absolute/path/to/project \
+  --bind <protected-network-ip> \
+  --port 4317
 ```
 
-Copy the numeric port from the printed URL. On the local machine, forward a local loopback port to
-that remote loopback port:
+The bind value must be a numeric IPv4 address. Port `0`, the default, asks the operating system to
+select an available port without a probe-and-bind race.
+
+## Check a failed connection
+
+From the viewing computer, request the state-free health endpoint with the exact printed authority:
 
 ```sh
-ssh -N -L 4317:127.0.0.1:<remote-port> <remote-host>
+curl -i http://<numeric-ip>:<port>/healthz
 ```
 
-Open `http://127.0.0.1:4317/` locally and enter the separately printed process secret. The local
-forwarding port can differ from the remote port. The protocol checks that both the browser Origin
-and HTTP Host use the same numeric-loopback authority; it does not trust forwarding headers.
+A reachable host returns `204 No Content`. If it does not:
 
-For a known remote port, append `--port <port>` after the project path. Port `0`, the default, asks
-the operating system for an available port without a probe-then-bind race.
+1. Confirm that the address belongs to the host machine and is reachable through the protected
+   network.
+2. Confirm that the port is allowed by the host firewall.
+3. Use the URL and secret from the same running process. A restart creates a new port and secret.
+4. Close another connected workbench. The first version permits one controlling browser at a time.
 
-## Current limits
+The browser URL must use the same numeric authority that reached the server. The host rejects
+foreign Origin/Host pairs and does not trust forwarding headers.
 
-The development target accepts one authenticated controller and exposes only these protocol
-methods:
+## Security boundary
 
-- `session.describe`
-- `projectGrants.list`
-- `fileTree.snapshot`
-- `file.readBounded`
+The initial served host uses plain HTTP. Run it only across Tailscale or an equivalent protected
+private network that provides admission and transport encryption. Do not expose it directly to the
+public Internet. The process secret authenticates the controller; it does not encrypt traffic.
 
-It does not expose file mutation, Git, worktrees, file watching, terminals, diagnostics storage,
-custom themes, workspace persistence, project picking, recent-project recovery, or another project
-root. Project files are never served as HTTP assets.
+The secret is sent only in the first WebSocket frame. It is not placed in the URL, cookies, browser
+storage, diagnostics, or ordinary application logs. Browser requests use project, worktree, and
+relative-resource identities; they cannot submit a new absolute root.
 
-The initial resource bounds are:
+## Desktop behavior
 
-| Resource | Limit |
-| --- | ---: |
-| WebSocket message | 64 KiB |
-| Pending browser requests | 32 |
-| Browser timing records | 128 |
-| Reported host queue or handler duration | 60 seconds |
-| File-tree entries | 20,000 |
-| Retained ignored entries | 256 |
-| File-tree depth | 64 |
-| Bounded text file | 8 MiB |
-| Oversize text preview | 64 KiB |
+The Tauri application starts the same host executable as one loopback child and connects without an
+unlock form. Reload and secondary desktop launches reuse that child. Tauri retains only trusted
+picker/file-open input, window presentation and close, quick access, notifications/sound, and
+external links.
 
-## Verify the path
+## Verify the source path
 
-Run the focused real-browser target:
+Run the real served-browser target:
 
 ```sh
 npm run test:e2e:served
 ```
 
-The target builds and starts the real Rust server against a generated temporary project. Chromium
-unlocks the host, renders the tree, opens a known file, proves that editing and excluded features
-are refused, checks that the secret is absent from browser persistence and requests, and confirms
-that project content cannot be fetched as an HTTP asset.
+The target builds the frontend and shipped Rust executable, opens a generated project through the
+real authenticated socket, exercises file, Git, watcher, terminal, persistence, and reconnect
+behavior, and checks listener/process cleanup.

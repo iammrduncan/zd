@@ -1,4 +1,5 @@
 const LIBRARY: &str = include_str!("../src/lib.rs");
+const PLATFORM: &str = include_str!("../../app/src/platform.ts");
 const LOCAL_CAPABILITY: &str = include_str!("../capabilities/default.json");
 const SHELL_PERMISSIONS: &str = include_str!("../permissions/desktop-bootstrap.toml");
 
@@ -50,7 +51,7 @@ fn invoke_handler_source() -> &'static str {
 }
 
 #[test]
-fn migrated_host_authority_is_absent_from_tauri_registration_and_permissions() {
+fn migrated_host_authority_is_absent_from_tauri_and_frontend_invoke_registration() {
     let handler = invoke_handler_source();
 
     for command in RETIRED_HOST_COMMANDS {
@@ -61,6 +62,10 @@ fn migrated_host_authority_is_absent_from_tauri_registration_and_permissions() {
         assert!(
             !SHELL_PERMISSIONS.contains(command),
             "{command} is still allowed by the desktop shell permission"
+        );
+        assert!(
+            !PLATFORM.contains(&format!("\"{command}\"")),
+            "{command} is still present in the frontend invoke adapter"
         );
     }
 }

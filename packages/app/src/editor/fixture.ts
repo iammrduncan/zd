@@ -259,7 +259,7 @@ host.append(surface);
  * The dev page has no filesystem — platform.ts is deliberate about that — so a
  * save here records what *would* have been written rather than pretending to
  * write it. That is enough to check everything on this side of the boundary; the
- * atomic write on the other side is tested in packages/tauri/src/fs.rs.
+ * atomic write on the other side is tested in packages/host/src/atomic_write.rs.
  */
 const saves: string[] = [];
 const openedLinks: string[] = [];
