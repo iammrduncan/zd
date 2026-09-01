@@ -1,6 +1,6 @@
 /** Markdown-specific structure continuation for the shared editor owner. */
 import { markdownKeymap } from "@codemirror/lang-markdown";
-import { syntaxTree } from "@codemirror/language";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import {
   Annotation,
   EditorState,
@@ -219,11 +219,22 @@ function fenceAt(
   state: EditorState,
   pos: number,
 ): { node: SyntaxNode; marks: SyntaxNode[] } | null {
+  /*
+   * Enter can be pressed twice before the background parser has incorporated the
+   * first newline. Ask it to catch up only through the following source line, which
+   * is enough to include the closer without turning an ordinary key press into a
+   * full-document parse. Falling back preserves the command's previous behavior if
+   * the bounded parse cannot finish.
+   */
+  const line = state.doc.lineAt(pos);
+  const next = line.number < state.doc.lines ? state.doc.line(line.number + 1) : line;
+  const tree = ensureSyntaxTree(state, next.to) ?? syntaxTree(state);
+
   // Side 1, looking *forward* from `pos`. Both callers pass the start of a line, and
   // side -1 there resolves to whatever ends at that position — the line before, which
   // is outside the fence. Both commands silently declined on every fence in the
   // document until this was a 1.
-  let node: SyntaxNode | null = syntaxTree(state).resolveInner(pos, 1);
+  let node: SyntaxNode | null = tree.resolveInner(pos, 1);
   while (node && node.name !== "FencedCode") node = node.parent;
   if (!node) return null;
 
