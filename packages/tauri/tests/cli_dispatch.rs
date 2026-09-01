@@ -3,6 +3,7 @@
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
@@ -101,6 +102,65 @@ fn wait_for_exit(child: &mut Child) {
         }
         std::thread::sleep(Duration::from_millis(10));
     }
+}
+
+#[test]
+fn release_topology_has_distinct_console_and_desktop_executables() {
+    let console = Path::new(env!("CARGO_BIN_EXE_zd"));
+    let desktop = Path::new(env!("CARGO_BIN_EXE_zd-desktop"));
+
+    assert_ne!(console, desktop);
+    assert_eq!(
+        console.file_name().and_then(|name| name.to_str()),
+        Some("zd")
+    );
+    assert_eq!(
+        desktop.file_name().and_then(|name| name.to_str()),
+        Some("zd-desktop")
+    );
+}
+
+#[test]
+fn ordinary_zd_launches_the_desktop_role_and_returns() {
+    let scratch = Scratch::new();
+    let desktop = scratch.join("fake-zd-desktop");
+    let record = scratch.join("desktop-arguments.txt");
+    fs::write(
+        &desktop,
+        "#!/bin/sh\nset -eu\nprintf '%s\\n' \"$@\" > \"$ZD_TEST_DESKTOP_RECORD\"\n",
+    )
+    .expect("write fake desktop executable");
+    let mut permissions = fs::metadata(&desktop)
+        .expect("inspect fake desktop executable")
+        .permissions();
+    permissions.set_mode(0o700);
+    fs::set_permissions(&desktop, permissions).expect("make fake desktop executable runnable");
+    let invocation = scratch.join("invocation");
+    fs::create_dir_all(&invocation).expect("create invocation directory");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_zd"))
+        .arg("project/notes.md")
+        .current_dir(&invocation)
+        .env("ZD_TEST_DESKTOP_EXECUTABLE", &desktop)
+        .env("ZD_TEST_DESKTOP_RECORD", &record)
+        .output()
+        .expect("run console desktop launch");
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stdout.is_empty());
+    assert!(output.stderr.is_empty());
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while !record.is_file() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(
+        fs::read_to_string(record).expect("read desktop arguments"),
+        format!("{}\n", invocation.join("project/notes.md").display())
+    );
 }
 
 #[test]

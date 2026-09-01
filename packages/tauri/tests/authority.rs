@@ -116,11 +116,8 @@ fn single_instance_arbitration_is_registered_before_every_other_plugin() {
 }
 
 #[test]
-fn the_local_startup_page_can_only_listen_for_native_status() {
+fn the_local_startup_page_has_no_callable_native_authority() {
     let capability: serde_json::Value =
         serde_json::from_str(LOCAL_CAPABILITY).expect("local capability JSON");
-    assert_eq!(
-        capability["permissions"],
-        serde_json::json!(["core:event:allow-listen", "core:event:allow-unlisten"])
-    );
+    assert_eq!(capability["permissions"], serde_json::json!([]));
 }

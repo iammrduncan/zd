@@ -61,7 +61,49 @@ pub(crate) fn assets_directory() -> Result<PathBuf, String> {
         }
         return Ok(directory);
     }
-    Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../app/dist"))
+    #[cfg(debug_assertions)]
+    {
+        Ok(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../app/dist"))
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let executable = std::env::current_exe()
+            .map_err(|_| "the installed executable location is unavailable".to_string())?;
+        Ok(installed_assets_directory(&executable))
+    }
+}
+
+#[cfg(any(not(debug_assertions), test))]
+fn installed_assets_directory(executable: &std::path::Path) -> PathBuf {
+    if let Some(contents) = mac_bundle_contents(executable) {
+        return contents.join("Resources/assets");
+    }
+    let executable_directory = executable
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."));
+    if executable_directory
+        .file_name()
+        .is_some_and(|name| name == "bin")
+    {
+        if let Some(prefix) = executable_directory.parent() {
+            if prefix.file_name().is_some_and(|name| name == "usr") {
+                return prefix.join("lib/zd/assets");
+            }
+        }
+    }
+    executable_directory.join("assets")
+}
+
+#[cfg(any(not(debug_assertions), test))]
+fn mac_bundle_contents(executable: &std::path::Path) -> Option<&std::path::Path> {
+    let bin = executable.parent()?;
+    let resources = bin.parent()?;
+    if bin.file_name()? != "bin" || resources.file_name()? != "Resources" {
+        return None;
+    }
+    let contents = resources.parent()?;
+    (contents.file_name()? == "Contents" && contents.parent()?.extension()? == "app")
+        .then_some(contents)
 }
 
 #[cfg(unix)]
@@ -83,4 +125,41 @@ async fn wait_for_shutdown_signal() -> Result<(), String> {
     tokio::signal::ctrl_c()
         .await
         .map_err(|error| format!("could not wait for shutdown: {error}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::installed_assets_directory;
+
+    #[test]
+    fn debug_builds_use_the_workspace_frontend_when_no_test_override_exists() {
+        std::env::remove_var("ZD_TEST_ASSETS_DIR");
+
+        assert_eq!(
+            super::assets_directory().expect("debug assets directory"),
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../app/dist")
+        );
+    }
+
+    #[test]
+    fn installed_assets_follow_linux_and_macos_package_layouts() {
+        assert_eq!(
+            installed_assets_directory(Path::new("/usr/bin/zd")),
+            Path::new("/usr/lib/zd/assets")
+        );
+        assert_eq!(
+            installed_assets_directory(Path::new("/tmp/package/usr/bin/zd")),
+            Path::new("/tmp/package/usr/lib/zd/assets")
+        );
+        assert_eq!(
+            installed_assets_directory(Path::new("/Applications/zd.app/Contents/Resources/bin/zd")),
+            Path::new("/Applications/zd.app/Contents/Resources/assets")
+        );
+        assert_eq!(
+            installed_assets_directory(Path::new("/work/target/release/zd")),
+            Path::new("/work/target/release/assets")
+        );
+    }
 }

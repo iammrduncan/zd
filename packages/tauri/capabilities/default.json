@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Capabilities for the main zd window. Default deny — open one permission at a time, with a reason.",
   "windows": ["main"],
-  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
+  "permissions": []
 }
