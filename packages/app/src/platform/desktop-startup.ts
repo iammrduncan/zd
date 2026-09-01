@@ -5,6 +5,27 @@ interface DesktopHostStatus {
   readonly problem: string | null;
 }
 
+export function mountDesktopHostStatus(host: HTMLElement): () => void {
+  let active = true;
+  let notice: HTMLParagraphElement | null = null;
+  const pending = listen<DesktopHostStatus>("desktop-host-status", ({ payload }) => {
+    if (!active) return;
+    notice ??= document.createElement("p");
+    notice.className = "zd-local-notice zd-desktop-host-status";
+    notice.setAttribute("role", "alert");
+    notice.setAttribute("aria-live", "assertive");
+    notice.textContent = `zd disconnected: ${
+      payload.problem ?? "The local workbench host is unavailable."
+    }`;
+    if (!notice.isConnected) host.append(notice);
+  }).catch(() => null);
+  return () => {
+    active = false;
+    void pending.then((unlisten) => unlisten?.());
+    notice?.remove();
+  };
+}
+
 export function mountDesktopStartup(host: HTMLElement): () => void {
   const section = document.createElement("section");
   section.className = "zd-served-unlock";

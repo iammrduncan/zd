@@ -13,7 +13,7 @@ vi.mock("@tauri-apps/api/event", () => ({ listen: genericListen }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => nativeWindow }));
 
 import { connectDesktopServedPlatform } from "@/platform";
-import { mountDesktopStartup } from "@/platform/desktop-startup";
+import { mountDesktopHostStatus, mountDesktopStartup } from "@/platform/desktop-startup";
 import type { ServedHostClient } from "@/platform/served-client";
 
 describe("the desktop served boundary", () => {
@@ -101,5 +101,32 @@ describe("the desktop served boundary", () => {
     await vi.waitFor(() => expect(host.textContent).toContain("could not start"));
     expect(host.querySelector('[role="status"]')).not.toBeNull();
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("preserves the mounted workbench and appends an accessible disconnect notice", async () => {
+    let status: ((event: unknown) => void) | null = null;
+    genericListen.mockImplementationOnce(async (...arguments_: unknown[]) => {
+      status = arguments_[1] as (event: unknown) => void;
+      return vi.fn();
+    });
+    const host = document.createElement("main");
+    const workbench = document.createElement("section");
+    workbench.className = "zd-workbench";
+    workbench.textContent = "unsaved editor state";
+    host.append(workbench);
+
+    mountDesktopHostStatus(host);
+    await vi.waitFor(() => expect(status).not.toBeNull());
+    status!({
+      payload: {
+        phase: "disconnected",
+        problem: "the desktop host process exited unexpectedly",
+      },
+    });
+
+    expect(host.querySelector(".zd-workbench")).toBe(workbench);
+    expect(host.textContent).toContain("unsaved editor state");
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain("disconnected");
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain("exited unexpectedly");
   });
 });
