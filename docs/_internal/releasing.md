@@ -10,7 +10,8 @@ Release work requires a Node version accepted by the `engines.node` range in `pa
 1. Start from a clean checkout of `main`.
 2. Move the relevant entries from `Unreleased` in `CHANGELOG.md` under a dated version heading.
 3. Run `npm run version:bump -- <version>`, using a semantic version such as `0.2.1`.
-4. Run `npm run check` and `cargo test --manifest-path packages/tauri/Cargo.toml`.
+4. Run `npm run check`, `cargo test --workspace`, `cargo fmt --all -- --check`, and
+   `cargo clippy --workspace --all-targets -- -D warnings`.
 5. Review and commit all version and changelog changes together as `Prepare v<version>`.
 
 `npm run version:bump` deliberately does not create a commit or tag. Tagged publishing and artifact
@@ -28,15 +29,18 @@ git tag -a v<version> -m "zd v<version>"
 git push origin v<version>
 ```
 
-The tag starts `.github/workflows/release.yml`. It runs the static, unit, end-to-end, and native
-checks before packaging. A failed check publishes nothing. A green run builds Apple Silicon and
-Intel DMGs plus a Windows x64 NSIS installer. It verifies each disk image, writes a SHA-256 checksum
-beside every download, and creates the GitHub Release from the existing tag with generated release
-notes.
+The tag starts `.github/workflows/release.yml`. It runs static, unit, ordinary-browser,
+served-browser, and Rust workspace checks before packaging. A failed check publishes nothing. A
+green run builds Apple Silicon and Intel DMGs plus a Linux x86_64 Debian package.
+
+Each platform job installs its artifact into an isolated location and runs the direct-browser and
+desktop-wrapper smoke checks before it writes a SHA-256 checksum or uploads anything. The publish
+job accepts exactly these three downloads and their checksums, verifies their contents, and creates
+the GitHub Release from the existing tag with generated release notes. A missing, changed, or extra
+platform file stops publication.
 
 The v0.2 line is ad-hoc signed so macOS can verify that the completed bundle has not changed. It is
 not Developer ID signed or notarized; signing and notarization remain explicitly outside this
 prototype's scope in `docs/VISION.md` §11.
 
-The Windows installer is not code signed. Windows may show a SmartScreen warning even when its
-SHA-256 checksum matches the release.
+Windows artifacts are deferred and are not part of the build, smoke, checksum, or publish matrix.

@@ -93,7 +93,7 @@ export const softwareApplicationJsonLd = {
     price: "0",
     priceCurrency: "USD",
   },
-  operatingSystem: "macOS, Windows",
+  operatingSystem: "macOS, Linux",
   softwareVersion: websitePackage.version,
   url: SITE_URL.toString(),
 };

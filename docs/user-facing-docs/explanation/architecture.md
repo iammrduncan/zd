@@ -1,8 +1,9 @@
 # Architecture
 
-`zd` is a portable TypeScript workbench inside a thin Tauri desktop shell. The frontend owns
-interaction and rendering. Native Rust owns filesystem grants, terminal processes, Git inspection,
-window behavior, notifications, and local diagnostic files.
+`zd` has one portable TypeScript workbench and one Rust host. The frontend owns interaction and
+rendering. The host owns filesystem grants, terminal processes, Git inspection, watchers, saved
+state, and local diagnostic files. A browser connects directly to that host; the thin Tauri desktop
+shell starts the same host and adds viewing-computer window behavior and notifications.
 
 ## One workbench state
 
@@ -15,7 +16,7 @@ Features do not stitch a context switch together with independent setters. A pen
 or live process can still refuse an unsafe transition, while unsaved file text remains a local,
 recoverable draft and does not block navigation.
 
-## Narrow native authority
+## Narrow host authority
 
 The frontend reaches the operating system only through a typed platform boundary. Native code
 mints opaque project, worktree, file, and terminal identities after a launch path, folder picker, or
@@ -49,8 +50,11 @@ images are not fetched. Desktop completion notifications and sound are off by de
 use native macOS presentation. Local diagnostics are also off by default, redact path-like values,
 rotate bounded files, and remain on the computer until you reveal or remove them.
 
-The plain browser build has no filesystem, terminal, Git, notification, or diagnostic authority. It
-reports those capabilities as unavailable instead of pretending to emulate the desktop shell.
+The Vite-only browser fixtures have no filesystem, terminal, Git, notification, or diagnostic
+authority. A browser opened from `zd serve` receives host capabilities only after it authenticates
+with that process's secret. The host approves the startup folder before listening, accepts one
+controller, and keeps absolute filesystem paths out of browser requests. The initial direct mode is
+plain HTTP, so it belongs only on a protected private network and not on the public Internet.
 
 ## Verification at the boundaries
 
@@ -60,4 +64,4 @@ reports those capabilities as unavailable instead of pretending to emulate the d
 - Packaging checks inspect release metadata, installers, checksums, and application bundles.
 
 This split keeps the fast-changing workbench portable while containing security-sensitive details
-behind one small native boundary.
+behind one host boundary shared by browser and desktop clients.

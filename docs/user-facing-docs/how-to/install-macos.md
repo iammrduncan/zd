@@ -44,9 +44,13 @@ fails instead of replacing an existing `zd` entry:
 
 ```sh
 sudo mkdir -p /usr/local/bin
-sudo ln -s /Applications/zd.app/Contents/MacOS/zd /usr/local/bin/zd
+sudo ln -s /Applications/zd.app/Contents/Resources/bin/zd /usr/local/bin/zd
 command -v zd
 ```
+
+The app launches `Contents/MacOS/zd-desktop`. The terminal link targets the separate foreground
+console executable at `/Applications/zd.app/Contents/Resources/bin/zd` so `zd serve` can report its
+connection details normally.
 
 ## Install a source build
 

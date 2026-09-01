@@ -23,7 +23,9 @@ describe("the tagged release workflow", () => {
     expect(source).toContain("npm ci");
     expect(source).toContain("npm run check");
     expect(source).toContain("npm run test:e2e");
-    expect(source).toContain("cargo test");
+    expect(source).toContain("npm run test:e2e:served");
+    expect(source).toContain("cargo test --workspace");
+    expect(source).toContain("cargo fmt --all -- --check");
     expect(source).toMatch(/cargo clippy[^\n]*-D warnings/);
     expect(source).not.toMatch(/--retries|PWTEST_RETRIES/);
   });
@@ -34,21 +36,35 @@ describe("the tagged release workflow", () => {
     expect(source).toContain("runner: macos-15");
     expect(source).toContain("runner: macos-15-intel");
     expect(source).toContain("npm run package:macos");
+    expect(source).toContain("npm run smoke:macos --");
     expect(source).toContain("hdiutil verify");
     expect(source).toContain("shasum -a 256");
     expect(source).toContain("if-no-files-found: error");
   });
 
-  it("builds a checksum-verified Windows installer", () => {
+  it("builds and smokes a checksum-verified Linux Debian package", () => {
     const source = workflow();
 
-    expect(source).toContain("build-windows:");
-    expect(source).toContain("runs-on: windows-2025");
-    expect(source).toContain("--bundles nsis");
-    expect(source).toContain("Get-FileHash");
-    expect(source).toContain("packages/tauri/target/release/bundle/nsis/zd_*.exe");
-    expect(source).toMatch(/publish:[\s\S]*?needs: \[build-macos, build-windows\]/);
-    expect(source).toContain("dist/*.exe");
+    expect(source).toContain("build-linux:");
+    expect(source).toContain("runs-on: ubuntu-24.04");
+    expect(source).toContain("npm run package:linux");
+    expect(source).toContain("npm run smoke:linux --");
+    expect(source).toContain("target/release/bundle/deb/zd_*.deb");
+    expect(source).toContain("sha256sum");
+    expect(source).toMatch(
+      /cd target\/release\/bundle\/deb[\s\S]*sha256sum "\$deb" > "\$deb\.sha256"/,
+    );
+    expect(source).toMatch(/publish:[\s\S]*?needs: \[build-macos, build-linux\]/);
+    expect(source).toContain("dist/*.deb");
+  });
+
+  it("keeps owner-deferred Windows outside the release matrix", () => {
+    const source = workflow();
+
+    expect(source).not.toContain("build-windows");
+    expect(source).not.toContain("windows-");
+    expect(source).not.toContain("--bundles nsis");
+    expect(source).not.toContain("dist/*.exe");
   });
 
   it("publishes existing-tag assets with the narrow write permission", () => {
@@ -61,6 +77,7 @@ describe("the tagged release workflow", () => {
     expect(source).toContain("--generate-notes");
     expect(source).toContain("GH_TOKEN: ${{ github.token }}");
     expect(source).toContain("GH_REPO: ${{ github.repository }}");
+    expect(source).toContain("node packages/scripts/release/verify-downloads.mjs dist");
   });
 
   it("pins every action and uses only GitHub-maintained actions", () => {
@@ -77,7 +94,8 @@ describe("the tagged release workflow", () => {
     expect(guide).toContain("git tag -a v<version>");
     expect(guide).toContain("git push origin v<version>");
     expect(guide).toMatch(/Apple Silicon and\s+Intel DMGs/);
-    expect(guide).toContain("Windows x64 NSIS installer");
+    expect(guide).toContain("Linux x86_64 Debian package");
+    expect(guide).not.toContain("Windows x64 NSIS installer");
     expect(guide).toContain("SHA-256 checksum");
   });
 });
