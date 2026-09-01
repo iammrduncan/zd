@@ -16,7 +16,6 @@ pub mod instrumentation;
 pub mod notifications;
 mod projects;
 mod quick_access;
-pub mod terminal;
 mod terminal_runtime;
 mod themes;
 mod workspaces;

@@ -5718,23 +5718,18 @@ version = "0.2.10"
 dependencies = [
  "block2",
  "ignore",
- "libc",
- "notify-debouncer-mini",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
  "objc2-user-notifications",
- "portable-pty",
  "serde",
  "serde_json",
- "sysinfo",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-global-shortcut",
  "tauri-plugin-notification",
  "tauri-plugin-opener",
- "windows-sys 0.61.2",
  "zd-host",
 ]
 
@@ -5744,10 +5739,14 @@ version = "0.2.10"
 dependencies = [
  "getrandom 0.4.3",
  "ignore",
+ "libc",
+ "notify-debouncer-mini",
+ "portable-pty",
  "serde",
  "serde_json",
  "sysinfo",
  "trash",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

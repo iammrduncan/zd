@@ -1,6 +1,3 @@
-#[path = "../src/terminal/mod.rs"]
-mod terminal;
-
 use std::path::{Path, PathBuf};
 #[cfg(any(unix, windows))]
 use std::process::Command;
@@ -8,7 +5,7 @@ use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use terminal::{
+use super::{
     TerminalErrorKind, TerminalExitReason, TerminalScope, TerminalSessionHandle, TerminalSessions,
     TerminalStartRequest, TerminalViewport,
 };
@@ -70,7 +67,7 @@ fn wait_for_output(
 fn wait_for_exit(
     sessions: &mut TerminalSessions,
     handle: &TerminalSessionHandle,
-) -> terminal::TerminalExitStatus {
+) -> super::TerminalExitStatus {
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
         if let Some(status) = sessions.poll_exit(handle).unwrap() {
@@ -343,4 +340,21 @@ fn a_spawn_failure_releases_the_pty_and_leaves_the_manager_usable() {
         )
         .unwrap();
     assert_eq!(wait_for_exit(&mut sessions, &handle).code, Some(0));
+}
+
+#[test]
+fn session_limit_refuses_new_processes_without_disturbing_the_owned_one() {
+    let scratch = Scratch::new("session-limit");
+    let mut sessions = TerminalSessions::with_session_limit(1).unwrap();
+    let first = sessions
+        .start_shell(scope(&scratch), viewport(24, 80))
+        .unwrap();
+
+    let error = sessions
+        .start_shell(scope(&scratch), viewport(24, 80))
+        .unwrap_err();
+
+    assert_eq!(error.kind, TerminalErrorKind::InvalidInput);
+    assert!(sessions.contains(&first));
+    sessions.dispose(&first).unwrap();
 }

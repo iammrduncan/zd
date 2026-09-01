@@ -8,13 +8,13 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use serde::Serialize;
 use tauri::Emitter;
-
-use crate::cli::LaunchState;
-use crate::terminal::{
+use zd_host::terminal::{
     TerminalError, TerminalErrorKind, TerminalExitStatus, TerminalOutputBatch,
     TerminalOutputSignal, TerminalScope, TerminalSessionHandle, TerminalSessions,
     TerminalStartRequest, TerminalViewport,
 };
+
+use crate::cli::LaunchState;
 
 const TERMINAL_OUTPUT_READY_EVENT: &str = "terminal-output-ready";
 
@@ -195,7 +195,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use crate::cli::{LaunchState, NativeOpenRequest};
-    use crate::terminal::{TerminalErrorKind, TerminalStartRequest, TerminalViewport};
+    use zd_host::terminal::{TerminalErrorKind, TerminalStartRequest, TerminalViewport};
 
     use super::TerminalState;
 

@@ -5,6 +5,7 @@ mod clipboard_images;
 mod durable;
 mod file_mutations;
 mod file_tree;
+pub mod file_tree_watch;
 mod files;
 mod git;
 #[doc(hidden)]
@@ -13,6 +14,7 @@ mod grants;
 mod identity;
 pub mod instrumentation;
 mod service;
+pub mod terminal;
 mod themes;
 mod workspaces;
 mod worktrees;
