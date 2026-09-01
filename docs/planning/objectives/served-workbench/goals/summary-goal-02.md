@@ -14,7 +14,7 @@ One scope decision blocks formal completion of goal 02 and the start of goal 03.
 
 | # | What | Why it needs you | Blocks |
 | --- | --- | --- | --- |
-| 1 | **Authorize a small Linux browser-gate repair outside goal 02's owned files, or provide a supported macOS run of the normal Playwright target.** The recommended choice is to authorize the repair because goal 05 must verify Linux. | The nine failing tests predate goal 02 and cover editor input, image selection, font metrics, and compact layout. The goal contract forbids silently widening its file ownership to repair them. | Moving goal 02 to `_completed/` and starting goals 03–05. |
+| 1 | **Authorize a measured four-file Linux browser-gate repair outside goal 02's owned files, or provide a supported macOS run of the normal Playwright target.** The repair would update three test assumptions and reduce the compact notation gap from 8px to 5px; goal 05 must eventually verify Linux. | The nine failing tests predate goal 02. Read-only Chromium probes identified each cause, but the goal contract forbids silently widening its file ownership to repair them. | Moving goal 02 to `_completed/` and starting goals 03–05. |
 
 ## What was delivered
 
@@ -84,6 +84,22 @@ the required normal Playwright target is not green in this Linux environment.
 - The anti-slop structure checker selects `vitest.config.ts` as its only collection oracle and then
   reports all 63 Playwright specs as uncollected. The normal and served Playwright configurations
   do collect them, so that output is not a valid clean or failing repository-structure result.
+- The line-boundary implementation is deliberately macOS-only, but its Playwright spec uses
+  `ControlOrMeta`, which sends Linux `Ctrl+Arrow` word motion. Overriding `navigator.platform` to
+  `MacIntel` before module load and sending `Meta+Arrow` exercised the intended keymap: all three
+  heading/code/list probes moved monotonically and settled at their correct line boundaries.
+- The image-drag spec starts its second pointer drag inside the range selected by its first drag.
+  Linux Chromium treats that as a native move and relocates `Before ` to the end of the document.
+  Collapsing the fixture caret between the three independent gestures preserved the exact source
+  and produced forward `0..93` and backward `93..0` selections across the image.
+- The bold-width test also asserts that the italic face has the regular face's width, although that
+  claim is outside the test name and bold contract. Linux Chromium measured regular/bold at 95px
+  and italic at 94px. The shipped faces all loaded and the separate pixel tests selected the correct
+  outlines.
+- At the 600px compact viewport, an 8px notation gap places the H6 marker 3px outside the surface.
+  A read-only style probe measured a 5px gap at exactly 0px with the heading text edge still at 0px;
+  4px left 1px of spare room. The narrow repair is a compact-only gap adjustment, not a change to
+  the 72px inset or straight prose measure.
 
 ## Evidence
 
@@ -101,6 +117,7 @@ the required normal Playwright target is not green in this Linux environment.
 | Protocol negatives | Rejected unknown methods/fields, invalid scopes/revisions/enums, path widening, encoding/type mismatches, oversized payloads, unsupported signatures, and excluded watcher/terminal/picker/root authority. |
 | Normal Playwright target | **Not green:** 426 of 435 tests passed. Nine failed in `fonts.spec.ts`, `images.spec.ts`, `line-boundary.spec.ts`, and `trailing-inset.spec.ts`. A serial run of those four unchanged files reproduced 9 failures and passed 18 tests. |
 | Branch-causality check | `git diff --quiet 4abee23..HEAD` passed for the failed editor/design sources and tests, Playwright config, `package.json`, and `package-lock.json`. Those tests last changed in `000fea9`, before goal 02. |
+| Read-only Linux repair probes | Mac platform emulation made every line-boundary sequence settle; collapsing the caret preserved the image source across all three drag directions; regular/bold/italic widths measured 95/95/94px; compact notation gaps of 8/5/4px put the H6 marker at −3/0/1px without denting the heading edge. |
 | Changed normal-browser evidence | The complete workbench foundation spec ran in the full target, including host-diagnostic wording; all of its tests passed. |
 | Anti-slop checks | The optional Oxlint plugin is not installed, so no machine-clean code claim is made. ESLint passed, and a manual changed-file scan found no disabled tests, placeholders, unexplained suppressions, tautological assertions, or swallowed-error shapes. The structure oracle limitation is recorded above. |
 | `git diff --check` | Passed at the halted-goal boundary. |
