@@ -27,6 +27,23 @@ fn an_explicit_port_is_structured_and_order_independent() {
 }
 
 #[test]
+fn a_trusted_caller_can_select_an_isolated_state_directory() {
+    let parsed = ServeArgs::parse(&args(&[
+        "project",
+        "--state-dir",
+        "/tmp/zd-state",
+        "--port",
+        "49151",
+    ]))
+    .expect("parse isolated state directory");
+
+    assert_eq!(
+        parsed.state_directory(),
+        Some(PathBuf::from("/tmp/zd-state").as_path())
+    );
+}
+
+#[test]
 fn missing_extra_and_unbounded_arguments_are_refused() {
     for raw in [
         args(&[]),
@@ -35,6 +52,7 @@ fn missing_extra_and_unbounded_arguments_are_refused() {
         args(&["project", "--port", "not-a-port"]),
         args(&["project", "--host", "0.0.0.0"]),
         args(&["project", "--assets", "/tmp/workspace"]),
+        args(&["project", "--state-dir"]),
     ] {
         assert!(ServeArgs::parse(&raw).is_err(), "accepted {raw:?}");
     }

@@ -15,7 +15,10 @@ async fn main() {
 async fn run() -> Result<(), String> {
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
     let arguments = ServeArgs::parse(&arguments)?;
-    let state_directory = platform_state_directory()?;
+    let state_directory = match arguments.state_directory() {
+        Some(directory) => directory.to_path_buf(),
+        None => platform_state_directory()?,
+    };
     let host = Arc::new(HostService::open_project_with_state(
         arguments.project(),
         &state_directory,
