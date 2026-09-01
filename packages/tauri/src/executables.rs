@@ -31,6 +31,14 @@ fn console_for_desktop_path(desktop: &Path) -> PathBuf {
 }
 
 fn desktop_for_console_path(console: &Path) -> PathBuf {
+    let canonical;
+    let console = match std::fs::canonicalize(console) {
+        Ok(path) => {
+            canonical = path;
+            canonical.as_path()
+        }
+        Err(_) => console,
+    };
     mac_contents_from_console(console)
         .map(|contents| contents.join("MacOS").join(DESKTOP_NAME))
         .unwrap_or_else(|| sibling(console, DESKTOP_NAME))
@@ -91,5 +99,32 @@ mod tests {
             desktop_for_console_path(Path::new("/Applications/zd.app/Contents/Resources/bin/zd")),
             Path::new("/Applications/zd.app/Contents/MacOS/zd-desktop")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn macos_console_symlink_finds_the_bundle_desktop() {
+        use std::os::unix::fs::symlink;
+
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("zd-desktop-link-{stamp}"));
+        let console = root.join("zd.app/Contents/Resources/bin/zd");
+        let command = root.join("bin/zd");
+        std::fs::create_dir_all(console.parent().expect("console parent"))
+            .expect("create bundle console directory");
+        std::fs::create_dir_all(command.parent().expect("command parent"))
+            .expect("create command directory");
+        std::fs::write(&console, b"console").expect("write bundle console");
+        symlink(&console, &command).expect("link installed console");
+
+        assert_eq!(
+            desktop_for_console_path(&command),
+            root.join("zd.app/Contents/MacOS/zd-desktop")
+        );
+
+        std::fs::remove_dir_all(root).expect("remove link fixture");
     }
 }

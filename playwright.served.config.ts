@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { servedHostTestTimeout } from "./packages/app/tests/served/runtime";
+
 /** Chromium drives the production application through the real Rust served host. */
 export default defineConfig({
   testDir: "./packages/app/tests/served",
@@ -8,7 +10,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0,
   reporter: "list",
-  timeout: 30_000,
+  timeout: servedHostTestTimeout(process.env),
   use: { trace: "on-first-retry" },
   projects: [{ name: "served-chromium", use: { ...devices["Desktop Chrome"] } }],
 });

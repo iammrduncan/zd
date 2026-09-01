@@ -6,6 +6,7 @@ import {
   resolveServedHostExecutable,
   servedHostEnvironment,
   servedHostStateDirectory,
+  servedHostTestTimeout,
 } from "../../served/runtime";
 
 describe("the served-host evidence runtime", () => {
@@ -74,5 +75,10 @@ describe("the served-host evidence runtime", () => {
         "darwin",
       ),
     ).toBe("/tmp/state/Library/Application Support/com.zensuite.zd");
+  });
+
+  it("allows a cold installed artifact more time without adding retries", () => {
+    expect(servedHostTestTimeout({})).toBe(30_000);
+    expect(servedHostTestTimeout({ ZD_SERVE_EXECUTABLE: "/tmp/install/usr/bin/zd" })).toBe(60_000);
   });
 });

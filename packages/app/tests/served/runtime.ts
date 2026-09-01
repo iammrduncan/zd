@@ -47,3 +47,9 @@ export function servedHostStateDirectory(
   }
   return join(stateRoot, "com.zensuite.zd");
 }
+
+export function servedHostTestTimeout(
+  environment: Readonly<Record<string, string | undefined>>,
+): number {
+  return environment.ZD_SERVE_EXECUTABLE === undefined ? 30_000 : 60_000;
+}

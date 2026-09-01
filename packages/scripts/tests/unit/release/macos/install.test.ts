@@ -27,10 +27,15 @@ function temporaryDirectory() {
 }
 
 function fakeApplication(root: string) {
-  const executable = join(root, "source", "zd.app", "Contents", "MacOS", "zd");
-  mkdirSync(dirname(executable), { recursive: true });
-  writeFileSync(executable, '#!/bin/sh\nprintf "%s\\n" "$PWD" "$@"\n');
-  chmodSync(executable, 0o755);
+  const app = resolve(root, "source", "zd.app");
+  const desktop = join(app, "Contents", "MacOS", "zd-desktop");
+  const console = join(app, "Contents", "Resources", "bin", "zd");
+  mkdirSync(dirname(desktop), { recursive: true });
+  mkdirSync(dirname(console), { recursive: true });
+  writeFileSync(desktop, "#!/bin/sh\nexit 0\n");
+  writeFileSync(console, '#!/bin/sh\nprintf "%s\\n" "$PWD" "$@"\n');
+  chmodSync(desktop, 0o755);
+  chmodSync(console, 0o755);
   return resolve(root, "source", "zd.app");
 }
 
@@ -85,7 +90,7 @@ describe("the macOS command installer", () => {
 
     expect(result.status, result.stderr).toBe(0);
     expect(lstatSync(command).isSymbolicLink()).toBe(true);
-    expect(readlinkSync(command)).toBe(resolve(installedApp, "Contents", "MacOS", "zd"));
+    expect(readlinkSync(command)).toBe(resolve(installedApp, "Contents", "Resources", "bin", "zd"));
 
     const workspace = resolve(root, "notes");
     mkdirSync(workspace);
@@ -114,13 +119,13 @@ describe("the macOS command installer", () => {
     expect(existsSync(stale)).toBe(false);
   });
 
-  it("refuses a source without the zd executable", () => {
+  it("refuses a source without both executable roles", () => {
     const root = temporaryDirectory();
     const missing = resolve(root, "missing.app");
     const { result } = install(root, missing);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("does not contain Contents/MacOS/zd");
+    expect(result.stderr).toContain("does not contain the installed zd executable roles");
   });
 
   it("does not overwrite an unrelated command", () => {
