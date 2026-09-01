@@ -238,6 +238,48 @@ test("accepts keyboard and paste input while copying grapheme-safe selection", a
   expect(copied).toContain("日本語");
 });
 
+test("does not replay accumulated input when WebKit reports an IME edit", async ({ page }) => {
+  await mountFixture(page, false);
+  const input = page.getByRole("textbox", { name: /Review terminal input/ });
+  await input.focus();
+  await page.keyboard.type("STOP TOUCHING THE DESIGN");
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.terminalFixture.calls
+          .filter((call) => call.startsWith("write:"))
+          .map((call) => call.slice(6))
+          .join(""),
+      ),
+    )
+    .toBe("STOP TOUCHING THE DESIGN");
+
+  await page.evaluate(() => {
+    window.terminalFixture.calls.length = 0;
+    const input = document.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")!;
+    input.value = "STOPTOUCHINGTHEDESIGN";
+    input.setSelectionRange(input.value.length, input.value.length);
+    const event = new KeyboardEvent("keydown", {
+      key: "Process",
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(event, "keyCode", { get: () => 229 });
+    input.dispatchEvent(event);
+    input.value = `${input.value.slice(0, -1)}é`;
+  });
+  await page.waitForTimeout(50);
+
+  expect(
+    await page.evaluate(() =>
+      window.terminalFixture.calls
+        .filter((call) => call.startsWith("write:"))
+        .map((call) => call.slice(6))
+        .join(""),
+    ),
+  ).toBe("é");
+});
+
 test("coalesces resize/reflow without reading or polling in the background", async ({ page }) => {
   await mountFixture(page, false);
   await expect
