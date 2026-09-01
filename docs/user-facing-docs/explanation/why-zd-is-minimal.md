@@ -22,8 +22,10 @@ plans, feedback, and agent-written documents are primary work. Terminal agents, 
 surround that surface without replacing it.
 
 This choice leaves out many general IDE features. `zd` does not aim to provide language servers,
-debuggers, refactoring suites, a plugin marketplace, remote project hosting, or Git write commands.
-Those exclusions keep the daily path quiet, local, quick to summon, and easy to understand.
+debuggers, refactoring suites, a plugin marketplace, accounts, multi-user collaboration, or Git
+write commands. A served workbench still runs entirely on the project host; it is not a cloud
+workspace service. Those exclusions keep the daily path quiet, local-first, quick to summon, and
+easy to understand.
 
 If this matches how you build, start with [your first workbench](../tutorials/first-workbench.md).
 If it does not, the limits are intentional rather than unfinished promises.

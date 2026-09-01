@@ -14,7 +14,10 @@ files, and Git state in one place. Start with the task you want to finish.
 ## How-to guides
 
 - [Install on macOS](how-to/install-macos.md) to verify, install, update, or remove a release build.
-- [Install on Windows](how-to/install-windows.md) to verify and run the x64 release installer.
+- [Install on Linux](how-to/install-linux.md) to verify, install, update, or remove the x86_64
+  Debian package.
+- [Serve a workbench](how-to/serve-a-workbench.md) to open a remote host directly from a browser on
+  a protected network.
 - [Manage projects and threads](how-to/manage-projects-and-threads.md) to organize terminal sessions
   across project roots and Git worktrees.
 - [Review Markdown with comments](how-to/review-markdown-with-comments.md) to turn selected text into

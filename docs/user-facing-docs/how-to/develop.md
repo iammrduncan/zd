@@ -18,6 +18,7 @@ npm ci
 npm run app                       # native workbench without a project
 npm run app:open -- .             # native workbench with the current folder
 npm run app:open -- README.md     # native workbench with one file
+npm run app:serve -- . --bind 127.0.0.1  # real served host for a browser
 npm run dev                       # browser development server
 ```
 
@@ -35,8 +36,9 @@ corresponding native boundary is not part of the change:
 npm run check
 npm run test:e2e
 npm run test:e2e:release
-cargo test --manifest-path packages/tauri/Cargo.toml --all-targets
-cargo clippy --manifest-path packages/tauri/Cargo.toml --all-targets -- -D warnings
+npm run test:e2e:served
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
 npm run website:build
 npm run format:check
 ```
@@ -58,7 +60,8 @@ checks; performance claims need the release fixture that owns the claim.
 | `packages/app/src/design` | Semantic tokens, fonts, and validated themes |
 | `packages/app/src/platform.ts` | The frontend’s complete native boundary |
 | `packages/host` | Native grants, files, Git, watchers, PTYs, durable state, and diagnostics |
-| `packages/tauri` | Desktop composition, windows, notifications, and adapters to the shared host |
+| `packages/server` | HTTP assets, authenticated host protocol, controller session, and `serve` lifecycle |
+| `packages/tauri` | Desktop wrapper, host supervision, windows, notifications, and trusted shell actions |
 | `packages/scripts` | Repository checks, releases, objectives, and session automation |
 
 Read [the architecture explanation](../explanation/architecture.md) before moving a responsibility

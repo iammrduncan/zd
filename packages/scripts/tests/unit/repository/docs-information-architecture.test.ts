@@ -24,7 +24,8 @@ const PUBLIC_PAGES = [
   "docs/user-facing-docs/tutorials/first-workbench.md",
   "docs/user-facing-docs/tutorials/read-and-review-markdown.md",
   "docs/user-facing-docs/how-to/install-macos.md",
-  "docs/user-facing-docs/how-to/install-windows.md",
+  "docs/user-facing-docs/how-to/install-linux.md",
+  "docs/user-facing-docs/how-to/serve-a-workbench.md",
   "docs/user-facing-docs/how-to/manage-projects-and-threads.md",
   "docs/user-facing-docs/how-to/review-markdown-with-comments.md",
   "docs/user-facing-docs/how-to/paste-screenshots.md",
@@ -102,6 +103,9 @@ describe("the repository documentation map", () => {
     expect(readme.trimEnd().split("\n").length).toBeLessThanOrEqual(90);
     expect(readme).toContain("docs/user-facing-docs/tutorials/first-workbench.md");
     expect(readme).toContain("docs/user-facing-docs/how-to/install-macos.md");
+    expect(readme).toContain("docs/user-facing-docs/how-to/install-linux.md");
+    expect(readme).toContain("docs/user-facing-docs/how-to/serve-a-workbench.md");
+    expect(readme).not.toContain("docs/user-facing-docs/how-to/install-windows.md");
     expect(readme).toContain("install-macos.md#if-macos-says-zd-not-opened");
     expect(readme).toContain("Open Anyway");
     expect(readme).toContain("docs/user-facing-docs/how-to/manage-projects-and-threads.md");
@@ -122,6 +126,56 @@ describe("the repository documentation map", () => {
     expect(guide).toContain("about an hour");
     expect(guide).toContain("https://support.apple.com/102445");
     expect(guide).not.toMatch(/\bxattr\b|\bspctl\b/);
+  });
+
+  it("documents only the supported downloads and the direct remote-browser path", () => {
+    const readme = page("README.md");
+    const hub = page("docs/user-facing-docs/README.md");
+    const macos = page("docs/user-facing-docs/how-to/install-macos.md");
+    const linux = page("docs/user-facing-docs/how-to/install-linux.md");
+    const serve = page("docs/user-facing-docs/how-to/serve-a-workbench.md");
+    const cli = page("docs/user-facing-docs/reference/cli.md");
+    const website = page("packages/website/app/page.tsx");
+    const site = page("packages/website/lib/site.ts");
+
+    expect(existsSync(resolve(ROOT, "docs/user-facing-docs/how-to/install-windows.md"))).toBe(
+      false,
+    );
+    for (const source of [readme, hub]) {
+      expect(source).toContain("how-to/install-linux.md");
+      expect(source).toContain("how-to/serve-a-workbench.md");
+      expect(source).not.toContain("install-windows.md");
+    }
+    expect(macos).toContain("/Applications/zd.app/Contents/Resources/bin/zd");
+    expect(macos).not.toContain("/Applications/zd.app/Contents/MacOS/zd");
+    for (const value of [
+      "zd_<version>_amd64.deb",
+      "sha256sum -c",
+      "sudo apt install ./zd_<version>_amd64.deb",
+      "/usr/bin/zd",
+      "/usr/bin/zd-desktop",
+      "/usr/lib/zd/assets",
+      "sudo apt remove zd",
+    ]) {
+      expect(linux).toContain(value);
+    }
+    for (const value of [
+      "zd serve . --bind <protected-network-ip>",
+      "zd serve URL:",
+      "zd serve secret:",
+      "one controlling browser",
+      "protected private network",
+      "public Internet",
+      "Ctrl+C",
+    ]) {
+      expect(serve).toContain(value);
+    }
+    expect(cli).toContain("zd serve [<folder>] [--bind <ip>] [--port <port>]");
+    expect(cli).toContain("0.0.0.0");
+    expect(cli).toContain("port `0`");
+    expect(website).toContain("Available for macOS and Linux");
+    expect(website).not.toContain("Available for macOS and Windows");
+    expect(site).toContain('operatingSystem: "macOS, Linux"');
   });
 
   it("gives every document type one named entry point", () => {

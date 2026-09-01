@@ -42,7 +42,7 @@ export default function Home() {
             Read the docs
           </a>
         </div>
-        <p className="platform-note">Available for macOS and Windows · local by default</p>
+        <p className="platform-note">Available for macOS and Linux · local by default</p>
       </section>
 
       <section className="markdown-story" aria-labelledby="markdown-heading">

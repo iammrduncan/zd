@@ -111,7 +111,8 @@ describe("the workbench promotional kit", () => {
 
     expect(readme).toContain("Apple Silicon or Intel DMG");
     expect(readme).toContain("not Developer ID signed or notarized");
-    expect(readme).toContain("Windows x64 setup executable");
-    expect(readme).toContain("not code signed");
+    expect(readme).toContain("Linux x86_64 Debian package");
+    expect(readme).toContain("SHA-256 checksum");
+    expect(readme).not.toContain("Windows x64 setup executable");
   });
 });

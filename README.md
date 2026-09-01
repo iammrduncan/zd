@@ -12,15 +12,14 @@ files, and Git around that surface. It purposefully matches how I build and may 
 
 ## Install
 
-Download the Apple Silicon or Intel DMG, or the Windows x64 setup executable, and its checksum from
-the [latest release](https://github.com/iammrduncan/zd/releases/latest).
+Download the Apple Silicon or Intel DMG, or the Linux x86_64 Debian package, and its matching
+SHA-256 checksum from the [latest release](https://github.com/iammrduncan/zd/releases/latest).
 
 Current macOS builds are ad-hoc signed but not Developer ID signed or notarized. If macOS shows
 **“zd” Not Opened** after the checksum passes, choose **Done**, then use System Settings → Privacy &
 Security → **Open Anyway**. The [macOS installation guide](docs/user-facing-docs/how-to/install-macos.md#if-macos-says-zd-not-opened)
-has the complete recovery path. Current Windows installers are not code signed; see the
-[Windows installation guide](docs/user-facing-docs/how-to/install-windows.md) before accepting a
-SmartScreen warning.
+has the complete recovery path. See the
+[Linux installation guide](docs/user-facing-docs/how-to/install-linux.md) for the Debian package.
 
 ## Start a workbench
 
@@ -28,10 +27,14 @@ SmartScreen warning.
 zd                 # open the workbench
 zd .               # open the current folder as a project
 zd README.md       # open one file and approve its parent project
+zd serve . --bind <protected-network-ip>  # open this host from a browser
 ```
 
 Relative paths resolve from the directory where you run the command. A named file may be new; `zd`
 creates it on the first successful save.
+
+For a remote machine, [serve a workbench](docs/user-facing-docs/how-to/serve-a-workbench.md). The
+viewing computer needs only a browser and protected-network access to the host.
 
 ## What is available
 
@@ -65,7 +68,8 @@ sound, desktop notifications, and local diagnostics are off by default.
 | Organize projects and terminal threads | [Manage projects and threads](docs/user-facing-docs/how-to/manage-projects-and-threads.md) |
 | Review working-tree or historical changes | [Inspect Git changes](docs/user-facing-docs/how-to/inspect-changes.md) |
 | Install or update on macOS | [Install on macOS](docs/user-facing-docs/how-to/install-macos.md) |
-| Install or update on Windows | [Install on Windows](docs/user-facing-docs/how-to/install-windows.md) |
+| Install or update on Linux | [Install on Linux](docs/user-facing-docs/how-to/install-linux.md) |
+| Open a remote host in a browser | [Serve a workbench](docs/user-facing-docs/how-to/serve-a-workbench.md) |
 | Look up launch behavior | [CLI reference](docs/user-facing-docs/reference/cli.md) |
 | Understand the security boundaries | [Architecture](docs/user-facing-docs/explanation/architecture.md) |
 | Browse every document type | [Documentation map](docs/README.md) |
