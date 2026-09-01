@@ -47,6 +47,11 @@ describe("the macOS application bundle", () => {
     expect(source).toContain('ZD_SERVE_EXECUTABLE="$install_root/bin/zd"');
     expect(source).toContain("playwright.served.config.ts");
     expect(source).toContain("smoke-macos-wrapper.mjs");
+    expect(source).toContain(
+      "Verified installed macOS wrapper: controller=one reload=same-session " +
+        "shell=show-workbench secondary=reused graceful=passed forced=passed " +
+        "crash=presented cleanup=passed",
+    );
   });
 
   it("builds the DMG without Finder automation", () => {

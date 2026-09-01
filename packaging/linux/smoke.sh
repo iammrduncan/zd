@@ -39,4 +39,4 @@ if ! XDG_CONFIG_HOME="$install_root/home" \
   echo "zd: installed Linux wrapper smoke failed" >&2
   exit 1
 fi
-echo "Verified installed Linux wrapper: health=204 secondary=reused cleanup=passed"
+echo "Verified installed Linux wrapper: controller=one reload=same-session shell=show-workbench secondary=reused graceful=passed forced=passed crash=presented cleanup=passed"

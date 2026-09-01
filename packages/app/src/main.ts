@@ -6,7 +6,11 @@ import {
   detectPlatform,
   isTauriWindow,
 } from "./platform";
-import { mountDesktopHostStatus, mountDesktopStartup } from "./platform/desktop-startup";
+import {
+  mountDesktopHostStatus,
+  mountDesktopStartup,
+  reportDesktopInstalledSmokeReady,
+} from "./platform/desktop-startup";
 import { isServedPage, mountServedLimits, mountServedUnlock } from "./platform/served-unlock";
 import { bootWorkbench } from "./workbench/boot";
 
@@ -27,6 +31,9 @@ async function start(workbenchHost: HTMLElement): Promise<void> {
       : await mountServedUnlock(workbenchHost, connectServedPlatform)
     : detectPlatform();
   await bootWorkbench(workbenchHost, platform);
+  if (desktop && served && workbenchHost.querySelector(".zd-workbench")) {
+    await reportDesktopInstalledSmokeReady();
+  }
   if (served && workbenchHost.querySelector(".zd-workbench")) {
     mountServedLimits(workbenchHost);
   }

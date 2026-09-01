@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const invoke = vi.hoisted(() => vi.fn());
 const genericListen = vi.hoisted(() => vi.fn(async () => vi.fn()));
+const genericEmit = vi.hoisted(() => vi.fn(async () => undefined));
 const nativeWindow = vi.hoisted(() => ({
   onCloseRequested: vi.fn(async () => vi.fn()),
   isFocused: vi.fn(async () => true),
@@ -9,17 +10,23 @@ const nativeWindow = vi.hoisted(() => ({
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
-vi.mock("@tauri-apps/api/event", () => ({ listen: genericListen }));
+vi.mock("@tauri-apps/api/event", () => ({ emit: genericEmit, listen: genericListen }));
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: () => nativeWindow }));
 
 import { connectDesktopServedPlatform } from "@/platform";
-import { mountDesktopHostStatus, mountDesktopStartup } from "@/platform/desktop-startup";
+import {
+  mountDesktopHostStatus,
+  mountDesktopStartup,
+  reportDesktopInstalledSmokeReady,
+} from "@/platform/desktop-startup";
 import type { ServedHostClient } from "@/platform/served-client";
 
 describe("the desktop served boundary", () => {
   afterEach(() => {
     invoke.mockReset();
     genericListen.mockClear();
+    genericEmit.mockClear();
+    window.history.replaceState(null, "", "/");
     nativeWindow.onCloseRequested.mockReset();
     nativeWindow.onCloseRequested.mockResolvedValue(vi.fn());
     nativeWindow.isFocused.mockReset();
@@ -267,5 +274,41 @@ describe("the desktop served boundary", () => {
     expect(host.textContent).toContain("unsaved editor state");
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("disconnected");
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("exited unexpectedly");
+  });
+
+  it("reports installed readiness only after one shell action and a refused retired command", async () => {
+    window.history.replaceState(null, "", "/?zd-installed-smoke=normal");
+    invoke.mockResolvedValueOnce("ordinary").mockRejectedValueOnce(new Error("not registered"));
+
+    await reportDesktopInstalledSmokeReady();
+
+    expect(invoke.mock.calls).toEqual([["show_workbench"], ["read_text_file", {}]]);
+    expect(genericEmit).toHaveBeenCalledExactlyOnceWith("zd-installed-smoke", {
+      checkpoint: "ready",
+    });
+  });
+
+  it("reports crash presentation only after the installed crash notice is mounted", async () => {
+    window.history.replaceState(null, "", "/?zd-installed-smoke=crash");
+    let status: ((event: unknown) => void) | null = null;
+    genericListen.mockImplementationOnce(async (...arguments_: unknown[]) => {
+      status = arguments_[1] as (event: unknown) => void;
+      return vi.fn();
+    });
+    const host = document.createElement("main");
+
+    mountDesktopHostStatus(host);
+    await vi.waitFor(() => expect(status).not.toBeNull());
+    status!({
+      payload: {
+        phase: "disconnected",
+        problem: "the desktop host process exited unexpectedly",
+      },
+    });
+
+    expect(host.querySelector('[role="alert"]')).not.toBeNull();
+    expect(genericEmit).toHaveBeenCalledExactlyOnceWith("zd-installed-smoke", {
+      checkpoint: "crash-presented",
+    });
   });
 });

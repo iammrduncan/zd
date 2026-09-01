@@ -1,4 +1,45 @@
-import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
+import { emit, listen } from "@tauri-apps/api/event";
+
+const INSTALLED_SMOKE_EVENT = "zd-installed-smoke";
+const INSTALLED_SMOKE_PARAMETER = "zd-installed-smoke";
+const INSTALLED_SMOKE_SCENARIOS = new Set(["normal", "forced", "crash"]);
+let crashPresented = false;
+
+function installedSmokeScenario(search = window.location.search): string | null {
+  const parameters = new URLSearchParams(search);
+  const values = parameters.getAll(INSTALLED_SMOKE_PARAMETER);
+  return values.length === 1 && INSTALLED_SMOKE_SCENARIOS.has(values[0]!) ? values[0]! : null;
+}
+
+async function reportInstalledSmokeFailure(
+  stage: "shell-action" | "retired-authority",
+): Promise<void> {
+  await emit(INSTALLED_SMOKE_EVENT, { checkpoint: "failed", stage });
+}
+
+export async function reportDesktopInstalledSmokeReady(): Promise<void> {
+  if (!installedSmokeScenario()) return;
+  try {
+    await invoke("show_workbench");
+  } catch {
+    await reportInstalledSmokeFailure("shell-action");
+    return;
+  }
+  try {
+    await invoke("read_text_file", {});
+  } catch {
+    await emit(INSTALLED_SMOKE_EVENT, { checkpoint: "ready" });
+    return;
+  }
+  await reportInstalledSmokeFailure("retired-authority");
+}
+
+function reportDesktopInstalledSmokeCrash(): void {
+  if (crashPresented || installedSmokeScenario() !== "crash") return;
+  crashPresented = true;
+  void emit(INSTALLED_SMOKE_EVENT, { checkpoint: "crash-presented" });
+}
 
 interface DesktopHostStatus {
   readonly phase: "failed" | "disconnected";
@@ -18,6 +59,7 @@ export function mountDesktopHostStatus(host: HTMLElement): () => void {
       payload.problem ?? "The local workbench host is unavailable."
     }`;
     if (!notice.isConnected) host.append(notice);
+    reportDesktopInstalledSmokeCrash();
   }).catch(() => null);
   return () => {
     active = false;

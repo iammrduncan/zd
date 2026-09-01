@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process";
 import {
   mkdtemp,
   mkdir,
@@ -13,14 +12,11 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, resolve, sep } from "node:path";
-import { createServer } from "node:net";
 import process from "node:process";
-import { clearTimeout, setTimeout } from "node:timers";
 
 import { parseParentPid, parseTcpListeners } from "./linux-process.mjs";
+import { runInstalledWrapperSmoke } from "./wrapper/smoke.mjs";
 
-const STARTUP_TIMEOUT_MS = 15_000;
-const EXIT_TIMEOUT_MS = 10_000;
 const installArgument = process.argv[2];
 if (!installArgument || process.argv.length !== 3) {
   throw new Error("usage: smoke-linux-wrapper.mjs <extracted-install-root>");
@@ -46,14 +42,14 @@ if (!resolve(smokeRoot).startsWith(expectedPrefix)) {
 const projectOne = join(smokeRoot, "project-one");
 const projectTwo = join(smokeRoot, "project-two");
 const stateRoot = join(smokeRoot, "state");
-await Promise.all([mkdir(projectOne), mkdir(projectTwo), mkdir(stateRoot)]);
+await Promise.all([
+  mkdir(projectOne),
+  mkdir(projectTwo),
+  ...["normal", "forced", "crash"].map((scenario) =>
+    mkdir(join(stateRoot, scenario), { recursive: true }),
+  ),
+]);
 await writeFile(join(projectOne, "notes.md"), "installed wrapper smoke\n");
-
-const environment = {
-  ...process.env,
-  XDG_CONFIG_HOME: stateRoot,
-};
-let primary = null;
 
 function running(pid) {
   try {
@@ -63,41 +59,6 @@ function running(pid) {
     if (cause.code === "ESRCH") return false;
     throw cause;
   }
-}
-
-function waitForExit(child, timeoutMs) {
-  if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve(true);
-  return new Promise((resolveExit) => {
-    const onExit = () => {
-      clearTimeout(timer);
-      resolveExit(true);
-    };
-    const timer = setTimeout(() => {
-      child.off("exit", onExit);
-      resolveExit(false);
-    }, timeoutMs);
-    child.once("exit", onExit);
-  });
-}
-
-async function stop(child) {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  child.kill("SIGTERM");
-  if (await waitForExit(child, EXIT_TIMEOUT_MS)) return;
-  child.kill("SIGKILL");
-  if (!(await waitForExit(child, EXIT_TIMEOUT_MS))) {
-    throw new Error("installed wrapper process did not exit");
-  }
-}
-
-async function waitUntil(check, message) {
-  const deadline = Date.now() + STARTUP_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    const result = await check();
-    if (result !== undefined && result !== false) return result;
-    await new Promise((resolveWait) => setTimeout(resolveWait, 50));
-  }
-  throw new Error(message);
 }
 
 async function executableForPid(pid) {
@@ -152,60 +113,31 @@ async function listenerFor(pid) {
   return listeners.length === 1 ? listeners[0] : undefined;
 }
 
-function proveReusablePort(port) {
-  return new Promise((resolveProof, rejectProof) => {
-    const server = createServer();
-    server.once("error", rejectProof);
-    server.listen(port, "127.0.0.1", () => {
-      server.close((problem) => (problem ? rejectProof(problem) : resolveProof()));
-    });
-  });
+async function installedCounts() {
+  const [consolePids, desktopPids] = await Promise.all([
+    pidsForExecutable(canonicalConsole),
+    pidsForExecutable(canonicalDesktop),
+  ]);
+  return { console: consolePids.length, desktop: desktopPids.length };
 }
 
 try {
-  const startedAt = Date.now();
-  primary = spawn(desktopPath, [projectOne], {
-    env: environment,
-    stdio: "ignore",
+  await runInstalledWrapperSmoke({
+    smokeRoot,
+    desktopPath,
+    consolePath,
+    projectOne,
+    projectTwo,
+    environmentFor: (scenario) => ({
+      ...process.env,
+      XDG_CONFIG_HOME: join(stateRoot, scenario),
+    }),
+    directHostChild,
+    listenerFor,
+    installedCounts,
+    running,
   });
-  const hostPid = await waitUntil(
-    () => directHostChild(primary.pid),
-    "installed desktop did not start one zd host child",
-  );
-  const listener = await waitUntil(
-    () => listenerFor(hostPid),
-    "installed desktop host did not open one loopback listener",
-  );
-  const health = await globalThis.fetch(`http://127.0.0.1:${listener}/healthz`, {
-    signal: globalThis.AbortSignal.timeout(2_000),
-  });
-  if (health.status !== 204) throw new Error("installed desktop host health check failed");
-
-  const secondary = spawn(consolePath, [projectTwo], { env: environment, stdio: "ignore" });
-  if (!(await waitForExit(secondary, EXIT_TIMEOUT_MS)) || secondary.exitCode !== 0) {
-    await stop(secondary);
-    throw new Error("secondary installed zd launch did not return successfully");
-  }
-  await waitUntil(async () => {
-    const [consolePids, desktopPids] = await Promise.all([
-      pidsForExecutable(canonicalConsole),
-      pidsForExecutable(canonicalDesktop),
-    ]);
-    return consolePids.length === 1 && desktopPids.length === 1;
-  }, "secondary installed launch left a duplicate process");
-  if ((await directHostChild(primary.pid)) !== hostPid) {
-    throw new Error("secondary installed launch replaced the desktop host");
-  }
-
-  await stop(primary);
-  primary = null;
-  await waitUntil(() => !running(hostPid), "installed host remained after desktop exit");
-  await proveReusablePort(listener);
-  process.stdout.write(
-    `Verified installed Linux wrapper: hostPid=${hostPid} health=204 secondary=reused ` +
-      `cleanup=passed durationMs=${Date.now() - startedAt}\n`,
-  );
+  process.stdout.write("Verified installed Linux wrapper lifecycle\n");
 } finally {
-  if (primary) await stop(primary);
   await rm(smokeRoot, { recursive: true, force: true });
 }
