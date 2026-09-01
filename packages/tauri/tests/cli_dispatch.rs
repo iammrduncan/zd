@@ -8,9 +8,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use zd_server::{
-    WrapperControl, WrapperReadiness, WrapperStartup, PROTOCOL_VERSION, WRAPPER_PROTOCOL_VERSION,
-};
+use zd_server::{WrapperReadiness, WrapperStartup, PROTOCOL_VERSION, WRAPPER_PROTOCOL_VERSION};
 
 struct ChildGuard(Child);
 
@@ -165,7 +163,7 @@ fn shipped_zd_dispatches_foreground_serve_and_releases_its_listener() {
 }
 
 #[test]
-fn private_wrapper_child_reports_once_and_stops_through_its_control_pipe() {
+fn private_wrapper_child_reports_once_and_stops_when_its_parent_channel_closes() {
     let scratch = Scratch::new();
     let project = scratch.join("project");
     let assets = scratch.join("assets");
@@ -238,17 +236,7 @@ fn private_wrapper_child_reports_once_and_stops_through_its_control_pipe() {
             .any(|part| part == readiness.secret.as_bytes()));
     }
 
-    serde_json::to_writer(
-        &mut control,
-        &WrapperControl::Shutdown {
-            wrapper_protocol_version: WRAPPER_PROTOCOL_VERSION,
-        },
-    )
-    .expect("write wrapper shutdown frame");
-    control
-        .write_all(b"\n")
-        .expect("finish wrapper shutdown frame");
-    control.flush().expect("flush wrapper shutdown frame");
+    drop(control);
     wait_for_exit(&mut child.0);
 
     assert!(TcpStream::connect(readiness.origin.trim_start_matches("http://")).is_err());
