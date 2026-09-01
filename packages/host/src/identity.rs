@@ -124,6 +124,51 @@ pub(crate) fn project_roots(
     })
 }
 
+pub(crate) fn open_worktree(
+    project_id: &str,
+    requested: &Path,
+    state_directory: &Path,
+) -> Result<String, String> {
+    let root = canonical_directory(requested)?;
+    with_catalog(state_directory, |catalog| {
+        let project_index = catalog
+            .projects
+            .iter()
+            .position(|project| project.id == project_id)
+            .ok_or_else(|| unavailable("unknown project"))?;
+        if let Some((owner_index, worktree)) = catalog
+            .projects
+            .iter()
+            .enumerate()
+            .flat_map(|(owner_index, project)| {
+                project
+                    .worktrees
+                    .iter()
+                    .map(move |worktree| (owner_index, worktree))
+            })
+            .find(|(_, worktree)| worktree.root == root)
+        {
+            return if owner_index == project_index {
+                Ok((worktree.id.clone(), false))
+            } else {
+                Err(unavailable("root conflict"))
+            };
+        }
+        if catalog.projects[project_index].worktrees.len() >= WORKTREES_PER_PROJECT_LIMIT {
+            return Err(unavailable("worktree capacity reached"));
+        }
+
+        let worktree_id = fresh_identity("worktree", catalog)?;
+        catalog.projects[project_index]
+            .worktrees
+            .push(CatalogWorktree {
+                id: worktree_id.clone(),
+                root,
+            });
+        Ok((worktree_id, true))
+    })
+}
+
 pub(crate) fn recover_project(
     project_id: &str,
     requested: &Path,

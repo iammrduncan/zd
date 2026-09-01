@@ -167,6 +167,34 @@ impl GrantStore {
         requested: &Path,
     ) -> Result<WorktreeGrant, String> {
         let root = canonical_directory(requested)?;
+        if let Some(existing) = self.existing_worktree(project_id, &root)? {
+            return Ok(existing);
+        }
+        let id = self.identity("worktree");
+        self.insert_worktree(project_id, root, id)
+    }
+
+    /// Approve a worktree with the stable identity owned by the host catalog.
+    pub fn approve_worktree_with_state(
+        &mut self,
+        project_id: &str,
+        requested: &Path,
+        state_directory: &Path,
+    ) -> Result<WorktreeGrant, String> {
+        self.project_root(project_id)?;
+        let root = canonical_directory(requested)?;
+        if let Some(existing) = self.existing_worktree(project_id, &root)? {
+            return Ok(existing);
+        }
+        let id = crate::identity::open_worktree(project_id, &root, state_directory)?;
+        self.insert_worktree(project_id, root, id)
+    }
+
+    fn existing_worktree(
+        &self,
+        project_id: &str,
+        root: &Path,
+    ) -> Result<Option<WorktreeGrant>, String> {
         for project in &self.projects {
             if let Some(existing) = project
                 .worktrees
@@ -174,7 +202,7 @@ impl GrantStore {
                 .find(|worktree| worktree.root == root)
             {
                 if project.id == project_id {
-                    return Ok(describe_worktree(existing));
+                    return Ok(Some(describe_worktree(existing)));
                 }
                 return Err(format!(
                     "{} is already approved by another project",
@@ -182,8 +210,15 @@ impl GrantStore {
                 ));
             }
         }
+        Ok(None)
+    }
 
-        let id = self.identity("worktree");
+    fn insert_worktree(
+        &mut self,
+        project_id: &str,
+        root: PathBuf,
+        id: String,
+    ) -> Result<WorktreeGrant, String> {
         let project = self
             .projects
             .iter_mut()
@@ -671,6 +706,32 @@ mod tests {
         assert!(grants
             .resolve(&resource(&approved.project.id, &first.id, "branch.md"))
             .is_ok());
+    }
+
+    #[test]
+    fn a_persisted_worktree_reuses_its_identity_after_restart() {
+        let project = Scratch::new("persisted-project");
+        let worktree = Scratch::new("persisted-worktree");
+        let state = Scratch::new("persisted-state");
+
+        let mut first_host = GrantStore::default();
+        let first_project = first_host
+            .approve_project_with_state(&project.0, &state.0)
+            .unwrap();
+        let first_worktree = first_host
+            .approve_worktree_with_state(&first_project.project.id, &worktree.0, &state.0)
+            .unwrap();
+
+        let mut restarted_host = GrantStore::default();
+        let restarted_project = restarted_host
+            .approve_project_with_state(&project.0, &state.0)
+            .unwrap();
+        let restarted_worktree = restarted_host
+            .approve_worktree_with_state(&restarted_project.project.id, &worktree.0, &state.0)
+            .unwrap();
+
+        assert_eq!(restarted_project.project.id, first_project.project.id);
+        assert_eq!(restarted_worktree.id, first_worktree.id);
     }
 
     #[test]
