@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Execute goal 03](execute-goal-03.md) is complete. This goal needs the full host/protocol,
+- [Execute goal 03](_completed/execute-goal-03.md) is complete. This goal needs the full host/protocol,
   durable restart behavior, reconnect/reattach semantics, and deterministic host cleanup before the
   desktop can delegate its lifecycle to a child.
 - Goals 00–02 established the exact executable server contract, stable identity/state path, and

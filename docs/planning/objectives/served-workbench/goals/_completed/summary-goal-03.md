@@ -1,18 +1,16 @@
 # Summary — goal 03: Keep watches and terminals coherent through reconnect
 
-**Status:** Halted at the Windows completion gate on 2026-09-01
+**Completed:** 2026-09-01
 
-**Commits:** `44f06ac`, `8b2e552`, `2d49200`, `fae262c`, `93104f3`, `765d9ce`
+**Commits:** `44f06ac`, `8b2e552`, `2d49200`, `fae262c`, `93104f3`, `765d9ce`,
+`ae135e9`
 
 **Goal file:** [`execute-goal-03.md`](execute-goal-03.md)
 
 ## Action needed from the owner
 
-One item needs the owner. It blocks Goal 03 completion and the start of Goal 04.
-
-| # | What | Why it needs you | Blocks |
-| --- | --- | --- | --- |
-| 1 | **Get a native Windows result for `cargo test --workspace`, or approve a contract change that moves this result to Goal 05.** | This Linux host cannot run the Windows Job Object descendant test. The goal says that a gated Windows test is not evidence on Unix. A contract change is an owner risk decision. | Goal 03 completion, Goal 03 archival, and Goal 04 |
+Nothing. On 2026-09-01, the owner deferred native Windows process-containment execution to Goal 05.
+Goal 04 can start on the verified Linux, Unix-process, and real-browser evidence.
 
 ## What was delivered
 
@@ -44,7 +42,8 @@ One item needs the owner. It blocks Goal 03 completion and the start of Goal 04.
 
 The Windows implementation and its native test are present. The test
 `terminal::tests::disposal_terminates_the_session_job_and_its_descendant` is compiled only on
-Windows and was not run on this host. Thus, item 10 of the required outcome is not fully satisfied.
+Windows and was not run on this host. The owner moved that platform execution result to Goal 05.
+This summary does not treat the test as passed or use it as Goal 03 evidence.
 
 ## What I got wrong
 
@@ -63,7 +62,8 @@ Windows and was not run on this host. Thus, item 10 of the required outcome is n
   frontend built, but no Rust or served browser test ran. The command was repeated with the explicit
   repository toolchain environment.
 - I reached the closeout stage before I compared the available platform results with the goal's
-  Windows stop condition. The Windows code and test do not replace a native Windows result.
+  Windows stop condition. The Windows code and test do not replace a native Windows result. The
+  owner then moved that execution gate to Goal 05.
 
 ## Traps worth knowing
 
@@ -96,20 +96,18 @@ Windows and was not run on this host. Thus, item 10 of the required outcome is n
 | `cargo test --workspace` on Linux | Passed 216 Rust tests. This includes Unix shell child cleanup, watcher ownership, terminal bounds, replay journal bounds, grace cleanup, heartbeat, and socket security. |
 | `cargo fmt --all -- --check` | Passed. |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Passed with warnings denied. |
-| Windows descendant cleanup | **Not run.** The Windows Job Object implementation and native descendant test exist, but this host has no Windows runner. This unsatisfied result stops goal completion. |
+| Windows descendant cleanup | **Deferred to Goal 05 by the owner.** The Windows Job Object implementation and native descendant test exist, but this host has no Windows runner. This result is not presented as Goal 03 evidence. |
 | Secret and content boundary | Real browser checks kept the secret out of URLs, cookies, local storage, session storage, console messages, and persisted host state. Terminal commands and bytes stay outside durable state and diagnostics. |
-| `git diff --check` | Passed at the halt point. |
+| `git diff --check` | Passed at completion. |
 
 ## What this unblocks
 
-- The Linux implementation is ready for direct remote use and for Goal 04 development after the
-  prerequisite decision.
+- Goal 04 can start its stable CLI and literal Tauri-wrapper work.
+- The Linux implementation is ready for direct remote use.
 - The stable CLI and Tauri wrapper can reuse one bounded watcher, terminal, event, reconnect, and
   cleanup implementation.
 
 ## What remains blocked
 
-- Goal 03 cannot move to `_completed/` until the owner supplies native Windows evidence or changes
-  the goal contract.
-- Goal 04 cannot start while its Goal 03 prerequisite is open.
+- Native Windows Job Object execution remains Goal 05 work and is not yet verified.
 - Goal 05 remains behind Goal 04.
