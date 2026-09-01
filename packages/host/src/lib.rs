@@ -1,6 +1,7 @@
 //! Transport-neutral host authority for the `zd` workbench.
 
 mod atomic_write;
+mod clipboard_images;
 mod durable;
 mod file_mutations;
 mod file_tree;
@@ -13,6 +14,10 @@ mod service;
 mod workspaces;
 
 pub use atomic_write::atomic_write;
+pub use clipboard_images::{
+    save_clipboard_image_at, ClipboardImageMediaType, ClipboardImageRequest, SavedClipboardImage,
+    MAX_CLIPBOARD_IMAGE_BYTES,
+};
 pub use durable::{
     DurableFileDraft, DurableReviewComment, DurableReviewLedger, DurableStateApply,
     DurableStateApplyResult, DurableStateBundle, DurableStateMutation, DurableStateRevision,

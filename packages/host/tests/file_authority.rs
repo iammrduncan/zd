@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use zd_host::{
-    FileTreeCreationKind, FileTreeMutationRequest, FileTreeMutationResult, HostService, ResourceRef,
+    ClipboardImageMediaType, ClipboardImageRequest, FileTreeCreationKind, FileTreeMutationRequest,
+    FileTreeMutationResult, HostService, ResourceRef,
 };
 
 struct Scratch(PathBuf);
@@ -162,4 +163,34 @@ fn file_tree_mutations_commit_only_inside_the_active_grant() {
         FileTreeMutationResult::Refused { .. }
     ));
     assert!(!scratch.join("outside.md").exists());
+}
+
+#[test]
+fn clipboard_images_use_a_fixed_grant_scoped_destination() {
+    let scratch = Scratch::new("clipboard");
+    let host = HostService::open_project(&scratch.0).expect("approve project");
+    let resource = scope(&host, "unused");
+    let png = vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3];
+    let request = ClipboardImageRequest {
+        project_id: resource.project_id.clone(),
+        worktree_id: resource.worktree_id.clone(),
+        media_type: ClipboardImageMediaType::Png,
+        bytes: png.clone(),
+    };
+    let saved = host
+        .save_clipboard_image(&request)
+        .expect("save clipboard image");
+    assert!(saved
+        .relative_path
+        .starts_with("docs/screenshots/screenshot-"));
+    assert_eq!(
+        std::fs::read(scratch.join(&saved.relative_path)).unwrap(),
+        png
+    );
+
+    let denied = ClipboardImageRequest {
+        project_id: "project-unapproved".to_string(),
+        ..request
+    };
+    assert!(host.save_clipboard_image(&denied).is_err());
 }

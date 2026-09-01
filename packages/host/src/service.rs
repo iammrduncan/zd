@@ -8,9 +8,10 @@ use crate::durable::DurableStateStore;
 use crate::{durable, identity};
 use crate::{
     file_stamp_at, mutate_file_tree_at, read_bounded_file_at, read_project_image_at,
-    read_text_file_at, snapshot_in, workspace_files_in, write_text_file_at, BoundedFileRead,
-    FileStamp, FileTreeMutationRequest, FileTreeMutationResult, FileTreeRequest, FileTreeResult,
-    GrantStore, ProjectGrant, ProjectImage, ResourceRef, TreeLimits, WorkspaceListing,
+    read_text_file_at, save_clipboard_image_at, snapshot_in, workspace_files_in,
+    write_text_file_at, BoundedFileRead, ClipboardImageRequest, FileStamp, FileTreeMutationRequest,
+    FileTreeMutationResult, FileTreeRequest, FileTreeResult, GrantStore, ProjectGrant,
+    ProjectImage, ResourceRef, SavedClipboardImage, TreeLimits, WorkspaceListing,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -189,6 +190,20 @@ impl HostService {
                 reason: "File authority is unavailable.".to_string(),
             },
         }
+    }
+
+    pub fn save_clipboard_image(
+        &self,
+        request: &ClipboardImageRequest,
+    ) -> Result<SavedClipboardImage, String> {
+        let root = self
+            .state
+            .lock()
+            .expect("host state was poisoned")
+            .grants
+            .root(&request.project_id, &request.worktree_id)
+            .map_err(|_| "Clipboard image authority is unavailable".to_string())?;
+        save_clipboard_image_at(&root, request)
     }
 
     fn resolve_resource(&self, resource: &ResourceRef) -> Result<std::path::PathBuf, String> {
