@@ -138,7 +138,7 @@ describe("package ownership", () => {
       scripts: Record<string, string>;
     };
     const cwdPreservingLaunch =
-      'ZD_CWD="$INIT_CWD" tauri dev --config packages/tauri/tauri.conf.json -- --';
+      'ZD_CWD="$INIT_CWD" tauri dev --config packages/tauri/tauri.conf.json --config packages/tauri/tauri.dev.conf.json -- --';
 
     expect(rootPackage.scripts.app).toBe(cwdPreservingLaunch);
     expect(rootPackage.scripts["app:open"]).toBe(cwdPreservingLaunch);
@@ -152,15 +152,17 @@ describe("package ownership", () => {
       resolve(ROOT, "packages/app/tests/served/host.fixture.ts"),
       "utf8",
     );
+    const runtime = readFileSync(resolve(ROOT, "packages/app/tests/served/runtime.ts"), "utf8");
 
     expect(rootPackage.scripts["app:serve"]).toBe(
-      "npm run build && cargo run -p zd -- serve",
+      "npm run build && cargo run -p zd-desktop --bin zd -- serve",
     );
     expect(rootPackage.scripts["test:e2e:served"]).toBe(
-      "npm run build && cargo build -p zd && playwright test --config playwright.served.config.ts",
+      "npm run build && cargo build -p zd-desktop --bin zd && playwright test --config playwright.served.config.ts",
     );
-    expect(fixture).toContain("`zd${extension}`");
-    expect(fixture).not.toContain("`zd-server${extension}`");
+    expect(runtime).toContain("`zd${extension}`");
+    expect(runtime).not.toContain("`zd-server${extension}`");
+    expect(runtime).toContain("environment.ZD_SERVE_EXECUTABLE");
     expect(fixture).toContain('["serve", projectRoot, "--bind"');
     expect(existsSync(resolve(ROOT, "packages/server/src/main.rs"))).toBe(false);
   });

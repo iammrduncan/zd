@@ -67,7 +67,7 @@ websiteLockPackage.version = version;
 const cargoPackages = [
   [resolve(root, "packages/host/Cargo.toml"), "zd-host"],
   [resolve(root, "packages/server/Cargo.toml"), "zd-server"],
-  [resolve(root, "packages/tauri/Cargo.toml"), "zd"],
+  [resolve(root, "packages/tauri/Cargo.toml"), "zd-desktop"],
 ];
 const cargoManifestUpdates = cargoPackages.map(([path, name]) => {
   const source = readFileSync(path, "utf8");

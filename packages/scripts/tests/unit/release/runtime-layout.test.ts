@@ -9,7 +9,11 @@ const MANIFEST_PATH = resolve(ROOT, "packages/tauri/Cargo.toml");
 
 interface ReleaseConfig {
   readonly mainBinaryName?: string;
-  readonly build: { readonly frontendDist: string };
+  readonly build: {
+    readonly beforeDevCommand?: string;
+    readonly devUrl?: string;
+    readonly frontendDist: string;
+  };
   readonly bundle: {
     readonly resources?: Record<string, string>;
     readonly macOS?: { readonly files?: Record<string, string> };
@@ -22,10 +26,19 @@ function config(): ReleaseConfig {
 }
 
 describe("the installed two-executable runtime", () => {
-  it("keeps Cargo's default on the public console dispatcher", () => {
+  it("keeps Cargo's default on the desktop binary selected by Tauri", () => {
     const manifest = readFileSync(MANIFEST_PATH, "utf8");
 
-    expect(manifest).toMatch(/^default-run = "zd"$/m);
+    expect(manifest).toMatch(/^\[package\]\nname = "zd-desktop"$/m);
+    expect(manifest).toMatch(/^default-run = "zd-desktop"$/m);
+  });
+
+  it("selects the console binary explicitly for source-tree serve", () => {
+    const manifest = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+
+    expect(manifest.scripts["app:serve"]).toContain("cargo run -p zd-desktop --bin zd -- serve");
   });
 
   it("bundles zd-desktop as the GUI and installs zd as the console", () => {
@@ -43,6 +56,8 @@ describe("the installed two-executable runtime", () => {
   it("installs the production application assets once and keeps Tauri local bootstrap minimal", () => {
     const release = config();
 
+    expect(release.build.beforeDevCommand).toBeUndefined();
+    expect(release.build.devUrl).toBeUndefined();
     expect(release.build.frontendDist).toBe("bootstrap");
     expect(release.bundle.resources).toEqual({ "../app/dist/": "assets/" });
     const bootstrap = resolve(ROOT, "packages/tauri", release.build.frontendDist);
@@ -50,5 +65,22 @@ describe("the installed two-executable runtime", () => {
     const index = readFileSync(resolve(bootstrap, "index.html"), "utf8");
     expect(index).toContain("Starting zd");
     expect(index).not.toMatch(/<script\b/i);
+  });
+
+  it("keeps the Vite URL in the development-only Tauri overlay", () => {
+    const development = JSON.parse(
+      readFileSync(resolve(ROOT, "packages/tauri/tauri.dev.conf.json"), "utf8"),
+    ) as { build?: { beforeDevCommand?: string; devUrl?: string } };
+    const manifest = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+
+    expect(development.build).toEqual({
+      beforeDevCommand: "npm run dev",
+      devUrl: "http://localhost:1420",
+    });
+    for (const command of [manifest.scripts.app, manifest.scripts["app:open"]]) {
+      expect(command).toContain("packages/tauri/tauri.dev.conf.json");
+    }
   });
 });

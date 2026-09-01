@@ -5,8 +5,6 @@
   "version": "../../package.json",
   "identifier": "com.zensuite.zd",
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "bootstrap"
   },
@@ -62,6 +60,7 @@
     },
     "linux": {
       "deb": {
+        "desktopTemplate": "../../packaging/linux/zd.desktop",
         "files": {
           "/usr/bin/zd": "../../target/release/zd"
         }
