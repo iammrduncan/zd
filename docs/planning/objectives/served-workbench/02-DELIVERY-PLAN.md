@@ -122,10 +122,10 @@ than pulling later packets into it.
 
 ## Coverage status
 
-Work packet 0 is complete in goal 00. Its evidence fixed the host, protocol, browser, and test shapes
-needed to cut the remaining work:
+Work packet 0 is complete in goal 00. Goal 01 completed the stable-identity and durable-state half of
+work packet 1. Their evidence fixed the host, protocol, browser, persistence, and test shapes needed
+for the remaining work:
 
-- goal 01 delivers stable identities and durable host state from the first half of packet 1;
 - goal 02 completes packet 1 by moving non-streaming file, Git, worktree, theme, and diagnostic
   authority behind the host;
 - goal 03 delivers packet 2's watchers, PTYs, event sequencing, and reconnect behavior;
