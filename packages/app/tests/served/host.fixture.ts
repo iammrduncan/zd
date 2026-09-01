@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
+import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 
 const STARTUP_TIMEOUT_MS = 15_000;
@@ -13,8 +14,10 @@ interface ServedHostFixture {
   readonly url: string;
   readonly secret: string;
   readonly fileText: string;
+  restart(): Promise<Readiness>;
   readFixtureFile(): Promise<string>;
   readFixtureDocs(): Promise<readonly string[]>;
+  readPersistedState(): Promise<string>;
 }
 
 interface Readiness {
@@ -134,6 +137,36 @@ async function stopHost(child: ReturnType<typeof spawn>): Promise<void> {
   }
 }
 
+function freeLoopbackPort(excluding: number): Promise<number> {
+  return new Promise((resolvePort, rejectPort) => {
+    const server = createServer();
+    server.once("error", rejectPort);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      server.close((problem) => {
+        if (problem) rejectPort(problem);
+        else if (port === 0 || port === excluding)
+          void freeLoopbackPort(excluding).then(resolvePort, rejectPort);
+        else resolvePort(port);
+      });
+    });
+  });
+}
+
+async function readTreeText(root: string): Promise<string> {
+  const contents: string[] = [];
+  const visit = async (directory: string): Promise<void> => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await visit(path);
+      else if (entry.isFile()) contents.push(await readFile(path, "utf8"));
+    }
+  };
+  await visit(root);
+  return contents.join("\n");
+}
+
 export const test = base.extend<object, { servedHost: ServedHostFixture }>({
   servedHost: [
     async ({ browserName }, use) => {
@@ -142,34 +175,78 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
       }
       const root = repositoryRoot();
       const projectRoot = await mkdtemp(join(tmpdir(), "zd-served-e2e-"));
+      const stateRoot = await mkdtemp(join(tmpdir(), "zd-served-state-e2e-"));
       const expectedPrefix = `${resolve(tmpdir())}${sep}zd-served-e2e-`;
+      const expectedStatePrefix = `${resolve(tmpdir())}${sep}zd-served-state-e2e-`;
       if (!resolve(projectRoot).startsWith(expectedPrefix)) {
         throw new Error("the served-host fixture root escaped the temporary directory");
       }
+      if (!resolve(stateRoot).startsWith(expectedStatePrefix)) {
+        throw new Error("the served-host state root escaped the temporary directory");
+      }
       let child: ReturnType<typeof spawn> | null = null;
+      let readiness: Readiness | null = null;
+
+      const startHost = async (port: number): Promise<Readiness> => {
+        const launched = spawn(
+          serverExecutable(root),
+          [projectRoot, "--state-dir", stateRoot, "--port", String(port)],
+          {
+            cwd: root,
+            env: process.env,
+            stdio: ["ignore", "pipe", "pipe"],
+          },
+        );
+        launched.stderr?.resume();
+        try {
+          const ready = await waitForReadiness(launched);
+          child = launched;
+          readiness = ready;
+          return ready;
+        } catch (cause) {
+          await stopHost(launched);
+          throw cause;
+        }
+      };
 
       try {
         await mkdir(join(projectRoot, "docs"));
         await writeFile(join(projectRoot, "notes.md"), FIXTURE_TEXT, "utf8");
         await writeFile(join(projectRoot, "docs", "inside.md"), "inside\n", "utf8");
-        child = spawn(serverExecutable(root), [projectRoot], {
-          cwd: root,
-          env: process.env,
-          stdio: ["ignore", "pipe", "pipe"],
-        });
-        child.stderr?.resume();
-        const readiness = await waitForReadiness(child);
+        await startHost(0);
         await use({
-          ...readiness,
+          get url() {
+            if (!readiness) throw new Error("the served host is not running");
+            return readiness.url;
+          },
+          get secret() {
+            if (!readiness) throw new Error("the served host is not running");
+            return readiness.secret;
+          },
           fileText: FIXTURE_TEXT,
+          restart: async () => {
+            if (!child || !readiness) throw new Error("the served host is not running");
+            const oldPort = new URL(readiness.url).port;
+            await stopHost(child);
+            child = null;
+            readiness = null;
+            const port = await freeLoopbackPort(Number(oldPort));
+            const restarted = await startHost(port);
+            if (new URL(restarted.url).port === oldPort) {
+              throw new Error("the served host restart reused its previous port");
+            }
+            return restarted;
+          },
           readFixtureFile: () => readFile(join(projectRoot, "notes.md"), "utf8"),
           readFixtureDocs: () => readdir(join(projectRoot, "docs")),
+          readPersistedState: () => readTreeText(stateRoot),
         });
       } finally {
         try {
           if (child) await stopHost(child);
         } finally {
           await rm(projectRoot, { recursive: true, force: true });
+          await rm(stateRoot, { recursive: true, force: true });
         }
       }
     },
