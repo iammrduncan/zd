@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Superseded by
+[0009: Let browsers connect directly to served hosts](0009-let-browsers-connect-directly-to-served-hosts_H.md).
 
 Supersedes
 [0001: Use Tauri with a portable web frontend](0001-use-tauri-with-portable-web-frontend_H.md).
@@ -60,3 +61,7 @@ file, region, and focus state.
   browser storage.
 - Multi-client collaboration, direct public exposure, and proxy identity remain separate product
   and threat-model decisions.
+
+## Revision history
+
+- `797c41ccbc5f1ec2e2df7a103cd29a8cd0aedf1f` — Superseded after the owner required browser-only remote connection without a client-side tunnel.

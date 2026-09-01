@@ -20,7 +20,7 @@ This goal delivers work packet 2 from
 [`02-DELIVERY-PLAN.md:43-56`](../02-DELIVERY-PLAN.md#work-packet-2-watchers-ptys-and-reconnect).
 
 Move filesystem watch signals and the complete PTY lifecycle behind `HostService` and the existing
-authenticated WebSocket. A transient tunnel/socket loss must have an observable result: reconnect
+authenticated WebSocket. A transient network/socket loss must have an observable result: reconnect
 reattaches within the bounded grace period or reports that the terminal was lost. Event gaps trigger
 an authoritative resnapshot; no reconnect path silently starts a duplicate process.
 
@@ -77,7 +77,7 @@ When the work is complete, the repository must have:
   file-tree adapter glue, state reconciliation call sites, and focused unit/Playwright evidence.
 - **Migration wrappers.** Tauri event/command wrappers may remain only if they delegate to the host
   runtime and pass the same lifecycle tests. Goal 04 removes the retired authority surface.
-- **Evidence.** Extends the real served fixture with controllable socket/tunnel interruption and
+- **Evidence.** Extends the real served fixture with controllable network/socket interruption and
   process probes; time-based unit tests use paused/fake clocks rather than wall-time sleeps.
 - **Serialization.** Goal 04 waits because wrapper reload and shutdown depend on these exact
   reconnect and cleanup semantics.
@@ -143,7 +143,7 @@ At minimum, prove:
 ## Engineering constraints
 
 - Follow repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../GOOD_ENGINEERING_H.md),
-  [`DESIGN.md`](../../../../DESIGN.md), and ADR 0008. Reproduce every discovered lifecycle failure in
+  [`DESIGN.md`](../../../../DESIGN.md), and ADR 0009. Reproduce every discovered lifecycle failure in
   a deterministic test before fixing it.
 - Keep concurrency simple: one runtime owner, bounded queues, one serialized event journal, and
   explicit shutdown. Do not hold the grant/runtime mutex while blocking on process I/O, callbacks,

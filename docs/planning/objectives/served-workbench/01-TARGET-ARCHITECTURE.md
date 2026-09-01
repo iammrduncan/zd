@@ -1,7 +1,7 @@
 # Target architecture: one host, two client shells
 
 This document defines the objective's vocabulary and selects the backend, frontend, transport, and
-desktop boundaries. It applies [ADR 0008](../../../adr/suite/0008-serve-one-host-backend-to-browser-and-desktop-clients_H.md)
+desktop boundaries. It applies [ADR 0009](../../../adr/suite/0009-let-browsers-connect-directly-to-served-hosts_H.md)
 and the compiled [protocol](research/02-protocol-and-security.md) and
 [wrapper](research/03-wrapper-and-delivery.md) research.
 
@@ -9,7 +9,7 @@ and the compiled [protocol](research/02-protocol-and-security.md) and
 
 - **Host service:** the Tauri-free Rust API that owns project authority and operating-system work.
 - **Host protocol:** the versioned messages that expose selected host-service operations.
-- **Served host:** the loopback HTTP/WebSocket server around one host-service instance.
+- **Served host:** the HTTP/WebSocket server around one host-service instance.
 - **Host client:** the TypeScript adapter that speaks the host protocol.
 - **Client shell:** viewing-computer behavior supplied by a browser or Tauri.
 - **Controller:** the one authenticated client allowed to issue privileged requests in the initial
@@ -30,8 +30,6 @@ Tauri webview ───┘             │             │
                          WorkbenchHost
                                │
                     authenticated WebSocket
-                               │
-                 optional SSH local port forward
                                │
                                ▼
                      `zd serve` process
@@ -66,24 +64,26 @@ HTTP serves only the packaged application and a state-free readiness response. O
 privileged requests, responses, and events. Every message has a protocol version, closed type,
 bounded payload, and request ID or event epoch/sequence.
 
-The served host binds `127.0.0.1:0` by default. It may accept an explicit loopback port for a simpler
-SSH command. It has no non-loopback mode in this objective.
+The served host binds `0.0.0.0:0` by default so a browser on an already-connected network can reach
+it directly. The operator may select one numeric IPv4 address and an explicit port. Port zero lets
+the operating system select and retain a free port without a probe-and-bind race.
 
-Each process generates a random owner secret. A CLI launch prints the URL and secret separately. The
-client authenticates in its first socket frame, before receiving state. The server accepts only a
-numeric `127.0.0.1` Host and an HTTP Origin with the same request authority, ignores forwarding
-headers, uses no cookie or permissive CORS policy, and accepts one controller. The request port may
-differ from the bound port when SSH forwards it. Session credentials do not enter URLs, logs, argv,
-durable configuration, or diagnostic records.
+Each process generates a random owner secret. A CLI launch prints connection information and the
+secret separately. The client authenticates in its first socket frame, before receiving state. The
+server requires an HTTP Origin with the exact same authority as Host, rejects forwarding headers,
+uses no cookie or permissive CORS policy, and accepts one controller. Session credentials do not
+enter URLs, logs, argv, durable configuration, or diagnostic records.
 
 ## Remote connection
 
-SSH authenticates the computers and encrypts the remote hop. `zd` does not parse SSH configuration,
-copy binaries, start remote processes, or multiplex a private SSH protocol in this objective. The
-operator starts `zd serve` on the host and creates a standard local port forward.
+The operator starts `zd serve` on the host. A browser with network reachability opens the host URL
+directly and enters the process secret. The viewing computer runs no tunnel, helper, extension, or
+native zd client.
 
-This separation makes failures legible: SSH can be tested as a tunnel, the WebSocket as a protocol,
-the host service as local work, and the browser as rendering.
+The initial host serves plain HTTP. Tailscale or an equivalent protected private network supplies
+network admission and transport encryption. The host does not claim that its process secret makes
+plain public-network traffic confidential. Public Internet exposure, TLS certificate lifecycle, and
+trusted reverse-proxy identity remain outside this objective.
 
 ## Client-shell boundary
 
@@ -103,7 +103,8 @@ The Tauri wrapper launches the same `zd serve` executable used from a terminal a
 webview to that child's loopback origin. The executable and any temporary migration adapters call
 the same public host library, but the final desktop path does not embed a Tauri-only server lifecycle.
 
-The child binds, starts its routes, and then sends a private, bounded, versioned readiness record.
+The child binds loopback explicitly, starts its routes, and then sends a private, bounded, versioned
+readiness record.
 The wrapper validates the application version, protocol version, and literal loopback address before
 navigating. Credentials travel through a private inherited channel, not arguments, URLs, or logs.
 The wrapper continuously drains child output, applies a startup deadline, reports early exit, and
@@ -143,7 +144,7 @@ serialization on its monotonic clock. Heartbeat round trip tracks current tunnel
 | Client input-to-send | Browser event handling, encoding, and local scheduling |
 | Host queue | Remote host saturation or an operation waiting for host capacity |
 | Host operation | The remote filesystem, Git process, watcher, PTY, or persistence owner |
-| Heartbeat round trip | The WebSocket, SSH tunnel, and scheduling on both endpoints |
+| Heartbeat round trip | The WebSocket, protected network, and scheduling on both endpoints |
 | Client receive-to-render | Browser decoding, state reconciliation, layout, and paint |
 
 ```text
@@ -164,8 +165,8 @@ tokens, content, terminal output, environment, full paths, or raw errors.
 - HTTP per terminal keystroke: adds avoidable round trips and head-of-line behavior.
 - WebRTC, gRPC-Web, GraphQL, or a generic command API: no current need earns their complexity.
 - Cookie sessions or query-string tokens: ambient cross-port authority or URL leakage.
-- Direct LAN/public binding and self-signed TLS: certificate, origin, firewall, and abuse policy are a
-  separate product.
+- Public Internet binding, trusted reverse proxies, and self-signed TLS: certificate, forwarded
+  identity, firewall, and abuse policy are a separate product.
 - Multi-client fan-out: requires new state and resource ownership semantics.
 - Server-owned DOM/workbench transitions: conflicts with the existing single frontend state owner.
 

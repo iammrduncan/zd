@@ -64,9 +64,9 @@ When the work is complete, the repository must have:
     DMGs, Windows installer, Linux `.deb`, and checksum files, and cannot create a GitHub Release from
     a partially tested platform matrix; and
 11. updated release operations and user-facing install/CLI documentation that describes the verified
-    `zd serve [<folder>] [--port]` and SSH-forward workflow, exact artifact/command locations,
-    current signing/notarization limitations, uninstall behavior, and loopback/one-controller limits
-    without claiming public hosting or managed SSH.
+    `zd serve [<folder>] [--bind <ip>] [--port]` direct-browser workflow, exact artifact/command
+    locations, current signing/notarization limitations, uninstall behavior, protected-network
+    requirement, and one-controller limit without claiming public hosting or managed TLS.
 
 ## In scope
 
@@ -125,9 +125,10 @@ At minimum, prove:
 - release tests fail when either executable, an embedded asset, a smoke step, a cleanup assertion, a
   checksum, the Linux job, or a publish dependency is removed; no committed `.skip`, `.only`, or
   platform condition can make missing evidence green;
-- user documentation commands match the actual installed paths and CLI parser, label SSH as an
-  operator-managed tunnel, state loopback/auth/one-controller limits, and do not claim LAN/public,
-  collaboration, cloud, auto-install, signing, or notarization behavior that was not proved;
+- user documentation commands match the actual installed paths and CLI parser, show direct remote
+  browser access without a client helper, state protected-network/authentication/one-controller
+  limits, and do not claim public Internet, collaboration, cloud, auto-install, signing, or
+  notarization behavior that was not proved;
 - all goal 00–04 real browser, persistence, editing, reconnect, wrapper, and security tests remain
   green against release builds; and
 - `npm run check`, all Playwright targets, `cargo test --workspace`, platform package/smoke targets,
@@ -146,15 +147,15 @@ At minimum, prove:
   that untested distributions are supported.
 - Do not bundle Node, Vite, a development server, a second frontend build, a Tauri localhost backend,
   or another host implementation.
-- Do not add product-managed SSH, remote binary installation, public/LAN binding, TLS/proxy identity,
-  accounts, or collaboration.
+- Do not add product-managed SSH, remote binary installation, public-Internet transport, TLS/proxy
+  identity, accounts, or collaboration.
 - Do not weaken cleanup/security tests because a packaging tool makes process topology inconvenient.
   Change the package layout or stop and report.
 
 ## Engineering constraints
 
 - Follow repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../GOOD_ENGINEERING_H.md),
-  [`DESIGN.md`](../../../../DESIGN.md), ADR 0008, and existing release safety/rollback behavior.
+  [`DESIGN.md`](../../../../DESIGN.md), ADR 0009, and existing release safety/rollback behavior.
 - Test package scripts with isolated explicit roots. Never run installers against real `/Applications`,
   `/usr/local/bin`, Windows PATH, or system package state during a unit test.
 - Keep release jobs reproducible: locked Node/Rust dependencies, pinned actions, explicit target

@@ -6,9 +6,10 @@ force the riskiest lifecycle work into the first change. It derives from the
 
 ## Work packet 0: read-only served-host walking skeleton
 
-Create a Tauri-free Rust host boundary for one CLI-approved project, a loopback served-host adapter,
-the authenticated versioned socket, packaged frontend assets, and a real browser host client. Expose
-only launch description, the startup grant, a bounded file-tree snapshot, and bounded file read.
+Create a Tauri-free Rust host boundary for one CLI-approved project, a network-reachable served-host
+adapter, the authenticated versioned socket, packaged frontend assets, and a real browser host
+client. Expose only launch description, the startup grant, a bounded file-tree snapshot, and bounded
+file read.
 Every served text result is non-writable, so the existing editor mounts read-only and creates no
 local draft.
 
@@ -16,7 +17,7 @@ This packet comes first because it tests the four assumptions every later packet
 
 1. existing Rust authority can move below a public host interface;
 2. the current TypeScript workbench can boot through a real network adapter;
-3. loopback authentication and Origin handling work in a browser; and
+3. direct same-origin authentication works from a non-loopback browser address; and
 4. real browser-to-Rust tests can replace fixture-only confidence.
 
 It deliberately does not change the default Tauri application, write files, watch directories, run
@@ -48,19 +49,21 @@ explicit terminal reattachment or terminal-loss results. Preserve current descen
 shutdown.
 
 This follows durable identity work because the current terminal handles are frontend-runtime values.
-Adding a socket without restart/reconnect semantics would strand processes whenever SSH or the page
-reloads. It also follows the request protocol so streaming builds on proven auth, bounds, errors, and
-correlation rather than inventing a second message model.
+Adding a socket without restart/reconnect semantics would strand processes whenever the network or
+page reloads. It also follows the request protocol so streaming builds on proven auth, bounds,
+errors, and correlation rather than inventing a second message model.
 
 Change surface: large and highest-risk. PTY lifecycle across disconnects and real Windows process
 containment are the most likely sources of redesign.
 
 ## Work packet 3: stable CLI dispatch and Tauri client shell
 
-Make `zd serve [<folder>] [--port <port>]` a stable foreground execution mode before the desktop
-wrapper depends on it. Tauri launches and supervises that same executable in `serve` mode, waits for
-a private bounded readiness record, validates its exact loopback origin and protocol version, and
-then navigates the `main` webview. Compose the same `WorkbenchHost` with `TauriShell`.
+Make `zd serve [<folder>] [--bind <ip>] [--port <port>]` a stable foreground execution mode before
+the desktop wrapper depends on it. Direct serve accepts browser connections on the host network by
+default. Tauri launches and supervises that same executable in `serve` mode with an explicit
+loopback bind, waits for a private bounded readiness record, validates its exact loopback origin and
+protocol version, and then navigates the `main` webview. Compose the same `WorkbenchHost` with
+`TauriShell`.
 
 Define primary-instance arbitration so a webview reload or secondary desktop launch reuses the
 existing child instead of creating another server. Preserve safe close, quick access, trusted open
@@ -96,9 +99,9 @@ product code.
 
 | Gate | Evidence required before the next packet |
 | --- | --- |
-| 0 | Browser opens a real file from a temporary approved root; traversal, foreign Origin, and pre-auth requests fail; protocol timing is correlated |
+| 0 | A browser connects without a client helper through a non-loopback host address and opens a real file; traversal, foreign Origin, and pre-auth requests fail; protocol timing is correlated |
 | 1 | Writes and Git remain grant-scoped; durable drafts and state survive a different port and server restart; migrations fail closed |
-| 2 | Tunnel interruption/reload has an explicit PTY result; event gaps resnapshot; slow clients remain bounded; descendants exit on shutdown |
+| 2 | Network interruption/reload has an explicit PTY result; event gaps resnapshot; slow clients remain bounded; descendants exit on shutdown |
 | 3 | Browser and Tauri run the same host contract and executable entry point; reload does not duplicate the child; served origin cannot call retired native authority; desktop close and quick-access behavior remain intact |
 | 4 | Installed macOS, Windows, and selected Linux artifacts exercise `zd serve`, browser connection, wrapper startup, and complete cleanup |
 
@@ -112,7 +115,7 @@ than pulling later packets into it.
 ## Deliberately not doing
 
 - No product-managed SSH connection, remote installation, or certificate lifecycle.
-- No direct `0.0.0.0`, LAN, public, reverse-proxy, or trusted-header mode.
+- No public-Internet, reverse-proxy, or trusted-forwarding-header mode.
 - No accounts, permissions matrix, collaboration, simultaneous controllers, or takeover flow.
 - No generic filesystem paths, executable/argv/environment terminal method, or route-per-Tauri-command
   mirror.
@@ -134,4 +137,4 @@ for the remaining work:
 
 The goals are serialized because every packet changes the host/protocol integration shape consumed
 by the next. Goal 03 remains the highest-risk packet because it must reconcile process lifetime,
-bounded output, tunnel interruption, replay gaps, and cross-platform descendant cleanup.
+bounded output, connection interruption, replay gaps, and cross-platform descendant cleanup.

@@ -6,7 +6,8 @@
   scoped durable records, different-port recovery, and green full-repository gates before a served
   client may write.
 - [Execute goal 00](_completed/execute-goal-00.md) supplies the closed authenticated request path,
-  shared read boundary, timing, and real browser harness.
+  shared read boundary, timing, and real browser harness. ADR 0009 supersedes that goal's
+  loopback-only transport assumption.
 - The owner may release this goal only as an experimental served target. Watchers, terminals, Tauri
   wrapper cutover, and packaged artifacts remain unavailable.
 - This goal is serialized with goals 01 and 03–05 because it owns the shared host, protocol,
@@ -67,7 +68,11 @@ When the work is complete, the repository must have:
 10. real browser evidence that edits and saves a temporary file, survives a restart with an unsaved
     draft and review, performs representative tree and clipboard-image mutations, renders real Git
     status/history/diff, loads a validated host theme, and exercises diagnostics without a Tauri
-    runtime or in-memory host fixture.
+    runtime or in-memory host fixture; and
+11. direct remote-host behavior where the default listener accepts a browser through a non-loopback
+    host address, an optional numeric bind restricts that listener, exact same-authority Host and
+    Origin checks still reject cross-origin and forwarded requests, and the client runs no tunnel,
+    helper, extension, or native application.
 
 ## In scope
 
@@ -80,8 +85,9 @@ When the work is complete, the repository must have:
 - **Host configuration.** Owns theme discovery and diagnostics implementation below the host. Native
   reveal/open behavior stays in `ClientShell`; a remote browser may inspect status but does not ask
   the remote host to open a local file manager.
-- **Protocol and client.** Owns `packages/server/src/protocol.rs`, server resource bounds,
-  `packages/app/src/platform/served*.ts`, `composition.ts`, `platform.ts`, and closed contract tests.
+- **Protocol and client.** Owns `packages/server/src/cli.rs`, `server.rs`, `protocol.rs`, listener and
+  resource bounds, `packages/app/src/platform/served*.ts`, `composition.ts`, `platform.ts`, and
+  closed contract tests.
 - **Feature integration.** Owns only the narrow app files needed to remove read-only served refusals
   and connect existing editing, Files/Changes, review, image, theme, and diagnostic behavior. Do not
   fork feature controllers for remote use.
@@ -128,6 +134,12 @@ At minimum, prove:
   `404` when requesting any project file as an HTTP asset;
 - local/session browser storage and request/console/cookie logs contain neither durable content nor
   the process secret, and authenticated path display never appears in pre-auth or diagnostic output;
+- the default server binds all IPv4 interfaces on one OS-assigned port, a configured numeric bind
+  can restrict it to loopback or one host interface, and real Chromium unlocks through a direct
+  non-loopback URL without client-side forwarding;
+- direct WebSocket access accepts only an exact same-authority HTTP Origin and Host with a port,
+  while missing/foreign origins, malformed authorities, proxy forwarding headers, and unauthenticated
+  requests remain closed;
 - all existing frontend/Tauri behavior and goal 00/01 security/restart evidence remain green; and
 - `npm run check`, normal and served Playwright targets, `cargo test --workspace`,
   `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and
@@ -147,11 +159,13 @@ At minimum, prove:
   global shortcuts, or window focus into remote-host actions.
 - Do not add background polling to replace watchers or Git events.
 - Do not publish released user documentation or package an installed command.
+- Do not add public-Internet exposure, TLS certificate management, trusted proxy headers, a hosted
+  relay, or network-specific Tailscale integration. The direct listener stays transport-agnostic.
 
 ## Engineering constraints
 
 - Follow repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../GOOD_ENGINEERING_H.md),
-  [`DESIGN.md`](../../../../DESIGN.md), and ADR 0008. Write the failing boundary/regression test
+  [`DESIGN.md`](../../../../DESIGN.md), and ADR 0009. Write the failing boundary/regression test
   before moving each implementation and keep every commit independently green.
 - Move deep modules with their tests and preserve history where practical. Tauri wrappers may adapt
   framework state, but must not reimplement validation, command construction, or filesystem work.
@@ -167,13 +181,15 @@ At minimum, prove:
 
 ## Completion definition
 
-The goal is complete only when the real served workbench edits, saves, mutates, reviews, renders
-images/themes, inspects Git, creates structured worktrees, and records opt-in host diagnostics through
-the same grant-scoped Rust implementations used by temporary Tauri wrappers; durable work survives a
-new origin/process; every payload and blocking job is bounded; every excluded streaming/shell
-capability is still closed; and all required gates pass.
+The goal is complete only when a remote browser connects directly without client-side setup and the
+real served workbench edits, saves, mutates, reviews, renders images/themes, inspects Git, creates
+structured worktrees, and records opt-in host diagnostics through the same grant-scoped Rust
+implementations used by temporary Tauri wrappers; durable work survives a new origin/process; every
+payload and blocking job is bounded; every excluded streaming/shell capability is still closed; and
+all required gates pass.
 
 If the implementation needs a generic file/Git/upload method, duplicates Tauri authority, exposes an
-unapproved or pre-auth path, stores recoverable work in browser-origin storage, or runs unbounded
-blocking work on the socket executor, stop and report. Do not pull watchers, PTYs, or wrapper
-lifecycle forward to make the editing demo appear complete.
+unapproved or pre-auth path, stores recoverable work in browser-origin storage, runs unbounded
+blocking work on the socket executor, or trusts a public proxy/network without a new decision, stop
+and report. Do not pull watchers, PTYs, or wrapper lifecycle forward to make the editing demo appear
+complete.
