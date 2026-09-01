@@ -3,11 +3,5 @@
   "identifier": "default",
   "description": "Capabilities for the main zd window. Default deny — open one permission at a time, with a reason.",
   "windows": ["main"],
-  "permissions": [
-    "allow-desktop-bootstrap",
-    "allow-desktop-shell",
-    "core:default",
-    "core:window:allow-start-dragging",
-    "opener:allow-open-url"
-  ]
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
 }

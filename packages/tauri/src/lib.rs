@@ -4,45 +4,16 @@
 //! product lives in `packages/app/src/`. See
 //! `docs/adr/suite/0001-use-tauri-with-portable-web-frontend_H.md`.
 
-mod cli;
-mod clipboard_images;
 mod desktop;
 mod dispatch;
-mod durable_state;
-mod file_tree;
-mod file_tree_watch;
-mod fs;
-mod git;
-mod grants;
-pub mod instrumentation;
+mod launch;
 pub mod notifications;
-mod projects;
 mod quick_access;
 mod shell;
 #[doc(hidden)]
 pub mod supervisor;
-mod terminal_runtime;
-mod themes;
-mod workspaces;
-mod worktrees;
 
-#[cfg(target_os = "macos")]
-use tauri::Emitter;
 use tauri::Manager;
-
-/// Whether macOS has delivered a file-open request that the current file has not
-/// accepted yet. This closes the small race between the native event and the
-/// webview installing its listener.
-#[tauri::command]
-fn has_pending_open_request(launch: tauri::State<'_, cli::LaunchState>) -> bool {
-    launch.has_pending()
-}
-
-/// Accept the queued Finder request after the current work says switching is safe.
-#[tauri::command]
-fn accept_open_request(launch: tauri::State<'_, cli::LaunchState>) -> Option<cli::LaunchRequest> {
-    launch.accept_pending()
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -54,7 +25,7 @@ pub fn run() {
 
 fn run_from_environment() -> Result<(), String> {
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
-    let invocation_directory = cli::invocation_directory_from_environment();
+    let invocation_directory = launch::invocation_directory_from_environment();
     match dispatch::parse_command(&arguments, &invocation_directory)? {
         dispatch::LaunchMode::Desktop(launch_request) => {
             run_desktop(launch_request);
@@ -65,36 +36,15 @@ fn run_from_environment() -> Result<(), String> {
     }
 }
 
-fn run_desktop(launch_request: cli::NativeOpenRequest) {
-    /*
-     * Native launch/open events add project grants before the webview sees their
-     * opaque identities. Accepting a queued request changes only active context;
-     * earlier grants stay valid so inactive dirty work is not stranded.
-     */
+fn run_desktop(launch_request: launch::NativeOpenRequest) {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(supervisor::Supervisor::default())
-        .manage(file_tree_watch::FileTreeWatchState::default())
         .manage(quick_access::QuickAccessState::default())
-        .manage(terminal_runtime::TerminalState::default())
         .setup(move |app| {
             app.manage(notifications::NotificationState::new(app.handle().clone()));
-            let configuration = app.path().app_config_dir()?;
-            app.manage(cli::LaunchState::new_persisted(
-                launch_request.clone(),
-                configuration.clone(),
-            ));
-            app.manage(workspaces::WorkspaceState::new(
-                configuration.join("workspaces-v1.json"),
-            ));
-            let directory = configuration.join("diagnostics");
-            let diagnostics =
-                instrumentation::DiagnosticState::new(directory, env!("CARGO_PKG_VERSION"))
-                    .map_err(std::io::Error::other)?;
-            app.manage(diagnostics);
             desktop::start(
                 app.handle().clone(),
                 launch_request.path.as_deref().map(std::path::PathBuf::from),
@@ -109,37 +59,7 @@ fn run_desktop(launch_request: cli::NativeOpenRequest) {
         })
         .invoke_handler(tauri::generate_handler![
             desktop::take_desktop_bootstrap,
-            cli::launch_request,
-            cli::project_grants,
-            durable_state::describe_durable_state,
-            durable_state::apply_durable_state,
-            projects::choose_project,
-            projects::recover_project_grant,
-            workspaces::recent_workspaces,
-            workspaces::save_workspace,
-            workspaces::open_workspace,
-            cli::pending_open_request,
-            cli::remove_project_grant,
-            has_pending_open_request,
-            accept_open_request,
-            clipboard_images::save_clipboard_image,
-            file_tree::file_tree_snapshot,
-            file_tree_watch::start_file_tree_watch,
-            file_tree_watch::stop_file_tree_watch,
-            fs::mutations::mutate_file_tree,
-            git::git_status,
-            git::git_history_page,
-            git::git_compare,
-            git::git_diff,
-            worktrees::create_thread_worktree,
-            fs::read_text_file,
-            fs::read_bounded_file,
-            fs::read_project_image,
-            fs::workspace_files,
-            fs::write_text_file,
-            fs::file_stamp,
             shell::open_external,
-            themes::theme_config_files,
             shell::register_global_summon,
             shell::toggle_quick_access,
             shell::hide_quick_access,
@@ -149,18 +69,6 @@ fn run_desktop(launch_request: cli::NativeOpenRequest) {
             shell::show_thread_notification,
             shell::pending_notification_actions,
             shell::play_completion_sound,
-            instrumentation::runtime::diagnostics_status,
-            instrumentation::runtime::enable_diagnostics,
-            instrumentation::runtime::disable_diagnostics,
-            instrumentation::runtime::record_diagnostic,
-            instrumentation::runtime::reveal_diagnostics,
-            terminal_runtime::terminal_start,
-            terminal_runtime::terminal_write,
-            terminal_runtime::terminal_resize,
-            terminal_runtime::terminal_read,
-            terminal_runtime::terminal_poll_exit,
-            terminal_runtime::terminal_terminate,
-            terminal_runtime::terminal_dispose,
             shell::close_window,
         ])
         /*
@@ -189,26 +97,15 @@ fn run_desktop(launch_request: cli::NativeOpenRequest) {
     app.run(|app_handle, event| {
         if matches!(&event, tauri::RunEvent::Exit) {
             let _ = app_handle.state::<supervisor::Supervisor>().shutdown();
-            app_handle
-                .state::<instrumentation::DiagnosticState>()
-                .shutdown();
-            app_handle
-                .state::<terminal_runtime::TerminalState>()
-                .shutdown();
-            app_handle
-                .state::<file_tree_watch::FileTreeWatchState>()
-                .shutdown();
         }
 
         #[cfg(target_os = "macos")]
         match event {
             tauri::RunEvent::Opened { urls } => {
-                let Some(request) = cli::opened_request(&urls) else {
+                if launch::opened_request(&urls).is_none() {
                     return;
-                };
-                app_handle.state::<cli::LaunchState>().queue(request);
+                }
                 quick_access::show_ordinary(app_handle);
-                let _ = app_handle.emit("open-requested", ());
             }
             tauri::RunEvent::Reopen {
                 has_visible_windows: false,

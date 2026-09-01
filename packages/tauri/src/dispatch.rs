@@ -2,7 +2,7 @@ use std::path::Path;
 
 use zd_server::ServeArgs;
 
-use crate::cli::{parse_launch_args, NativeOpenRequest};
+use crate::launch::{parse_launch_args, NativeOpenRequest};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum LaunchMode {
