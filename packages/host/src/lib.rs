@@ -12,6 +12,7 @@ pub mod git_process;
 mod grants;
 mod identity;
 mod service;
+mod themes;
 mod workspaces;
 mod worktrees;
 
@@ -47,6 +48,7 @@ pub use grants::{
     ApprovedProject, GrantAvailability, GrantStore, ProjectGrant, ResourceRef, WorktreeGrant,
 };
 pub use service::{HostLaunchRequest, HostService};
+pub use themes::{theme_files_in, ThemeConfigFile};
 pub use workspaces::{
     RecentWorkspace, RecentWorkspaceKind, WorkspaceStore, MAX_PROJECTS_PER_WORKSPACE,
     MAX_RECENT_WORKSPACES,
