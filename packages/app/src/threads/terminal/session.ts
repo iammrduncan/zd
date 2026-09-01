@@ -22,6 +22,7 @@ import type {
 import type { ThreadLifecycle, ThreadLifecycleSignal } from "../types";
 
 const MAX_WRITE_BYTES = 64 * 1_024;
+const ORDERED_WRITE_CONCURRENCY = 4;
 const MAX_READ_BYTES = 16 * 1_024 * 1_024;
 const OUTPUT_RENDER_CHUNK_BYTES = 64 * 1_024;
 const MAX_PENDING_EMULATOR_BYTES = 4 * 1_024 * 1_024;
@@ -46,6 +47,15 @@ function defaultYieldForOutput(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+interface PendingTerminalWrite {
+  readonly handle: TerminalSessionHandle;
+  readonly waiters: Array<{
+    readonly resolve: () => void;
+    readonly reject: (cause: unknown) => void;
+  }>;
+  bytes: number[];
+}
+
 export class TerminalThreadSession {
   readonly #listeners = new Set<(snapshot: TerminalThreadSnapshot) => void>();
   readonly #outputListeners = new Set<(bytes: Uint8Array) => unknown | Promise<unknown>>();
@@ -66,7 +76,8 @@ export class TerminalThreadSession {
   #status: TerminalThreadStatus = "detached";
   #terminated = false;
   #viewport: TerminalViewport | null = null;
-  #writeTail: Promise<void> = Promise.resolve();
+  #activeWrites = 0;
+  #writeQueue: PendingTerminalWrite[] = [];
 
   constructor(
     readonly adapter: TerminalAdapter,
@@ -214,24 +225,61 @@ export class TerminalThreadSession {
     return this.writeBytes(new TextEncoder().encode(text));
   }
 
-  writeBytes(input: Uint8Array): Promise<void> {
+  async writeBytes(input: Uint8Array): Promise<void> {
     const bytes = input.slice();
-    if (bytes.length === 0) return Promise.resolve();
-    const work = this.#writeTail.then(async () => {
-      const handle = this.#attachedHandle();
-      try {
-        for (let offset = 0; offset < bytes.length; offset += MAX_WRITE_BYTES) {
-          await this.adapter.write(handle, [...bytes.slice(offset, offset + MAX_WRITE_BYTES)]);
-        }
-        this.#observeAgent(this.options.detector?.observeInput(bytes) ?? null);
-        this.#record("terminal.write", "ok");
-      } catch (cause) {
-        this.#record("terminal.write", "failed");
-        throw cause;
+    if (bytes.length === 0) return;
+    const handle = this.#attachedHandle();
+    try {
+      const writes: Promise<void>[] = [];
+      for (let offset = 0; offset < bytes.length; offset += MAX_WRITE_BYTES) {
+        writes.push(
+          this.#scheduleWrite(handle, [...bytes.slice(offset, offset + MAX_WRITE_BYTES)]),
+        );
       }
+      await Promise.all(writes);
+      this.#observeAgent(this.options.detector?.observeInput(bytes) ?? null);
+      this.#record("terminal.write", "ok");
+    } catch (cause) {
+      this.#record("terminal.write", "failed");
+      throw cause;
+    }
+  }
+
+  #scheduleWrite(handle: TerminalSessionHandle, bytes: number[]): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const tail = this.#writeQueue.at(-1);
+      if (
+        tail &&
+        terminalSessionKey(tail.handle) === terminalSessionKey(handle) &&
+        tail.bytes.length + bytes.length <= MAX_WRITE_BYTES
+      ) {
+        tail.bytes.push(...bytes);
+        tail.waiters.push({ resolve, reject });
+      } else {
+        this.#writeQueue.push({ handle, bytes, waiters: [{ resolve, reject }] });
+      }
+      this.#drainWrites();
     });
-    this.#writeTail = work.catch(() => undefined);
-    return work;
+  }
+
+  #drainWrites(): void {
+    const limit =
+      this.adapter.writeScheduling === "ordered-pipeline" ? ORDERED_WRITE_CONCURRENCY : 1;
+    while (this.#activeWrites < limit) {
+      const pending = this.#writeQueue.shift();
+      if (!pending) return;
+      this.#activeWrites += 1;
+      void this.adapter
+        .write(pending.handle, pending.bytes)
+        .then(
+          () => pending.waiters.forEach(({ resolve }) => resolve()),
+          (cause) => pending.waiters.forEach(({ reject }) => reject(cause)),
+        )
+        .finally(() => {
+          this.#activeWrites -= 1;
+          this.#drainWrites();
+        });
+    }
   }
 
   async resize(viewport: TerminalViewport): Promise<void> {

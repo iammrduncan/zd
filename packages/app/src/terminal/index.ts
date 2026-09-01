@@ -56,6 +56,8 @@ export interface TerminalExitStatus {
  * execution.
  */
 export interface TerminalAdapter {
+  /** Concurrent calls are committed and settled in invocation order when pipelining is enabled. */
+  readonly writeScheduling?: "ordered-pipeline";
   start(request: TerminalStartRequest): Promise<TerminalSessionHandle>;
   /** Native output/exit edge; consumers drain bytes only after this bounded signal. */
   onOutputReady?(listener: (session: TerminalSessionHandle) => void): () => void;

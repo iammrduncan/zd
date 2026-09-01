@@ -221,6 +221,49 @@ describe("the terminal-backed thread session", () => {
     expect(adapter.write).toHaveBeenCalledWith(session, [0, 128, 255]);
   });
 
+  it("pipelines bounded writes when the transport preserves concurrent call order", async () => {
+    const adapter = Object.assign(fakeAdapter(), {
+      writeScheduling: "ordered-pipeline" as const,
+    });
+    const gates = Array.from({ length: 5 }, () => deferred<void>());
+    let invocation = 0;
+    adapter.write.mockImplementation(() => gates[invocation++]!.promise);
+    const terminal = TerminalThreadSession.attach(adapter, session);
+
+    const writes = [1, 2, 3, 4, 5, 6].map((byte) => terminal.writeBytes(Uint8Array.from([byte])));
+
+    await vi.waitFor(() => expect(adapter.write).toHaveBeenCalledTimes(4));
+    expect(adapter.write.mock.calls.map(([, bytes]) => bytes)).toEqual([[1], [2], [3], [4]]);
+
+    gates[0]!.resolve();
+    await vi.waitFor(() => expect(adapter.write).toHaveBeenCalledTimes(5));
+    expect(adapter.write.mock.calls[4]![1]).toEqual([5, 6]);
+
+    for (const gate of gates.slice(1)) gate.resolve();
+    await Promise.all(writes);
+  });
+
+  it("keeps writes serial when an adapter does not promise concurrent ordering", async () => {
+    const adapter = fakeAdapter();
+    const first = deferred<void>();
+    const second = deferred<void>();
+    adapter.write
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementationOnce(() => second.promise);
+    const terminal = TerminalThreadSession.attach(adapter, session);
+
+    const firstWrite = terminal.writeBytes(Uint8Array.from([1]));
+    const secondWrite = terminal.writeBytes(Uint8Array.from([2]));
+    await vi.waitFor(() => expect(adapter.write).toHaveBeenCalledTimes(1));
+
+    first.resolve();
+    await vi.waitFor(() => expect(adapter.write).toHaveBeenCalledTimes(2));
+    second.resolve();
+
+    await Promise.all([firstWrite, secondWrite]);
+    expect(adapter.write.mock.calls.map(([, bytes]) => bytes)).toEqual([[1], [2]]);
+  });
+
   it("never infers busy or waiting merely because output arrived", async () => {
     const adapter = fakeAdapter([output([...new TextEncoder().encode("done\n")])]);
     const lifecycle = vi.fn();
