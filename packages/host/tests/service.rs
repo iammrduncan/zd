@@ -134,6 +134,24 @@ fn remembered_identities_do_not_authorize_other_roots() {
 }
 
 #[test]
+fn persisted_host_discovers_themes_from_its_configuration_directory() {
+    let project = Scratch::new("theme-project");
+    let state = Scratch::new("theme-state");
+    std::fs::write(state.join("fixture.theme.config"), "{\"name\":\"Fixture\"}")
+        .expect("write theme fixture");
+    let host = persisted_host(project.path(), state.path());
+
+    let themes = host.theme_config_files().expect("discover themes");
+
+    assert_eq!(themes.len(), 1);
+    assert_eq!(themes[0].file_name, "fixture.theme.config");
+    assert_eq!(
+        themes[0].contents.as_deref(),
+        Some("{\"name\":\"Fixture\"}")
+    );
+}
+
+#[test]
 fn a_corrupt_identity_catalog_is_preserved_and_fails_closed() {
     let project = Scratch::new("corrupt-project");
     let state = Scratch::new("corrupt-state");

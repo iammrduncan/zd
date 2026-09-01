@@ -13,8 +13,8 @@ use crate::{
     CreateThreadWorktreeResult, FileStamp, FileTreeMutationRequest, FileTreeMutationResult,
     FileTreeRequest, FileTreeResult, GitAuthority, GitCompareRequest, GitComparison, GitDiff,
     GitDiffRequest, GitHistoryPage, GitHistoryRequest, GitScope, GitStatusSnapshot, GrantStore,
-    ProjectGrant, ProjectImage, ResourceRef, SavedClipboardImage, TreeLimits, WorkspaceListing,
-    WorktreeAuthority, WorktreeGrant,
+    ProjectGrant, ProjectImage, ResourceRef, SavedClipboardImage, ThemeConfigFile, TreeLimits,
+    WorkspaceListing, WorktreeAuthority, WorktreeGrant,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -233,6 +233,13 @@ impl HostService {
         request: CreateThreadWorktreeRequest,
     ) -> CreateThreadWorktreeResult {
         crate::create_worktree_for(self, request)
+    }
+
+    pub fn theme_config_files(&self) -> Result<Vec<ThemeConfigFile>, String> {
+        let directory = self.state_directory.as_deref().ok_or_else(|| {
+            "theme discovery is unavailable: configuration was not provided".to_string()
+        })?;
+        crate::theme_files_in(directory)
     }
 
     fn resolve_resource(&self, resource: &ResourceRef) -> Result<std::path::PathBuf, String> {
