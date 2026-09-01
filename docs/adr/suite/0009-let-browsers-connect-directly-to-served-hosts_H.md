@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Superseded by
+[0010: Keep terminal sessions below server lifetime](0010-keep-terminal-sessions-below-server-lifetime_H.md).
 
 Supersedes
 [0008: Serve one host backend to browser and desktop clients](0008-serve-one-host-backend-to-browser-and-desktop-clients_H.md).
