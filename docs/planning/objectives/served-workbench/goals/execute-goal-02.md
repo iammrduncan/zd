@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Execute goal 01](execute-goal-01.md) is complete. This goal needs stable project/worktree IDs,
+- [Execute goal 01](_completed/execute-goal-01.md) is complete. This goal needs stable project/worktree IDs,
   scoped durable records, different-port recovery, and green full-repository gates before a served
   client may write.
 - [Execute goal 00](_completed/execute-goal-00.md) supplies the closed authenticated request path,
