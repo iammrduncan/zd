@@ -4,7 +4,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use serde_json::{json, Value};
 
-use support::{authenticate, connect_same_origin, request, TestServer};
+use support::{authenticate, connect_same_origin, receive_event, request, TestServer};
 
 async fn authenticated(server: &TestServer) -> support::Socket {
     let mut socket = connect_same_origin(server).await;
@@ -50,13 +50,14 @@ async fn session_description_has_a_closed_editing_capability_manifest() {
         "worktrees",
         "durableState",
         "hostDiagnostics",
+        "terminal",
     ] {
         assert_eq!(response["result"]["capabilities"][read_write], "read-write");
     }
-    for read_only in ["git", "projectImages", "themeFiles"] {
+    for read_only in ["fileWatch", "git", "projectImages", "themeFiles"] {
         assert_eq!(response["result"]["capabilities"][read_only], "read-only");
     }
-    for unavailable in ["fileWatch", "terminal", "projectPicker", "recentWorkspaces"] {
+    for unavailable in ["projectPicker", "recentWorkspaces"] {
         assert_eq!(
             response["result"]["capabilities"][unavailable],
             "unavailable"
@@ -70,6 +71,119 @@ async fn session_description_has_a_closed_editing_capability_manifest() {
         16
     );
 
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn watches_terminals_snapshot_and_resume_share_the_authenticated_socket() {
+    let server = TestServer::start("runtime-protocol").await;
+    let mut socket = authenticated(&server).await;
+    let (project_id, worktree_id) = startup_scope(&mut socket).await;
+
+    let initial = request(&mut socket, "snapshot-1", "session.snapshot", json!({})).await;
+    assert_eq!(initial["result"]["sequence"], 0);
+    assert_eq!(initial["result"]["resourceStatus"], "active");
+    assert_eq!(initial["result"]["watches"], json!([]));
+    assert_eq!(initial["result"]["terminals"], json!([]));
+    let epoch = initial["result"]["sessionEpoch"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let watch = json!({
+        "projectId": project_id,
+        "worktreeId": worktree_id,
+        "watchId": "watch-protocol",
+    });
+    let started_watch = request(
+        &mut socket,
+        "watch-1",
+        "fileTree.watch.start",
+        watch.clone(),
+    )
+    .await;
+    assert_eq!(started_watch["result"], Value::Null);
+    std::fs::write(server.project.join("watched.md"), "changed\n").unwrap();
+    let changed = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        receive_event(&mut socket, "fileTree.changed"),
+    )
+    .await
+    .expect("native watcher emits through the authenticated socket");
+    assert_eq!(changed["payload"], watch);
+
+    let start = request(
+        &mut socket,
+        "terminal-1",
+        "terminal.start",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "viewport": {"rows": 24, "columns": 80, "pixelWidth": 0, "pixelHeight": 0},
+        }),
+    )
+    .await;
+    let session = start["result"].clone();
+    assert!(session["sessionId"].as_str().is_some());
+
+    let command = STANDARD.encode(b"printf '__ZD_PROTOCOL_TERMINAL__\\n'\n");
+    let write = request(
+        &mut socket,
+        "terminal-2",
+        "terminal.write",
+        json!({"session": session, "bytesBase64": command}),
+    )
+    .await;
+    assert_eq!(write["result"], Value::Null);
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        receive_event(&mut socket, "terminal.outputReady"),
+    )
+    .await
+    .expect("PTY output emits through the authenticated socket");
+    let read = request(
+        &mut socket,
+        "terminal-3",
+        "terminal.read",
+        json!({"session": session}),
+    )
+    .await;
+    let output = STANDARD
+        .decode(read["result"]["bytesBase64"].as_str().unwrap())
+        .unwrap();
+    assert!(String::from_utf8_lossy(&output).contains("__ZD_PROTOCOL_TERMINAL__"));
+    assert!(read["result"].get("bytes").is_none());
+
+    let snapshot = request(&mut socket, "snapshot-2", "session.snapshot", json!({})).await;
+    assert_eq!(snapshot["result"]["watches"].as_array().unwrap().len(), 1);
+    assert_eq!(snapshot["result"]["terminals"].as_array().unwrap().len(), 1);
+    assert!(!snapshot["result"]
+        .to_string()
+        .contains("__ZD_PROTOCOL_TERMINAL__"));
+    let resume = request(
+        &mut socket,
+        "resume-1",
+        "session.resume",
+        json!({"sessionEpoch": epoch, "afterSequence": 0}),
+    )
+    .await;
+    assert_eq!(resume["result"]["status"], "replayed");
+    assert!(resume["result"]["events"].as_array().unwrap().len() >= 2);
+
+    assert_eq!(
+        request(
+            &mut socket,
+            "terminal-4",
+            "terminal.dispose",
+            json!({"session": session}),
+        )
+        .await["result"],
+        Value::Null
+    );
+    assert_eq!(
+        request(&mut socket, "watch-2", "fileTree.watch.stop", watch).await["result"],
+        Value::Null
+    );
     server.shutdown().await;
 }
 
@@ -499,7 +613,7 @@ async fn unknown_versions_methods_fields_and_generic_paths_are_refused() {
     assert_eq!(unknown_method["requestId"], "unknown-1");
     for (index, method) in [
         "fileTree.watch",
-        "terminal.start",
+        "terminal.execute",
         "project.choose",
         "projectRoot.open",
     ]

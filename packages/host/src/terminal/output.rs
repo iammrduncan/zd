@@ -71,4 +71,8 @@ impl BoundedOutput {
         self.first_offset = self.next_offset;
         batch
     }
+
+    pub(super) fn offsets(&self) -> (u64, u64) {
+        (self.first_offset, self.next_offset)
+    }
 }

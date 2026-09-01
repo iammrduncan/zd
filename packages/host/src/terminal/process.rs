@@ -9,7 +9,10 @@ use portable_pty::{Child, ExitStatus, MasterPty};
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
 use super::output::BoundedOutput;
-use super::{TerminalError, TerminalErrorKind, TerminalOutputSignal, TerminalSessionHandle};
+use super::{
+    TerminalError, TerminalErrorKind, TerminalExitSignal, TerminalOutputSignal,
+    TerminalSessionHandle,
+};
 
 /// Platform process-tree ownership attached to one PTY session.
 ///
@@ -74,6 +77,7 @@ impl OutputReader {
         output: Arc<Mutex<BoundedOutput>>,
         session: TerminalSessionHandle,
         output_signal: Option<TerminalOutputSignal>,
+        exit_signal: Option<TerminalExitSignal>,
     ) -> Result<Self, TerminalError> {
         let (finished_sender, finished) = mpsc::sync_channel(1);
         let thread = thread::Builder::new()
@@ -84,6 +88,7 @@ impl OutputReader {
                     match reader.read(&mut chunk) {
                         Ok(0) => {
                             signal_output(&output_signal, &session);
+                            signal_exit(&exit_signal, &session);
                             break;
                         }
                         Ok(length) => {
@@ -134,6 +139,12 @@ impl OutputReader {
 }
 
 fn signal_output(signal: &Option<TerminalOutputSignal>, session: &TerminalSessionHandle) {
+    if let Some(signal) = signal {
+        signal(session.clone());
+    }
+}
+
+fn signal_exit(signal: &Option<TerminalExitSignal>, session: &TerminalSessionHandle) {
     if let Some(signal) = signal {
         signal(session.clone());
     }
