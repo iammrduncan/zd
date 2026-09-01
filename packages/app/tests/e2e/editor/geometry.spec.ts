@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { materializeEditorTarget, openEditor } from "./harness";
+
 /*
  * The rule every block on the editing surface has to keep: **inside
  * `.cm-content`, vertical space is padding, never margin.**
@@ -56,12 +58,16 @@ async function sweep<T>(page: import("@playwright/test").Page, collect: () => T[
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.setViewportSize({ width: 1100, height: 800 });
-  await page.goto("/dev/editor.html");
-  await page.locator(".md-line-h1").first().waitFor();
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
+  await openEditor(page);
+  // The cold parser can mount the title before it has built the table decoration.
+  // Materialize the fixture's furthest widget once so every negative sweep starts
+  // from a complete decoration set. Each sweep still scrolls from zero and must
+  // rediscover the virtualized table for itself.
+  await materializeEditorTarget(
+    page,
+    page.locator(".cm-content > table.md-rendered"),
+    "the geometry control table",
+  );
 });
 
 test("nothing inside the content claims vertical space with a margin", async ({ page }) => {
