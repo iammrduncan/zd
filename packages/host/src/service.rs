@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use serde::Serialize;
@@ -9,11 +9,12 @@ use crate::{durable, identity};
 use crate::{
     file_stamp_at, mutate_file_tree_at, read_bounded_file_at, read_project_image_at,
     read_text_file_at, save_clipboard_image_at, snapshot_in, workspace_files_in,
-    write_text_file_at, BoundedFileRead, ClipboardImageRequest, FileStamp, FileTreeMutationRequest,
-    FileTreeMutationResult, FileTreeRequest, FileTreeResult, GitAuthority, GitCompareRequest,
-    GitComparison, GitDiff, GitDiffRequest, GitHistoryPage, GitHistoryRequest, GitScope,
-    GitStatusSnapshot, GrantStore, ProjectGrant, ProjectImage, ResourceRef, SavedClipboardImage,
-    TreeLimits, WorkspaceListing,
+    write_text_file_at, BoundedFileRead, ClipboardImageRequest, CreateThreadWorktreeRequest,
+    CreateThreadWorktreeResult, FileStamp, FileTreeMutationRequest, FileTreeMutationResult,
+    FileTreeRequest, FileTreeResult, GitAuthority, GitCompareRequest, GitComparison, GitDiff,
+    GitDiffRequest, GitHistoryPage, GitHistoryRequest, GitScope, GitStatusSnapshot, GrantStore,
+    ProjectGrant, ProjectImage, ResourceRef, SavedClipboardImage, TreeLimits, WorkspaceListing,
+    WorktreeAuthority, WorktreeGrant,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -36,6 +37,7 @@ struct HostState {
 pub struct HostService {
     state: Mutex<HostState>,
     durable: Option<DurableStateStore>,
+    state_directory: Option<PathBuf>,
 }
 
 impl HostService {
@@ -51,6 +53,7 @@ impl HostService {
         Ok(Self {
             state: Mutex::new(HostState { launch, grants }),
             durable: None,
+            state_directory: None,
         })
     }
 
@@ -89,6 +92,7 @@ impl HostService {
         Ok(Self {
             state: Mutex::new(HostState { launch, grants }),
             durable: Some(durable),
+            state_directory: Some(state_directory.to_path_buf()),
         })
     }
 
@@ -224,6 +228,13 @@ impl HostService {
         crate::diff_for(self, request)
     }
 
+    pub fn create_thread_worktree(
+        &self,
+        request: CreateThreadWorktreeRequest,
+    ) -> CreateThreadWorktreeResult {
+        crate::create_worktree_for(self, request)
+    }
+
     fn resolve_resource(&self, resource: &ResourceRef) -> Result<std::path::PathBuf, String> {
         self.state
             .lock()
@@ -277,5 +288,31 @@ impl GitAuthority for HostService {
             .expect("host state was poisoned")
             .grants
             .resolve(resource)
+    }
+}
+
+impl WorktreeAuthority for HostService {
+    fn worktree_project_root(&self, project_id: &str) -> Result<PathBuf, String> {
+        self.state
+            .lock()
+            .expect("host state was poisoned")
+            .grants
+            .project_root(project_id)
+    }
+
+    fn approve_created_worktree(
+        &self,
+        project_id: &str,
+        root: &Path,
+    ) -> Result<WorktreeGrant, String> {
+        let mut state = self.state.lock().expect("host state was poisoned");
+        match self.state_directory.as_deref() {
+            Some(state_directory) => {
+                state
+                    .grants
+                    .approve_worktree_with_state(project_id, root, state_directory)
+            }
+            None => state.grants.approve_worktree(project_id, root),
+        }
     }
 }

@@ -1,18 +1,9 @@
-#![allow(dead_code)]
-
-#[path = "../src/cli.rs"]
-mod cli;
-#[path = "../src/grants.rs"]
-mod grants;
-#[path = "../src/worktrees.rs"]
-mod worktrees;
-
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use cli::{LaunchState, NativeOpenRequest};
-use worktrees::{
-    create_for, CreateThreadWorktreeRequest, CreateThreadWorktreeResult, WorktreeRefusalKind,
+use zd_host::{
+    CreateThreadWorktreeRequest, CreateThreadWorktreeResult, HostService, WorktreeGrant,
+    WorktreeRefusalKind,
 };
 
 struct RepositoryFixture {
@@ -73,12 +64,10 @@ impl Drop for RepositoryFixture {
     }
 }
 
-fn approved(repository: &RepositoryFixture) -> (LaunchState, String) {
-    let launch = LaunchState::new(NativeOpenRequest {
-        path: Some(repository.path().to_string_lossy().into_owned()),
-    });
-    let project_id = launch.current().project.expect("approved project").id;
-    (launch, project_id)
+fn approved(repository: &RepositoryFixture) -> (HostService, String) {
+    let host = HostService::open_project(repository.path()).expect("approve fixture project");
+    let project_id = host.launch_request().project.expect("approved project").id;
+    (host, project_id)
 }
 
 fn request(project_id: &str, name: &str, branch: &str) -> CreateThreadWorktreeRequest {
@@ -90,7 +79,7 @@ fn request(project_id: &str, name: &str, branch: &str) -> CreateThreadWorktreeRe
     }
 }
 
-fn created(result: CreateThreadWorktreeResult) -> grants::WorktreeGrant {
+fn created(result: CreateThreadWorktreeResult) -> WorktreeGrant {
     match result {
         CreateThreadWorktreeResult::Created { worktree } => worktree,
         other => panic!("expected a created worktree, got {other:?}"),
@@ -102,8 +91,8 @@ fn root_worktree_uses_the_checked_out_branch_as_its_label() {
     let repository = RepositoryFixture::new("root-label");
     repository.git(&["checkout", "-b", "feat/global-use"]);
 
-    let (launch, _) = approved(&repository);
-    let grant = launch.current().project.expect("approved project");
+    let (host, _) = approved(&repository);
+    let grant = host.launch_request().project.expect("approved project");
 
     assert_eq!(grant.worktrees[0].name, "feat/global-use");
 }
@@ -142,12 +131,10 @@ fn request_schema_never_accepts_a_destination_or_command() {
 #[test]
 fn creation_derives_a_sibling_path_and_adds_one_project_scoped_grant() {
     let repository = RepositoryFixture::new("create");
-    let (launch, project_id) = approved(&repository);
+    let (host, project_id) = approved(&repository);
 
-    let worktree = created(create_for(
-        &launch,
-        request(&project_id, "review", "feature/review"),
-    ));
+    let worktree =
+        created(host.create_thread_worktree(request(&project_id, "review", "feature/review")));
 
     let expected = repository
         .parent
@@ -165,7 +152,7 @@ fn creation_derives_a_sibling_path_and_adds_one_project_scoped_grant() {
             .stdout,
         b"feature/review\n"
     );
-    let grant = launch
+    let grant = host
         .project_grants()
         .into_iter()
         .find(|project| project.id == project_id)
@@ -180,11 +167,11 @@ fn explicit_base_revision_is_resolved_before_the_worktree_is_created() {
     let base = repository.git(&["rev-parse", "HEAD"]);
     repository.write("tracked.txt", "new head\n");
     repository.git(&["commit", "--all", "--quiet", "--message", "new head"]);
-    let (launch, project_id) = approved(&repository);
+    let (host, project_id) = approved(&repository);
     let mut worktree_request = request(&project_id, "older", "feature/older");
     worktree_request.base_revision = Some(base.clone());
 
-    let worktree = created(create_for(&launch, worktree_request));
+    let worktree = created(host.create_thread_worktree(worktree_request));
     let head = Command::new("git")
         .args(["rev-parse", "HEAD"])
         .current_dir(&worktree.root)
@@ -198,45 +185,31 @@ fn explicit_base_revision_is_resolved_before_the_worktree_is_created() {
 #[test]
 fn invalid_names_revisions_unknown_projects_and_nested_scopes_are_refused() {
     let repository = RepositoryFixture::new("refusals");
-    let (launch, project_id) = approved(&repository);
+    let (host, project_id) = approved(&repository);
     assert_eq!(
-        refused(create_for(
-            &launch,
-            request(&project_id, "../outside", "feature/outside"),
-        )),
+        refused(
+            host.create_thread_worktree(request(&project_id, "../outside", "feature/outside",))
+        ),
         WorktreeRefusalKind::InvalidName
     );
     assert_eq!(
-        refused(create_for(
-            &launch,
-            request(&project_id, "bad-ref", "bad branch"),
-        )),
+        refused(host.create_thread_worktree(request(&project_id, "bad-ref", "bad branch"))),
         WorktreeRefusalKind::InvalidRevision
     );
     assert_eq!(
-        refused(create_for(
-            &launch,
-            request("project-unknown", "review", "feature/review"),
-        )),
+        refused(host.create_thread_worktree(request(
+            "project-unknown",
+            "review",
+            "feature/review",
+        ))),
         WorktreeRefusalKind::UnknownProject
     );
 
     std::fs::create_dir(repository.path().join("nested")).unwrap();
-    let nested = LaunchState::new(NativeOpenRequest {
-        path: Some(
-            repository
-                .path()
-                .join("nested")
-                .to_string_lossy()
-                .into_owned(),
-        ),
-    });
-    let nested_id = nested.current().project.unwrap().id;
+    let nested = HostService::open_project(&repository.path().join("nested")).unwrap();
+    let nested_id = nested.launch_request().project.unwrap().id;
     assert_eq!(
-        refused(create_for(
-            &nested,
-            request(&nested_id, "review", "feature/nested"),
-        )),
+        refused(nested.create_thread_worktree(request(&nested_id, "review", "feature/nested",))),
         WorktreeRefusalKind::NotRepository
     );
 }
@@ -244,25 +217,17 @@ fn invalid_names_revisions_unknown_projects_and_nested_scopes_are_refused() {
 #[test]
 fn destination_branch_collisions_and_locked_worktrees_are_specific() {
     let repository = RepositoryFixture::new("collision");
-    let (launch, project_id) = approved(&repository);
-    let first = created(create_for(
-        &launch,
-        request(&project_id, "review", "feature/review"),
-    ));
+    let (host, project_id) = approved(&repository);
+    let first =
+        created(host.create_thread_worktree(request(&project_id, "review", "feature/review")));
     assert_eq!(
-        refused(create_for(
-            &launch,
-            request(&project_id, "another", "feature/review"),
-        )),
+        refused(host.create_thread_worktree(request(&project_id, "another", "feature/review",))),
         WorktreeRefusalKind::Collision
     );
 
     repository.git(&["worktree", "lock", &first.root]);
     assert_eq!(
-        refused(create_for(
-            &launch,
-            request(&project_id, "review", "feature/review"),
-        )),
+        refused(host.create_thread_worktree(request(&project_id, "review", "feature/review",))),
         WorktreeRefusalKind::Locked
     );
 }
@@ -271,13 +236,10 @@ fn destination_branch_collisions_and_locked_worktrees_are_specific() {
 fn a_plain_directory_is_not_mistaken_for_a_repository() {
     let repository = RepositoryFixture::new("plain");
     std::fs::remove_dir_all(repository.path().join(".git")).unwrap();
-    let (launch, project_id) = approved(&repository);
+    let (host, project_id) = approved(&repository);
 
     assert_eq!(
-        refused(create_for(
-            &launch,
-            request(&project_id, "review", "feature/review"),
-        )),
+        refused(host.create_thread_worktree(request(&project_id, "review", "feature/review",))),
         WorktreeRefusalKind::NotRepository
     );
 }

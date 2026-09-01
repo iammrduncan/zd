@@ -13,6 +13,7 @@ mod grants;
 mod identity;
 mod service;
 mod workspaces;
+mod worktrees;
 
 pub use atomic_write::atomic_write;
 pub use clipboard_images::{
@@ -49,4 +50,8 @@ pub use service::{HostLaunchRequest, HostService};
 pub use workspaces::{
     RecentWorkspace, RecentWorkspaceKind, WorkspaceStore, MAX_PROJECTS_PER_WORKSPACE,
     MAX_RECENT_WORKSPACES,
+};
+pub use worktrees::{
+    create_worktree_for, CreateThreadWorktreeRequest, CreateThreadWorktreeResult,
+    WorktreeAuthority, WorktreeRefusalKind,
 };
