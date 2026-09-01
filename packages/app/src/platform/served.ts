@@ -526,6 +526,8 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
     diff: (request) => client.request("git.diff", request),
   };
   const terminal: TerminalAdapter = {
+    // WebSocket delivery and the host dispatcher both preserve request order.
+    writeScheduling: "ordered-pipeline",
     start: async (request) => {
       const snapshotProblem = await initialRuntimeSnapshot;
       if (snapshotProblem) throw snapshotProblem;

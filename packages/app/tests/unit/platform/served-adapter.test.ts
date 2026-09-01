@@ -344,6 +344,7 @@ describe("served WorkbenchHost", () => {
 
     const output: string[] = [];
     const stopOutput = served.terminal.onOutputReady?.((session) => output.push(session.sessionId));
+    expect(served.terminal.writeScheduling).toBe("ordered-pipeline");
     const session = await served.terminal.start({
       ...scope,
       viewport: { rows: 24, columns: 80, pixelWidth: 0, pixelHeight: 0 },
