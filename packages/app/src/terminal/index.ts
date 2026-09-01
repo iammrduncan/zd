@@ -25,6 +25,8 @@ export interface TerminalViewport {
 }
 
 export interface TerminalStartRequest extends TerminalScope {
+  /** Stable logical identity chosen by the workbench and reused for reattachment. */
+  readonly terminalId: string;
   readonly viewport: TerminalViewport;
 }
 
@@ -59,6 +61,8 @@ export interface TerminalAdapter {
   /** Concurrent calls are committed and settled in invocation order when pipelining is enabled. */
   readonly writeScheduling?: "ordered-pipeline";
   start(request: TerminalStartRequest): Promise<TerminalSessionHandle>;
+  /** Returns only the exact existing terminal, or null when it no longer exists. */
+  reattach?(request: TerminalStartRequest): Promise<TerminalSessionHandle | null>;
   /** Native output/exit edge; consumers drain bytes only after this bounded signal. */
   onOutputReady?(listener: (session: TerminalSessionHandle) => void): () => void;
   write(session: TerminalSessionHandle, bytes: readonly number[]): Promise<void>;
@@ -120,11 +124,16 @@ export function terminalViewport(input: ViewportInput): TerminalViewport {
 
 export function createTerminalStartRequest(
   scope: TerminalScope,
+  terminalId: string,
   viewport: ViewportInput,
 ): TerminalStartRequest {
+  if (!terminalId || terminalId.length > 256 || terminalId.includes("\0")) {
+    throw new RangeError("terminalId must be a non-empty bounded identity without NUL bytes");
+  }
   return {
     projectId: scope.projectId,
     worktreeId: scope.worktreeId,
+    terminalId,
     viewport: terminalViewport(viewport),
   };
 }

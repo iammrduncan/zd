@@ -42,6 +42,7 @@ export function inferredThreadRecovery(
   }
   if (
     !hasRuntime &&
+    !thread.recovery &&
     (thread.backingAvailability === "ready" || thread.backingAvailability === "missing")
   ) {
     return {

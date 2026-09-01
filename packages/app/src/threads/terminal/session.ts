@@ -82,6 +82,7 @@ export class TerminalThreadSession {
   constructor(
     readonly adapter: TerminalAdapter,
     readonly scope: TerminalScope,
+    readonly terminalId: string,
     readonly options: TerminalThreadSessionOptions = {},
   ) {
     this.#transcript = new TerminalTranscriptBuffer(options.maximumRows);
@@ -96,6 +97,7 @@ export class TerminalThreadSession {
     const terminal = new TerminalThreadSession(
       adapter,
       { projectId: handle.projectId, worktreeId: handle.worktreeId },
+      handle.sessionId,
       options,
     );
     terminal.#handle = { ...handle };
@@ -140,13 +142,10 @@ export class TerminalThreadSession {
     this.#lifecycle("starting");
     this.#publish();
     try {
-      const handle = await this.adapter.start(createTerminalStartRequest(this.scope, viewport));
-      if (
-        handle.projectId !== this.scope.projectId ||
-        handle.worktreeId !== this.scope.worktreeId
-      ) {
-        throw new Error("native terminal attached a different approved scope");
-      }
+      const handle = await this.adapter.start(
+        createTerminalStartRequest(this.scope, this.terminalId, viewport),
+      );
+      this.#assertHandle(handle);
       this.#handle = { ...handle };
       this.#status = "running";
       this.#lifecycle("idle");
@@ -158,6 +157,36 @@ export class TerminalThreadSession {
       this.#status = "failed";
       this.#lifecycle("failed");
       this.#record("terminal.start", "failed");
+      this.#publish();
+      throw cause;
+    }
+  }
+
+  async restore(viewport: TerminalViewport): Promise<TerminalSessionHandle | null> {
+    if (this.#status !== "detached") throw new Error("terminal thread session is already attached");
+    if (!this.adapter.reattach) return null;
+    this.#status = "starting";
+    this.#viewport = { ...viewport };
+    this.#publish();
+    try {
+      const handle = await this.adapter.reattach(
+        createTerminalStartRequest(this.scope, this.terminalId, viewport),
+      );
+      if (!handle) {
+        this.#status = "detached";
+        this.#record("terminal.reattach", "ok");
+        this.#publish();
+        return null;
+      }
+      this.#assertHandle(handle);
+      this.#handle = { ...handle };
+      this.#status = "running";
+      this.#record("terminal.reattach", "ok");
+      this.#publish();
+      return { ...handle };
+    } catch (cause) {
+      this.#status = "failed";
+      this.#record("terminal.reattach", "failed");
       this.#publish();
       throw cause;
     }
@@ -388,6 +417,16 @@ export class TerminalThreadSession {
   #attachedHandle(): TerminalSessionHandle {
     if (!this.#handle || this.#disposed) throw new Error("terminal thread session is not attached");
     return this.#handle;
+  }
+
+  #assertHandle(handle: TerminalSessionHandle): void {
+    if (
+      handle.projectId !== this.scope.projectId ||
+      handle.worktreeId !== this.scope.worktreeId ||
+      handle.sessionId !== this.terminalId
+    ) {
+      throw new Error("native terminal attached a different logical terminal or approved scope");
+    }
   }
 
   #observeAgent(observation: AgentDetectorObservationV1 | null): void {

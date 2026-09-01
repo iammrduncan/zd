@@ -61,7 +61,9 @@ describe("the unserved browser platform boundary", () => {
       entries: [],
     });
     await expect(
-      platform.terminal.start(createTerminalStartRequest(scope, { rows: 24, columns: 80 })),
+      platform.terminal.start(
+        createTerminalStartRequest(scope, "terminal-a", { rows: 24, columns: 80 }),
+      ),
     ).rejects.toThrow("desktop shell");
     await expect(platform.readBoundedFile(resource)).resolves.toEqual({
       status: "unavailable",

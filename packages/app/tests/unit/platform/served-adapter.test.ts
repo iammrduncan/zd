@@ -12,6 +12,15 @@ interface FixtureClient extends ServedHostClient {
   emitSnapshot(snapshot: ServedSessionSnapshot): void;
 }
 
+function terminalRequest(terminalId: string) {
+  return {
+    projectId: "project-1",
+    worktreeId: "worktree-1",
+    terminalId,
+    viewport: { rows: 24, columns: 80, pixelWidth: 0, pixelHeight: 0 },
+  } as const;
+}
+
 function client(runtimeTerminals: readonly unknown[] = []): FixtureClient {
   const eventListeners = new Set<(event: ServedHostEvent) => void>();
   const snapshotListeners = new Set<(snapshot: ServedSessionSnapshot) => void>();
@@ -159,10 +168,27 @@ function client(runtimeTerminals: readonly unknown[] = []): FixtureClient {
         };
       case "terminal.start":
         return {
-          sessionId: "session-started",
+          sessionId: params?.terminalId,
           projectId: params?.projectId,
           worktreeId: params?.worktreeId,
         };
+      case "terminal.reattach": {
+        const matching = runtimeTerminals.find((value) => {
+          const snapshot = value as {
+            readonly session?: {
+              readonly sessionId?: unknown;
+              readonly projectId?: unknown;
+              readonly worktreeId?: unknown;
+            };
+          };
+          return (
+            snapshot.session?.sessionId === params?.terminalId &&
+            snapshot.session?.projectId === params?.projectId &&
+            snapshot.session?.worktreeId === params?.worktreeId
+          );
+        }) as { readonly session?: unknown } | undefined;
+        return matching?.session ?? null;
+      }
       case "terminal.write":
       case "terminal.resize":
       case "terminal.dispose":
@@ -345,10 +371,7 @@ describe("served WorkbenchHost", () => {
     const output: string[] = [];
     const stopOutput = served.terminal.onOutputReady?.((session) => output.push(session.sessionId));
     expect(served.terminal.writeScheduling).toBe("ordered-pipeline");
-    const session = await served.terminal.start({
-      ...scope,
-      viewport: { rows: 24, columns: 80, pixelWidth: 0, pixelHeight: 0 },
-    });
+    const session = await served.terminal.start(terminalRequest("session-started"));
     await served.terminal.write(session, [104, 105]);
     expect(hostClient.request).toHaveBeenCalledWith("terminal.write", {
       session,
@@ -414,14 +437,13 @@ describe("served WorkbenchHost", () => {
     ]);
     const served = createServedWorkbenchHost(hostClient);
 
-    await expect(
-      served.terminal.start({
-        projectId: "project-1",
-        worktreeId: "worktree-1",
-        viewport: { rows: 24, columns: 80, pixelWidth: 0, pixelHeight: 0 },
-      }),
-    ).resolves.toEqual(session);
-    expect(hostClient.request).not.toHaveBeenCalledWith("terminal.start", expect.anything());
+    await expect(served.terminal.reattach!(terminalRequest("session-existing"))).resolves.toEqual(
+      session,
+    );
+    expect(hostClient.request).toHaveBeenCalledWith(
+      "terminal.reattach",
+      terminalRequest("session-existing"),
+    );
   });
 
   it("reattaches a snapshotted terminal tombstone instead of hiding its loss", async () => {
@@ -441,13 +463,9 @@ describe("served WorkbenchHost", () => {
     ]);
     const served = createServedWorkbenchHost(hostClient);
 
-    await expect(
-      served.terminal.start({
-        projectId: "project-1",
-        worktreeId: "worktree-1",
-        viewport: { rows: 24, columns: 80, pixelWidth: 0, pixelHeight: 0 },
-      }),
-    ).resolves.toEqual(session);
+    await expect(served.terminal.reattach!(terminalRequest("session-lost"))).resolves.toEqual(
+      session,
+    );
     await expect(served.terminal.read(session)).resolves.toMatchObject({
       session,
       offset: 12,
@@ -464,53 +482,36 @@ describe("served WorkbenchHost", () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    await expect(
-      served.terminal.start({
-        projectId: "project-1",
-        worktreeId: "worktree-1",
-        viewport: { rows: 24, columns: 80, pixelWidth: 0, pixelHeight: 0 },
-      }),
-    ).rejects.toThrow("snapshot unavailable");
+    await expect(served.terminal.reattach!(terminalRequest("session-existing"))).rejects.toThrow(
+      "snapshot unavailable",
+    );
     expect(hostClient.request).not.toHaveBeenCalledWith("terminal.start", expect.anything());
   });
 
-  it("does not reattach a terminal whose snapshot exit envelope is invalid", async () => {
+  it("does not substitute another same-scope terminal during exact reattachment", async () => {
     const hostClient = client([
       {
         session: {
-          sessionId: "session-invalid",
+          sessionId: "session-other",
           projectId: "project-1",
           worktreeId: "worktree-1",
         },
         retainedFrom: 0,
         nextOffset: 12,
         availability: "running",
-        exit: { reason: "invented", code: null, signal: null },
+        exit: null,
       },
     ]);
     const served = createServedWorkbenchHost(hostClient);
 
-    await expect(
-      served.terminal.start({
-        projectId: "project-1",
-        worktreeId: "worktree-1",
-        viewport: { rows: 24, columns: 80, pixelWidth: 0, pixelHeight: 0 },
-      }),
-    ).resolves.toMatchObject({ sessionId: "session-started" });
-    expect(hostClient.request).toHaveBeenCalledWith(
-      "terminal.start",
-      expect.objectContaining({ projectId: "project-1", worktreeId: "worktree-1" }),
-    );
+    await expect(served.terminal.reattach!(terminalRequest("session-missing"))).resolves.toBeNull();
+    expect(hostClient.request).not.toHaveBeenCalledWith("terminal.start", expect.anything());
   });
 
   it("turns a post-grace terminal tombstone into an explicit lost read", async () => {
     const hostClient = client();
     const served = createServedWorkbenchHost(hostClient);
-    const session = await served.terminal.start({
-      projectId: "project-1",
-      worktreeId: "worktree-1",
-      viewport: { rows: 24, columns: 80, pixelWidth: 0, pixelHeight: 0 },
-    });
+    const session = await served.terminal.start(terminalRequest("session-started"));
     const output: string[] = [];
     served.terminal.onOutputReady?.((handle) => output.push(handle.sessionId));
     vi.mocked(hostClient.request).mockClear();

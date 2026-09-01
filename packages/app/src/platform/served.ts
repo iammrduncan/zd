@@ -285,10 +285,6 @@ function terminalOutput(
   };
 }
 
-function terminalScopeKey(projectId: string, worktreeId: string): string {
-  return `${projectId}\0${worktreeId}`;
-}
-
 function watchPayload(event: ServedHostEvent): {
   readonly projectId: string;
   readonly worktreeId: string;
@@ -331,7 +327,6 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
   const outputListeners = new Set<(session: TerminalSessionHandle) => void>();
   const activeTerminals = new Map<string, TerminalSessionHandle>();
   const terminalRuntime = new Map<string, ServedTerminalSnapshot>();
-  const reattachableTerminals = new Map<string, TerminalSessionHandle[]>();
   const watchListeners = new Map<
     string,
     {
@@ -362,7 +357,6 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
       }
     }
     runtimeEpoch = snapshot.sessionEpoch;
-    reattachableTerminals.clear();
     const reportedTerminalKeys = new Set<string>();
     for (const value of snapshot.terminals) {
       const terminal = terminalSnapshot(value);
@@ -371,12 +365,6 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
       const previous = terminalRuntime.get(sessionKey);
       reportedTerminalKeys.add(sessionKey);
       terminalRuntime.set(sessionKey, terminal);
-      if (!activeTerminals.has(sessionKey)) {
-        const key = terminalScopeKey(terminal.session.projectId, terminal.session.worktreeId);
-        const sessions = reattachableTerminals.get(key) ?? [];
-        sessions.push(terminal.session);
-        reattachableTerminals.set(key, sessions);
-      }
       if (terminal.availability !== "running" && previous?.availability !== terminal.availability) {
         for (const listener of outputListeners) listener(terminal.session);
       }
@@ -531,16 +519,41 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
     start: async (request) => {
       const snapshotProblem = await initialRuntimeSnapshot;
       if (snapshotProblem) throw snapshotProblem;
-      const key = terminalScopeKey(request.projectId, request.worktreeId);
-      const available = reattachableTerminals.get(key);
-      const attached = available?.shift();
-      if (available?.length === 0) reattachableTerminals.delete(key);
-      const session = terminalHandle(
-        attached ?? (await client.request<unknown>("terminal.start", request)),
-      );
+      const session = terminalHandle(await client.request<unknown>("terminal.start", request));
       if (!session) throw new Error("the served terminal returned an invalid session handle");
-      if (session.projectId !== request.projectId || session.worktreeId !== request.worktreeId) {
-        throw new Error("the served terminal attached a different approved scope");
+      if (
+        session.projectId !== request.projectId ||
+        session.worktreeId !== request.worktreeId ||
+        session.sessionId !== request.terminalId
+      ) {
+        throw new Error("the served terminal attached a different logical terminal or scope");
+      }
+      const sessionKey = terminalSessionKey(session);
+      activeTerminals.set(sessionKey, session);
+      if (!terminalRuntime.has(sessionKey)) {
+        terminalRuntime.set(sessionKey, {
+          session,
+          retainedFrom: 0,
+          nextOffset: 0,
+          availability: "running",
+          exit: null,
+        });
+      }
+      return session;
+    },
+    reattach: async (request) => {
+      const snapshotProblem = await initialRuntimeSnapshot;
+      if (snapshotProblem) throw snapshotProblem;
+      const value = await client.request<unknown>("terminal.reattach", request);
+      if (value === null) return null;
+      const session = terminalHandle(value);
+      if (!session) throw new Error("the served terminal returned an invalid session handle");
+      if (
+        session.projectId !== request.projectId ||
+        session.worktreeId !== request.worktreeId ||
+        session.sessionId !== request.terminalId
+      ) {
+        throw new Error("the served terminal attached a different logical terminal or scope");
       }
       const sessionKey = terminalSessionKey(session);
       activeTerminals.set(sessionKey, session);

@@ -113,6 +113,16 @@ fn valid_identity(kind: &str, identity: String) -> Result<String, TerminalError>
     Ok(identity)
 }
 
+fn valid_terminal_identity(identity: String) -> Result<String, TerminalError> {
+    if identity.is_empty() || identity.len() > 256 || identity.contains('\0') {
+        return Err(TerminalError::new(
+            TerminalErrorKind::InvalidInput,
+            "terminal identity is invalid",
+        ));
+    }
+    Ok(identity)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalViewport {
@@ -152,6 +162,7 @@ impl<'de> Deserialize<'de> for TerminalViewport {
 pub struct TerminalStartRequest {
     pub project_id: String,
     pub worktree_id: String,
+    pub terminal_id: String,
     pub viewport: TerminalViewport,
 }
 
@@ -287,8 +298,20 @@ impl TerminalSessions {
         scope: TerminalScope,
         viewport: TerminalViewport,
     ) -> Result<TerminalSessionHandle, TerminalError> {
+        let terminal_id = self.next_terminal_identity();
         let command = CommandBuilder::new_default_prog();
-        self.start_command(scope, viewport, command, None, None)
+        self.start_command(scope, terminal_id, viewport, command, None, None)
+    }
+
+    pub fn start_shell_with_id(
+        &mut self,
+        scope: TerminalScope,
+        terminal_id: impl Into<String>,
+        viewport: TerminalViewport,
+    ) -> Result<TerminalSessionHandle, TerminalError> {
+        let terminal_id = valid_terminal_identity(terminal_id.into())?;
+        let command = CommandBuilder::new_default_prog();
+        self.start_command(scope, terminal_id, viewport, command, None, None)
     }
 
     pub fn start_shell_with_output_signal(
@@ -297,8 +320,16 @@ impl TerminalSessions {
         viewport: TerminalViewport,
         output_signal: TerminalOutputSignal,
     ) -> Result<TerminalSessionHandle, TerminalError> {
+        let terminal_id = self.next_terminal_identity();
         let command = CommandBuilder::new_default_prog();
-        self.start_command(scope, viewport, command, Some(output_signal), None)
+        self.start_command(
+            scope,
+            terminal_id,
+            viewport,
+            command,
+            Some(output_signal),
+            None,
+        )
     }
 
     pub fn start_shell_with_signals(
@@ -308,8 +339,36 @@ impl TerminalSessions {
         output_signal: Option<TerminalOutputSignal>,
         exit_signal: Option<TerminalExitSignal>,
     ) -> Result<TerminalSessionHandle, TerminalError> {
+        let terminal_id = self.next_terminal_identity();
         let command = CommandBuilder::new_default_prog();
-        self.start_command(scope, viewport, command, output_signal, exit_signal)
+        self.start_command(
+            scope,
+            terminal_id,
+            viewport,
+            command,
+            output_signal,
+            exit_signal,
+        )
+    }
+
+    pub fn start_shell_with_id_and_signals(
+        &mut self,
+        scope: TerminalScope,
+        terminal_id: impl Into<String>,
+        viewport: TerminalViewport,
+        output_signal: Option<TerminalOutputSignal>,
+        exit_signal: Option<TerminalExitSignal>,
+    ) -> Result<TerminalSessionHandle, TerminalError> {
+        let terminal_id = valid_terminal_identity(terminal_id.into())?;
+        let command = CommandBuilder::new_default_prog();
+        self.start_command(
+            scope,
+            terminal_id,
+            viewport,
+            command,
+            output_signal,
+            exit_signal,
+        )
     }
 
     #[cfg(test)]
@@ -320,14 +379,16 @@ impl TerminalSessions {
         program: &str,
         arguments: &[&str],
     ) -> Result<TerminalSessionHandle, TerminalError> {
+        let terminal_id = self.next_terminal_identity();
         let mut command = CommandBuilder::new(program);
         command.args(arguments);
-        self.start_command(scope, viewport, command, None, None)
+        self.start_command(scope, terminal_id, viewport, command, None, None)
     }
 
     fn start_command(
         &mut self,
         scope: TerminalScope,
+        terminal_id: String,
         viewport: TerminalViewport,
         mut command: CommandBuilder,
         output_signal: Option<TerminalOutputSignal>,
@@ -337,6 +398,12 @@ impl TerminalSessions {
             return Err(TerminalError::new(
                 TerminalErrorKind::InvalidInput,
                 format!("terminal sessions are limited to {}", self.session_limit),
+            ));
+        }
+        if self.sessions.contains_key(&terminal_id) {
+            return Err(TerminalError::new(
+                TerminalErrorKind::InvalidInput,
+                format!("terminal identity {terminal_id} already exists"),
             ));
         }
         command.cwd(&scope.cwd);
@@ -356,11 +423,10 @@ impl TerminalSessions {
             .take_writer()
             .map_err(|error| TerminalError::new(TerminalErrorKind::Io, error.to_string()))?;
         let handle = TerminalSessionHandle {
-            session_id: format!("session-{:016x}", self.next_identity),
+            session_id: terminal_id,
             project_id: scope.project_id,
             worktree_id: scope.worktree_id,
         };
-        self.next_identity = self.next_identity.saturating_add(1);
         let output = Arc::new(Mutex::new(BoundedOutput::new(self.output_limit_bytes)));
         let output_reader = OutputReader::start(
             reader,
@@ -411,6 +477,45 @@ impl TerminalSessions {
             },
         );
         Ok(handle)
+    }
+
+    pub fn reattach(
+        &mut self,
+        scope: &TerminalScope,
+        terminal_id: &str,
+        viewport: TerminalViewport,
+    ) -> Result<Option<TerminalSessionHandle>, TerminalError> {
+        let terminal_id = valid_terminal_identity(terminal_id.to_string())?;
+        let Some(session) = self.sessions.get_mut(&terminal_id) else {
+            return Ok(None);
+        };
+        if session.handle.project_id != scope.project_id
+            || session.handle.worktree_id != scope.worktree_id
+        {
+            return Err(TerminalError::new(
+                TerminalErrorKind::InvalidScope,
+                "terminal identity belongs to a different approved scope",
+            ));
+        }
+        let handle = session.handle.clone();
+        if session.poll_exit()?.is_none() {
+            session
+                .running_master()?
+                .resize(viewport.pty_size())
+                .map_err(|error| {
+                    TerminalError::new(
+                        TerminalErrorKind::Io,
+                        format!("terminal resize failed: {error}"),
+                    )
+                })?;
+        }
+        Ok(Some(handle))
+    }
+
+    fn next_terminal_identity(&mut self) -> String {
+        let identity = format!("session-{:016x}", self.next_identity);
+        self.next_identity = self.next_identity.saturating_add(1);
+        identity
     }
 
     pub fn contains(&self, handle: &TerminalSessionHandle) -> bool {

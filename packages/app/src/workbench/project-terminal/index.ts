@@ -36,6 +36,7 @@ interface ProjectTerminalGroup {
   readonly projectId: string;
   readonly scope: ProjectTerminalScope;
   active: ProjectTerminalPane | null;
+  nextPaneId: number;
 }
 
 function scopeForProject(state: WorkbenchState, projectId: string): ProjectTerminalScope | null {
@@ -94,7 +95,8 @@ export function mountProjectTerminal(
 
   const start = (session: TerminalThreadSession): Promise<void> =>
     session
-      .start(INITIAL_VIEWPORT)
+      .restore(INITIAL_VIEWPORT)
+      .then((handle) => handle ?? session.start(INITIAL_VIEWPORT))
       .then(async () => {
         await session.refresh();
         await session.pollExit();
@@ -112,7 +114,9 @@ export function mountProjectTerminal(
     const element = document.createElement("div");
     element.className = "zd-project-terminal-pane";
     element.dataset.projectTerminalPane = "true";
-    const session = new TerminalThreadSession(context.platform.terminal, group.scope, {
+    group.nextPaneId += 1;
+    const terminalId = `project-terminal:${group.projectId}:${group.scope.worktreeId}:${group.nextPaneId}`;
+    const session = new TerminalThreadSession(context.platform.terminal, group.scope, terminalId, {
       onInstrumentation: record,
     });
     const surface = (options.mountSurface ?? mountTerminalThreadSurface)(
@@ -157,6 +161,7 @@ export function mountProjectTerminal(
       panes: [],
       projectId: scope.projectId,
       scope,
+      nextPaneId: 0,
     };
     groups.set(scope.projectId, group);
     host.append(element);
@@ -184,7 +189,7 @@ export function mountProjectTerminal(
     window.setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(run)), 0);
   };
 
-  const removeGroup = (projectId: string): Promise<void> => {
+  const removeGroup = (projectId: string, closeTerminals = true): Promise<void> => {
     const group = groups.get(projectId);
     if (!group) return Promise.resolve();
     groups.delete(projectId);
@@ -194,7 +199,9 @@ export function mountProjectTerminal(
       for (const pane of group.panes) pane.surface.dispose();
       group.element.remove();
     });
-    return Promise.all(group.panes.map(shutdownPane)).then(() => undefined);
+    return closeTerminals
+      ? Promise.all(group.panes.map(shutdownPane)).then(() => undefined)
+      : Promise.resolve();
   };
 
   const activeGroup = (): ProjectTerminalGroup | null => {
@@ -363,7 +370,7 @@ export function mountProjectTerminal(
     stopRemoval();
     stopState();
     stopOutput();
-    for (const projectId of [...groups.keys()]) void removeGroup(projectId);
+    for (const projectId of [...groups.keys()]) void removeGroup(projectId, false);
     host.replaceChildren();
   };
 }

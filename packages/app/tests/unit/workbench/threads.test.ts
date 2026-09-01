@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { TerminalSessionHandle } from "@/terminal";
+import type { TerminalSessionHandle, TerminalStartRequest } from "@/terminal";
 import type { ThreadAttentionEventV1 } from "@/threads";
 import { mountActiveThread } from "@/workbench/features";
 import { runCommandTarget } from "@/workbench/shortcuts";
@@ -37,6 +37,74 @@ describe("the root Threads runtime adapter", () => {
     expect(runtime.session("thread-existing")).toBeNull();
   });
 
+  it("restores a ready durable thread through its exact logical terminal identity", async () => {
+    const state = owner();
+    await state.addThread(
+      durableThread({
+        lifecycle: "idle",
+        backingAvailability: "ready",
+      }),
+    );
+    const native = terminalAdapter();
+    const reattach = vi.fn(
+      async (request: TerminalStartRequest): Promise<TerminalSessionHandle | null> => ({
+        projectId: request.projectId,
+        worktreeId: request.worktreeId,
+        sessionId: request.terminalId,
+      }),
+    );
+    const runtime = createRootThreadsAdapter(state, platform(Object.assign(native, { reattach })));
+
+    await vi.waitFor(() =>
+      expect(runtime.session("thread-existing")?.snapshot().status).toBe("running"),
+    );
+    expect(reattach).toHaveBeenCalledExactlyOnceWith({
+      projectId: project.id,
+      worktreeId: "worktree-alpha",
+      terminalId: "terminal-thread-existing",
+      viewport: { rows: 24, columns: 80, pixelWidth: 0, pixelHeight: 0 },
+    });
+    expect(native.start).not.toHaveBeenCalled();
+  });
+
+  it("keeps a failed durable reattachment explicit and recoverable", async () => {
+    const state = owner();
+    await state.addThread(
+      durableThread({
+        lifecycle: "idle",
+        backingAvailability: "ready",
+      }),
+    );
+    const native = terminalAdapter();
+    const reattach = vi.fn(async () => {
+      throw new Error("remote terminal transport failed");
+    });
+    const runtime = createRootThreadsAdapter(state, platform(Object.assign(native, { reattach })));
+
+    await vi.waitFor(() =>
+      expect(runtime.snapshot().threads[0]?.recovery).toMatchObject({
+        kind: "failed",
+        actionLabel: "Restart terminal",
+      }),
+    );
+    expect(runtime.session("thread-existing")).toBeNull();
+    expect(native.start).not.toHaveBeenCalled();
+  });
+
+  it("detaches from live terminals without disposing them when the workbench unloads", async () => {
+    const state = owner();
+    const native = terminalAdapter();
+    const runtime = createRootThreadsAdapter(state, platform(native), {
+      createId: () => "thread-live",
+    });
+    await runtime.createThread(existingRequest());
+
+    await runtime.dispose();
+
+    expect(native.terminate).not.toHaveBeenCalled();
+    expect(native.dispose).not.toHaveBeenCalled();
+  });
+
   it("creates one root-owned record while keeping the native handle runtime-only", async () => {
     const state = owner();
     const native = terminalAdapter();
@@ -54,6 +122,7 @@ describe("the root Threads runtime adapter", () => {
     expect(native.start.mock.calls[0]![0]).toEqual({
       projectId: project.id,
       worktreeId: "worktree-alpha",
+      terminalId: "terminal:thread-created",
       viewport: { rows: 24, columns: 80, pixelWidth: 0, pixelHeight: 0 },
     });
     expect(state.snapshot().threads[0]).toMatchObject({
@@ -63,7 +132,7 @@ describe("the root Threads runtime adapter", () => {
       backingAvailability: "ready",
     });
     expect(state.snapshot().threads[0]).not.toHaveProperty("sessionId");
-    expect(runtime.session("thread-created")?.snapshot().sessionId).toBe("native-session-secret");
+    expect(runtime.session("thread-created")?.snapshot().sessionId).toBe("terminal:thread-created");
     expect(seen.mock.calls.every(([snapshot]) => snapshot.active.projectId === project.id)).toBe(
       true,
     );
@@ -379,7 +448,7 @@ describe("the root Threads runtime adapter", () => {
       session: {
         projectId: project.id,
         worktreeId: "worktree-alpha",
-        sessionId: "native-session-secret",
+        sessionId: "terminal:thread-output",
       },
       offset: 0,
       droppedBefore: 0,
@@ -392,7 +461,7 @@ describe("the root Threads runtime adapter", () => {
     emitOutput!({
       projectId: project.id,
       worktreeId: "worktree-alpha",
-      sessionId: "native-session-secret",
+      sessionId: "terminal:thread-output",
     });
 
     await vi.waitFor(() => expect(native.read).toHaveBeenCalledOnce());
@@ -426,7 +495,7 @@ describe("the root Threads runtime adapter", () => {
       session: {
         projectId: project.id,
         worktreeId: "worktree-alpha",
-        sessionId: "native-session-secret",
+        sessionId: "terminal:thread-agent",
       },
       offset: 0,
       droppedBefore: 0,
@@ -454,7 +523,7 @@ describe("the root Threads runtime adapter", () => {
       session: {
         projectId: project.id,
         worktreeId: "worktree-alpha",
-        sessionId: "native-session-secret",
+        sessionId: "terminal:thread-agent",
       },
       offset: 1,
       droppedBefore: 0,

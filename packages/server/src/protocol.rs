@@ -715,6 +715,13 @@ fn dispatch_host(
                 .map_err(|_| terminal_failure())?;
             result_value(session, "The terminal session could not be returned")
         }
+        "terminal.reattach" => {
+            let request = parse_params::<TerminalStartRequest>(params)?;
+            let session = host
+                .reattach_terminal(request)
+                .map_err(|_| terminal_failure())?;
+            result_value(session, "The terminal session could not be returned")
+        }
         "terminal.write" => {
             let request = parse_params::<TerminalWriteParams>(params)?;
             let bytes = decode_bounded_base64(&request.bytes_base64, MAX_INPUT_BYTES)?;

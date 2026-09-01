@@ -19,12 +19,14 @@ describe("the structured terminal boundary", () => {
   it("starts only inside an approved project/worktree identity", () => {
     const request = createTerminalStartRequest(
       { projectId: "project-a", worktreeId: "worktree-a" },
+      "terminal-a",
       { rows: 24, columns: 80, pixelWidth: 640, pixelHeight: 384 },
     );
 
     expect(request).toEqual({
       projectId: "project-a",
       worktreeId: "worktree-a",
+      terminalId: "terminal-a",
       viewport: { rows: 24, columns: 80, pixelWidth: 640, pixelHeight: 384 },
     });
     expect(request).not.toHaveProperty("cwd");
