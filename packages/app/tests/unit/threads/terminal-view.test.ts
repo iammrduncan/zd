@@ -185,6 +185,7 @@ describe("the terminal thread surface", () => {
 
     expect(new TextDecoder().decode(emulator.writes[0])).toBe(bytes);
     expect(surface.element.getAttribute("aria-label")).toBe("Review terminal thread");
+    expect(surface.element.dataset.terminalSessionId).toBe(session.sessionId);
     expect(host.querySelector("textarea")?.getAttribute("aria-label")).toContain(
       "Review terminal input",
     );

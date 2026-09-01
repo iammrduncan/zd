@@ -12,6 +12,7 @@ async fn authenticated(server: &TestServer) -> support::Socket {
     assert_eq!(accepted["protocolVersion"], 1);
     assert_eq!(accepted["type"], "authenticated");
     assert!(accepted["sessionEpoch"].as_str().is_some());
+    assert!(accepted["sequence"].as_u64().is_some());
     assert!(accepted.get("project").is_none());
     socket
 }

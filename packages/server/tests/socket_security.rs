@@ -182,6 +182,68 @@ async fn only_one_authenticated_controller_is_admitted() {
     server.shutdown().await;
 }
 
+#[tokio::test(start_paused = true)]
+async fn valid_heartbeat_resets_liveness_and_three_missed_intervals_disconnect() {
+    assert_eq!(zd_server::HEARTBEAT_INTERVAL, Duration::from_secs(10));
+    assert_eq!(zd_server::HEARTBEAT_TIMEOUT, Duration::from_secs(30));
+    let server = TestServer::start("heartbeat-liveness").await;
+    // Keep one runnable task alive so Tokio's paused clock cannot auto-advance
+    // past the real loopback socket work while this test advances it explicitly.
+    let clock_guard = tokio::spawn(async {
+        loop {
+            tokio::task::yield_now().await;
+        }
+    });
+    let mut first = connect_same_origin(&server).await;
+    assert_eq!(
+        authenticate(&server, &mut first).await["type"],
+        "authenticated"
+    );
+
+    tokio::time::advance(Duration::from_secs(29)).await;
+    send_json(
+        &mut first,
+        json!({
+            "protocolVersion": 1,
+            "type": "request",
+            "requestId": "heartbeat-1",
+            "method": "session.heartbeat",
+            "params": {},
+        }),
+    )
+    .await;
+    tokio::time::advance(Duration::ZERO).await;
+    let heartbeat = receive_json(&mut first).await;
+    assert_eq!(heartbeat["type"], "response");
+    tokio::time::advance(Duration::from_secs(29)).await;
+    send_json(
+        &mut first,
+        json!({
+            "protocolVersion": 1,
+            "type": "request",
+            "requestId": "heartbeat-2",
+            "method": "session.heartbeat",
+            "params": {},
+        }),
+    )
+    .await;
+    tokio::time::advance(Duration::ZERO).await;
+    let heartbeat = receive_json(&mut first).await;
+    assert_eq!(heartbeat["type"], "response");
+
+    tokio::time::advance(Duration::from_secs(31)).await;
+    let closed = first.next().await;
+    assert!(matches!(closed, None | Some(Ok(Message::Close(_)))));
+
+    let mut resumed = connect_same_origin(&server).await;
+    assert_eq!(
+        authenticate(&server, &mut resumed).await["type"],
+        "authenticated"
+    );
+    clock_guard.abort();
+    server.shutdown().await;
+}
+
 #[tokio::test]
 async fn oversized_messages_close_without_disclosing_state() {
     let server = TestServer::start("oversized").await;

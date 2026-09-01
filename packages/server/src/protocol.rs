@@ -1,3 +1,5 @@
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -9,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use subtle::ConstantTimeEq;
 use tokio::sync::{broadcast, OwnedSemaphorePermit, Semaphore};
+use tokio::time::Sleep;
 use zd_host::file_tree_watch::{FileTreeWatchRequest, FileTreeWatchSignal};
 use zd_host::instrumentation::{DiagnosticOutcome, DiagnosticRecordInput};
 use zd_host::terminal::{
@@ -22,7 +25,7 @@ use zd_host::{
 };
 
 use crate::{
-    HostEvent, ReplayDecision, ResyncReason, SessionRuntime, MAX_MESSAGE_BYTES,
+    HostEvent, ReplayDecision, ResyncReason, SessionRuntime, HEARTBEAT_TIMEOUT, MAX_MESSAGE_BYTES,
     MAX_REPORTED_DURATION_MICROS, MAX_RESPONSE_MESSAGE_BYTES, PROTOCOL_VERSION,
 };
 
@@ -70,6 +73,7 @@ struct Authenticated<'a> {
     #[serde(rename = "type")]
     message_type: &'static str,
     session_epoch: &'a str,
+    sequence: u64,
 }
 
 #[derive(Serialize)]
@@ -211,18 +215,23 @@ pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState) {
         }
     };
     let epoch = state.runtime.epoch();
+    let mut events = state.runtime.subscribe();
     let accepted = Authenticated {
         protocol_version: PROTOCOL_VERSION,
         message_type: "authenticated",
         session_epoch: epoch.as_ref(),
+        sequence: state.runtime.current_sequence(),
     };
+    let initial_heartbeat_deadline = tokio::time::Instant::now() + HEARTBEAT_TIMEOUT;
     if send(&mut socket, &accepted).await.is_err() {
         return;
     }
 
-    let mut events = state.runtime.subscribe();
+    let heartbeat_deadline = tokio::time::sleep_until(initial_heartbeat_deadline);
+    tokio::pin!(heartbeat_deadline);
     loop {
         let message = tokio::select! {
+            _ = &mut heartbeat_deadline => break,
             message = receive_text(&mut socket) => {
                 let Some(message) = message else {
                     break;
@@ -241,7 +250,10 @@ pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState) {
                     }
                     Err(broadcast::error::RecvError::Closed) => break,
                 };
-                if send(&mut socket, &event).await.is_err() {
+                if !matches!(
+                    before_heartbeat_timeout(heartbeat_deadline.as_mut(), send(&mut socket, &event)).await,
+                    Some(Ok(()))
+                ) {
                     break;
                 }
                 continue;
@@ -305,36 +317,66 @@ pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState) {
             .await;
             continue;
         }
-        let (result, queue_micros, handler_micros) =
-            dispatch(&state, received_at, &request_id, &method, params).await;
+        let Some((result, queue_micros, handler_micros)) = before_heartbeat_timeout(
+            heartbeat_deadline.as_mut(),
+            dispatch(&state, received_at, &request_id, &method, params),
+        )
+        .await
+        else {
+            break;
+        };
+        let valid_heartbeat = method == "session.heartbeat" && result.is_ok();
         match result {
             Ok(result) => {
-                if send_response(
-                    &mut socket,
-                    request_id,
-                    method,
-                    result,
-                    queue_micros,
-                    handler_micros,
-                )
-                .await
-                .is_err()
-                {
+                if !matches!(
+                    before_heartbeat_timeout(
+                        heartbeat_deadline.as_mut(),
+                        send_response(
+                            &mut socket,
+                            request_id,
+                            method,
+                            result,
+                            queue_micros,
+                            handler_micros,
+                        ),
+                    )
+                    .await,
+                    Some(Ok(()))
+                ) {
                     break;
                 }
             }
             Err(failure) => {
-                if send_error(&mut socket, Some(&request_id), failure)
-                    .await
-                    .is_err()
-                {
+                if !matches!(
+                    before_heartbeat_timeout(
+                        heartbeat_deadline.as_mut(),
+                        send_error(&mut socket, Some(&request_id), failure),
+                    )
+                    .await,
+                    Some(Ok(()))
+                ) {
                     break;
                 }
             }
         }
+        if valid_heartbeat {
+            heartbeat_deadline
+                .as_mut()
+                .reset(tokio::time::Instant::now() + HEARTBEAT_TIMEOUT);
+        }
     }
     drop(lease);
     let _ = socket.close().await;
+}
+
+async fn before_heartbeat_timeout<T>(
+    heartbeat_deadline: Pin<&mut Sleep>,
+    work: impl Future<Output = T>,
+) -> Option<T> {
+    tokio::select! {
+        _ = heartbeat_deadline => None,
+        result = work => Some(result),
+    }
 }
 
 fn authenticate(
@@ -1006,7 +1048,7 @@ async fn send_serialized(socket: &mut WebSocket, serialized: String) -> Result<(
 
 #[cfg(test)]
 mod tests {
-    use super::run_host_job;
+    use super::{before_heartbeat_timeout, run_host_job};
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::sync::Semaphore;
@@ -1027,5 +1069,19 @@ mod tests {
         }
 
         assert_eq!(job.await, Ok(42));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn heartbeat_deadline_bounds_in_flight_work() {
+        let deadline = tokio::time::sleep(Duration::from_secs(30));
+        tokio::pin!(deadline);
+
+        let result = before_heartbeat_timeout(deadline.as_mut(), async {
+            tokio::time::sleep(Duration::from_secs(60)).await;
+            42
+        })
+        .await;
+
+        assert_eq!(result, None);
     }
 }
