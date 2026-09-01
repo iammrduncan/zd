@@ -4,6 +4,7 @@
 )]
 
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
@@ -69,6 +70,20 @@ impl TestServer {
         .expect("write JavaScript asset");
         std::fs::write(project.join("notes.md"), "hello from a real host\n")
             .expect("write project fixture");
+        git(
+            project.path(),
+            &["init", "--quiet", "--initial-branch=main"],
+        );
+        git(project.path(), &["config", "user.name", "Fixture Author"]);
+        git(
+            project.path(),
+            &["config", "user.email", "fixture@example.invalid"],
+        );
+        git(project.path(), &["add", "notes.md"]);
+        git(
+            project.path(),
+            &["commit", "--quiet", "--message", "fixture base"],
+        );
         let host = Arc::new(
             HostService::open_project_with_state(project.path(), state.path())
                 .expect("approve persisted project"),
@@ -95,6 +110,25 @@ impl TestServer {
     pub async fn shutdown(self) {
         self.running.shutdown().await.expect("stop served host");
     }
+}
+
+pub fn git(root: &Path, arguments: &[&str]) -> String {
+    let output = Command::new("git")
+        .args(arguments)
+        .current_dir(root)
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .output()
+        .expect("run fixture Git");
+    assert!(
+        output.status.success(),
+        "git {arguments:?} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout)
+        .expect("fixture Git output is UTF-8")
+        .trim()
+        .to_string()
 }
 
 pub type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;

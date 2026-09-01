@@ -94,6 +94,7 @@ pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<Runni
             secret: secret_bytes,
             session_epoch,
             controller_claimed: Arc::new(AtomicBool::new(false)),
+            host_jobs: ProtocolState::host_jobs(),
         },
     };
     let router = Router::new()

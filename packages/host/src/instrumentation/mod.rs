@@ -7,7 +7,10 @@ mod service;
 mod state;
 mod writer;
 
-pub use format::{DiagnosticRecordInput, ProcessSample};
+pub use format::{
+    DiagnosticContext, DiagnosticOutcome, DiagnosticRecordInput, LogicalPathScope, ProcessSample,
+    RedactedLogicalPath,
+};
 pub use retention::{DiagnosticCatalog, DiagnosticSessionSummary};
 pub use sampler::CurrentProcessSampler;
 pub use service::{

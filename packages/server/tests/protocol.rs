@@ -1,5 +1,7 @@
 mod support;
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use serde_json::{json, Value};
 
 use support::{authenticate, connect_same_origin, request, TestServer};
@@ -16,7 +18,7 @@ async fn authenticated(server: &TestServer) -> support::Socket {
 
 fn assert_timing(response: &Value, request_id: &str) {
     assert_eq!(response["requestId"], request_id);
-    for field in ["queueMicros", "handlerMicros"] {
+    for field in ["queueMicros", "handlerMicros", "serializationMicros"] {
         let duration = response["timing"][field]
             .as_u64()
             .unwrap_or_else(|| panic!("{field} is a non-negative integer"));
@@ -26,7 +28,7 @@ fn assert_timing(response: &Value, request_id: &str) {
 }
 
 #[tokio::test]
-async fn session_description_has_a_closed_read_only_capability_manifest() {
+async fn session_description_has_a_closed_editing_capability_manifest() {
     let server = TestServer::start("description").await;
     let mut socket = authenticated(&server).await;
 
@@ -34,37 +36,38 @@ async fn session_description_has_a_closed_read_only_capability_manifest() {
     assert_eq!(response["type"], "response");
     assert_timing(&response, "describe-1");
     assert_eq!(response["result"]["protocolVersion"], 1);
-    assert_eq!(response["result"]["access"], "read-only");
+    assert_eq!(response["result"]["access"], "read-write");
     assert_eq!(
         response["result"]["capabilities"]["projectGrants"],
         "read-only"
     );
     assert_eq!(response["result"]["capabilities"]["fileTree"], "read-only");
     assert_eq!(response["result"]["capabilities"]["fileRead"], "read-only");
-    for unavailable in [
+    for read_write in [
         "fileWrite",
         "fileMutations",
-        "fileWatch",
-        "git",
-        "terminal",
-        "projectPicker",
-        "recentWorkspaces",
+        "clipboardImages",
+        "worktrees",
+        "durableState",
+        "hostDiagnostics",
     ] {
+        assert_eq!(response["result"]["capabilities"][read_write], "read-write");
+    }
+    for read_only in ["git", "projectImages", "themeFiles"] {
+        assert_eq!(response["result"]["capabilities"][read_only], "read-only");
+    }
+    for unavailable in ["fileWatch", "terminal", "projectPicker", "recentWorkspaces"] {
         assert_eq!(
             response["result"]["capabilities"][unavailable],
             "unavailable"
         );
     }
     assert_eq!(
-        response["result"]["capabilities"]["durableState"],
-        "read-write"
-    );
-    assert_eq!(
         response["result"]["capabilities"]
             .as_object()
             .expect("capability object")
             .len(),
-        11
+        16
     );
 
     server.shutdown().await;
@@ -221,10 +224,268 @@ async fn authenticated_grants_tree_and_file_read_use_only_resource_identities() 
     .await;
     assert_timing(&file, "file-1");
     assert_eq!(file["result"]["status"], "text");
-    assert_eq!(file["result"]["text"], "hello from a real host\n");
-    assert_eq!(file["result"]["writable"], false);
-    assert_eq!(file["result"]["reason"], "Served workbenches are read-only");
+    let encoded = file["result"]["textBase64"].as_str().unwrap();
+    assert_eq!(
+        STANDARD.decode(encoded).unwrap(),
+        b"hello from a real host\n"
+    );
+    assert_eq!(file["result"]["writable"], true);
+    assert_eq!(file["result"]["reason"], Value::Null);
 
+    server.shutdown().await;
+}
+
+async fn startup_scope(socket: &mut support::Socket) -> (String, String) {
+    let grants = request(socket, "scope", "projectGrants.list", json!({})).await;
+    let project = &grants["result"]["projects"][0];
+    (
+        project["id"].as_str().unwrap().to_string(),
+        project["worktrees"][0]["id"].as_str().unwrap().to_string(),
+    )
+}
+
+#[tokio::test]
+async fn file_tree_text_and_image_methods_commit_through_the_real_host() {
+    let server = TestServer::start("editing").await;
+    let mut socket = authenticated(&server).await;
+    let (project_id, worktree_id) = startup_scope(&mut socket).await;
+    let resource = json!({
+        "projectId": project_id,
+        "worktreeId": worktree_id,
+        "relativePath": "notes.md",
+    });
+
+    let written = request(
+        &mut socket,
+        "write-1",
+        "file.writeText",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "relativePath": "notes.md",
+            "contentsBase64": STANDARD.encode("changed through the socket\n"),
+        }),
+    )
+    .await;
+    assert_eq!(written["result"], Value::Null);
+    assert_eq!(
+        std::fs::read_to_string(server.project.join("notes.md")).unwrap(),
+        "changed through the socket\n"
+    );
+
+    let stamp = request(&mut socket, "stamp-1", "file.stamp", resource.clone()).await;
+    assert_eq!(stamp["result"]["length"], 27);
+    let files = request(
+        &mut socket,
+        "files-1",
+        "workspaceFiles.list",
+        json!({"projectId": project_id, "worktreeId": worktree_id}),
+    )
+    .await;
+    assert!(files["result"]["files"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|file| file["relative"] == "notes.md"));
+
+    let created = request(
+        &mut socket,
+        "mutate-1",
+        "fileTree.mutate",
+        json!({
+            "operation": "create",
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "relativePath": "new.md",
+            "kind": "file",
+        }),
+    )
+    .await;
+    assert_eq!(created["result"]["status"], "committed");
+    let renamed = request(
+        &mut socket,
+        "mutate-2",
+        "fileTree.mutate",
+        json!({
+            "operation": "rename",
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "relativePath": "new.md",
+            "newName": "renamed.md",
+        }),
+    )
+    .await;
+    assert_eq!(renamed["result"]["status"], "committed");
+    assert!(server.project.join("renamed.md").is_file());
+
+    let png = [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3];
+    std::fs::write(server.project.join("image.png"), png).unwrap();
+    let image = request(
+        &mut socket,
+        "image-1",
+        "image.readProject",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "relativePath": "image.png",
+        }),
+    )
+    .await;
+    assert_eq!(image["result"]["mediaType"], "image/png");
+    assert_eq!(
+        STANDARD
+            .decode(image["result"]["bytesBase64"].as_str().unwrap())
+            .unwrap(),
+        png
+    );
+
+    let saved = request(
+        &mut socket,
+        "image-2",
+        "image.saveClipboard",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "mediaType": "image/png",
+            "bytesBase64": STANDARD.encode(png),
+        }),
+    )
+    .await;
+    let saved_path = saved["result"]["relativePath"].as_str().unwrap();
+    assert!(saved_path.starts_with("docs/screenshots/screenshot-"));
+    assert_eq!(std::fs::read(server.project.join(saved_path)).unwrap(), png);
+
+    let widened = request(
+        &mut socket,
+        "write-wide",
+        "file.writeText",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "relativePath": "notes.md",
+            "contentsBase64": "not base64!",
+            "root": "/tmp/foreign",
+        }),
+    )
+    .await;
+    assert_eq!(widened["code"], "invalid-params");
+
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn git_worktree_theme_and_diagnostic_methods_use_closed_host_operations() {
+    let server = TestServer::start("host-operations").await;
+    std::fs::write(
+        server.state.join("fixture.theme.config"),
+        "{\"name\":\"Fixture\"}",
+    )
+    .unwrap();
+    std::fs::write(server.project.join("notes.md"), "working change\n").unwrap();
+    let mut socket = authenticated(&server).await;
+    let (project_id, worktree_id) = startup_scope(&mut socket).await;
+    let scope = json!({"projectId": project_id, "worktreeId": worktree_id});
+
+    let status = request(&mut socket, "git-1", "git.status", scope.clone()).await;
+    assert_eq!(status["result"]["availability"], "available");
+    let change_id = status["result"]["entries"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let history = request(
+        &mut socket,
+        "git-2",
+        "git.history",
+        json!({"scope": scope, "cursor": null, "pageSize": 20}),
+    )
+    .await;
+    let head = history["result"]["commits"][0]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let comparison = request(
+        &mut socket,
+        "git-3",
+        "git.compare",
+        json!({"scope": scope, "baseCommitId": head, "headCommitId": head}),
+    )
+    .await;
+    assert_eq!(comparison["result"]["availability"], "available");
+    let diff = request(
+        &mut socket,
+        "git-4",
+        "git.diff",
+        json!({
+            "scope": scope,
+            "source": {"kind": "working-tree", "changeId": change_id},
+        }),
+    )
+    .await;
+    assert_eq!(diff["result"]["head"]["text"], "working change\n");
+
+    let worktree = request(
+        &mut socket,
+        "worktree-1",
+        "worktree.create",
+        json!({
+            "projectId": project_id,
+            "name": "served",
+            "branch": "feature/served",
+            "baseRevision": null,
+        }),
+    )
+    .await;
+    assert_eq!(worktree["result"]["status"], "created");
+    let worktree_root = worktree["result"]["worktree"]["root"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let themes = request(&mut socket, "theme-1", "theme.list", json!({})).await;
+    assert_eq!(themes["result"][0]["fileName"], "fixture.theme.config");
+    let initial = request(
+        &mut socket,
+        "diagnostics-1",
+        "diagnostics.status",
+        json!({}),
+    )
+    .await;
+    assert_eq!(initial["result"]["enabled"], false);
+    assert!(!server.state.join("diagnostics").exists());
+    let enabled = request(
+        &mut socket,
+        "diagnostics-2",
+        "diagnostics.enable",
+        json!({}),
+    )
+    .await;
+    assert_eq!(enabled["result"]["enabled"], true);
+    let recorded = request(
+        &mut socket,
+        "diagnostics-3",
+        "diagnostics.record",
+        json!({
+            "recordType": "event",
+            "operation": "served.test",
+            "outcome": "ok",
+            "context": null,
+        }),
+    )
+    .await;
+    assert_eq!(recorded["result"]["recorded"], true);
+    let disabled = request(
+        &mut socket,
+        "diagnostics-4",
+        "diagnostics.disable",
+        json!({}),
+    )
+    .await;
+    assert_eq!(disabled["result"]["enabled"], false);
+
+    support::git(
+        server.project.path(),
+        &["worktree", "remove", "--force", &worktree_root],
+    );
     server.shutdown().await;
 }
 
@@ -236,6 +497,18 @@ async fn unknown_versions_methods_fields_and_generic_paths_are_refused() {
     let unknown_method = request(&mut socket, "unknown-1", "shell.execute", json!({})).await;
     assert_eq!(unknown_method["code"], "unknown-method");
     assert_eq!(unknown_method["requestId"], "unknown-1");
+    for (index, method) in [
+        "fileTree.watch",
+        "terminal.start",
+        "project.choose",
+        "projectRoot.open",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let refusal = request(&mut socket, &format!("excluded-{index}"), method, json!({})).await;
+        assert_eq!(refusal["code"], "unknown-method", "{method}");
+    }
 
     let generic_root = request(
         &mut socket,
@@ -267,6 +540,75 @@ async fn unknown_versions_methods_fields_and_generic_paths_are_refused() {
     .await;
     let version = support::receive_json(&mut socket).await;
     assert_eq!(version["code"], "unsupported-protocol");
+
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn encoded_payload_limits_and_media_signatures_fail_closed() {
+    let server = TestServer::start("encoded-bounds").await;
+    let mut socket = authenticated(&server).await;
+    let (project_id, worktree_id) = startup_scope(&mut socket).await;
+
+    let invalid_text = request(
+        &mut socket,
+        "encoding-1",
+        "file.writeText",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "relativePath": "notes.md",
+            "contentsBase64": "not base64!",
+        }),
+    )
+    .await;
+    assert_eq!(invalid_text["code"], "invalid-params");
+
+    let encoded_limit = (zd_host::EDITABLE_FILE_LIMIT_BYTES as usize)
+        .div_ceil(3)
+        .saturating_mul(4);
+    let oversized_text = request(
+        &mut socket,
+        "encoding-2",
+        "file.writeText",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "relativePath": "notes.md",
+            "contentsBase64": "A".repeat(encoded_limit + 4),
+        }),
+    )
+    .await;
+    assert_eq!(oversized_text["code"], "invalid-params");
+
+    let invalid_utf8 = request(
+        &mut socket,
+        "encoding-3",
+        "file.writeText",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "relativePath": "notes.md",
+            "contentsBase64": STANDARD.encode([0xff]),
+        }),
+    )
+    .await;
+    assert_eq!(invalid_utf8["code"], "invalid-params");
+
+    let mismatched_image = request(
+        &mut socket,
+        "encoding-4",
+        "image.saveClipboard",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "mediaType": "image/png",
+            "bytesBase64": STANDARD.encode("not a PNG"),
+        }),
+    )
+    .await;
+    assert_eq!(mismatched_image["code"], "host-failure");
+    assert!(!server.project.join("docs/screenshots").exists());
 
     server.shutdown().await;
 }
