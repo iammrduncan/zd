@@ -9,7 +9,7 @@ use tokio::net::TcpStream;
 use support::TestServer;
 
 async fn get(server: &TestServer, path: &str) -> (u16, http::HeaderMap, Vec<u8>) {
-    let mut stream = TcpStream::connect(server.running.address())
+    let mut stream = TcpStream::connect(server.connect_address())
         .await
         .expect("connect HTTP client");
     let request = format!(
@@ -51,8 +51,20 @@ async fn get(server: &TestServer, path: &str) -> (u16, http::HeaderMap, Vec<u8>)
 }
 
 #[tokio::test]
-async fn port_zero_keeps_the_owned_numeric_loopback_listener() {
+async fn port_zero_keeps_the_owned_network_listener() {
     let server = TestServer::start("port-zero").await;
+
+    assert_eq!(server.running.address().ip(), Ipv4Addr::UNSPECIFIED);
+    assert_ne!(server.running.address().port(), 0);
+    let (status, _, _) = get(&server, "/healthz").await;
+    assert_eq!(status, 204);
+
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn an_explicit_bind_restricts_the_listener() {
+    let server = TestServer::start_with_bind("loopback-bind", Ipv4Addr::LOCALHOST).await;
 
     assert_eq!(server.running.address().ip(), Ipv4Addr::LOCALHOST);
     assert_ne!(server.running.address().port(), 0);

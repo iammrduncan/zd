@@ -1,4 +1,4 @@
-//! Loopback HTTP and WebSocket adapter for [`zd_host::HostService`].
+//! Direct HTTP and WebSocket adapter for [`zd_host::HostService`].
 
 mod assets;
 mod cli;

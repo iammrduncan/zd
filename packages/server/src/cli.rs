@@ -1,8 +1,10 @@
+use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServeArgs {
     project: PathBuf,
+    bind: Ipv4Addr,
     port: u16,
     state_directory: Option<PathBuf>,
 }
@@ -10,11 +12,26 @@ pub struct ServeArgs {
 impl ServeArgs {
     pub fn parse(arguments: &[String]) -> Result<Self, String> {
         let mut project = None;
+        let mut bind = None;
         let mut port = 0;
         let mut state_directory = None;
         let mut index = 0;
         while index < arguments.len() {
             match arguments[index].as_str() {
+                "--bind" => {
+                    if bind.is_some() {
+                        return Err("--bind may be supplied only once".to_string());
+                    }
+                    index += 1;
+                    let value = arguments
+                        .get(index)
+                        .ok_or_else(|| "--bind requires a numeric IPv4 address".to_string())?;
+                    bind = Some(
+                        value
+                            .parse::<Ipv4Addr>()
+                            .map_err(|_| "--bind requires a numeric IPv4 address".to_string())?,
+                    );
+                }
                 "--port" => {
                     index += 1;
                     let value = arguments
@@ -46,6 +63,7 @@ impl ServeArgs {
         let project = project.ok_or_else(|| "zd serve requires a folder".to_string())?;
         Ok(Self {
             project,
+            bind: bind.unwrap_or(Ipv4Addr::UNSPECIFIED),
             port,
             state_directory,
         })
@@ -57,6 +75,10 @@ impl ServeArgs {
 
     pub fn port(&self) -> u16 {
         self.port
+    }
+
+    pub fn bind(&self) -> Ipv4Addr {
+        self.bind
     }
 
     pub fn state_directory(&self) -> Option<&Path> {

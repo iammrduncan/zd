@@ -1,7 +1,7 @@
 import { expect, test as base } from "@playwright/test";
 import { execFile, spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { networkInterfaces, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { createServer } from "node:net";
 import { promisify } from "node:util";
@@ -37,7 +37,30 @@ function serverExecutable(root: string): string {
   return join(root, "target", "debug", `zd-server${extension}`);
 }
 
-function validateReadiness(urlValue: string, secret: string): Readiness | null {
+function directIpv4Address(): string {
+  const addresses = Object.values(networkInterfaces())
+    .flatMap((entries) => entries ?? [])
+    .filter(
+      (entry) =>
+        entry.family === "IPv4" &&
+        !entry.internal &&
+        entry.address !== "0.0.0.0" &&
+        !entry.address.startsWith("169.254."),
+    )
+    .map((entry) => entry.address)
+    .sort();
+  const address = addresses[0];
+  if (!address) {
+    throw new Error("the served-host evidence target requires a non-loopback IPv4 address");
+  }
+  return address;
+}
+
+function validateReadiness(
+  urlValue: string,
+  secret: string,
+  expectedHost: string,
+): Readiness | null {
   let url: URL;
   try {
     url = new URL(urlValue);
@@ -46,7 +69,7 @@ function validateReadiness(urlValue: string, secret: string): Readiness | null {
   }
   if (
     url.protocol !== "http:" ||
-    url.hostname !== "127.0.0.1" ||
+    url.hostname !== expectedHost ||
     url.username !== "" ||
     url.password !== "" ||
     url.pathname !== "/" ||
@@ -59,7 +82,10 @@ function validateReadiness(urlValue: string, secret: string): Readiness | null {
   return { url: url.toString(), secret };
 }
 
-function waitForReadiness(child: ReturnType<typeof spawn>): Promise<Readiness> {
+function waitForReadiness(
+  child: ReturnType<typeof spawn>,
+  expectedHost: string,
+): Promise<Readiness> {
   return new Promise((resolveReady, rejectReady) => {
     if (!child.stdout) {
       rejectReady(new Error("the served-host stdout pipe is unavailable"));
@@ -69,7 +95,7 @@ function waitForReadiness(child: ReturnType<typeof spawn>): Promise<Readiness> {
     let url = "";
     let secret = "";
     const finish = () => {
-      const readiness = validateReadiness(url, secret);
+      const readiness = validateReadiness(url, secret, expectedHost);
       if (!readiness) return;
       clearTimeout(timer);
       child.off("exit", onExit);
@@ -140,17 +166,17 @@ async function stopHost(child: ReturnType<typeof spawn>): Promise<void> {
   }
 }
 
-function freeLoopbackPort(excluding: number): Promise<number> {
+function freeHostPort(host: string, excluding: number): Promise<number> {
   return new Promise((resolvePort, rejectPort) => {
     const server = createServer();
     server.once("error", rejectPort);
-    server.listen(0, "127.0.0.1", () => {
+    server.listen(0, host, () => {
       const address = server.address();
       const port = typeof address === "object" && address ? address.port : 0;
       server.close((problem) => {
         if (problem) rejectPort(problem);
         else if (port === 0 || port === excluding)
-          void freeLoopbackPort(excluding).then(resolvePort, rejectPort);
+          void freeHostPort(host, excluding).then(resolvePort, rejectPort);
         else resolvePort(port);
       });
     });
@@ -188,6 +214,7 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
         throw new Error("the served-host evidence target requires Chromium");
       }
       const root = repositoryRoot();
+      const hostAddress = directIpv4Address();
       const projectRoot = await mkdtemp(join(tmpdir(), "zd-served-e2e-"));
       const stateRoot = await mkdtemp(join(tmpdir(), "zd-served-state-e2e-"));
       const expectedPrefix = `${resolve(tmpdir())}${sep}zd-served-e2e-`;
@@ -204,7 +231,7 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
       const startHost = async (port: number): Promise<Readiness> => {
         const launched = spawn(
           serverExecutable(root),
-          [projectRoot, "--state-dir", stateRoot, "--port", String(port)],
+          [projectRoot, "--bind", hostAddress, "--state-dir", stateRoot, "--port", String(port)],
           {
             cwd: root,
             env: process.env,
@@ -213,7 +240,7 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
         );
         launched.stderr?.resume();
         try {
-          const ready = await waitForReadiness(launched);
+          const ready = await waitForReadiness(launched, hostAddress);
           child = launched;
           readiness = ready;
           return ready;
@@ -257,7 +284,7 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
             await stopHost(child);
             child = null;
             readiness = null;
-            const port = await freeLoopbackPort(Number(oldPort));
+            const port = await freeHostPort(hostAddress, Number(oldPort));
             const restarted = await startHost(port);
             if (new URL(restarted.url).port === oldPort) {
               throw new Error("the served host restart reused its previous port");
