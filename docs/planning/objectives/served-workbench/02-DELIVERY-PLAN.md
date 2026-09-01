@@ -53,8 +53,8 @@ Adding a socket without restart/reconnect semantics would strand processes whene
 page reloads. It also follows the request protocol so streaming builds on proven auth, bounds,
 errors, and correlation rather than inventing a second message model.
 
-Change surface: large and highest-risk. PTY lifecycle across disconnects and real Windows process
-containment are the most likely sources of redesign.
+Change surface: large and highest-risk. PTY lifecycle across disconnects was the main redesign risk.
+Native Windows process containment is now deferred beyond this objective.
 
 ## Work packet 3: stable CLI dispatch and Tauri client shell
 
@@ -84,16 +84,16 @@ event-loop shutdown, and native smoke coverage carry the uncertainty.
 ## Work packet 4: release delivery
 
 Package one authoritative frontend asset build and the stable foreground server for supported
-remote hosts. Resolve the Windows console/GUI executable layout, update the macOS CLI link, add Linux
-release coverage, and test installed readiness, shutdown, forced termination, reaping, and descendant
-cleanup.
+remote hosts. Update the macOS CLI link, add Linux release coverage, and test installed readiness,
+shutdown, forced termination, reaping, and descendant cleanup. Windows packaging is deferred beyond
+this objective by the owner.
 
 This comes last because artifact names, sidecars, or launcher topology should package a stable host,
 CLI, and wrapper contract. Solving installers earlier would repeatedly encode changing server and
 wrapper behavior.
 
-Change surface: medium to large, dominated by Windows and new Linux release matrices rather than
-product code.
+Change surface: medium to large, dominated by macOS executable layout and the new Linux release
+matrix rather than product code.
 
 ## Release gates
 
@@ -103,14 +103,14 @@ product code.
 | 1 | Writes and Git remain grant-scoped; durable drafts and state survive a different port and server restart; migrations fail closed |
 | 2 | Network interruption/reload has an explicit PTY result; event gaps resnapshot; slow clients remain bounded; descendants exit on shutdown |
 | 3 | Browser and Tauri run the same host contract and executable entry point; reload does not duplicate the child; served origin cannot call retired native authority; desktop close and quick-access behavior remain intact |
-| 4 | Installed macOS, Windows, and selected Linux artifacts exercise `zd serve`, browser connection, wrapper startup, and complete cleanup |
+| 4 | Installed macOS and selected Linux artifacts exercise `zd serve`, browser connection, wrapper startup, and complete cleanup |
 
 ## Effort and review strategy
 
-No calendar estimate is useful before packet 0 proves the crate and browser boundaries. Review each packet
-as one independently revertible capability boundary. The highest variance is packet 2, followed by
-Windows packaging in packet 4. If packet 0 cannot stay read-only and bounded, stop and re-plan rather
-than pulling later packets into it.
+No calendar estimate is useful before packet 0 proves the crate and browser boundaries. Review each
+packet as one independently revertible capability boundary. The highest variance is packet 2,
+followed by macOS executable layout and Linux packaging in packet 4. If packet 0 cannot stay
+read-only and bounded, stop and re-plan rather than pulling later packets into it.
 
 ## Deliberately not doing
 
@@ -132,7 +132,8 @@ persistence, terminal, executable, and wrapper shapes that Goal 05 must package:
   authority behind the host;
 - goal 03 delivered packet 2's watchers, PTYs, event sequencing, and reconnect behavior;
 - goal 04 delivered packet 3's stable CLI and literal Tauri wrapper; and
-- goal 05 delivers packet 4's macOS, Windows, and Linux release evidence.
+- goal 05 delivers packet 4's macOS and Linux release evidence. Windows is deferred beyond this
+  objective.
 
 The goals are serialized because every packet changes the host/protocol integration shape consumed
 by the next. Goal 05 now owns the remaining risk: executable layout, installed-path behavior, and

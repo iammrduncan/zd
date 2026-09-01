@@ -9,8 +9,9 @@ reachable served host and one observable protocol.
 
 ## Needs the owner
 
-Nothing. The owner deferred native Windows execution to Goal 05. Goal 04 is complete on its Linux,
-Unix-process, direct-browser, and served-browser evidence. Goal 05 is ready to start.
+Nothing. The owner deferred Windows beyond this objective. Goal 04 is complete on its Linux,
+Unix-process, direct-browser, and served-browser evidence. The macOS and Linux Goal 05 is ready to
+start.
 
 ## Plan documents
 
@@ -32,7 +33,7 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 
 | Goal | Delivers | Prerequisites | Needs owner |
 | --- | --- | --- | --- |
-| [Execute goal 05](goals/execute-goal-05.md) | Verified macOS, Windows, and Linux release artifacts | Goal 04 | No |
+| [Execute goal 05](goals/execute-goal-05.md) | Verified macOS and Linux release artifacts | Goal 04 | No |
 
 **Completed**
 
@@ -47,6 +48,7 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 ## What this objective will not do
 
 - Build an SSH client, remote installer, cloud service, account system, or collaboration model.
+- Build, test, or publish Windows artifacts in this objective.
 - Claim plain HTTP is safe on the public Internet or trust reverse-proxy identity.
 - Give a browser arbitrary roots, paths, commands, executables, arguments, or environment access.
 - Add a second filesystem, Git, watcher, or terminal implementation.

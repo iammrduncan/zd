@@ -7,8 +7,7 @@
   contract.
 - Goals 00–03 supply the browser, persistence, editing/Git, watcher/PTY, reconnect, and security
   evidence that installed artifacts must exercise rather than replace with packaging mocks. Goals
-  03 and 04 supply runtime evidence on Linux and portable Unix paths; the owner deferred their
-  native Windows process and wrapper execution to this goal on 2026-09-01.
+  03 and 04 supply runtime evidence on Linux and portable Unix paths.
 - Release documentation may change only after an installed artifact on that platform passes the
   served-host and wrapper smoke checks in this goal.
 - This goal is serialized with every prior goal because it freezes their executable names, assets,
@@ -17,8 +16,8 @@
 ### Needed from the owner before starting
 
 Nothing. This goal does not publish a tag or change signing policy. It packages the already accepted
-product for Apple Silicon/Intel macOS, x64 Windows, and x64 Linux (`.deb`) and records any platform
-that cannot meet the gate.
+product for Apple Silicon/Intel macOS and x64 Linux (`.deb`). On 2026-09-01, the owner deferred all
+Windows implementation and evidence beyond this objective.
 
 ## `/goal` objective
 
@@ -44,28 +43,25 @@ When the work is complete, the repository must have:
 3. a macOS `zd.app` containing `Contents/MacOS/zd-desktop` plus an executable
    `Contents/Resources/bin/zd`, with the installer and documented `/usr/local/bin/zd` link targeting
    the console executable while Finder/Dock/file associations target the desktop wrapper;
-4. a Windows x64 NSIS package containing GUI-subsystem `zd-desktop.exe` and console-subsystem
-   `zd.exe`, Start menu/file associations targeting the desktop executable, and a reversible
-   per-user PATH entry for new shells so `zd serve` has ordinary console/stdout/Ctrl+C behavior;
-5. a Linux x86_64 `.deb` containing `/usr/bin/zd`, a desktop launcher for the wrapper, icons/file
+4. a Linux x86_64 `.deb` containing `/usr/bin/zd`, a desktop launcher for the wrapper, icons/file
    associations, the same embedded assets, and declared WebKit/GTK/runtime dependencies without
    bundling a second backend;
-6. release-build state/config paths shared by direct serve and the wrapper child on each platform,
+5. release-build state/config paths shared by direct serve and the wrapper child on each platform,
    while test overrides remain private and an installed browser cannot select a state directory;
-7. platform install-smoke harnesses that use temporary install/user/project roots where possible,
+6. platform install-smoke harnesses that use temporary install/user/project roots where possible,
    launch the installed console command, parse its separate URL/secret privately, unlock Chromium,
    edit a real file, inspect Git, run a PTY probe, interrupt/reconnect, and stop with no listener or
    descendant left;
-8. installed wrapper smoke evidence that launches the GUI executable, observes one child and one
+7. installed wrapper smoke evidence that launches the GUI executable, observes one child and one
    controller, reloads without duplication, exercises one client-shell action, then covers graceful
    close, unresponsive-child forced termination, crash presentation, and reaping;
-9. a release workflow with macOS arm64/x86_64, Windows x64, and Linux x86_64 build jobs; each build
+8. a release workflow with macOS arm64/x86_64 and Linux x86_64 build jobs; each build
    checks artifact contents, installs into an isolated location or runner, runs the platform smoke
    target, creates SHA-256 checksums, and uploads only after all checks pass;
-10. a publish job that depends on every platform job, verifies all collected checksums, includes the
-    DMGs, Windows installer, Linux `.deb`, and checksum files, and cannot create a GitHub Release from
-    a partially tested platform matrix; and
-11. updated release operations and user-facing install/CLI documentation that describes the verified
+9. a publish job that depends on every platform job, verifies all collected checksums, includes the
+   DMGs, Linux `.deb`, and checksum files, and cannot create a GitHub Release from a partially tested
+   platform matrix; and
+10. updated release operations and user-facing install/CLI documentation that describes the verified
     `zd serve [<folder>] [--bind <ip>] [--port]` direct-browser workflow, exact artifact/command
     locations, current signing/notarization limitations, uninstall behavior, protected-network
     requirement, and one-controller limit without claiming public hosting or managed TLS.
@@ -78,8 +74,8 @@ When the work is complete, the repository must have:
 - **Executable topology.** Owns Cargo bin targets, platform subsystem attributes, launcher dispatch,
   installed child discovery, Tauri configuration/capabilities, and artifact naming. Preserve the
   public application/command name `zd`; `zd-desktop` is an implementation artifact, not product copy.
-- **Installers.** Owns `packaging/`, Tauri bundle metadata, Windows installer hooks, Linux package
-  configuration, safe upgrade/uninstall behavior, and existing macOS replacement/link safeguards.
+- **Installers.** Owns `packaging/`, Tauri bundle metadata, Linux package configuration, safe
+  upgrade/uninstall behavior, and existing macOS replacement/link safeguards.
 - **Release tests.** Owns `packages/scripts/` release inspection/smoke tools and their unit tests.
   Helpers must inspect and execute produced artifacts, not merely search workflow text.
 - **Workflow.** Owns `.github/workflows/release.yml`, pinned actions, artifact/checksum paths, and
@@ -105,13 +101,6 @@ At minimum, prove:
 - the macOS app has both executable roles with expected modes/architectures, passes strict codesign
   verification under the existing ad-hoc policy, the DMG verifies, and the safe installer links only
   `/usr/local/bin/zd` to `Contents/Resources/bin/zd` without replacing an unrelated command;
-- the Windows installer marks only `zd-desktop.exe` as GUI subsystem, preserves stdout/stderr and
-  control handling for `zd.exe`, adds/removes only its exact per-user PATH segment, targets desktop
-  launch/file associations correctly, upgrades without stale binaries, and leaves user projects/
-  state untouched on uninstall;
-- native Windows `cargo test --workspace` runs
-  `terminal::tests::disposal_terminates_the_session_job_and_its_descendant` and proves that host
-  cleanup leaves no terminal descendant alive;
 - the Linux `.deb` installs the exact console/desktop files and declared dependencies, its desktop
   entry/file association invokes the wrapper, `zd serve` works from PATH, upgrade replaces stale
   files, and uninstall leaves user projects/state untouched;
@@ -125,8 +114,8 @@ At minimum, prove:
   canonical project path, environment dump, or raw private error; failure diagnostics use request/
   process IDs, outcomes, durations, and byte counts only;
 - every release job runs the exact static/unit/Rust/served/native gates relevant to its platform and
-  uploads nothing before installed smoke succeeds; the publish dependency list includes macOS,
-  Windows, and Linux and checksum verification rejects a changed or missing artifact;
+  uploads nothing before installed smoke succeeds; the publish dependency list includes macOS and
+  Linux and checksum verification rejects a changed or missing artifact;
 - release tests fail when either executable, an embedded asset, a smoke step, a cleanup assertion, a
   checksum, the Linux job, or a publish dependency is removed; no committed `.skip`, `.only`, or
   platform condition can make missing evidence green;
@@ -145,9 +134,10 @@ At minimum, prove:
 
 - Do not create or push a release tag, publish artifacts, modify an existing GitHub Release, or make
   external deployment changes while executing this goal.
-- Do not add Developer ID/notarization, Windows code signing, Linux repository hosting, auto-update,
-  package-manager taps, or an installer download service; retain and document the current signing
-  policy.
+- Do not add Developer ID/notarization, Linux repository hosting, auto-update, package-manager taps,
+  or an installer download service; retain and document the current signing policy.
+- Do not build, test, publish, or document a Windows artifact in this goal. Windows is owner-deferred
+  beyond this objective and is not a macOS/Linux release gate.
 - Do not add unsupported Linux architectures/formats beyond the selected x86_64 `.deb`, or claim
   that untested distributions are supported.
 - Do not bundle Node, Vite, a development server, a second frontend build, a Tauri localhost backend,
@@ -161,8 +151,8 @@ At minimum, prove:
 
 - Follow repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../GOOD_ENGINEERING_H.md),
   [`DESIGN.md`](../../../../DESIGN.md), ADR 0009, and existing release safety/rollback behavior.
-- Test package scripts with isolated explicit roots. Never run installers against real `/Applications`,
-  `/usr/local/bin`, Windows PATH, or system package state during a unit test.
+- Test package scripts with isolated explicit roots. Never run installers against real
+  `/Applications`, `/usr/local/bin`, or system package state during a unit test.
 - Keep release jobs reproducible: locked Node/Rust dependencies, pinned actions, explicit target
   triples/runners, deterministic asset inputs, checksums, and no network-fetched runtime component
   after build setup.
@@ -175,10 +165,10 @@ At minimum, prove:
 ## Completion definition
 
 The goal and objective are complete only when one production frontend and the stable `zd` host/
-`zd-desktop` wrapper are present in verified macOS arm64/x86_64, Windows x64, and Linux x86_64
-artifacts; each installed platform passes direct browser and wrapper lifecycle/security/cleanup
-smoke; release publishing is gated on every artifact and checksum; documentation matches only that
-evidence; all prior tests remain green; and no second Tauri backend or development asset path ships.
+`zd-desktop` wrapper are present in verified macOS arm64/x86_64 and Linux x86_64 artifacts; each
+installed platform passes direct browser and wrapper lifecycle/security/cleanup smoke; release
+publishing is gated on every artifact and checksum; documentation matches only that evidence; all
+prior tests remain green; and no second Tauri backend or development asset path ships.
 
 If a supported platform cannot provide a foreground `zd serve`, exact child supervision, private
 credential handoff, installed browser/wrapper smoke, or complete descendant cleanup with this
