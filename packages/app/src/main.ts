@@ -6,7 +6,7 @@ import {
   detectPlatform,
   isTauriWindow,
 } from "./platform";
-import { mountDesktopStartup } from "./platform/desktop-startup";
+import { mountDesktopHostStatus, mountDesktopStartup } from "./platform/desktop-startup";
 import { isServedPage, mountServedLimits, mountServedUnlock } from "./platform/served-unlock";
 import { bootWorkbench } from "./workbench/boot";
 
@@ -20,6 +20,7 @@ async function start(workbenchHost: HTMLElement): Promise<void> {
     mountDesktopStartup(workbenchHost);
     return;
   }
+  if (desktop && served) mountDesktopHostStatus(workbenchHost);
   const platform = served
     ? desktop
       ? await connectDesktopServedPlatform()
