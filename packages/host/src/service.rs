@@ -65,6 +65,57 @@ impl fmt::Debug for HostService {
 }
 
 impl HostService {
+    pub fn open_desktop_with_state(
+        requested: Option<&Path>,
+        state_directory: &Path,
+    ) -> Result<Self, String> {
+        let Some(requested) = requested else {
+            return Self::open_desktop_home(state_directory);
+        };
+        if requested.is_dir() {
+            return Self::open_project_with_state(requested, state_directory);
+        }
+        let parent = requested
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let relative_path = requested
+            .file_name()
+            .ok_or_else(|| "the desktop launch path has no file name".to_string())?
+            .to_string_lossy()
+            .into_owned();
+        let host = Self::open_project_with_state(parent, state_directory)?;
+        host.state
+            .lock()
+            .map_err(|_| "desktop launch authority is unavailable".to_string())?
+            .launch
+            .relative_path = Some(relative_path);
+        Ok(host)
+    }
+
+    fn open_desktop_home(state_directory: &Path) -> Result<Self, String> {
+        let diagnostics = DiagnosticState::new(
+            state_directory.join("diagnostics"),
+            env!("CARGO_PKG_VERSION"),
+        )?;
+        Ok(Self {
+            state: Mutex::new(HostState {
+                launch: HostLaunchRequest {
+                    project: None,
+                    worktree_id: None,
+                    relative_path: None,
+                    problem: None,
+                },
+                grants: GrantStore::default(),
+            }),
+            file_tree_watches: FileTreeWatchState::default(),
+            terminals: Mutex::new(TerminalSessions::default()),
+            durable: None,
+            diagnostics: Some(diagnostics),
+            state_directory: Some(state_directory.to_path_buf()),
+        })
+    }
+
     pub fn open_project(root: &Path) -> Result<Self, String> {
         let mut grants = GrantStore::default();
         let approved = grants.approve_project(root)?;
