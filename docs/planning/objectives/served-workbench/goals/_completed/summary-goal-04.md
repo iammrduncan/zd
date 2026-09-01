@@ -10,8 +10,8 @@
 
 ## Action needed from the owner
 
-Nothing. On 2026-09-01, the owner deferred native Windows execution to Goal 05. This summary does
-not present Windows as tested. Goal 05 can now package and test the supported platform artifacts.
+Nothing. On 2026-09-01, the owner deferred Windows beyond this objective. This summary does not
+present Windows as tested. Goal 05 can now package and test the macOS and Linux artifacts.
 
 ## What was delivered
 
@@ -107,7 +107,7 @@ not present Windows as tested. Goal 05 can now package and test the supported pl
 | `cargo fmt --all -- --check` | Passed. |
 | Documentation and anti-slop checks | Documentation information-architecture tests passed. The prose checker reported 0 findings across changed docs. ESLint and manual review found no disabled, placeholder, tautological, suppressed, or swallowed-error test shapes. |
 | Formatting and diff hygiene | Every changed Markdown and TypeScript file passed Prettier, and `git diff --check` passed. The repository-wide formatter's nine pre-existing unrelated findings remain recorded rather than hidden. |
-| Windows native execution | **Deferred to Goal 05 by the owner.** No Windows result was run or counted as Goal 04 evidence. |
+| Windows native execution | **Deferred beyond this objective by the owner.** No Windows result was run or counted as Goal 04 evidence. |
 | macOS native execution | Not run on this Linux host. Portable Unix lifecycle coverage ran on Linux; installed macOS wrapper and shell evidence remains a Goal 05 platform gate. |
 
 ## What this unblocks
@@ -120,6 +120,6 @@ not present Windows as tested. Goal 05 can now package and test the supported pl
 ## What remains blocked
 
 - Installed macOS and Linux artifact evidence remains Goal 05 work.
-- Native Windows process, wrapper, and package evidence is deferred to Goal 05 and remains
-  unverified.
+- Native Windows process, wrapper, and package evidence is deferred beyond this objective and
+  remains unverified.
 - Publishing user-facing install claims remains blocked until Goal 05 verifies the artifacts.
