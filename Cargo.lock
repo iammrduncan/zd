@@ -5734,7 +5734,6 @@ dependencies = [
  "tauri-plugin-global-shortcut",
  "tauri-plugin-notification",
  "tauri-plugin-opener",
- "trash",
  "windows-sys 0.61.2",
  "zd-host",
 ]
@@ -5747,6 +5746,7 @@ dependencies = [
  "ignore",
  "serde",
  "serde_json",
+ "trash",
 ]
 
 [[package]]

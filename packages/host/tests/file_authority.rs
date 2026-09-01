@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use zd_host::{HostService, ResourceRef};
+use zd_host::{
+    FileTreeCreationKind, FileTreeMutationRequest, FileTreeMutationResult, HostService, ResourceRef,
+};
 
 struct Scratch(PathBuf);
 
@@ -129,4 +131,35 @@ fn image_validation_refuses_unknown_and_oversized_files() {
         .read_project_image(&scope(&host, "figure.svg"))
         .is_err());
     assert!(host.read_project_image(&scope(&host, "large.png")).is_err());
+}
+
+#[test]
+fn file_tree_mutations_commit_only_inside_the_active_grant() {
+    let scratch = Scratch::new("mutations");
+    std::fs::create_dir(scratch.join("docs")).expect("create docs");
+    let host = HostService::open_project(&scratch.0).expect("approve project");
+    let resource = scope(&host, "docs/notes.md");
+    let create = FileTreeMutationRequest::Create {
+        project_id: resource.project_id.clone(),
+        worktree_id: resource.worktree_id.clone(),
+        relative_path: resource.relative_path.clone(),
+        kind: FileTreeCreationKind::File,
+    };
+    assert_eq!(
+        host.mutate_file_tree(create),
+        FileTreeMutationResult::Committed
+    );
+    assert!(scratch.join("docs/notes.md").is_file());
+
+    let denied = FileTreeMutationRequest::Create {
+        project_id: "project-unapproved".to_string(),
+        worktree_id: resource.worktree_id,
+        relative_path: "outside.md".to_string(),
+        kind: FileTreeCreationKind::File,
+    };
+    assert!(matches!(
+        host.mutate_file_tree(denied),
+        FileTreeMutationResult::Refused { .. }
+    ));
+    assert!(!scratch.join("outside.md").exists());
 }

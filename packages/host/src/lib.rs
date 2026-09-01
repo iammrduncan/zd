@@ -2,6 +2,7 @@
 
 mod atomic_write;
 mod durable;
+mod file_mutations;
 mod file_tree;
 mod files;
 #[doc(hidden)]
@@ -16,6 +17,9 @@ pub use durable::{
     DurableFileDraft, DurableReviewComment, DurableReviewLedger, DurableStateApply,
     DurableStateApplyResult, DurableStateBundle, DurableStateMutation, DurableStateRevision,
     DurableStateSession,
+};
+pub use file_mutations::{
+    mutate_file_tree_at, FileTreeCreationKind, FileTreeMutationRequest, FileTreeMutationResult,
 };
 pub use file_tree::{
     snapshot_in, FileTreeEntry, FileTreeEntryKind, FileTreeRequest, FileTreeResult, TreeLimits,
