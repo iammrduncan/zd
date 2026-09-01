@@ -61,12 +61,15 @@ fn one_supervised_real_child_bootstraps_once_rearms_and_reaps() {
     let scratch = Scratch::new();
     let supervisor = Supervisor::default();
     let _guard = SupervisorGuard(&supervisor);
+    let ready_observer = supervisor.clone();
+    let waited_ready = std::thread::spawn(move || ready_observer.wait_for_ready());
 
     let ready = supervisor
         .start(real_launch(&scratch))
         .expect("start supervisor");
 
     assert_eq!(ready.phase, SupervisorPhase::Ready);
+    assert_eq!(waited_ready.join().unwrap(), ready);
     assert_eq!(ready.generation, 1);
     let origin = ready.origin.expect("ready origin");
     let served_url = tauri::Url::parse(&format!("{origin}/")).expect("served URL");

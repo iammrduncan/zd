@@ -1,10 +1,8 @@
 use std::collections::VecDeque;
-#[cfg(target_os = "macos")]
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 
-#[cfg(target_os = "macos")]
 use tauri::{Emitter, Manager};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
@@ -13,9 +11,7 @@ use zd_host::{HostLaunchRequest, ProjectGrant};
 use crate::supervisor::Supervisor;
 use crate::{notifications, quick_access};
 
-#[cfg(any(target_os = "macos", test))]
 const MAX_PENDING_OPEN_INTENTS: usize = 64;
-#[cfg(target_os = "macos")]
 const OPEN_REQUESTED_EVENT: &str = "open-requested";
 
 #[derive(Debug, Default)]
@@ -28,7 +24,6 @@ impl OpenIntentState {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    #[cfg(any(target_os = "macos", test))]
     fn queue(&self, intent: HostLaunchRequest) {
         let mut pending = self.lock();
         pending.push_back(intent);
@@ -135,20 +130,25 @@ pub fn accept_open_request(
     Ok(state.accept())
 }
 
-#[cfg(target_os = "macos")]
 pub fn queue_native_open(app: &tauri::AppHandle, path: &Path) {
     let supervisor = app.state::<Supervisor>().inner().clone();
     let app = app.clone();
     let path = path.to_path_buf();
     tauri::async_runtime::spawn_blocking(move || {
-        let intent = supervisor
-            .approve_open_path(&path)
-            .unwrap_or_else(|problem| HostLaunchRequest {
-                project: None,
-                worktree_id: None,
-                relative_path: None,
-                problem: Some(problem),
-            });
+        let ready = supervisor.wait_for_ready();
+        let intent = if ready.phase == crate::supervisor::SupervisorPhase::Ready {
+            supervisor.approve_open_path(&path)
+        } else {
+            Err(ready
+                .problem
+                .unwrap_or_else(|| "the desktop host is unavailable".to_string()))
+        }
+        .unwrap_or_else(|problem| HostLaunchRequest {
+            project: None,
+            worktree_id: None,
+            relative_path: None,
+            problem: Some(problem),
+        });
         app.state::<OpenIntentState>().queue(intent);
         let _ = app.emit(OPEN_REQUESTED_EVENT, ());
     });

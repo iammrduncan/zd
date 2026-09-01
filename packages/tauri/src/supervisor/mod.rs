@@ -220,6 +220,24 @@ impl Supervisor {
         snapshot(&state)
     }
 
+    pub fn wait_for_ready(&self) -> SupervisorSnapshot {
+        let deadline = Instant::now() + STARTUP_WAIT;
+        let mut state = self.inner.lock();
+        while matches!(
+            state.phase,
+            SupervisorPhase::Idle | SupervisorPhase::Starting
+        ) {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                break;
+            }
+            let waited = self.inner.changed.wait_timeout(state, remaining);
+            let (next, _) = waited.unwrap_or_else(|poisoned| poisoned.into_inner());
+            state = next;
+        }
+        snapshot(&state)
+    }
+
     pub fn approve_project_path(&self, path: &Path) -> Result<ProjectGrant, String> {
         let path = control_path(path)?;
         match self.request_control(|request_id| WrapperControl::ApproveProject {

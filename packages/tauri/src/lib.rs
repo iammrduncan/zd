@@ -10,6 +10,7 @@ mod launch;
 pub mod notifications;
 mod quick_access;
 mod shell;
+mod single_instance;
 #[doc(hidden)]
 pub mod supervisor;
 
@@ -38,6 +39,7 @@ fn run_from_environment() -> Result<(), String> {
 
 fn run_desktop(launch_request: launch::NativeOpenRequest) {
     let app = tauri::Builder::default()
+        .plugin(single_instance::plugin())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
