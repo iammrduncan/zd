@@ -324,6 +324,32 @@ describe("the terminal thread surface", () => {
     expect(emulator.disposed).toBe(true);
   });
 
+  it("keeps terminal loss visible when a later viewport update also fails", async () => {
+    const native = adapter();
+    vi.mocked(native.read).mockResolvedValue({
+      session,
+      offset: 0,
+      droppedBefore: 0,
+      bytes: [],
+      readError: "the remote terminal is gone",
+    });
+    vi.mocked(native.resize).mockRejectedValue(new Error("terminal resize is unavailable"));
+    const terminal = TerminalThreadSession.attach(native, session);
+    const emulator = new FakeEmulator();
+    const host = document.createElement("div");
+    const surface = mountTerminalThreadSurface(host, terminal, metadata, {
+      createEmulator: () => emulator,
+    });
+
+    await terminal.refresh();
+    surface.fit();
+    await settle();
+
+    expect(host.querySelector<HTMLElement>(".zd-terminal-thread-status")?.textContent).toContain(
+      "Terminal output stopped unexpectedly.",
+    );
+  });
+
   it("refreshes in place when a scoped theme changes on an ancestor", async () => {
     const native = adapter();
     const emulator = new FakeEmulator();

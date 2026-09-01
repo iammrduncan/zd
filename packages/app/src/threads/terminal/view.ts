@@ -148,7 +148,11 @@ export function mountTerminalThreadSurface(
 
   const reportFailure = () => {
     if (!active) return;
-    problem.textContent = "Terminal input is unavailable.";
+    const inputProblem = "Terminal input is unavailable.";
+    const current = problem.textContent?.trim() ?? "";
+    if (!current.includes(inputProblem)) {
+      problem.textContent = current ? `${current} ${inputProblem}` : inputProblem;
+    }
     problem.hidden = false;
   };
 
