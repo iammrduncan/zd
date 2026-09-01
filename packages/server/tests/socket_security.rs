@@ -17,7 +17,7 @@ fn http_status(error: Error) -> StatusCode {
 }
 
 #[tokio::test]
-async fn websocket_requires_numeric_same_authority_host_and_origin() {
+async fn websocket_requires_exact_same_authority_host_and_origin() {
     let server = TestServer::start("authority").await;
     let authority = server.authority();
 
@@ -31,18 +31,6 @@ async fn websocket_requires_numeric_same_authority_host_and_origin() {
         .await
         .unwrap_err();
     assert_eq!(http_status(foreign), StatusCode::FORBIDDEN);
-    let named = connect(
-        &server,
-        &format!("localhost:{}", server.running.address().port()),
-        Some(&format!(
-            "http://localhost:{}",
-            server.running.address().port()
-        )),
-        &[],
-    )
-    .await
-    .unwrap_err();
-    assert_eq!(http_status(named), StatusCode::FORBIDDEN);
     let malformed_host = connect(
         &server,
         &authority,
@@ -52,34 +40,46 @@ async fn websocket_requires_numeric_same_authority_host_and_origin() {
     .await
     .unwrap_err();
     assert_eq!(http_status(malformed_host), StatusCode::FORBIDDEN);
+    for invalid_origin in [
+        format!("http://{authority}/unexpected"),
+        format!("http://{authority}?unexpected"),
+    ] {
+        let error = connect(&server, &authority, Some(&invalid_origin), &[])
+            .await
+            .unwrap_err();
+        assert_eq!(
+            http_status(error),
+            StatusCode::FORBIDDEN,
+            "{invalid_origin}"
+        );
+    }
 
     server.shutdown().await;
 }
 
 #[tokio::test]
-async fn matching_forwarded_authority_may_differ_from_the_bound_port() {
-    let server = TestServer::start("forwarded-port").await;
-    let forwarded = if server.running.address().port() == 49_151 {
-        49_152
-    } else {
-        49_151
-    };
-    let authority = format!("127.0.0.1:{forwarded}");
-    let mut socket = connect(
-        &server,
-        &authority,
-        Some(&format!("http://{authority}")),
-        &[],
-    )
-    .await
-    .expect("SSH-forwarded authority is accepted");
-    assert_eq!(
-        authenticate(&server, &mut socket).await["type"],
-        "authenticated"
-    );
-    socket.close(None).await.unwrap();
-
-    server.shutdown().await;
+async fn matching_remote_ip_and_hostname_authorities_are_accepted() {
+    for (index, host) in ["100.80.233.115", "remote-workbench.example"]
+        .into_iter()
+        .enumerate()
+    {
+        let server = TestServer::start(&format!("remote-authority-{index}")).await;
+        let authority = format!("{host}:{}", server.running.address().port());
+        let mut socket = connect(
+            &server,
+            &authority,
+            Some(&format!("http://{authority}")),
+            &[],
+        )
+        .await
+        .expect("direct same-origin authority is accepted");
+        assert_eq!(
+            authenticate(&server, &mut socket).await["type"],
+            "authenticated"
+        );
+        socket.close(None).await.unwrap();
+        server.shutdown().await;
+    }
 }
 
 #[tokio::test]

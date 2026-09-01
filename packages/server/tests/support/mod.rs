@@ -3,6 +3,7 @@
     reason = "each integration-test crate uses a different subset of these shared helpers"
 )]
 
+use std::net::{Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
@@ -54,6 +55,10 @@ pub struct TestServer {
 
 impl TestServer {
     pub async fn start(name: &str) -> Self {
+        Self::start_with_bind(name, Ipv4Addr::UNSPECIFIED).await
+    }
+
+    pub async fn start_with_bind(name: &str, bind: Ipv4Addr) -> Self {
         let project = Scratch::new(&format!("{name}-project"));
         let state = Scratch::new(&format!("{name}-state"));
         let assets = Scratch::new(&format!("{name}-assets"));
@@ -88,9 +93,12 @@ impl TestServer {
             HostService::open_project_with_state(project.path(), state.path())
                 .expect("approve persisted project"),
         );
-        let running = start(host, ServerConfig::new(assets.path().to_path_buf(), 0))
-            .await
-            .expect("start served host");
+        let running = start(
+            host,
+            ServerConfig::new(assets.path().to_path_buf(), bind, 0),
+        )
+        .await
+        .expect("start served host");
         Self {
             project,
             state,
@@ -100,7 +108,11 @@ impl TestServer {
     }
 
     pub fn authority(&self) -> String {
-        self.running.address().to_string()
+        self.connect_address().to_string()
+    }
+
+    pub fn connect_address(&self) -> SocketAddr {
+        SocketAddr::from((Ipv4Addr::LOCALHOST, self.running.address().port()))
     }
 
     pub fn http_url(&self, path: &str) -> String {
@@ -155,7 +167,7 @@ pub async fn connect(
             HeaderValue::from_str(value).expect("valid header value"),
         );
     }
-    let stream = TcpStream::connect(server.running.address())
+    let stream = TcpStream::connect(server.connect_address())
         .await
         .expect("connect to actual listener");
     client_async(request, MaybeTlsStream::Plain(stream))

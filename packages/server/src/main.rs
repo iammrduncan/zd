@@ -24,7 +24,11 @@ async fn run() -> Result<(), String> {
         &state_directory,
     )?);
     let assets = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../app/dist");
-    let server = start(host, ServerConfig::new(assets, arguments.port())).await?;
+    let server = start(
+        host,
+        ServerConfig::new(assets, arguments.bind(), arguments.port()),
+    )
+    .await?;
 
     println!("zd serve URL: {}", server.url());
     println!("zd serve secret: {}", server.secret());

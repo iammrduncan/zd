@@ -1,3 +1,4 @@
+use std::net::Ipv4Addr;
 use std::path::PathBuf;
 
 use zd_server::ServeArgs;
@@ -7,11 +8,24 @@ fn args(values: &[&str]) -> Vec<String> {
 }
 
 #[test]
-fn one_folder_defaults_to_an_owned_free_loopback_port() {
+fn one_folder_defaults_to_an_owned_free_network_listener() {
     let parsed = ServeArgs::parse(&args(&["project"])).expect("parse served folder");
 
     assert_eq!(parsed.project(), PathBuf::from("project"));
+    assert_eq!(parsed.bind(), Ipv4Addr::UNSPECIFIED);
     assert_eq!(parsed.port(), 0);
+}
+
+#[test]
+fn an_explicit_numeric_bind_is_structured_and_order_independent() {
+    for raw in [
+        args(&["project", "--bind", "100.80.233.115"]),
+        args(&["--bind", "100.80.233.115", "project"]),
+    ] {
+        let parsed = ServeArgs::parse(&raw).expect("parse explicit bind");
+        assert_eq!(parsed.project(), PathBuf::from("project"));
+        assert_eq!(parsed.bind(), Ipv4Addr::new(100, 80, 233, 115));
+    }
 }
 
 #[test]
@@ -50,6 +64,9 @@ fn missing_extra_and_unbounded_arguments_are_refused() {
         args(&["one", "two"]),
         args(&["project", "--port"]),
         args(&["project", "--port", "not-a-port"]),
+        args(&["project", "--bind"]),
+        args(&["project", "--bind", "remote.example"]),
+        args(&["project", "--bind", "100.80.233.115", "--bind", "127.0.0.1"]),
         args(&["project", "--host", "0.0.0.0"]),
         args(&["project", "--assets", "/tmp/workspace"]),
         args(&["project", "--state-dir"]),

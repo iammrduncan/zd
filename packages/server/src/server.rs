@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -24,12 +24,17 @@ use crate::{MAX_MESSAGE_BYTES, MAX_RESPONSE_MESSAGE_BYTES};
 
 pub struct ServerConfig {
     assets_root: PathBuf,
+    bind: Ipv4Addr,
     port: u16,
 }
 
 impl ServerConfig {
-    pub fn new(assets_root: PathBuf, port: u16) -> Self {
-        Self { assets_root, port }
+    pub fn new(assets_root: PathBuf, bind: Ipv4Addr, port: u16) -> Self {
+        Self {
+            assets_root,
+            bind,
+            port,
+        }
     }
 }
 
@@ -46,7 +51,12 @@ impl RunningServer {
     }
 
     pub fn url(&self) -> String {
-        format!("http://{}", self.address)
+        let ip = if self.address.ip().is_unspecified() {
+            IpAddr::V4(Ipv4Addr::LOCALHOST)
+        } else {
+            self.address.ip()
+        };
+        format!("http://{}", SocketAddr::new(ip, self.address.port()))
     }
 
     pub fn secret(&self) -> &str {
@@ -102,12 +112,12 @@ pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<Runni
         .route("/api/host", any(websocket))
         .fallback(get(asset))
         .with_state(state);
-    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, config.port))
+    let listener = TcpListener::bind((config.bind, config.port))
         .await
-        .map_err(|error| format!("could not bind the loopback listener: {error}"))?;
+        .map_err(|error| format!("could not bind the served listener: {error}"))?;
     let address = listener
         .local_addr()
-        .map_err(|error| format!("could not inspect the loopback listener: {error}"))?;
+        .map_err(|error| format!("could not inspect the served listener: {error}"))?;
     let (shutdown, stopped) = oneshot::channel();
     let task = tokio::spawn(async move {
         axum::serve(listener, router)
@@ -164,7 +174,7 @@ fn valid_browser_authority(headers: &HeaderMap) -> bool {
     let Ok(authority) = host.parse::<Authority>() else {
         return false;
     };
-    if authority.host() != Ipv4Addr::LOCALHOST.to_string() || authority.port_u16().is_none() {
+    if authority.port_u16().is_none() {
         return false;
     }
     let Some(origin) = headers.get(ORIGIN).and_then(|value| value.to_str().ok()) else {
@@ -177,6 +187,7 @@ fn valid_browser_authority(headers: &HeaderMap) -> bool {
         && origin
             .authority()
             .is_some_and(|origin_authority| origin_authority == &authority)
+        && origin.path() == "/"
         && origin.query().is_none()
 }
 
