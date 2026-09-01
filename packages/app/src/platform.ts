@@ -34,6 +34,7 @@ import {
   type RecentWorkspace,
 } from "@/workbench/resources";
 import { connectServedHostClient } from "@/platform/served-client";
+import type { ServedHostClient } from "@/platform/served-client";
 import { createServedWorkbenchHost } from "@/platform/served";
 import { composePlatform, type ClientShell } from "@/platform/composition";
 import {
@@ -657,11 +658,75 @@ const browserShell: ClientShell = {
   openExternal: browser.openExternal,
 };
 
+const tauriShell: ClientShell = {
+  onOpenRequested: () => () => {},
+  pendingOpenRequest: async () => null,
+  acceptOpenRequest: async () => null,
+  chooseProject: async () => null,
+  recoverProjectGrant: async () => null,
+  registerGlobalSummon: tauri.registerGlobalSummon,
+  onWindowPresentationChanged: tauri.onWindowPresentationChanged,
+  toggleQuickAccess: tauri.toggleQuickAccess,
+  hideQuickAccess: tauri.hideQuickAccess,
+  showWorkbench: tauri.showWorkbench,
+  isWindowFocused: tauri.isWindowFocused,
+  onWindowFocusChanged: tauri.onWindowFocusChanged,
+  notifications: tauri.notifications,
+  onCloseRequested: tauri.onCloseRequested,
+  closeWindow: tauri.closeWindow,
+  openExternal: tauri.openExternal,
+};
+
+interface DesktopBootstrap {
+  readonly origin: string;
+  readonly sessionEpoch: string;
+  readonly secret: string;
+}
+
+type ServedConnector = (options: {
+  readonly origin: string;
+  readonly secret: string;
+}) => Promise<ServedHostClient>;
+
+function urlToken(value: unknown, length: number): value is string {
+  return typeof value === "string" && value.length === length && /^[A-Za-z0-9_-]+$/.test(value);
+}
+
+function desktopBootstrap(value: unknown): DesktopBootstrap {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("the desktop bootstrap is invalid");
+  }
+  const candidate = value as Partial<DesktopBootstrap>;
+  if (candidate.origin !== window.location.origin) {
+    throw new Error("the desktop bootstrap origin does not match this page");
+  }
+  if (!urlToken(candidate.sessionEpoch, 22) || !urlToken(candidate.secret, 43)) {
+    throw new Error("the desktop bootstrap credentials are invalid");
+  }
+  return {
+    origin: candidate.origin,
+    sessionEpoch: candidate.sessionEpoch,
+    secret: candidate.secret,
+  };
+}
+
+export async function connectDesktopServedPlatform(
+  connect: ServedConnector = connectServedHostClient,
+): Promise<Platform> {
+  const bootstrap = desktopBootstrap(await invoke<unknown>("take_desktop_bootstrap"));
+  const client = await connect({ origin: bootstrap.origin, secret: bootstrap.secret });
+  return composePlatform("tauri", createServedWorkbenchHost(client), tauriShell);
+}
+
 export async function connectServedPlatform(secret: string): Promise<Platform> {
   const client = await connectServedHostClient({ origin: window.location.origin, secret });
   return composePlatform("browser", createServedWorkbenchHost(client), browserShell);
 }
 
+export function isTauriWindow(): boolean {
+  return "__TAURI_INTERNALS__" in window;
+}
+
 export function detectPlatform(): Platform {
-  return "__TAURI_INTERNALS__" in window ? tauri : browser;
+  return isTauriWindow() ? tauri : browser;
 }

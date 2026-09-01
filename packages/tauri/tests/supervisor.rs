@@ -69,23 +69,38 @@ fn one_supervised_real_child_bootstraps_once_rearms_and_reaps() {
     assert_eq!(ready.phase, SupervisorPhase::Ready);
     assert_eq!(ready.generation, 1);
     let origin = ready.origin.expect("ready origin");
+    let served_url = tauri::Url::parse(&format!("{origin}/")).expect("served URL");
     assert!(origin.starts_with("http://127.0.0.1:"));
     assert!(TcpStream::connect(origin.trim_start_matches("http://")).is_ok());
-    let first = supervisor.take_bootstrap().expect("take first bootstrap");
+    assert!(supervisor.authorizes_webview("main", &served_url));
+    assert!(!supervisor.authorizes_webview("other", &served_url));
+    assert!(
+        !supervisor.authorizes_webview("main", &tauri::Url::parse("http://127.0.0.1:9/").unwrap())
+    );
+    let first = supervisor
+        .take_bootstrap_for("main", &served_url)
+        .expect("take first bootstrap");
     assert_eq!(first.origin, origin);
     assert_eq!(first.session_epoch, ready.session_epoch.unwrap());
     assert_eq!(first.secret.len(), 43);
-    assert!(supervisor.take_bootstrap().is_err());
-    assert!(supervisor.rearm_bootstrap(&origin));
+    assert!(supervisor.take_bootstrap_for("main", &served_url).is_err());
+    assert!(supervisor.take_bootstrap_for("other", &served_url).is_err());
+    assert!(supervisor.rearm_bootstrap_for("main", &served_url));
     assert_eq!(
-        supervisor.take_bootstrap().expect("take reload bootstrap"),
+        supervisor
+            .take_bootstrap_for("main", &served_url)
+            .expect("take reload bootstrap"),
         first
     );
     assert!(supervisor.start(real_launch(&scratch)).is_err());
 
+    let observer = supervisor.clone();
+    let terminal = std::thread::spawn(move || observer.wait_for_terminal(1));
     supervisor.shutdown().expect("stop supervised child");
 
     assert_eq!(supervisor.snapshot().phase, SupervisorPhase::Stopped);
+    assert_eq!(terminal.join().unwrap().phase, SupervisorPhase::Stopped);
+    assert!(!supervisor.authorizes_webview("main", &served_url));
     assert!(TcpStream::connect(origin.trim_start_matches("http://")).is_err());
 }
 
