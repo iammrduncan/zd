@@ -16,15 +16,17 @@ describe("served host unlock", () => {
     expect(isServedPage(served)).toBe(true);
   });
 
-  it("states every packet-zero limit after the workbench unlocks", () => {
+  it("distinguishes remote host capabilities from unavailable streaming and shell authority", () => {
     const host = document.createElement("main");
 
     mountServedLimits(host);
 
     const notice = host.querySelector('[role="status"][aria-label="Served workbench limits"]');
-    expect(notice?.textContent).toContain("Save, file changes, Git, automatic file updates");
     expect(notice?.textContent).toContain(
-      "terminals, project picker, recent workspaces, and other project roots are unavailable",
+      "Editing, file changes, Git, themes, and diagnostics run on the remote host",
+    );
+    expect(notice?.textContent).toContain(
+      "Automatic file updates, terminals, project picker, recent workspaces, and other project roots are unavailable",
     );
   });
 
