@@ -420,13 +420,15 @@
 }
 
 /*
- * Compact windows — DESIGN.md §5.3. Only the insets move here; the measure is
- * left alone to consume the space that remains.
+ * Compact windows — DESIGN.md §5.3. The measure is left alone to consume the
+ * space that remains. A 5px notation gap is the widest measured value that
+ * keeps the H6 marker inside the Linux Chromium frame without denting its text.
  */
 @media (max-width: 687px) {
   :root {
     --reading-inset-x: 72px;
     --reading-inset-top: 56px;
+    --notation-gutter-gap: 5px;
   }
 }
 
