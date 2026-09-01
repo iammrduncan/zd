@@ -7,8 +7,10 @@ use serde::Serialize;
 use crate::durable::DurableStateStore;
 use crate::{durable, identity};
 use crate::{
-    read_bounded_file_at, snapshot_in, BoundedFileRead, FileTreeRequest, FileTreeResult,
-    GrantStore, ProjectGrant, ResourceRef, TreeLimits,
+    file_stamp_at, read_bounded_file_at, read_project_image_at, read_text_file_at, snapshot_in,
+    workspace_files_in, write_text_file_at, BoundedFileRead, FileStamp, FileTreeRequest,
+    FileTreeResult, GrantStore, ProjectGrant, ProjectImage, ResourceRef, TreeLimits,
+    WorkspaceListing,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -136,6 +138,50 @@ impl HostService {
                 problem: "File authority is unavailable".to_string(),
             },
         }
+    }
+
+    pub fn read_text_file(&self, resource: &ResourceRef) -> Result<String, String> {
+        let path = self.resolve_resource(resource)?;
+        read_text_file_at(&path)
+    }
+
+    pub fn write_text_file(&self, resource: &ResourceRef, contents: &str) -> Result<(), String> {
+        let path = self.resolve_resource(resource)?;
+        write_text_file_at(&path, contents)
+    }
+
+    pub fn file_stamp(&self, resource: &ResourceRef) -> Result<Option<FileStamp>, String> {
+        let path = self.resolve_resource(resource)?;
+        file_stamp_at(&path)
+    }
+
+    pub fn read_project_image(&self, resource: &ResourceRef) -> Result<ProjectImage, String> {
+        let path = self.resolve_resource(resource)?;
+        read_project_image_at(&path)
+    }
+
+    pub fn workspace_files(
+        &self,
+        project_id: &str,
+        worktree_id: &str,
+    ) -> Result<WorkspaceListing, String> {
+        let root = self
+            .state
+            .lock()
+            .expect("host state was poisoned")
+            .grants
+            .root(project_id, worktree_id)
+            .map_err(|_| "Workspace file authority is unavailable".to_string())?;
+        workspace_files_in(&root, project_id, worktree_id)
+    }
+
+    fn resolve_resource(&self, resource: &ResourceRef) -> Result<std::path::PathBuf, String> {
+        self.state
+            .lock()
+            .expect("host state was poisoned")
+            .grants
+            .resolve(resource)
+            .map_err(|_| "File authority is unavailable".to_string())
     }
 
     pub fn describe_durable_state(&self) -> Result<durable::DurableStateBundle, String> {
