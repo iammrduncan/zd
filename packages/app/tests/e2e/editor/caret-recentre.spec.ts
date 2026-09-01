@@ -236,34 +236,43 @@ test("the return is eased rather than a cut", async ({ page }) => {
   ).toBeGreaterThanOrEqual(280);
 });
 
-test("a delayed selection scroll cannot strand the caret away from the anchor", async ({
+test("a selection scroll during the return cannot strand the caret away from the anchor", async ({
   page,
 }) => {
   await open(page);
   await waitForEditorScrollToSettle(page);
 
-  // CodeMirror may apply its own selection scroll in the paint after the
-  // selection transaction. Reproduce that ordering deterministically: the edge
-  // return is requested first, then the editor's later scroll moves the surface.
+  // CodeMirror may apply its own selection scroll after the return has already
+  // written its first frame. Reproduce that ordering deterministically: wait for
+  // the app-owned journey to move, then make the later editor scroll in the same
+  // painted frame. Treating that write as a document-height correction translates
+  // the destination and leaves the caret exactly this scroll distance off target.
   await page.evaluate(
     () =>
       new Promise<void>((resolve) => {
         const surface = document.querySelector<HTMLElement>(".md-surface")!;
         surface.scrollTop = 350;
+        const before = surface.scrollTop;
         window.zdEditor!.setCaret(0);
-        requestAnimationFrame(() => {
+
+        const followJourney = () => {
+          if (Math.abs(surface.scrollTop - before) <= 1) {
+            requestAnimationFrame(followJourney);
+            return;
+          }
           surface.scrollTop += 70;
           resolve();
-        });
+        };
+        requestAnimationFrame(followJourney);
       }),
   );
   await waitForEditorScrollToSettle(page);
 
   const at = await page.evaluate(caretInSurface);
-  expect(at.caret, "the delayed selection scroll left no measurable caret").not.toBeNull();
+  expect(at.caret, "the selection scroll left no measurable caret").not.toBeNull();
   expect(
     Math.abs(at.caret! - at.anchor),
-    "the delayed selection scroll left the caret away from the reading anchor",
+    "the selection scroll left the caret away from the reading anchor",
   ).toBeLessThanOrEqual(0.5);
 });
 

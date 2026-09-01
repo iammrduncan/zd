@@ -8,7 +8,7 @@ import {
 } from "@codemirror/view";
 
 import { anchorY, DEFAULT_GRANULARITY, scrollBoxToAnchor, type FocusGranularity } from "./anchor";
-import type { ScrollMotion } from "./scroll";
+import type { ScrollBox, ScrollMotion } from "./scroll";
 import { scrollingMeasure, type ScrollingMeasure } from "../measure";
 import { isTypewriter } from "../typewriter";
 import { blockRange, nearestContentPos, sectionRange } from "./range";
@@ -96,6 +96,22 @@ export function setGranularity(column: HTMLElement, granularity: FocusGranularit
  */
 function surfaceOf(view: EditorView): Element | null {
   return view.dom.closest(".md-surface");
+}
+
+/** Measure one focus range without forming a second idea about table geometry. */
+function focusBox(view: EditorView, block: { from: number; to: number }): ScrollBox | null {
+  if (!view.dom.isConnected || block.from < 0 || block.to > view.state.doc.length) return null;
+
+  const element = tableFocusElement(view, block);
+  if (element) {
+    const box = element.getBoundingClientRect();
+    return { top: box.top, height: box.height };
+  }
+
+  const top = view.coordsAtPos(block.from);
+  const bottom = view.coordsAtPos(block.to);
+  if (!top || !bottom) return null;
+  return { top: top.top, height: bottom.bottom - top.top };
 }
 
 const focus = ViewPlugin.fromClass(
@@ -511,20 +527,11 @@ const focus = ViewPlugin.fromClass(
           const block = resolve(view);
           if (!block) return null;
 
-          const element = tableFocusElement(view, block);
-          if (element) {
-            const box = element.getBoundingClientRect();
-            return { top: box.top, height: box.height };
-          }
-
-          const top = view.coordsAtPos(block.from);
-          const bottom = view.coordsAtPos(block.to);
-          if (!top || !bottom) return null;
-
-          return { top: top.top, height: bottom.bottom - top.top };
+          const box = focusBox(view, block);
+          return box ? { block, box } : null;
         },
-        (box) => {
-          scrollBoxToAnchor(surface, box, motion);
+        ({ block, box }) => {
+          scrollBoxToAnchor(surface, box, motion, () => focusBox(this.view, block));
           this.remeasure();
         },
       );

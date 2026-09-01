@@ -204,6 +204,11 @@ const pinning = ViewPlugin.fromClass(
             { top: caret.top, height: caret.bottom - caret.top },
             typewriterY(surface),
             motion,
+            () => {
+              if (!this.view.dom.isConnected) return null;
+              const current = this.view.coordsAtPos(this.view.state.selection.main.head);
+              return current ? { top: current.top, height: current.bottom - current.top } : null;
+            },
           );
         },
       );
