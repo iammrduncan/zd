@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Execute goal 03](_completed/execute-goal-03.md) is complete. This goal needs the full host/protocol,
+- [Execute goal 03](execute-goal-03.md) is complete. This goal needs the full host/protocol,
   durable restart behavior, reconnect/reattach semantics, and deterministic host cleanup before the
   desktop can delegate its lifecycle to a child.
 - Goals 00–02 established the exact executable server contract, stable identity/state path, and
@@ -20,7 +20,7 @@ The accepted architecture defines which behaviors remain client-local.
 ## `/goal` objective
 
 This goal delivers work packet 3 from
-[`02-DELIVERY-PLAN.md:58-79`](../02-DELIVERY-PLAN.md#work-packet-3-stable-cli-dispatch-and-tauri-client-shell).
+[`02-DELIVERY-PLAN.md:58-79`](../../02-DELIVERY-PLAN.md#work-packet-3-stable-cli-dispatch-and-tauri-client-shell).
 
 Make `zd serve` a stable foreground dispatch mode, then turn the Tauri application into a real
 supervisor and viewing-computer shell for that same executable. The webview must use the socket for
@@ -157,9 +157,9 @@ At minimum, prove:
 
 ## Engineering constraints
 
-- Follow repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../GOOD_ENGINEERING_H.md),
-  [`DESIGN.md`](../../../../DESIGN.md), ADR 0009, and the shutdown order in
-  [`01-TARGET-ARCHITECTURE.md:100-123`](../01-TARGET-ARCHITECTURE.md#desktop-process-topology).
+- Follow repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../../GOOD_ENGINEERING_H.md),
+  [`DESIGN.md`](../../../../../DESIGN.md), ADR 0009, and the shutdown order in
+  [`01-TARGET-ARCHITECTURE.md:100-123`](../../01-TARGET-ARCHITECTURE.md#desktop-process-topology).
 - Model child supervision as one explicit state machine with one owner. Do not spread generation,
   readiness, reaping, and shutdown booleans across event callbacks.
 - Continuously drain pipes from process start. Never wait for a child while holding the state lock or

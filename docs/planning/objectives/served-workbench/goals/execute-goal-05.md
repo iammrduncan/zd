@@ -2,13 +2,13 @@
 
 ## Prerequisites
 
-- [Execute goal 04](execute-goal-04.md) is complete. This goal needs the final stable CLI,
+- [Execute goal 04](_completed/execute-goal-04.md) is complete. This goal needs the final stable CLI,
   supervised child topology, exact shell bridge, retired native authority, and cross-platform cleanup
   contract.
 - Goals 00–03 supply the browser, persistence, editing/Git, watcher/PTY, reconnect, and security
-  evidence that installed artifacts must exercise rather than replace with packaging mocks. Goal 03
-  supplies that runtime evidence on Unix; the owner deferred its native Windows Job Object test to
-  this goal on 2026-09-01.
+  evidence that installed artifacts must exercise rather than replace with packaging mocks. Goals
+  03 and 04 supply runtime evidence on Linux and portable Unix paths; the owner deferred their
+  native Windows process and wrapper execution to this goal on 2026-09-01.
 - Release documentation may change only after an installed artifact on that platform passes the
   served-host and wrapper smoke checks in this goal.
 - This goal is serialized with every prior goal because it freezes their executable names, assets,
