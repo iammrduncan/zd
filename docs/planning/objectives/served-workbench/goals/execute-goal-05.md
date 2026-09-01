@@ -6,7 +6,9 @@
   supervised child topology, exact shell bridge, retired native authority, and cross-platform cleanup
   contract.
 - Goals 00–03 supply the browser, persistence, editing/Git, watcher/PTY, reconnect, and security
-  evidence that installed artifacts must exercise rather than replace with packaging mocks.
+  evidence that installed artifacts must exercise rather than replace with packaging mocks. Goal 03
+  supplies that runtime evidence on Unix; the owner deferred its native Windows Job Object test to
+  this goal on 2026-09-01.
 - Release documentation may change only after an installed artifact on that platform passes the
   served-host and wrapper smoke checks in this goal.
 - This goal is serialized with every prior goal because it freezes their executable names, assets,
@@ -107,6 +109,9 @@ At minimum, prove:
   control handling for `zd.exe`, adds/removes only its exact per-user PATH segment, targets desktop
   launch/file associations correctly, upgrades without stale binaries, and leaves user projects/
   state untouched on uninstall;
+- native Windows `cargo test --workspace` runs
+  `terminal::tests::disposal_terminates_the_session_job_and_its_descendant` and proves that host
+  cleanup leaves no terminal descendant alive;
 - the Linux `.deb` installs the exact console/desktop files and declared dependencies, its desktop
   entry/file association invokes the wrapper, `zd serve` works from PATH, upgrade replaces stale
   files, and uninstall leaves user projects/state untouched;

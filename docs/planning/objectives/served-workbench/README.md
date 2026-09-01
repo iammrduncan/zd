@@ -9,9 +9,8 @@ reachable served host and one observable protocol.
 
 ## Needs the owner
 
-Goal 03 has one open platform result. Run `cargo test --workspace` on native Windows, or approve a
-contract change that moves the Windows result to Goal 05. The Linux host cannot count the gated
-Windows Job Object test as evidence. This result blocks Goal 03 completion and Goal 04.
+Nothing. The owner deferred native Windows process-containment execution to Goal 05. Goal 03 is
+complete on its Linux, Unix-process, and real-browser evidence, and Goal 04 is ready to start.
 
 ## Plan documents
 
@@ -33,7 +32,6 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 
 | Goal | Delivers | Prerequisites | Needs owner |
 | --- | --- | --- | --- |
-| [Execute goal 03](goals/execute-goal-03.md) | Bounded watcher/PTY events and explicit reconnect/cleanup | Goal 02 | [Yes — Windows result](goals/summary-goal-03.md) |
 | [Execute goal 04](goals/execute-goal-04.md) | Stable `zd serve` CLI and a literal supervised Tauri client shell | Goal 03 | No |
 | [Execute goal 05](goals/execute-goal-05.md) | Verified macOS, Windows, and Linux release artifacts | Goal 04 | No |
 
@@ -44,6 +42,7 @@ constraints, origin-persistence problem, and missing browser-to-real-host eviden
 | [Execute goal 00](goals/_completed/execute-goal-00.md) | [Summary](goals/_completed/summary-goal-00.md) | One authenticated read-only served host opens a real project file in a real browser. |
 | [Execute goal 01](goals/_completed/execute-goal-01.md) | [Summary](goals/_completed/summary-goal-01.md) | Stable identities and host-owned workbench state survive a new process, port, origin, and secret. |
 | [Execute goal 02](goals/_completed/execute-goal-02.md) | [Summary](goals/_completed/summary-goal-02.md) | A browser connects directly and edits through one durable, grant-scoped file/Git host. |
+| [Execute goal 03](goals/_completed/execute-goal-03.md) | [Summary](goals/_completed/summary-goal-03.md) | Host-owned watches and terminals reconnect without duplicate processes and expire with explicit loss. |
 
 ## What this objective will not do
 

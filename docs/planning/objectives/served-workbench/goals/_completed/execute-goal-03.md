@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Execute goal 02](_completed/execute-goal-02.md) is complete. This goal needs the full non-streaming host
+- [Execute goal 02](execute-goal-02.md) is complete. This goal needs the full non-streaming host
   authority, stable identities, durable state, bounded socket, and real read/write browser harness.
 - The owner may not release this goal independently as the desktop cutover. Tauri still uses its
   temporary adapter until goal 04.
@@ -17,7 +17,7 @@ one event socket, structured project-scoped shells, explicit reconnect, and desc
 ## `/goal` objective
 
 This goal delivers work packet 2 from
-[`02-DELIVERY-PLAN.md:43-56`](../02-DELIVERY-PLAN.md#work-packet-2-watchers-ptys-and-reconnect).
+[`02-DELIVERY-PLAN.md:43-56`](../../02-DELIVERY-PLAN.md#work-packet-2-watchers-ptys-and-reconnect).
 
 Move filesystem watch signals and the complete PTY lifecycle behind `HostService` and the existing
 authenticated WebSocket. A transient network/socket loss must have an observable result: reconnect
@@ -142,8 +142,8 @@ At minimum, prove:
 
 ## Engineering constraints
 
-- Follow repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../GOOD_ENGINEERING_H.md),
-  [`DESIGN.md`](../../../../DESIGN.md), and ADR 0009. Reproduce every discovered lifecycle failure in
+- Follow repository `AGENTS.md`, [`GOOD_ENGINEERING_H.md`](../../../../../GOOD_ENGINEERING_H.md),
+  [`DESIGN.md`](../../../../../DESIGN.md), and ADR 0009. Reproduce every discovered lifecycle failure in
   a deterministic test before fixing it.
 - Keep concurrency simple: one runtime owner, bounded queues, one serialized event journal, and
   explicit shutdown. Do not hold the grant/runtime mutex while blocking on process I/O, callbacks,
