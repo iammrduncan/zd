@@ -93,6 +93,24 @@ fn registered_custom_commands_are_only_bootstrap_and_viewing_computer_shell() {
 }
 
 #[test]
+fn single_instance_arbitration_is_registered_before_every_other_plugin() {
+    let source = LIBRARY;
+    let arbitration = source
+        .find(".plugin(single_instance::plugin())")
+        .expect("single-instance arbitration is registered");
+    let next_plugin = source
+        .find(".plugin(tauri_plugin_opener::init())")
+        .expect("opener plugin is registered");
+    let setup = source
+        .find(".setup(move |app|")
+        .expect("desktop setup exists");
+
+    assert_eq!(source.matches("single_instance::plugin()").count(), 1);
+    assert!(arbitration < next_plugin);
+    assert!(arbitration < setup);
+}
+
+#[test]
 fn the_local_startup_page_can_only_listen_for_native_status() {
     let capability: serde_json::Value =
         serde_json::from_str(LOCAL_CAPABILITY).expect("local capability JSON");
