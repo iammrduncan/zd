@@ -2,9 +2,8 @@ use std::io::Read;
 use std::path::Path;
 use std::time::Duration;
 
-use crate::cli::LaunchState;
-use crate::grants::ResourceRef;
-use zd_host::git_process::run_git;
+use crate::git_process::run_git;
+use crate::ResourceRef;
 
 use super::status::stable_id;
 use super::types::{
@@ -12,7 +11,7 @@ use super::types::{
     GitDiffSource,
 };
 use super::{
-    compare_for, current_head, failure_from_run, resolve_scope, status_for, Failure,
+    compare_for, current_head, failure_from_run, resolve_scope, status_for, Failure, GitAuthority,
     RepositoryScope,
 };
 
@@ -93,14 +92,18 @@ fn content(
     }
 }
 
-fn read_working_for(state: &LaunchState, request: &GitDiffRequest, path: &str) -> GitDiffBuffer {
+fn read_working_for<A: GitAuthority + ?Sized>(
+    state: &A,
+    request: &GitDiffRequest,
+    path: &str,
+) -> GitDiffBuffer {
     let revision = "working-tree";
     let resource = ResourceRef {
         project_id: request.scope.project_id.clone(),
         worktree_id: request.scope.worktree_id.clone(),
         relative_path: path.to_string(),
     };
-    let resolved = match state.resolve(&resource) {
+    let resolved = match state.git_resource(&resource) {
         Ok(path) => path,
         Err(_) => return unavailable(request, path, revision, "File authority is unavailable"),
     };
@@ -204,7 +207,7 @@ fn diff_failure(request: GitDiffRequest, failure: Failure) -> GitDiff {
     }
 }
 
-pub fn diff_for(state: &LaunchState, request: GitDiffRequest) -> GitDiff {
+pub fn diff_for<A: GitAuthority + ?Sized>(state: &A, request: GitDiffRequest) -> GitDiff {
     let repository = match resolve_scope(state, &request.scope) {
         Ok(repository) => repository,
         Err(failure) => return diff_failure(request, failure),
