@@ -10,7 +10,7 @@ function client(): ServedHostClient {
         return {
           protocolVersion: 1,
           sessionEpoch: "epoch-1",
-          access: "read-only",
+          access: "read-write",
           startupProjectId: "project-1",
           startupWorktreeId: "worktree-1",
           startupRelativePath: null,
@@ -18,12 +18,17 @@ function client(): ServedHostClient {
             projectGrants: "read-only",
             fileTree: "read-only",
             fileRead: "read-only",
-            fileWrite: "unavailable",
-            fileMutations: "unavailable",
+            fileWrite: "read-write",
+            fileMutations: "read-write",
+            clipboardImages: "read-write",
+            projectImages: "read-only",
             fileWatch: "unavailable",
-            git: "unavailable",
+            git: "read-only",
+            worktrees: "read-write",
             terminal: "unavailable",
             durableState: "read-write",
+            themeFiles: "read-only",
+            hostDiagnostics: "read-write",
             projectPicker: "unavailable",
             recentWorkspaces: "unavailable",
           },
@@ -72,11 +77,51 @@ function client(): ServedHostClient {
       case "file.readBounded":
         return {
           status: "text",
-          text: "hello",
+          textBase64: "aGVsbG8=",
           byteLength: 5,
           writable: true,
           reason: null,
         };
+      case "workspaceFiles.list":
+        return {
+          projectId: "project-1",
+          worktreeId: "worktree-1",
+          root: "/remote/fixture",
+          files: [],
+        };
+      case "file.writeText":
+        return null;
+      case "file.stamp":
+        return { modified: 1, length: 5 };
+      case "fileTree.mutate":
+        return { status: "committed" };
+      case "image.readProject":
+        return { mediaType: "image/png", bytesBase64: "iVBORw0KGgo=" };
+      case "image.saveClipboard":
+        return { relativePath: "docs/screenshots/screenshot.png" };
+      case "git.status":
+        return {
+          scope: { projectId: "project-1", worktreeId: "worktree-1" },
+          availability: "available",
+          entries: [],
+          truncated: false,
+          problem: null,
+        };
+      case "worktree.create":
+        return { status: "refused", kind: "collision", reason: "already exists" };
+      case "theme.list":
+        return [{ fileName: "fixture.theme.config", contents: "{}", problem: null }];
+      case "diagnostics.status":
+      case "diagnostics.enable":
+      case "diagnostics.disable":
+        return {
+          enabled: method === "diagnostics.enable",
+          sessionId: method === "diagnostics.enable" ? "session-1" : null,
+          backgroundSampling: method === "diagnostics.enable",
+          problem: null,
+        };
+      case "diagnostics.record":
+        return { recorded: true, problem: null };
       case "state.describe":
         return {
           revision: { preferences: 0, project: 0 },
@@ -124,7 +169,7 @@ describe("served WorkbenchHost", () => {
     });
   });
 
-  it("forces every served text result to remain non-writable", async () => {
+  it("decodes bounded served text and preserves its writable state", async () => {
     const served = createServedWorkbenchHost(client());
 
     await expect(
@@ -137,8 +182,7 @@ describe("served WorkbenchHost", () => {
       status: "text",
       text: "hello",
       byteLength: 5,
-      writable: false,
-      reason: "Served workbenches are read-only",
+      writable: true,
     });
   });
 
@@ -159,31 +203,20 @@ describe("served WorkbenchHost", () => {
     });
   });
 
-  it("makes every capability outside packet zero visibly unavailable", async () => {
-    const served = createServedWorkbenchHost(client());
+  it("routes editing, Git, worktrees, themes, and diagnostics through closed methods", async () => {
+    const hostClient = client();
+    const served = createServedWorkbenchHost(hostClient);
     const scope = { projectId: "project-1", worktreeId: "worktree-1" };
     const resource = { ...scope, relativePath: "notes.md" };
 
-    await expect(served.writeTextFile(resource, "changed")).rejects.toThrow("read-only");
-    await expect(served.saveWorkspace(["project-1"])).rejects.toThrow("unavailable");
-    await expect(served.openWorkspace("workspace-1")).rejects.toThrow("unavailable");
-    await expect(
-      served.createThreadWorktree({
-        projectId: scope.projectId,
-        name: "thread",
-        branch: "thread",
-        baseRevision: null,
-      }),
-    ).resolves.toMatchObject({ status: "refused" });
-    await expect(
-      served.terminal.start({
-        ...scope,
-        viewport: { rows: 24, columns: 80, pixelWidth: 0, pixelHeight: 0 },
-      }),
-    ).rejects.toThrow();
-    await expect(served.git.status(scope)).resolves.toMatchObject({
-      availability: "unavailable",
-      problem: "Git inspection is unavailable in the read-only served workbench",
+    await expect(served.writeTextFile(resource, "changed")).resolves.toBeUndefined();
+    expect(hostClient.request).toHaveBeenCalledWith("file.writeText", {
+      ...resource,
+      contentsBase64: "Y2hhbmdlZA==",
+    });
+    await expect(served.fileStamp(resource)).resolves.toEqual({ modified: 1, length: 5 });
+    await expect(served.workspaceFiles(scope.projectId, scope.worktreeId)).resolves.toMatchObject({
+      root: "/remote/fixture",
     });
     await expect(
       served.fileTree.mutate?.({
@@ -192,6 +225,52 @@ describe("served WorkbenchHost", () => {
         relativePath: "new.md",
         kind: "file",
       }),
-    ).resolves.toMatchObject({ status: "refused" });
+    ).resolves.toEqual({ status: "committed" });
+    await expect(served.readProjectImage({ ...scope, relativePath: "image.png" })).resolves.toEqual(
+      {
+        mediaType: "image/png",
+        bytes: [137, 80, 78, 71, 13, 10, 26, 10],
+      },
+    );
+    await expect(
+      served.saveClipboardImage({
+        ...scope,
+        mediaType: "image/png",
+        bytes: Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]),
+      }),
+    ).resolves.toEqual({ relativePath: "docs/screenshots/screenshot.png" });
+    await expect(served.git.status(scope)).resolves.toMatchObject({ availability: "available" });
+    await expect(
+      served.createThreadWorktree({
+        projectId: scope.projectId,
+        name: "thread",
+        branch: "thread",
+        baseRevision: null,
+      }),
+    ).resolves.toMatchObject({ status: "refused", kind: "collision" });
+    await expect(served.themeConfigFiles()).resolves.toHaveLength(1);
+    await expect(served.enableDiagnostics()).resolves.toMatchObject({ enabled: true });
+    await expect(
+      served.recordDiagnostic({
+        recordType: "event",
+        operation: "served.test",
+        outcome: "ok",
+      }),
+    ).resolves.toEqual({ recorded: true, problem: null });
+  });
+
+  it("keeps streaming and native shell authority unavailable", async () => {
+    const served = createServedWorkbenchHost(client());
+    const scope = { projectId: "project-1", worktreeId: "worktree-1" };
+
+    await expect(served.saveWorkspace(["project-1"])).rejects.toThrow("unavailable");
+    await expect(served.openWorkspace("workspace-1")).rejects.toThrow("unavailable");
+    await expect(
+      served.terminal.start({
+        ...scope,
+        viewport: { rows: 24, columns: 80, pixelWidth: 0, pixelHeight: 0 },
+      }),
+    ).rejects.toThrow();
+    await expect(served.revealDiagnostics()).rejects.toThrow("unavailable");
   });
 });
