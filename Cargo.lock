@@ -5746,6 +5746,7 @@ dependencies = [
  "ignore",
  "serde",
  "serde_json",
+ "sysinfo",
  "trash",
 ]
 

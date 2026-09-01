@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use zd_lib::instrumentation::{
+use zd_host::instrumentation::{
     CurrentProcessSampler, DiagnosticPolicy, DiagnosticRecordInput, DiagnosticState, ProcessSample,
     ProcessSampler,
 };

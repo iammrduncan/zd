@@ -1,19 +1,9 @@
-//! Local, opt-in diagnostic evidence with a closed privacy boundary.
+//! Tauri adapters for host-owned diagnostics.
 
-mod format;
-mod retention;
 pub(crate) mod runtime;
-mod sampler;
-mod service;
-mod writer;
 
-pub use format::{DiagnosticRecordInput, ProcessSample};
-pub use retention::{DiagnosticCatalog, DiagnosticSessionSummary};
-pub use runtime::{
-    diagnostics_status, disable_diagnostics, enable_diagnostics, record_diagnostic,
-    reveal_diagnostics, DiagnosticState,
-};
-pub use sampler::CurrentProcessSampler;
-pub use service::{
-    DiagnosticPolicy, DiagnosticService, DiagnosticStatus, DiagnosticWriteOutcome, ProcessSampler,
+pub use zd_host::instrumentation::{
+    CurrentProcessSampler, DiagnosticCatalog, DiagnosticPolicy, DiagnosticRecordInput,
+    DiagnosticService, DiagnosticSessionSummary, DiagnosticState, DiagnosticStatus,
+    DiagnosticWriteOutcome, ProcessSample, ProcessSampler,
 };
