@@ -7,6 +7,7 @@
 mod desktop;
 mod dispatch;
 mod executables;
+mod installed_smoke;
 mod launch;
 pub mod notifications;
 mod quick_access;
@@ -49,9 +50,10 @@ fn run_console_from_environment() -> Result<(), String> {
 fn run_desktop_from_environment() -> Result<(), String> {
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
     let invocation_directory = launch::invocation_directory_from_environment();
+    let installed_smoke = installed_smoke::InstalledSmoke::from_environment()?;
     match dispatch::parse_command(&arguments, &invocation_directory)? {
         dispatch::LaunchMode::Desktop(launch_request) => {
-            run_desktop_app(launch_request);
+            run_desktop_app(launch_request, installed_smoke);
             Ok(())
         }
         dispatch::LaunchMode::Serve(_) | dispatch::LaunchMode::WrapperChild => {
@@ -75,7 +77,11 @@ fn launch_desktop(launch_request: launch::NativeOpenRequest) -> Result<(), Strin
         .map_err(|_| "the desktop application could not start".to_string())
 }
 
-fn run_desktop_app(launch_request: launch::NativeOpenRequest) {
+fn run_desktop_app(
+    launch_request: launch::NativeOpenRequest,
+    installed_smoke: installed_smoke::InstalledSmoke,
+) {
+    let setup_smoke = installed_smoke.clone();
     let app = tauri::Builder::default()
         .plugin(single_instance::plugin())
         .plugin(tauri_plugin_opener::init())
@@ -83,9 +89,11 @@ fn run_desktop_app(launch_request: launch::NativeOpenRequest) {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(supervisor::Supervisor::default())
+        .manage(installed_smoke)
         .manage(shell::OpenIntentState::default())
         .manage(quick_access::QuickAccessState::default())
         .setup(move |app| {
+            setup_smoke.install(app.handle());
             app.manage(notifications::NotificationState::new(app.handle().clone()));
             desktop::start(
                 app.handle().clone(),

@@ -4,6 +4,7 @@ use serde::Serialize;
 use tauri::ipc::CapabilityBuilder;
 use tauri::{Emitter, Manager};
 
+use crate::installed_smoke::InstalledSmoke;
 use crate::supervisor::{
     DesktopBootstrap, Supervisor, SupervisorLaunch, SupervisorPhase, SupervisorSnapshot,
 };
@@ -34,6 +35,7 @@ pub fn start(app: tauri::AppHandle, launch_path: Option<PathBuf>) -> Result<(), 
         .get_webview_window("main")
         .ok_or_else(|| "the main desktop webview is unavailable".to_string())?;
     let supervisor = app.state::<Supervisor>().inner().clone();
+    let installed_smoke = app.state::<InstalledSmoke>().inner().clone();
     std::thread::Builder::new()
         .name("zd-desktop-host-startup".to_string())
         .spawn(move || {
@@ -53,12 +55,14 @@ pub fn start(app: tauri::AppHandle, launch_path: Option<PathBuf>) -> Result<(), 
                 );
                 return;
             };
-            if let Err(problem) = install_origin_capability(&app, ready.generation, origin) {
+            if let Err(problem) =
+                install_origin_capability(&app, ready.generation, origin, installed_smoke.enabled())
+            {
                 let _ = supervisor.shutdown();
                 emit_status(&window, "failed", Some(problem));
                 return;
             }
-            let url = match tauri::Url::parse(origin) {
+            let mut url = match tauri::Url::parse(origin) {
                 Ok(url) => url,
                 Err(_) => {
                     let _ = supervisor.shutdown();
@@ -70,6 +74,7 @@ pub fn start(app: tauri::AppHandle, launch_path: Option<PathBuf>) -> Result<(), 
                     return;
                 }
             };
+            installed_smoke.decorate_url(&mut url);
             if window.navigate(url).is_err() {
                 let _ = supervisor.shutdown();
                 emit_status(
@@ -95,19 +100,22 @@ fn install_origin_capability(
     app: &tauri::AppHandle,
     generation: u64,
     origin: &str,
+    installed_smoke: bool,
 ) -> Result<(), String> {
-    app.add_capability(
-        CapabilityBuilder::new(format!("desktop-served-{generation}"))
-            .remote(format!("{origin}/*"))
-            .window("main")
-            .permission("allow-desktop-bootstrap")
-            .permission("allow-desktop-shell")
-            .permission("core:event:allow-listen")
-            .permission("core:event:allow-unlisten")
-            .permission("core:window:allow-is-focused")
-            .permission("core:window:allow-start-dragging"),
-    )
-    .map_err(|_| "the desktop host capability could not be installed".to_string())
+    let mut capability = CapabilityBuilder::new(format!("desktop-served-{generation}"))
+        .remote(format!("{origin}/*"))
+        .window("main")
+        .permission("allow-desktop-bootstrap")
+        .permission("allow-desktop-shell")
+        .permission("core:event:allow-listen")
+        .permission("core:event:allow-unlisten")
+        .permission("core:window:allow-is-focused")
+        .permission("core:window:allow-start-dragging");
+    if installed_smoke {
+        capability = capability.permission("core:event:allow-emit");
+    }
+    app.add_capability(capability)
+        .map_err(|_| "the desktop host capability could not be installed".to_string())
 }
 
 fn report_terminal_state(window: &tauri::WebviewWindow, snapshot: SupervisorSnapshot) {

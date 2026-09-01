@@ -60,4 +60,4 @@ if ! node packages/scripts/release/smoke-macos-wrapper.mjs "$installed_app" \
   echo "zd: installed macOS wrapper smoke failed" >&2
   exit 1
 fi
-echo "Verified installed macOS wrapper: health=204 secondary=reused cleanup=passed"
+echo "Verified installed macOS wrapper: controller=one reload=same-session shell=show-workbench secondary=reused graceful=passed forced=passed crash=presented cleanup=passed"

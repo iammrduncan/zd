@@ -29,7 +29,9 @@ describe("the Linux Debian package", () => {
     expect(source).toContain("installed Linux wrapper smoke failed");
     expect(source).toContain('>"$wrapper_log" 2>&1');
     expect(source).toContain(
-      "Verified installed Linux wrapper: health=204 secondary=reused cleanup=passed",
+      "Verified installed Linux wrapper: controller=one reload=same-session " +
+        "shell=show-workbench secondary=reused graceful=passed forced=passed " +
+        "crash=presented cleanup=passed",
     );
   });
 
