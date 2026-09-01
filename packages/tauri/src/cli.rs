@@ -331,13 +331,11 @@ fn resolve_dir(override_dir: Option<PathBuf>, working_dir: PathBuf) -> PathBuf {
     }
 }
 
-pub fn launch_from_environment() -> NativeOpenRequest {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    let cwd = resolve_dir(
+pub(crate) fn invocation_directory_from_environment() -> PathBuf {
+    resolve_dir(
         std::env::var_os(INVOCATION_DIR).map(PathBuf::from),
         std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
-    );
-    parse_args(&args, &cwd)
+    )
 }
 
 #[tauri::command]
@@ -373,17 +371,36 @@ pub fn opened_request(urls: &[tauri::Url]) -> Option<NativeOpenRequest> {
 }
 
 /// Pure so it can be tested without a process.
+#[cfg(test)]
 fn parse_args(args: &[String], cwd: &Path) -> NativeOpenRequest {
-    // macOS hands Finder launches a `-psn_0_12345` process-serial argument.
-    let mut positional = args.iter().filter(|a| !a.starts_with('-'));
+    parse_launch_args(args, cwd).unwrap_or(NativeOpenRequest { path: None })
+}
+
+pub(crate) fn parse_launch_args(args: &[String], cwd: &Path) -> Result<NativeOpenRequest, String> {
+    // macOS hands Finder launches one `-psn_0_12345` process-serial argument.
+    let mut positional = args
+        .iter()
+        .filter(|argument| argument.starts_with("-psn_") || !argument.starts_with('-'))
+        .filter(|argument| !argument.starts_with("-psn_"));
+
+    if let Some(option) = args
+        .iter()
+        .find(|argument| argument.starts_with('-') && !argument.starts_with("-psn_"))
+    {
+        return Err(format!("unknown desktop option: {option}"));
+    }
 
     let Some(first) = positional.next() else {
-        return NativeOpenRequest { path: None };
+        return Ok(NativeOpenRequest { path: None });
     };
 
-    NativeOpenRequest {
-        path: Some(absolutize(first, cwd)),
+    if positional.next().is_some() {
+        return Err("zd accepts at most one desktop path".to_string());
     }
+
+    Ok(NativeOpenRequest {
+        path: Some(absolutize(first, cwd)),
+    })
 }
 
 /// Resolve against the working directory without requiring the path to exist —

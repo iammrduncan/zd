@@ -5731,6 +5731,7 @@ dependencies = [
  "tauri-plugin-notification",
  "tauri-plugin-opener",
  "zd-host",
+ "zd-server",
 ]
 
 [[package]]
