@@ -57,7 +57,8 @@ checks; performance claims need the release fixture that owns the claim.
 | `packages/app/src/editor` | CodeMirror buffer, language, Find/Replace, and editor facade |
 | `packages/app/src/design` | Semantic tokens, fonts, and validated themes |
 | `packages/app/src/platform.ts` | The frontend’s complete native boundary |
-| `packages/tauri` | Native grants, files, Git, PTYs, windows, notifications, and diagnostics |
+| `packages/host` | Native grants, files, Git, watchers, PTYs, durable state, and diagnostics |
+| `packages/tauri` | Desktop composition, windows, notifications, and adapters to the shared host |
 | `packages/scripts` | Repository checks, releases, objectives, and session automation |
 
 Read [the architecture explanation](../explanation/architecture.md) before moving a responsibility

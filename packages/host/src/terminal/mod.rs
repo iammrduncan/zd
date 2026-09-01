@@ -7,6 +7,8 @@
 
 mod output;
 mod process;
+#[cfg(test)]
+mod tests;
 
 use std::collections::HashMap;
 use std::fmt;
@@ -22,6 +24,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 pub const DEFAULT_OUTPUT_LIMIT_BYTES: usize = 4 * 1024 * 1024;
 pub const MAX_OUTPUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_INPUT_BYTES: usize = 64 * 1024;
+pub const MAX_TERMINAL_SESSIONS: usize = 32;
 pub type TerminalOutputSignal = Arc<dyn Fn(TerminalSessionHandle) + Send + Sync + 'static>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -43,7 +46,7 @@ pub struct TerminalError {
 }
 
 impl TerminalError {
-    pub(crate) fn new(kind: TerminalErrorKind, message: impl Into<String>) -> Self {
+    pub fn new(kind: TerminalErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
             message: message.into(),
@@ -218,6 +221,7 @@ pub struct TerminalExitStatus {
 pub struct TerminalSessions {
     next_identity: u64,
     output_limit_bytes: usize,
+    session_limit: usize,
     sessions: HashMap<String, TerminalSession>,
 }
 
@@ -230,17 +234,33 @@ impl Default for TerminalSessions {
 
 impl TerminalSessions {
     pub fn with_output_limit(output_limit_bytes: usize) -> Result<Self, TerminalError> {
+        Self::with_limits(output_limit_bytes, MAX_TERMINAL_SESSIONS)
+    }
+
+    fn with_limits(output_limit_bytes: usize, session_limit: usize) -> Result<Self, TerminalError> {
         if output_limit_bytes == 0 || output_limit_bytes > MAX_OUTPUT_LIMIT_BYTES {
             return Err(TerminalError::new(
                 TerminalErrorKind::InvalidInput,
                 format!("terminal output limit must be from 1 to {MAX_OUTPUT_LIMIT_BYTES} bytes"),
             ));
         }
+        if session_limit == 0 || session_limit > MAX_TERMINAL_SESSIONS {
+            return Err(TerminalError::new(
+                TerminalErrorKind::InvalidInput,
+                format!("terminal sessions are limited to {MAX_TERMINAL_SESSIONS}"),
+            ));
+        }
         Ok(Self {
             next_identity: 1,
             output_limit_bytes,
+            session_limit,
             sessions: HashMap::new(),
         })
+    }
+
+    #[cfg(test)]
+    fn with_session_limit(session_limit: usize) -> Result<Self, TerminalError> {
+        Self::with_limits(DEFAULT_OUTPUT_LIMIT_BYTES, session_limit)
     }
 
     pub fn start_shell(
@@ -282,6 +302,12 @@ impl TerminalSessions {
         mut command: CommandBuilder,
         output_signal: Option<TerminalOutputSignal>,
     ) -> Result<TerminalSessionHandle, TerminalError> {
+        if self.sessions.len() >= self.session_limit {
+            return Err(TerminalError::new(
+                TerminalErrorKind::InvalidInput,
+                format!("terminal sessions are limited to {}", self.session_limit),
+            ));
+        }
         command.cwd(&scope.cwd);
         command.env("TERM", "xterm-256color");
         command.env("COLORTERM", "truecolor");
