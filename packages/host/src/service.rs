@@ -7,10 +7,10 @@ use serde::Serialize;
 use crate::durable::DurableStateStore;
 use crate::{durable, identity};
 use crate::{
-    file_stamp_at, read_bounded_file_at, read_project_image_at, read_text_file_at, snapshot_in,
-    workspace_files_in, write_text_file_at, BoundedFileRead, FileStamp, FileTreeRequest,
-    FileTreeResult, GrantStore, ProjectGrant, ProjectImage, ResourceRef, TreeLimits,
-    WorkspaceListing,
+    file_stamp_at, mutate_file_tree_at, read_bounded_file_at, read_project_image_at,
+    read_text_file_at, snapshot_in, workspace_files_in, write_text_file_at, BoundedFileRead,
+    FileStamp, FileTreeMutationRequest, FileTreeMutationResult, FileTreeRequest, FileTreeResult,
+    GrantStore, ProjectGrant, ProjectImage, ResourceRef, TreeLimits, WorkspaceListing,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -173,6 +173,22 @@ impl HostService {
             .root(project_id, worktree_id)
             .map_err(|_| "Workspace file authority is unavailable".to_string())?;
         workspace_files_in(&root, project_id, worktree_id)
+    }
+
+    pub fn mutate_file_tree(&self, request: FileTreeMutationRequest) -> FileTreeMutationResult {
+        let (project_id, worktree_id) = request.scope();
+        let root = self
+            .state
+            .lock()
+            .expect("host state was poisoned")
+            .grants
+            .root(project_id, worktree_id);
+        match root {
+            Ok(root) => mutate_file_tree_at(&root, request),
+            Err(_) => FileTreeMutationResult::Refused {
+                reason: "File authority is unavailable.".to_string(),
+            },
+        }
     }
 
     fn resolve_resource(&self, resource: &ResourceRef) -> Result<std::path::PathBuf, String> {
