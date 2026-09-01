@@ -10,8 +10,10 @@ use crate::{
     file_stamp_at, mutate_file_tree_at, read_bounded_file_at, read_project_image_at,
     read_text_file_at, save_clipboard_image_at, snapshot_in, workspace_files_in,
     write_text_file_at, BoundedFileRead, ClipboardImageRequest, FileStamp, FileTreeMutationRequest,
-    FileTreeMutationResult, FileTreeRequest, FileTreeResult, GrantStore, ProjectGrant,
-    ProjectImage, ResourceRef, SavedClipboardImage, TreeLimits, WorkspaceListing,
+    FileTreeMutationResult, FileTreeRequest, FileTreeResult, GitAuthority, GitCompareRequest,
+    GitComparison, GitDiff, GitDiffRequest, GitHistoryPage, GitHistoryRequest, GitScope,
+    GitStatusSnapshot, GrantStore, ProjectGrant, ProjectImage, ResourceRef, SavedClipboardImage,
+    TreeLimits, WorkspaceListing,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -206,6 +208,22 @@ impl HostService {
         save_clipboard_image_at(&root, request)
     }
 
+    pub fn git_status(&self, scope: GitScope) -> GitStatusSnapshot {
+        crate::status_for(self, scope)
+    }
+
+    pub fn git_history(&self, request: GitHistoryRequest) -> GitHistoryPage {
+        crate::history_for(self, request)
+    }
+
+    pub fn git_compare(&self, request: GitCompareRequest) -> GitComparison {
+        crate::compare_for(self, request)
+    }
+
+    pub fn git_diff(&self, request: GitDiffRequest) -> GitDiff {
+        crate::diff_for(self, request)
+    }
+
     fn resolve_resource(&self, resource: &ResourceRef) -> Result<std::path::PathBuf, String> {
         self.state
             .lock()
@@ -241,5 +259,23 @@ impl HostService {
             .into_iter()
             .collect();
         Ok((durable, worktree_ids))
+    }
+}
+
+impl GitAuthority for HostService {
+    fn git_root(&self, project_id: &str, worktree_id: &str) -> Result<std::path::PathBuf, String> {
+        self.state
+            .lock()
+            .expect("host state was poisoned")
+            .grants
+            .root(project_id, worktree_id)
+    }
+
+    fn git_resource(&self, resource: &ResourceRef) -> Result<std::path::PathBuf, String> {
+        self.state
+            .lock()
+            .expect("host state was poisoned")
+            .grants
+            .resolve(resource)
     }
 }

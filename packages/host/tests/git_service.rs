@@ -1,20 +1,10 @@
-#![allow(dead_code)]
-
-#[path = "../src/cli.rs"]
-mod cli;
-#[path = "../src/git.rs"]
-mod git;
-#[path = "../src/grants.rs"]
-mod grants;
-
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use cli::{LaunchState, NativeOpenRequest};
-use git::types::{GitChangeState, GitDiffBuffer, GitDiffSource};
-use git::{
-    compare_for, diff_for, history_for, status_for, GitAvailability, GitCompareRequest,
-    GitDiffRequest, GitHistoryRequest, GitScope,
+use zd_host::{
+    compare_for, diff_for, history_for, status_for, GitAvailability, GitChangeState,
+    GitCompareRequest, GitDiffBuffer, GitDiffRequest, GitDiffSource, GitHistoryRequest, GitScope,
+    HostService,
 };
 
 struct RepositoryFixture(PathBuf);
@@ -87,15 +77,12 @@ impl Drop for RepositoryFixture {
     }
 }
 
-fn approved_scope(root: &Path) -> (LaunchState, GitScope) {
-    let launch = LaunchState::new(NativeOpenRequest {
-        path: Some(root.to_string_lossy().into_owned()),
-    });
-    let request = launch.current();
-    let project = request.project.expect("fixture project is approved");
-    let worktree_id = request.worktree_id.expect("fixture worktree is approved");
+fn approved_scope(root: &Path) -> (HostService, GitScope) {
+    let host = HostService::open_project(root).expect("fixture project is approved");
+    let project = host.project_grants().remove(0);
+    let worktree_id = project.worktrees[0].id.clone();
     (
-        launch,
+        host,
         GitScope {
             project_id: project.id,
             worktree_id,

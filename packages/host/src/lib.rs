@@ -6,6 +6,7 @@ mod durable;
 mod file_mutations;
 mod file_tree;
 mod files;
+mod git;
 #[doc(hidden)]
 pub mod git_process;
 mod grants;
@@ -34,6 +35,12 @@ pub use files::{
     read_text_file_at, workspace_files_in, write_text_file_at, BoundedFileRead, FileStamp,
     ProjectImage, WorkspaceFile, WorkspaceListing, EDITABLE_FILE_LIMIT_BYTES,
     FILE_PREVIEW_LIMIT_BYTES, PROJECT_IMAGE_LIMIT_BYTES,
+};
+pub use git::{
+    compare_for, diff_for, history_for, status_for, GitAuthority, GitAvailability, GitChangeEntry,
+    GitChangeState, GitCommit, GitCompareRequest, GitComparison, GitComparisonEntry, GitDelta,
+    GitDiff, GitDiffBuffer, GitDiffRequest, GitDiffSource, GitHistoryPage, GitHistoryRequest,
+    GitScope, GitStatusSnapshot,
 };
 pub use grants::{
     ApprovedProject, GrantAvailability, GrantStore, ProjectGrant, ResourceRef, WorktreeGrant,
