@@ -11,7 +11,8 @@ pub enum FileTreeCreationKind {
 #[serde(
     tag = "operation",
     rename_all = "kebab-case",
-    rename_all_fields = "camelCase"
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
 )]
 pub enum FileTreeMutationRequest {
     Create {
