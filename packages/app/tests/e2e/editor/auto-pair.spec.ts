@@ -187,10 +187,10 @@ test("a pair typed beside a rendered fence leaves the fence alone", async ({ pag
   const after = await state(page);
   expect(after.text.slice(at, at + 2)).toBe("[]");
   expect(after.text.length, "more than the pair was inserted").toBe(before.length + 2);
-  expect(
-    await page.locator(".md-editor .md-line-code").count(),
+  await expect(
+    page.locator(".md-editor .md-line-code").first(),
     "the fence stopped being drawn as code",
-  ).toBeGreaterThan(0);
+  ).toBeVisible();
 });
 
 test("a run of backticks stays literal", async ({ page }) => {
