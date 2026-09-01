@@ -5,6 +5,9 @@ use std::sync::Mutex;
 use serde::Serialize;
 
 use crate::durable::DurableStateStore;
+use crate::instrumentation::{
+    DiagnosticRecordInput, DiagnosticState, DiagnosticStatus, DiagnosticWriteOutcome,
+};
 use crate::{durable, identity};
 use crate::{
     file_stamp_at, mutate_file_tree_at, read_bounded_file_at, read_project_image_at,
@@ -37,6 +40,7 @@ struct HostState {
 pub struct HostService {
     state: Mutex<HostState>,
     durable: Option<DurableStateStore>,
+    diagnostics: Option<DiagnosticState>,
     state_directory: Option<PathBuf>,
 }
 
@@ -53,6 +57,7 @@ impl HostService {
         Ok(Self {
             state: Mutex::new(HostState { launch, grants }),
             durable: None,
+            diagnostics: None,
             state_directory: None,
         })
     }
@@ -77,6 +82,10 @@ impl HostService {
         state_directory: &Path,
     ) -> Result<Self, String> {
         let durable = DurableStateStore::new(state_directory, identity.project_id.clone())?;
+        let diagnostics = DiagnosticState::new(
+            state_directory.join("diagnostics"),
+            env!("CARGO_PKG_VERSION"),
+        )?;
         let mut grants = GrantStore::default();
         let approved = grants.approve_project_with_identity(
             root,
@@ -92,6 +101,7 @@ impl HostService {
         Ok(Self {
             state: Mutex::new(HostState { launch, grants }),
             durable: Some(durable),
+            diagnostics: Some(diagnostics),
             state_directory: Some(state_directory.to_path_buf()),
         })
     }
@@ -242,6 +252,25 @@ impl HostService {
         crate::theme_files_in(directory)
     }
 
+    pub fn diagnostics_status(&self) -> Result<DiagnosticStatus, String> {
+        Ok(self.diagnostics()?.status())
+    }
+
+    pub fn enable_diagnostics(&self) -> Result<DiagnosticStatus, String> {
+        Ok(self.diagnostics()?.enable())
+    }
+
+    pub fn disable_diagnostics(&self) -> Result<DiagnosticStatus, String> {
+        Ok(self.diagnostics()?.shutdown())
+    }
+
+    pub fn record_diagnostic(
+        &self,
+        record: DiagnosticRecordInput,
+    ) -> Result<DiagnosticWriteOutcome, String> {
+        Ok(self.diagnostics()?.record(record))
+    }
+
     fn resolve_resource(&self, resource: &ResourceRef) -> Result<std::path::PathBuf, String> {
         self.state
             .lock()
@@ -277,6 +306,12 @@ impl HostService {
             .into_iter()
             .collect();
         Ok((durable, worktree_ids))
+    }
+
+    fn diagnostics(&self) -> Result<&DiagnosticState, String> {
+        self.diagnostics.as_ref().ok_or_else(|| {
+            "host diagnostics are unavailable: persistence was not configured".to_string()
+        })
     }
 }
 

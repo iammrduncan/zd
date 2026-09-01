@@ -1,15 +1,12 @@
-#[allow(dead_code, unused_imports)]
-#[path = "../src/instrumentation/mod.rs"]
-mod instrumentation;
-
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use instrumentation::{
+use serde_json::{json, Value};
+use zd_host::instrumentation;
+use zd_host::instrumentation::{
     DiagnosticPolicy, DiagnosticRecordInput, DiagnosticService, ProcessSample, ProcessSampler,
 };
-use serde_json::{json, Value};
 
 struct Scratch(PathBuf);
 

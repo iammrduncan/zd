@@ -11,6 +11,7 @@ mod git;
 pub mod git_process;
 mod grants;
 mod identity;
+pub mod instrumentation;
 mod service;
 mod themes;
 mod workspaces;

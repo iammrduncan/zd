@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use zd_host::instrumentation::DiagnosticRecordInput;
 use zd_host::{BoundedFileRead, FileTreeRequest, FileTreeResult, HostService, ResourceRef};
 
 struct Scratch(PathBuf);
@@ -149,6 +150,38 @@ fn persisted_host_discovers_themes_from_its_configuration_directory() {
         themes[0].contents.as_deref(),
         Some("{\"name\":\"Fixture\"}")
     );
+}
+
+#[test]
+fn persisted_host_keeps_diagnostics_off_until_explicitly_enabled() {
+    let project = Scratch::new("diagnostic-project");
+    let state = Scratch::new("diagnostic-state");
+    let host = persisted_host(project.path(), state.path());
+    let diagnostics_directory = state.join("diagnostics");
+
+    let initial = host.diagnostics_status().expect("read diagnostic status");
+    assert!(!initial.enabled);
+    assert!(!diagnostics_directory.exists());
+
+    let enabled = host.enable_diagnostics().expect("enable diagnostics");
+    assert!(enabled.enabled, "{:?}", enabled.problem);
+    let record: DiagnosticRecordInput = serde_json::from_value(serde_json::json!({
+        "recordType": "span",
+        "operation": "protocol.request",
+        "traceId": "request-0001",
+        "spanId": "dispatch-0001",
+        "durationUs": 125,
+        "outcome": "ok"
+    }))
+    .expect("closed diagnostic record");
+    assert!(
+        host.record_diagnostic(record)
+            .expect("record diagnostic")
+            .recorded
+    );
+
+    let disabled = host.disable_diagnostics().expect("disable diagnostics");
+    assert!(!disabled.enabled);
 }
 
 #[test]
