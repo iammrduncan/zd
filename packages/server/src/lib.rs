@@ -6,6 +6,7 @@ mod foreground;
 mod protocol;
 mod server;
 mod session;
+mod wrapper;
 
 pub use cli::ServeArgs;
 pub use foreground::run_foreground;
@@ -15,6 +16,10 @@ pub use session::{
     EventEnvelope, HostEvent, JournalUsage, ReplayDecision, ResyncReason, SessionRuntime,
     SessionSnapshot, CONTROLLER_DISCONNECT_GRACE, MAX_EVENT_JOURNAL_BYTES,
     MAX_EVENT_JOURNAL_EVENTS,
+};
+pub use wrapper::{
+    run_wrapper_child, WrapperControl, WrapperReadiness, WrapperStartup, MAX_WRAPPER_FRAME_BYTES,
+    WRAPPER_PROTOCOL_VERSION,
 };
 
 pub const PROTOCOL_VERSION: u16 = 1;

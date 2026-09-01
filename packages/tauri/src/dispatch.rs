@@ -8,12 +8,23 @@ use crate::cli::{parse_launch_args, NativeOpenRequest};
 pub(crate) enum LaunchMode {
     Desktop(NativeOpenRequest),
     Serve(ServeArgs),
+    WrapperChild,
 }
 
 pub(crate) fn parse_command(
     arguments: &[String],
     invocation_directory: &Path,
 ) -> Result<LaunchMode, String> {
+    if arguments
+        .first()
+        .is_some_and(|argument| argument == "__zd-wrapper-child")
+    {
+        return if arguments.len() == 1 {
+            Ok(LaunchMode::WrapperChild)
+        } else {
+            Err("wrapper child mode accepts no arguments".to_string())
+        };
+    }
     if arguments
         .first()
         .is_some_and(|argument| argument == "serve")
@@ -95,5 +106,15 @@ mod tests {
                 "accepted {invalid:?}"
             );
         }
+    }
+
+    #[test]
+    fn wrapper_child_mode_is_exact_and_has_no_public_options() {
+        assert_eq!(
+            parse_command(&args(&["__zd-wrapper-child"]), &cwd()).unwrap(),
+            LaunchMode::WrapperChild
+        );
+        assert!(parse_command(&args(&["__zd-wrapper-child", "project"]), &cwd()).is_err());
+        assert!(parse_command(&args(&["--wrapper-child"]), &cwd()).is_err());
     }
 }
