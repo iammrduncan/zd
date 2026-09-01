@@ -26,6 +26,7 @@ pub const MAX_OUTPUT_LIMIT_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_INPUT_BYTES: usize = 64 * 1024;
 pub const MAX_TERMINAL_SESSIONS: usize = 32;
 pub type TerminalOutputSignal = Arc<dyn Fn(TerminalSessionHandle) + Send + Sync + 'static>;
+pub type TerminalExitSignal = Arc<dyn Fn(TerminalSessionHandle) + Send + Sync + 'static>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -218,6 +219,24 @@ pub struct TerminalExitStatus {
     pub signal: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TerminalAvailability {
+    Running,
+    Exited,
+    Unavailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TerminalSessionSnapshot {
+    pub session: TerminalSessionHandle,
+    pub retained_from: u64,
+    pub next_offset: u64,
+    pub availability: TerminalAvailability,
+    pub exit: Option<TerminalExitStatus>,
+}
+
 pub struct TerminalSessions {
     next_identity: u64,
     output_limit_bytes: usize,
@@ -269,7 +288,7 @@ impl TerminalSessions {
         viewport: TerminalViewport,
     ) -> Result<TerminalSessionHandle, TerminalError> {
         let command = CommandBuilder::new_default_prog();
-        self.start_command(scope, viewport, command, None)
+        self.start_command(scope, viewport, command, None, None)
     }
 
     pub fn start_shell_with_output_signal(
@@ -279,7 +298,18 @@ impl TerminalSessions {
         output_signal: TerminalOutputSignal,
     ) -> Result<TerminalSessionHandle, TerminalError> {
         let command = CommandBuilder::new_default_prog();
-        self.start_command(scope, viewport, command, Some(output_signal))
+        self.start_command(scope, viewport, command, Some(output_signal), None)
+    }
+
+    pub fn start_shell_with_signals(
+        &mut self,
+        scope: TerminalScope,
+        viewport: TerminalViewport,
+        output_signal: Option<TerminalOutputSignal>,
+        exit_signal: Option<TerminalExitSignal>,
+    ) -> Result<TerminalSessionHandle, TerminalError> {
+        let command = CommandBuilder::new_default_prog();
+        self.start_command(scope, viewport, command, output_signal, exit_signal)
     }
 
     #[cfg(test)]
@@ -292,7 +322,7 @@ impl TerminalSessions {
     ) -> Result<TerminalSessionHandle, TerminalError> {
         let mut command = CommandBuilder::new(program);
         command.args(arguments);
-        self.start_command(scope, viewport, command, None)
+        self.start_command(scope, viewport, command, None, None)
     }
 
     fn start_command(
@@ -301,6 +331,7 @@ impl TerminalSessions {
         viewport: TerminalViewport,
         mut command: CommandBuilder,
         output_signal: Option<TerminalOutputSignal>,
+        exit_signal: Option<TerminalExitSignal>,
     ) -> Result<TerminalSessionHandle, TerminalError> {
         if self.sessions.len() >= self.session_limit {
             return Err(TerminalError::new(
@@ -331,8 +362,13 @@ impl TerminalSessions {
         };
         self.next_identity = self.next_identity.saturating_add(1);
         let output = Arc::new(Mutex::new(BoundedOutput::new(self.output_limit_bytes)));
-        let output_reader =
-            OutputReader::start(reader, Arc::clone(&output), handle.clone(), output_signal)?;
+        let output_reader = OutputReader::start(
+            reader,
+            Arc::clone(&output),
+            handle.clone(),
+            output_signal,
+            exit_signal,
+        )?;
         let child = match pair.slave.spawn_command(command) {
             Ok(child) => child,
             Err(error) => {
@@ -379,6 +415,34 @@ impl TerminalSessions {
 
     pub fn contains(&self, handle: &TerminalSessionHandle) -> bool {
         self.session(handle).is_ok()
+    }
+
+    pub fn snapshot(&mut self) -> Vec<TerminalSessionSnapshot> {
+        let mut snapshot = self
+            .sessions
+            .values_mut()
+            .map(|session| {
+                let (availability, exit) = match session.poll_exit() {
+                    Ok(Some(exit)) => (TerminalAvailability::Exited, Some(exit)),
+                    Ok(None) => (TerminalAvailability::Running, None),
+                    Err(_) => (TerminalAvailability::Unavailable, None),
+                };
+                let (retained_from, next_offset) = session
+                    .output
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                    .offsets();
+                TerminalSessionSnapshot {
+                    session: session.handle.clone(),
+                    retained_from,
+                    next_offset,
+                    availability,
+                    exit,
+                }
+            })
+            .collect::<Vec<_>>();
+        snapshot.sort_by(|left, right| left.session.session_id.cmp(&right.session.session_id));
+        snapshot
     }
 
     pub fn write(

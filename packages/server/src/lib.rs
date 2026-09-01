@@ -4,9 +4,16 @@ mod assets;
 mod cli;
 mod protocol;
 mod server;
+mod session;
 
 pub use cli::ServeArgs;
 pub use server::{start, RunningServer, ServerConfig};
+#[doc(hidden)]
+pub use session::{
+    EventEnvelope, HostEvent, JournalUsage, ReplayDecision, ResyncReason, SessionRuntime,
+    SessionSnapshot, CONTROLLER_DISCONNECT_GRACE, MAX_EVENT_JOURNAL_BYTES,
+    MAX_EVENT_JOURNAL_EVENTS,
+};
 
 pub const PROTOCOL_VERSION: u16 = 1;
 pub const MAX_MESSAGE_BYTES: usize = 64 * 1024 * 1024;

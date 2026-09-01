@@ -1,4 +1,3 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -9,8 +8,12 @@ use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use subtle::ConstantTimeEq;
-use tokio::sync::{OwnedSemaphorePermit, Semaphore};
+use tokio::sync::{broadcast, OwnedSemaphorePermit, Semaphore};
+use zd_host::file_tree_watch::{FileTreeWatchRequest, FileTreeWatchSignal};
 use zd_host::instrumentation::{DiagnosticOutcome, DiagnosticRecordInput};
+use zd_host::terminal::{
+    TerminalSessionHandle, TerminalStartRequest, TerminalViewport, MAX_INPUT_BYTES,
+};
 use zd_host::{
     BoundedFileRead, ClipboardImageMediaType, ClipboardImageRequest, CreateThreadWorktreeRequest,
     DurableStateApply, FileTreeMutationRequest, FileTreeRequest, GitCompareRequest, GitDiffRequest,
@@ -19,7 +22,8 @@ use zd_host::{
 };
 
 use crate::{
-    MAX_MESSAGE_BYTES, MAX_REPORTED_DURATION_MICROS, MAX_RESPONSE_MESSAGE_BYTES, PROTOCOL_VERSION,
+    HostEvent, ReplayDecision, ResyncReason, SessionRuntime, MAX_MESSAGE_BYTES,
+    MAX_REPORTED_DURATION_MICROS, MAX_RESPONSE_MESSAGE_BYTES, PROTOCOL_VERSION,
 };
 
 const MAX_CONCURRENT_HOST_JOBS: usize = 4;
@@ -29,8 +33,7 @@ const HOST_DIAGNOSTIC_SPAN_ID: &str = "host-dispatch";
 pub struct ProtocolState {
     pub host: Arc<HostService>,
     pub secret: Arc<[u8; 32]>,
-    pub session_epoch: Arc<str>,
-    pub controller_claimed: Arc<AtomicBool>,
+    pub runtime: Arc<SessionRuntime>,
     pub host_jobs: Arc<Semaphore>,
 }
 
@@ -138,16 +141,46 @@ struct SaveImageParams {
     bytes_base64: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct SessionResumeParams {
+    session_epoch: String,
+    after_sequence: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TerminalWriteParams {
+    session: TerminalSessionHandle,
+    bytes_base64: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TerminalResizeParams {
+    session: TerminalSessionHandle,
+    viewport: TerminalViewport,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TerminalSessionParams {
+    session: TerminalSessionHandle,
+}
+
 struct ProtocolFailure {
     code: &'static str,
     message: &'static str,
 }
 
-struct ControllerLease(Arc<AtomicBool>);
+struct ControllerLease {
+    runtime: Arc<SessionRuntime>,
+    host: Arc<HostService>,
+}
 
 impl Drop for ControllerLease {
     fn drop(&mut self) {
-        self.0.store(false, Ordering::Release);
+        self.runtime.controller_disconnected(Arc::clone(&self.host));
     }
 }
 
@@ -177,16 +210,43 @@ pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState) {
             return;
         }
     };
+    let epoch = state.runtime.epoch();
     let accepted = Authenticated {
         protocol_version: PROTOCOL_VERSION,
         message_type: "authenticated",
-        session_epoch: &state.session_epoch,
+        session_epoch: epoch.as_ref(),
     };
     if send(&mut socket, &accepted).await.is_err() {
         return;
     }
 
-    while let Some(message) = receive_text(&mut socket).await {
+    let mut events = state.runtime.subscribe();
+    loop {
+        let message = tokio::select! {
+            message = receive_text(&mut socket) => {
+                let Some(message) = message else {
+                    break;
+                };
+                message
+            }
+            event = events.recv() => {
+                let event = match event {
+                    Ok(event) => event,
+                    Err(broadcast::error::RecvError::Lagged(_)) => {
+                        let marker = state.runtime.publish(HostEvent::SessionResyncRequired {
+                            reason: ResyncReason::OutboundOverflow,
+                        });
+                        events = state.runtime.subscribe();
+                        marker
+                    }
+                    Err(broadcast::error::RecvError::Closed) => break,
+                };
+                if send(&mut socket, &event).await.is_err() {
+                    break;
+                }
+                continue;
+            }
+        };
         let received_at = Instant::now();
         let request = match serde_json::from_str::<ClientMessage>(&message) {
             Ok(ClientMessage::Request {
@@ -295,14 +355,16 @@ fn authenticate(
             message: "The process secret was not accepted",
         });
     }
-    state
-        .controller_claimed
-        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-        .map_err(|_| ProtocolFailure {
+    if !state.runtime.claim_controller() {
+        return Err(ProtocolFailure {
             code: "controller-unavailable",
             message: "Another controller is already connected",
-        })?;
-    Ok(ControllerLease(state.controller_claimed.clone()))
+        });
+    }
+    Ok(ControllerLease {
+        runtime: Arc::clone(&state.runtime),
+        host: Arc::clone(&state.host),
+    })
 }
 
 async fn dispatch(
@@ -325,11 +387,11 @@ async fn dispatch(
     let queue_micros = bounded_micros(received_at.elapsed());
     let handler_started = Instant::now();
     let host = state.host.clone();
-    let session_epoch = state.session_epoch.clone();
+    let runtime = Arc::clone(&state.runtime);
     let request_id = request_id.to_string();
     let method = method.to_string();
     let result = run_host_job(permit, move || {
-        let result = dispatch_host(&host, &session_epoch, &method, params);
+        let result = dispatch_host(&host, &runtime, &method, params);
         record_request_diagnostic(&host, &request_id, &method, handler_started, &result);
         result
     })
@@ -354,7 +416,7 @@ where
 
 fn dispatch_host(
     host: &HostService,
-    session_epoch: &str,
+    runtime: &Arc<SessionRuntime>,
     method: &str,
     params: Value,
 ) -> Result<Value, ProtocolFailure> {
@@ -364,7 +426,7 @@ fn dispatch_host(
             let launch = host.launch_request();
             Ok(json!({
                 "protocolVersion": PROTOCOL_VERSION,
-                "sessionEpoch": session_epoch,
+                "sessionEpoch": runtime.epoch().to_string(),
                 "access": "read-write",
                 "startupProjectId": launch.project.as_ref().map(|project| &project.id),
                 "startupWorktreeId": launch.worktree_id,
@@ -377,16 +439,50 @@ fn dispatch_host(
                     "fileMutations": "read-write",
                     "clipboardImages": "read-write",
                     "projectImages": "read-only",
-                    "fileWatch": "unavailable",
+                    "fileWatch": "read-only",
                     "git": "read-only",
                     "worktrees": "read-write",
-                    "terminal": "unavailable",
+                    "terminal": "read-write",
                     "durableState": "read-write",
                     "themeFiles": "read-only",
                     "hostDiagnostics": "read-write",
                     "projectPicker": "unavailable",
                     "recentWorkspaces": "unavailable",
                 },
+            }))
+        }
+        "session.snapshot" => {
+            parse_params::<EmptyParams>(params)?;
+            let snapshot = runtime
+                .authoritative_snapshot(host)
+                .map_err(|_| host_failure("The runtime snapshot is unavailable"))?;
+            result_value(snapshot, "The runtime snapshot could not be returned")
+        }
+        "session.resume" => {
+            let request = parse_params::<SessionResumeParams>(params)?;
+            match runtime.replay(&request.session_epoch, request.after_sequence) {
+                ReplayDecision::Replay(events) => Ok(json!({
+                    "status": "replayed",
+                    "sessionEpoch": runtime.epoch().to_string(),
+                    "currentSequence": runtime.current_sequence(),
+                    "events": events,
+                })),
+                ReplayDecision::ResyncRequired => {
+                    let snapshot = runtime
+                        .authoritative_snapshot(host)
+                        .map_err(|_| host_failure("The runtime snapshot is unavailable"))?;
+                    Ok(json!({
+                        "status": "resync-required",
+                        "snapshot": snapshot,
+                    }))
+                }
+            }
+        }
+        "session.heartbeat" => {
+            parse_params::<EmptyParams>(params)?;
+            Ok(json!({
+                "sessionEpoch": runtime.epoch().to_string(),
+                "sequence": runtime.current_sequence(),
             }))
         }
         "projectGrants.list" => {
@@ -413,6 +509,45 @@ fn dispatch_host(
                 code: "host-failure",
                 message: "The file tree result could not be returned",
             })
+        }
+        "fileTree.watch.start" => {
+            let request = parse_params::<FileTreeWatchRequest>(params)?;
+            let event_runtime = Arc::clone(runtime);
+            host.start_file_tree_watch(
+                &request,
+                Arc::new(move |signal| match signal {
+                    FileTreeWatchSignal::Changed {
+                        project_id,
+                        worktree_id,
+                        watch_id,
+                    } => {
+                        event_runtime.publish(HostEvent::FileTreeChanged {
+                            project_id,
+                            worktree_id,
+                            watch_id,
+                        });
+                    }
+                    FileTreeWatchSignal::Unavailable {
+                        project_id,
+                        worktree_id,
+                        watch_id,
+                        ..
+                    } => {
+                        event_runtime.publish(HostEvent::FileTreeUnavailable {
+                            project_id,
+                            worktree_id,
+                            watch_id,
+                        });
+                    }
+                }),
+            )
+            .map_err(|_| host_failure("The file-tree watch could not be started"))?;
+            Ok(Value::Null)
+        }
+        "fileTree.watch.stop" => {
+            let request = parse_params::<FileTreeWatchRequest>(params)?;
+            host.stop_file_tree_watch(&request);
+            Ok(Value::Null)
         }
         "file.readBounded" => {
             let params = parse_params::<ReadFileParams>(params)?;
@@ -520,6 +655,70 @@ fn dispatch_host(
                 "The worktree result could not be returned",
             )
         }
+        "terminal.start" => {
+            let request = parse_params::<TerminalStartRequest>(params)?;
+            let output_runtime = Arc::clone(runtime);
+            let exit_runtime = Arc::clone(runtime);
+            let session = host
+                .start_terminal(
+                    request,
+                    Some(Arc::new(move |session| {
+                        output_runtime
+                            .publish(terminal_event(session, TerminalEventKind::OutputReady));
+                    })),
+                    Some(Arc::new(move |session| {
+                        exit_runtime.publish(terminal_event(session, TerminalEventKind::Exited));
+                    })),
+                )
+                .map_err(|_| terminal_failure())?;
+            result_value(session, "The terminal session could not be returned")
+        }
+        "terminal.write" => {
+            let request = parse_params::<TerminalWriteParams>(params)?;
+            let bytes = decode_bounded_base64(&request.bytes_base64, MAX_INPUT_BYTES)?;
+            host.write_terminal(&request.session, &bytes)
+                .map_err(|_| terminal_failure())?;
+            Ok(Value::Null)
+        }
+        "terminal.resize" => {
+            let request = parse_params::<TerminalResizeParams>(params)?;
+            host.resize_terminal(&request.session, request.viewport)
+                .map_err(|_| terminal_failure())?;
+            Ok(Value::Null)
+        }
+        "terminal.read" => {
+            let request = parse_params::<TerminalSessionParams>(params)?;
+            let batch = host
+                .read_terminal(&request.session)
+                .map_err(|_| terminal_failure())?;
+            Ok(json!({
+                "session": request.session,
+                "offset": batch.offset,
+                "droppedBefore": batch.dropped_before,
+                "bytesBase64": STANDARD.encode(batch.bytes),
+                "readError": batch.read_error,
+            }))
+        }
+        "terminal.pollExit" => {
+            let request = parse_params::<TerminalSessionParams>(params)?;
+            let exit = host
+                .poll_terminal_exit(&request.session)
+                .map_err(|_| terminal_failure())?;
+            result_value(exit, "The terminal exit state could not be returned")
+        }
+        "terminal.terminate" => {
+            let request = parse_params::<TerminalSessionParams>(params)?;
+            let exit = host
+                .terminate_terminal(&request.session)
+                .map_err(|_| terminal_failure())?;
+            result_value(exit, "The terminal exit state could not be returned")
+        }
+        "terminal.dispose" => {
+            let request = parse_params::<TerminalSessionParams>(params)?;
+            host.dispose_terminal(&request.session)
+                .map_err(|_| terminal_failure())?;
+            Ok(Value::Null)
+        }
         "theme.list" => {
             parse_params::<EmptyParams>(params)?;
             let themes = host
@@ -566,6 +765,38 @@ fn durable_state_failure() -> ProtocolFailure {
     ProtocolFailure {
         code: "durable-state-unavailable",
         message: "Durable state is unavailable",
+    }
+}
+
+enum TerminalEventKind {
+    OutputReady,
+    Exited,
+}
+
+fn terminal_event(session: TerminalSessionHandle, kind: TerminalEventKind) -> HostEvent {
+    let TerminalSessionHandle {
+        session_id,
+        project_id,
+        worktree_id,
+    } = session;
+    match kind {
+        TerminalEventKind::OutputReady => HostEvent::TerminalOutputReady {
+            session_id,
+            project_id,
+            worktree_id,
+        },
+        TerminalEventKind::Exited => HostEvent::TerminalExited {
+            session_id,
+            project_id,
+            worktree_id,
+        },
+    }
+}
+
+fn terminal_failure() -> ProtocolFailure {
+    ProtocolFailure {
+        code: "terminal-unavailable",
+        message: "The terminal operation is unavailable",
     }
 }
 

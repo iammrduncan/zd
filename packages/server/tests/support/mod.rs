@@ -240,5 +240,19 @@ pub async fn request(socket: &mut Socket, id: &str, method: &str, params: Value)
         }),
     )
     .await;
-    receive_json(socket).await
+    loop {
+        let message = receive_json(socket).await;
+        if message["requestId"] == id {
+            return message;
+        }
+    }
+}
+
+pub async fn receive_event(socket: &mut Socket, event: &str) -> Value {
+    loop {
+        let message = receive_json(socket).await;
+        if message["type"] == "event" && message["event"] == event {
+            return message;
+        }
+    }
 }

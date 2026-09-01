@@ -1,12 +1,21 @@
 use std::collections::HashSet;
+use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use serde::Serialize;
 
 use crate::durable::DurableStateStore;
+use crate::file_tree_watch::{
+    FileTreeWatchRequest, FileTreeWatchSnapshot, FileTreeWatchState, WatchListener,
+};
 use crate::instrumentation::{
     DiagnosticRecordInput, DiagnosticState, DiagnosticStatus, DiagnosticWriteOutcome,
+};
+use crate::terminal::{
+    TerminalError, TerminalErrorKind, TerminalExitSignal, TerminalExitStatus, TerminalOutputBatch,
+    TerminalOutputSignal, TerminalScope, TerminalSessionHandle, TerminalSessionSnapshot,
+    TerminalSessions, TerminalStartRequest, TerminalViewport,
 };
 use crate::{durable, identity};
 use crate::{
@@ -36,12 +45,23 @@ struct HostState {
 }
 
 /// One authority owner for an approved workbench session.
-#[derive(Debug)]
 pub struct HostService {
     state: Mutex<HostState>,
+    file_tree_watches: FileTreeWatchState,
+    terminals: Mutex<TerminalSessions>,
     durable: Option<DurableStateStore>,
     diagnostics: Option<DiagnosticState>,
     state_directory: Option<PathBuf>,
+}
+
+impl fmt::Debug for HostService {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("HostService")
+            .field("durable", &self.durable.is_some())
+            .field("diagnostics", &self.diagnostics.is_some())
+            .finish_non_exhaustive()
+    }
 }
 
 impl HostService {
@@ -56,6 +76,8 @@ impl HostService {
         };
         Ok(Self {
             state: Mutex::new(HostState { launch, grants }),
+            file_tree_watches: FileTreeWatchState::default(),
+            terminals: Mutex::new(TerminalSessions::default()),
             durable: None,
             diagnostics: None,
             state_directory: None,
@@ -100,6 +122,8 @@ impl HostService {
         };
         Ok(Self {
             state: Mutex::new(HostState { launch, grants }),
+            file_tree_watches: FileTreeWatchState::default(),
+            terminals: Mutex::new(TerminalSessions::default()),
             durable: Some(durable),
             diagnostics: Some(diagnostics),
             state_directory: Some(state_directory.to_path_buf()),
@@ -120,6 +144,110 @@ impl HostService {
             .expect("host state was poisoned")
             .grants
             .projects()
+    }
+
+    pub fn start_file_tree_watch(
+        &self,
+        request: &FileTreeWatchRequest,
+        listener: WatchListener,
+    ) -> Result<(), String> {
+        let root = self
+            .state
+            .lock()
+            .map_err(|_| "File-tree watch authority is unavailable".to_string())?
+            .grants
+            .root(&request.project_id, &request.worktree_id)
+            .map_err(|_| "File-tree watch authority is unavailable".to_string())?;
+        self.file_tree_watches.start(&root, request, listener)
+    }
+
+    pub fn stop_file_tree_watch(&self, request: &FileTreeWatchRequest) {
+        self.file_tree_watches.stop(request);
+    }
+
+    pub fn file_tree_watch_snapshot(&self) -> Vec<FileTreeWatchSnapshot> {
+        self.file_tree_watches.snapshot()
+    }
+
+    pub fn start_terminal(
+        &self,
+        request: TerminalStartRequest,
+        output_signal: Option<TerminalOutputSignal>,
+        exit_signal: Option<TerminalExitSignal>,
+    ) -> Result<TerminalSessionHandle, TerminalError> {
+        let root = self
+            .state
+            .lock()
+            .map_err(|_| terminal_runtime_unavailable())?
+            .grants
+            .root(&request.project_id, &request.worktree_id)
+            .map_err(|_| {
+                TerminalError::new(
+                    TerminalErrorKind::InvalidScope,
+                    "Terminal scope is unavailable",
+                )
+            })?;
+        let scope =
+            TerminalScope::from_approved_worktree(request.project_id, request.worktree_id, root)?;
+        self.terminal_sessions()?.start_shell_with_signals(
+            scope,
+            request.viewport,
+            output_signal,
+            exit_signal,
+        )
+    }
+
+    pub fn write_terminal(
+        &self,
+        session: &TerminalSessionHandle,
+        bytes: &[u8],
+    ) -> Result<(), TerminalError> {
+        self.terminal_sessions()?.write(session, bytes)
+    }
+
+    pub fn resize_terminal(
+        &self,
+        session: &TerminalSessionHandle,
+        viewport: TerminalViewport,
+    ) -> Result<(), TerminalError> {
+        self.terminal_sessions()?.resize(session, viewport)
+    }
+
+    pub fn read_terminal(
+        &self,
+        session: &TerminalSessionHandle,
+    ) -> Result<TerminalOutputBatch, TerminalError> {
+        self.terminal_sessions()?.read(session)
+    }
+
+    pub fn poll_terminal_exit(
+        &self,
+        session: &TerminalSessionHandle,
+    ) -> Result<Option<TerminalExitStatus>, TerminalError> {
+        self.terminal_sessions()?.poll_exit(session)
+    }
+
+    pub fn terminate_terminal(
+        &self,
+        session: &TerminalSessionHandle,
+    ) -> Result<TerminalExitStatus, TerminalError> {
+        self.terminal_sessions()?.terminate(session)
+    }
+
+    pub fn dispose_terminal(&self, session: &TerminalSessionHandle) -> Result<(), TerminalError> {
+        self.terminal_sessions()?.dispose(session)
+    }
+
+    pub fn terminal_snapshot(&self) -> Result<Vec<TerminalSessionSnapshot>, TerminalError> {
+        Ok(self.terminal_sessions()?.snapshot())
+    }
+
+    pub fn shutdown_runtime(&self) -> Result<(), TerminalError> {
+        self.file_tree_watches.shutdown();
+        self.terminals
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .shutdown()
     }
 
     pub fn file_tree_snapshot(&self, request: &FileTreeRequest) -> FileTreeResult {
@@ -313,6 +441,21 @@ impl HostService {
             "host diagnostics are unavailable: persistence was not configured".to_string()
         })
     }
+
+    fn terminal_sessions(
+        &self,
+    ) -> Result<std::sync::MutexGuard<'_, TerminalSessions>, TerminalError> {
+        self.terminals
+            .lock()
+            .map_err(|_| terminal_runtime_unavailable())
+    }
+}
+
+fn terminal_runtime_unavailable() -> TerminalError {
+    TerminalError::new(
+        TerminalErrorKind::Io,
+        "Terminal session state is unavailable",
+    )
 }
 
 impl GitAuthority for HostService {

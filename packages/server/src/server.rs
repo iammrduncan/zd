@@ -1,6 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use axum::extract::ws::WebSocketUpgrade;
@@ -20,6 +19,7 @@ use zd_host::HostService;
 
 use crate::assets::Assets;
 use crate::protocol::{serve_socket, ProtocolState};
+use crate::SessionRuntime;
 use crate::{MAX_MESSAGE_BYTES, MAX_RESPONSE_MESSAGE_BYTES};
 
 pub struct ServerConfig {
@@ -43,6 +43,8 @@ pub struct RunningServer {
     secret: String,
     shutdown: Option<oneshot::Sender<()>>,
     task: Option<JoinHandle<Result<(), String>>>,
+    host: Arc<HostService>,
+    runtime: Arc<SessionRuntime>,
 }
 
 impl RunningServer {
@@ -64,6 +66,7 @@ impl RunningServer {
     }
 
     pub async fn shutdown(mut self) -> Result<(), String> {
+        self.runtime.begin_shutdown();
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }
@@ -71,18 +74,25 @@ impl RunningServer {
             return Ok(());
         };
         task.await
-            .map_err(|error| format!("server task did not finish: {error}"))?
+            .map_err(|error| format!("server task did not finish: {error}"))??;
+        let host = Arc::clone(&self.host);
+        tokio::task::spawn_blocking(move || host.shutdown_runtime())
+            .await
+            .map_err(|error| format!("host cleanup task did not finish: {error}"))?
+            .map_err(|_| "host runtime cleanup did not finish".to_string())
     }
 }
 
 impl Drop for RunningServer {
     fn drop(&mut self) {
+        self.runtime.begin_shutdown();
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }
         if let Some(task) = self.task.take() {
             task.abort();
         }
+        let _ = self.host.shutdown_runtime();
     }
 }
 
@@ -97,13 +107,13 @@ pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<Runni
     let secret_bytes = Arc::new(random_bytes::<32>()?);
     let secret = URL_SAFE_NO_PAD.encode(secret_bytes.as_slice());
     let session_epoch = Arc::<str>::from(URL_SAFE_NO_PAD.encode(random_bytes::<16>()?));
+    let runtime = Arc::new(SessionRuntime::new(session_epoch));
     let state = AppState {
         assets,
         protocol: ProtocolState {
-            host,
+            host: Arc::clone(&host),
             secret: secret_bytes,
-            session_epoch,
-            controller_claimed: Arc::new(AtomicBool::new(false)),
+            runtime: Arc::clone(&runtime),
             host_jobs: ProtocolState::host_jobs(),
         },
     };
@@ -132,6 +142,8 @@ pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<Runni
         secret,
         shutdown: Some(shutdown),
         task: Some(task),
+        host,
+        runtime,
     })
 }
 
