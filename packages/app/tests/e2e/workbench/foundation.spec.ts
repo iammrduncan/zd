@@ -460,7 +460,7 @@ test("a file context menu copies relative and full paths", async ({ page, contex
     .toBe("/workspace/zd/README.md");
 });
 
-test("transient Settings controls local diagnostics without crowding Threads", async ({ page }) => {
+test("transient Settings controls host diagnostics without crowding Threads", async ({ page }) => {
   const threads = page.locator('[data-region="threads"]');
 
   await expect(threads.locator('[data-project-id="project-zd"] .zd-project-row')).toContainText(
@@ -475,11 +475,11 @@ test("transient Settings controls local diagnostics without crowding Threads", a
   const settings = page.locator(
     '[data-workbench-settings="true"] [data-diagnostic-settings="true"]',
   );
-  const toggle = settings.getByRole("checkbox", { name: "Local diagnostics" });
+  const toggle = settings.getByRole("checkbox", { name: "Host diagnostics" });
   await expect(toggle).not.toBeChecked();
   await toggle.check();
   await expect(toggle).toBeChecked();
-  await expect(settings.getByRole("status")).toHaveText("Recording locally.");
+  await expect(settings.getByRole("status")).toHaveText("Recording on host.");
 
   await settings.getByRole("button", { name: "Reveal logs" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-diagnostics-revealed", "true");

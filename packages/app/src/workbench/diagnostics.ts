@@ -45,10 +45,10 @@ export function attachWorkbenchDiagnostics(
 
 function statusText(status: DiagnosticStatus): string {
   if (status.problem) return status.problem;
-  return status.enabled ? "Recording locally." : "Off.";
+  return status.enabled ? "Recording on host." : "Off.";
 }
 
-/** Mount the compact, explicit control for local diagnostic evidence. */
+/** Mount the compact, explicit control for host diagnostic evidence. */
 export function mountDiagnosticSettings(
   host: HTMLElement,
   instrumentation: InstrumentationClient,
@@ -73,7 +73,7 @@ export function mountDiagnosticSettings(
   toggle.dataset.diagnosticsToggle = "true";
   toggle.checked = instrumentation.snapshot().enabled && diagnosticsEnabled();
   const name = document.createElement("span");
-  name.textContent = "Local diagnostics";
+  name.textContent = "Host diagnostics";
   label.append(toggle, name);
 
   const status = document.createElement("p");
@@ -89,10 +89,10 @@ export function mountDiagnosticSettings(
   revealButton.textContent = "Reveal logs";
   const storage = document.createElement("p");
   storage.className = "zd-diagnostic-detail";
-  storage.textContent = "Storage location: local application diagnostics directory.";
+  storage.textContent = "Storage location: host application diagnostics directory.";
   const retention = document.createElement("p");
   retention.className = "zd-diagnostic-detail";
-  retention.textContent = "Retention: bounded local log files for explicit diagnostic sessions.";
+  retention.textContent = "Retention: bounded host log files for explicit diagnostic sessions.";
   body.append(heading, label, status, storage, retention, revealButton);
   const stopAttention = attention ? mountAttentionSettings(body, attention) : () => {};
   settings.append(summary, body);

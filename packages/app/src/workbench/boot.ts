@@ -164,7 +164,7 @@ export async function bootWorkbench(
   const detachDiagnostics = attachWorkbenchDiagnostics(state, instrumentation);
   const catalog = loadThemeCatalog(themeFiles.files);
   localNotices.push(...catalog.notices.map(({ source, problem }) => `Theme ${source}: ${problem}`));
-  if (diagnosticProblem) localNotices.push(`Local diagnostics: ${diagnosticProblem}`);
+  if (diagnosticProblem) localNotices.push(`Host diagnostics: ${diagnosticProblem}`);
   if (themeFiles.problem) {
     localNotices.push(`Theme configuration directory: ${themeFiles.problem}`);
   }
