@@ -81,20 +81,23 @@ fn run_desktop(launch_request: launch::NativeOpenRequest) {
             shell::close_window,
         ])
         /*
-         * Never close on the first ask. Vision §6.3's promise is that what you
-         * wrote is still there, and a window that obeys a close request cannot
-         * keep it — the buffer is in the webview and goes with it.
-         *
-         * So the shell refuses every close while the frontend listens to Tauri's
-         * native close-request event and answers through `close_window` when it is
-         * ready, immediately when the current file is clean.
-         *
-         * The refusal is unconditional on purpose. A shell that closed when it
-         * *believed* the current file was clean would be keeping a second copy of a
-         * fact it does not own, and that copy is wrong exactly when it matters.
+         * A ready workbench owns its dirty-buffer decision, so its first close
+         * request is deferred to the frontend and completed through `close_window`.
+         * Before readiness there is no workbench buffer to protect. After child
+         * exit the shell commands deliberately refuse the disconnected page, and
+         * the child has already been reaped, so an explicit native close may exit.
          */
         .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => api.prevent_close(),
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                let phase = window
+                    .app_handle()
+                    .state::<supervisor::Supervisor>()
+                    .snapshot()
+                    .phase;
+                if desktop::should_prevent_close(phase) {
+                    api.prevent_close();
+                }
+            }
             tauri::WindowEvent::Focused(focused) => {
                 quick_access::window_focus_changed(window, *focused);
             }

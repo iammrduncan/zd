@@ -119,6 +119,31 @@ fn report_terminal_state(window: &tauri::WebviewWindow, snapshot: SupervisorSnap
     }
 }
 
+pub(super) fn should_prevent_close(phase: SupervisorPhase) -> bool {
+    phase == SupervisorPhase::Ready
+}
+
 fn emit_status(window: &tauri::WebviewWindow, phase: &'static str, problem: Option<String>) {
     let _ = window.emit(HOST_STATUS_EVENT, DesktopHostStatus { phase, problem });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_prevent_close;
+    use crate::supervisor::SupervisorPhase;
+
+    #[test]
+    fn only_a_ready_workbench_defers_close_to_the_frontend_guard() {
+        assert!(should_prevent_close(SupervisorPhase::Ready));
+        for phase in [
+            SupervisorPhase::Idle,
+            SupervisorPhase::Starting,
+            SupervisorPhase::Stopping,
+            SupervisorPhase::Exited,
+            SupervisorPhase::Stopped,
+            SupervisorPhase::Failed,
+        ] {
+            assert!(!should_prevent_close(phase), "blocked {phase:?}");
+        }
+    }
 }
