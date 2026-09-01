@@ -1,5 +1,7 @@
+use tauri_plugin_opener::OpenerExt;
+
 use crate::supervisor::Supervisor;
-use crate::{fs, notifications, quick_access};
+use crate::{notifications, quick_access};
 
 fn authorize(
     window: &tauri::WebviewWindow,
@@ -118,7 +120,12 @@ pub fn open_external(
     url: String,
 ) -> Result<(), String> {
     authorize(&window, &supervisor)?;
-    fs::open_external(app, url)
+    if !is_web_url(&url) {
+        return Err("refused to open a non-web URL".to_string());
+    }
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -132,4 +139,27 @@ pub async fn close_window(
         .await
         .map_err(|_| "the desktop host shutdown task failed".to_string())??;
     window.destroy().map_err(|error| error.to_string())
+}
+
+fn is_web_url(url: &str) -> bool {
+    let lowered = url.trim().to_ascii_lowercase();
+    lowered.starts_with("http://") || lowered.starts_with("https://")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_web_url;
+
+    #[test]
+    fn only_http_and_https_may_leave_the_desktop_shell() {
+        assert!(is_web_url("https://example.com"));
+        assert!(is_web_url(" HTTP://example.com "));
+        for refused in [
+            "file:///tmp/private",
+            "javascript:alert(1)",
+            "mailto:user@example.com",
+        ] {
+            assert!(!is_web_url(refused));
+        }
+    }
 }
