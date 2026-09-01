@@ -17,6 +17,8 @@ pub mod instrumentation;
 pub mod notifications;
 mod projects;
 mod quick_access;
+#[doc(hidden)]
+pub mod supervisor;
 mod terminal_runtime;
 mod themes;
 mod workspaces;
