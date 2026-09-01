@@ -1,12 +1,12 @@
 [package]
-name = "zd"
+name = "zd-desktop"
 version = "0.2.10"
 description = "ZenSuite — a fast, local agent workbench for projects, threads, terminals, files, and Git."
 authors = ["Duncan"]
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/iammrduncan/zd"
-default-run = "zd"
+default-run = "zd-desktop"
 
 [[bin]]
 name = "zd"

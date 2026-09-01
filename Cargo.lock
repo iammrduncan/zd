@@ -5729,7 +5729,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "zd"
+name = "zd-desktop"
 version = "0.2.10"
 dependencies = [
  "block2",

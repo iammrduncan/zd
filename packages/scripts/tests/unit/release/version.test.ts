@@ -38,11 +38,11 @@ function makeFixture(version = "1.2.3"): string {
   );
   writeFileSync(
     join(root, "packages/tauri/Cargo.toml"),
-    '[package]\nname = "zd"\nversion = "0.9.0"\nedition = "2021"\n',
+    '[package]\nname = "zd-desktop"\nversion = "0.9.0"\nedition = "2021"\n',
   );
   writeFileSync(
     join(root, "Cargo.lock"),
-    '[[package]]\nname = "zd"\nversion = "0.9.0"\ndependencies = []\n\n[[package]]\nname = "zd-host"\nversion = "0.9.0"\ndependencies = []\n\n[[package]]\nname = "zd-server"\nversion = "0.9.0"\ndependencies = []\n',
+    '[[package]]\nname = "zd-desktop"\nversion = "0.9.0"\ndependencies = []\n\n[[package]]\nname = "zd-host"\nversion = "0.9.0"\ndependencies = []\n\n[[package]]\nname = "zd-server"\nversion = "0.9.0"\ndependencies = []\n',
   );
   writeFileSync(
     join(root, "packages/tauri/tauri.conf.json"),
@@ -102,7 +102,7 @@ describe("the release version synchronizer", () => {
     expect(cargoVersion(join(root, "packages/tauri/Cargo.toml"))).toBe("1.2.3");
     const cargoLock = readFileSync(join(root, "Cargo.lock"), "utf8");
     expect(
-      cargoLock.match(/name = "zd"\nversion = "([^"]+)"/)?.[1],
+      cargoLock.match(/name = "zd-desktop"\nversion = "([^"]+)"/)?.[1],
     ).toBe("1.2.3");
     expect(
       cargoLock.match(/name = "zd-host"\nversion = "([^"]+)"/)?.[1],

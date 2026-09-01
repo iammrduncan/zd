@@ -7,6 +7,12 @@ import { createServer } from "node:net";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
+import {
+  resolveServedHostExecutable,
+  servedHostEnvironment,
+  servedHostStateDirectory,
+} from "./runtime";
+
 const STARTUP_TIMEOUT_MS = 15_000;
 const SHUTDOWN_TIMEOUT_MS = 5_000;
 const FIXTURE_TEXT = "# Remote fixture\n\nOpened through the real Rust host.\n";
@@ -32,11 +38,6 @@ interface Readiness {
 
 function repositoryRoot(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
-}
-
-function serverExecutable(root: string): string {
-  const extension = process.platform === "win32" ? ".exe" : "";
-  return join(root, "target", "debug", `zd${extension}`);
 }
 
 function directIpv4Address(): string {
@@ -216,6 +217,11 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
         throw new Error("the served-host evidence target requires Chromium");
       }
       const root = repositoryRoot();
+      const executable = resolveServedHostExecutable({
+        environment: process.env,
+        platform: process.platform,
+        repositoryRoot: root,
+      });
       const hostAddress = directIpv4Address();
       const projectRoot = await mkdtemp(join(tmpdir(), "zd-served-e2e-"));
       const stateRoot = await mkdtemp(join(tmpdir(), "zd-served-state-e2e-"));
@@ -227,16 +233,17 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
       if (!resolve(stateRoot).startsWith(expectedStatePrefix)) {
         throw new Error("the served-host state root escaped the temporary directory");
       }
+      const hostStateRoot = servedHostStateDirectory(process.env, stateRoot, process.platform);
       let child: ReturnType<typeof spawn> | null = null;
       let readiness: Readiness | null = null;
 
       const startHost = async (port: number): Promise<Readiness> => {
         const launched = spawn(
-          serverExecutable(root),
+          executable,
           ["serve", projectRoot, "--bind", hostAddress, "--port", String(port)],
           {
             cwd: root,
-            env: { ...process.env, ZD_TEST_STATE_DIR: stateRoot },
+            env: servedHostEnvironment(process.env, stateRoot, process.platform),
             stdio: ["ignore", "pipe", "pipe"],
           },
         );
@@ -264,7 +271,8 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
         if (fixtureTheme === builtInTheme) {
           throw new Error("the served-host fixture could not derive its valid theme");
         }
-        await writeFile(join(stateRoot, "served.theme.config"), fixtureTheme, "utf8");
+        await mkdir(hostStateRoot, { recursive: true });
+        await writeFile(join(hostStateRoot, "served.theme.config"), fixtureTheme, "utf8");
         await runGit(projectRoot, "init", "--initial-branch=main");
         await runGit(projectRoot, "config", "user.name", "Served Fixture");
         await runGit(projectRoot, "config", "user.email", "served-fixture@example.invalid");
@@ -311,7 +319,7 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
           readFixtureFile: () => readFile(join(projectRoot, "notes.md"), "utf8"),
           readFixtureDocs: () => readdir(join(projectRoot, "docs")),
           readFixtureScreenshots: () => readdir(join(projectRoot, "docs", "screenshots")),
-          readDiagnostics: () => readTreeText(join(stateRoot, "diagnostics")),
+          readDiagnostics: () => readTreeText(join(hostStateRoot, "diagnostics")),
           readPersistedState: () => readTreeText(stateRoot),
         });
       } finally {
