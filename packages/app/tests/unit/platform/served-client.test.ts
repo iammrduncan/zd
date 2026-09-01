@@ -111,7 +111,7 @@ describe("served host client", () => {
         requestId: "request-1",
         method: "session.describe",
         result: { access: "read-only" },
-        timing: { queueMicros: 2_000, handlerMicros: 3_000 },
+        timing: { queueMicros: 2_000, handlerMicros: 3_000, serializationMicros: 1_000 },
       }),
     });
 
@@ -123,7 +123,8 @@ describe("served host client", () => {
         roundTripMillis: 15,
         hostQueueMicros: 2_000,
         hostHandlerMicros: 3_000,
-        transportResidualMillis: 10,
+        hostSerializationMicros: 1_000,
+        transportResidualMillis: 9,
       },
     ]);
     expect(client.recentTimings()[0]).not.toHaveProperty("clientWallClock");
@@ -212,10 +213,38 @@ describe("served host client", () => {
           requestId: `request-${index}`,
           method: "session.describe",
           result: {},
-          timing: { queueMicros: 0, handlerMicros: 0 },
+          timing: { queueMicros: 0, handlerMicros: 0, serializationMicros: 0 },
         }),
       });
     }
     await expect(Promise.all(pending)).resolves.toHaveLength(32);
+  });
+
+  it("rejects oversized outbound and inbound messages at the client boundary", async () => {
+    const socket = new FakeSocket("unused");
+    const connecting = connectServedHostClient({
+      origin: "http://127.0.0.1:49151",
+      secret: "process-secret",
+      socket: () => socket,
+      maxMessageBytes: 256,
+    });
+    socket.emit("open");
+    socket.emit("message", {
+      data: JSON.stringify({
+        protocolVersion: 1,
+        type: "authenticated",
+        sessionEpoch: "epoch-1",
+      }),
+    });
+    const client = await connecting;
+
+    await expect(
+      client.request("file.writeText", { contentsBase64: "A".repeat(512) }),
+    ).rejects.toThrow("message exceeds");
+    expect(socket.sent).toHaveLength(1);
+
+    socket.emit("message", { data: " ".repeat(257) });
+    await expect(client.request("session.describe", {})).rejects.toThrow("connection is closed");
+    expect(socket.closed).toBe(true);
   });
 });

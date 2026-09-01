@@ -2,6 +2,7 @@ const PROTOCOL_VERSION = 1;
 const MAX_PENDING_REQUESTS = 32;
 const MAX_RETAINED_TIMINGS = 128;
 const MAX_HOST_DURATION_MICROS = 60_000_000;
+export const MAX_SERVED_MESSAGE_BYTES = 64 * 1024 * 1024;
 
 export interface HostSocketEvent {
   readonly data?: unknown;
@@ -19,6 +20,7 @@ export interface ServedRequestTiming {
   readonly roundTripMillis: number;
   readonly hostQueueMicros: number;
   readonly hostHandlerMicros: number;
+  readonly hostSerializationMicros: number;
   /** Transport, encoding, and scheduling residual; never a cross-machine wall-clock subtraction. */
   readonly transportResidualMillis: number;
 }
@@ -35,6 +37,7 @@ interface ConnectOptions {
   readonly socket?: (url: string) => HostSocket;
   readonly now?: () => number;
   readonly requestId?: () => string;
+  readonly maxMessageBytes?: number;
 }
 
 interface PendingRequest {
@@ -74,8 +77,19 @@ function recordObject(value: unknown): Record<string, unknown> | null {
   return Object.fromEntries(Object.entries(value));
 }
 
-function messageObject(data: unknown): Record<string, unknown> | null {
+function utf8LengthWithin(value: string, limit: number): boolean {
+  let bytes = 0;
+  for (const character of value) {
+    const point = character.codePointAt(0) ?? 0;
+    bytes += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;
+    if (bytes > limit) return false;
+  }
+  return true;
+}
+
+function messageObject(data: unknown, maxMessageBytes: number): Record<string, unknown> | null {
   if (typeof data !== "string") return null;
+  if (!utf8LengthWithin(data, maxMessageBytes)) return null;
   try {
     return recordObject(JSON.parse(data) as unknown);
   } catch {
@@ -101,14 +115,21 @@ class SocketClient implements ServedHostClient {
   readonly #socket: HostSocket;
   readonly #now: () => number;
   readonly #nextRequestId: () => string;
+  readonly #maxMessageBytes: number;
   readonly #pending = new Map<string, PendingRequest>();
   readonly #timings: ServedRequestTiming[] = [];
   #closed = false;
 
-  constructor(socket: HostSocket, now: () => number, nextRequestId: () => string) {
+  constructor(
+    socket: HostSocket,
+    now: () => number,
+    nextRequestId: () => string,
+    maxMessageBytes: number,
+  ) {
     this.#socket = socket;
     this.#now = now;
     this.#nextRequestId = nextRequestId;
+    this.#maxMessageBytes = maxMessageBytes;
   }
 
   request<Result>(method: string, params: object): Promise<Result> {
@@ -130,15 +151,17 @@ class SocketClient implements ServedHostClient {
         reject,
       });
       try {
-        this.#socket.send(
-          JSON.stringify({
-            protocolVersion: PROTOCOL_VERSION,
-            type: "request",
-            requestId,
-            method,
-            params,
-          }),
-        );
+        const serialized = JSON.stringify({
+          protocolVersion: PROTOCOL_VERSION,
+          type: "request",
+          requestId,
+          method,
+          params,
+        });
+        if (!utf8LengthWithin(serialized, this.#maxMessageBytes)) {
+          throw new Error("the served host message exceeds its byte limit");
+        }
+        this.#socket.send(serialized);
       } catch (cause) {
         this.#pending.delete(requestId);
         reject(cause instanceof Error ? cause : new Error(String(cause)));
@@ -171,18 +194,24 @@ class SocketClient implements ServedHostClient {
     const timing = recordObject(message.timing);
     const hostQueueMicros = duration(timing?.queueMicros);
     const hostHandlerMicros = duration(timing?.handlerMicros);
-    if (hostQueueMicros === null || hostHandlerMicros === null) {
+    const hostSerializationMicros = duration(timing?.serializationMicros);
+    if (
+      hostQueueMicros === null ||
+      hostHandlerMicros === null ||
+      hostSerializationMicros === null
+    ) {
       pending.reject(new Error("the host timing record is invalid"));
       return;
     }
     const roundTripMillis = Math.max(0, this.#now() - pending.startedAt);
-    const hostMillis = (hostQueueMicros + hostHandlerMicros) / 1_000;
+    const hostMillis = (hostQueueMicros + hostHandlerMicros + hostSerializationMicros) / 1_000;
     this.#timings.push({
       requestId,
       method: pending.method,
       roundTripMillis,
       hostQueueMicros,
       hostHandlerMicros,
+      hostSerializationMicros,
       transportResidualMillis: Math.max(0, roundTripMillis - hostMillis),
     });
     if (this.#timings.length > MAX_RETAINED_TIMINGS) this.#timings.shift();
@@ -211,7 +240,11 @@ export function connectServedHostClient(options: ConnectOptions): Promise<Served
   const now = options.now ?? (() => performance.now());
   let sequence = 0;
   const requestId = options.requestId ?? (() => `request-${++sequence}`);
-  const client = new SocketClient(socket, now, requestId);
+  const maxMessageBytes =
+    Number.isSafeInteger(options.maxMessageBytes) && Number(options.maxMessageBytes) > 0
+      ? Number(options.maxMessageBytes)
+      : MAX_SERVED_MESSAGE_BYTES;
+  const client = new SocketClient(socket, now, requestId, maxMessageBytes);
 
   return new Promise<ServedHostClient>((resolve, reject) => {
     let authenticated = false;
@@ -226,19 +259,21 @@ export function connectServedHostClient(options: ConnectOptions): Promise<Served
     };
     socket.addEventListener("open", () => {
       try {
-        socket.send(
-          JSON.stringify({
-            protocolVersion: PROTOCOL_VERSION,
-            type: "authenticate",
-            secret: options.secret,
-          }),
-        );
+        const serialized = JSON.stringify({
+          protocolVersion: PROTOCOL_VERSION,
+          type: "authenticate",
+          secret: options.secret,
+        });
+        if (!utf8LengthWithin(serialized, maxMessageBytes)) {
+          throw new Error("the served authentication message exceeds its byte limit");
+        }
+        socket.send(serialized);
       } catch (cause) {
         refuse(cause instanceof Error ? cause : new Error(String(cause)));
       }
     });
     socket.addEventListener("message", ({ data }) => {
-      const message = messageObject(data);
+      const message = messageObject(data, maxMessageBytes);
       if (!message || message.protocolVersion !== PROTOCOL_VERSION) {
         refuse(new Error("the served host returned an invalid protocol message"));
         return;
