@@ -175,9 +175,13 @@ export function mountProjectTerminal(
   };
 
   const afterTerminalLayout = (run: () => void): void => {
-    // xterm queues its initial viewport sync across two animation frames. Rapid
-    // teardown must let that work settle before disposal clears its dimensions.
-    requestAnimationFrame(() => requestAnimationFrame(run));
+    /*
+     * xterm 5.5 starts its viewport with an uncancelled zero-delay sync. That sync
+     * may queue a measurement frame of its own, so frames alone can still dispose
+     * the renderer first on a cold page. Enter the timer queue behind xterm, then
+     * let its measurement settle before disposal clears the dimensions it reads.
+     */
+    window.setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(run)), 0);
   };
 
   const removeGroup = (projectId: string): Promise<void> => {
