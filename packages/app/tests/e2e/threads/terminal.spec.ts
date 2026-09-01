@@ -254,30 +254,32 @@ test("does not replay accumulated input when WebKit reports an IME edit", async 
     )
     .toBe("STOP TOUCHING THE DESIGN");
 
-  await page.evaluate(() => {
-    window.terminalFixture.calls.length = 0;
-    const input = document.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")!;
-    input.value = "STOPTOUCHINGTHEDESIGN";
-    input.setSelectionRange(input.value.length, input.value.length);
-    const event = new KeyboardEvent("keydown", {
-      key: "Process",
-      bubbles: true,
-      cancelable: true,
-    });
-    Object.defineProperty(event, "keyCode", { get: () => 229 });
-    input.dispatchEvent(event);
-    input.value = `${input.value.slice(0, -1)}é`;
-  });
-  await page.waitForTimeout(50);
-
-  expect(
-    await page.evaluate(() =>
+  const emulateImeReplacement = async (replacement: string): Promise<string> => {
+    await page.evaluate((nextValue) => {
+      window.terminalFixture.calls.length = 0;
+      const helper = document.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")!;
+      helper.value = "STOPTOUCHINGTHEDESIGN";
+      helper.setSelectionRange(helper.value.length, helper.value.length);
+      const event = new KeyboardEvent("keydown", {
+        key: "Process",
+        bubbles: true,
+        cancelable: true,
+      });
+      Object.defineProperty(event, "keyCode", { get: () => 229 });
+      helper.dispatchEvent(event);
+      helper.value = `${helper.value.slice(0, -1)}${nextValue}`;
+    }, replacement);
+    await page.waitForTimeout(50);
+    return page.evaluate(() =>
       window.terminalFixture.calls
         .filter((call) => call.startsWith("write:"))
         .map((call) => call.slice(6))
         .join(""),
-    ),
-  ).toBe("é");
+    );
+  };
+
+  expect(await emulateImeReplacement("é")).toBe("é");
+  expect(await emulateImeReplacement("e\u0301")).toBe("e\u0301");
 });
 
 test("coalesces resize/reflow without reading or polling in the background", async ({ page }) => {
