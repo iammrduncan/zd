@@ -69,78 +69,48 @@ function caretInSurface() {
 }
 
 /**
- * Press ArrowDown until the caret's row is near the bottom of the window.
+ * Put the caret on a real row below the middle without triggering the behavior under test.
  *
- * **Two frames of settle per press, and it is not decoration.** Written without it this
- * read the caret in the same breath as the press and passed alone every time while
- * failing in every full run: under parallel load the read lags the press, the loop stops
- * on a stale position, and the one press that follows lands somewhere else entirely — the
- * caret finished at 868 in an 800px window. Nothing scrolls on the way down, so the wait
- * costs nothing but the frames.
- *
- * A frame wait rather than a poll on the claim, because there is no claim here yet: this
- * is getting to the starting position, and what is being waited for is that the press
- * happened at all.
+ * A pointer selection deliberately does not start an edge return: the pointer says where the
+ * reader wants the caret. This makes it an honest short approach to the edge. Driving from the top
+ * raced the product's return under full-suite load; by the time the test process observed the
+ * bottom row, the browser had already completed the correct 500 ms journey.
  */
-async function walkToTheBottom(page: import("@playwright/test").Page, height: number) {
-  for (let press = 0; press < 40; press += 1) {
-    const head = await page.evaluate(() => window.zdEditor!.selection().head);
-    const before = await page.evaluate(caretInSurface);
-    await page.keyboard.press("ArrowDown");
-    await expect
-      .poll(() => page.evaluate(() => window.zdEditor!.selection().head), {
-        message: "the ArrowDown press never moved the caret",
-      })
-      .toBeGreaterThan(head);
-    await expect
-      .poll(
-        async () => {
-          const current = await page.evaluate(caretInSurface);
-          return current.caret !== null && before.caret !== null
-            ? Math.abs(current.caret - before.caret)
-            : 0;
-        },
-        { message: "the caret paint never caught up with the ArrowDown press" },
-      )
-      .toBeGreaterThan(0.1);
-    const at = await page.evaluate(caretInSurface);
-    if (at.caret !== null && at.caret > height * 0.85) {
-      // Under parallel load CodeMirror can paint the new row before its ordinary
-      // scroll-into-view catches up. Trigger the edge return only once that setup
-      // scroll has rested and the caret is genuinely inside the bottom band.
-      await waitForEditorScrollToSettle(page);
-      let ready = await page.evaluate(caretInSurface);
-      const halfRow = await page
-        .locator(".cm-line")
-        .first()
-        .evaluate((line) => line.getBoundingClientRect().height / 2);
+async function placeCaretNearBottom(page: import("@playwright/test").Page, height: number) {
+  await page.locator(".md-surface").evaluate((surface: HTMLElement) => {
+    const furthest = Math.max(0, surface.scrollHeight - surface.clientHeight);
+    surface.scrollTop = Math.min(furthest, Math.round(surface.scrollHeight * 0.45));
+  });
+  await waitForEditorScrollToSettle(page);
 
-      // A caret centre can sit half a row below the surface while that row still
-      // has pixels on screen. If it went a complete row beyond that band before
-      // layout caught up, walk back one visual row and assert the correction.
-      if (ready.caret !== null && ready.caret > height + halfRow) {
-        const beyond = await page.evaluate(() => window.zdEditor!.selection().head);
-        await page.keyboard.press("ArrowUp");
-        await expect
-          .poll(() => page.evaluate(() => window.zdEditor!.selection().head), {
-            message: "the setup could not return to the visible bottom row",
-          })
-          .toBeLessThan(beyond);
-        await waitForEditorScrollToSettle(page);
-        ready = await page.evaluate(caretInSurface);
-      }
+  const point = await page.evaluate(() => {
+    const surface = document.querySelector<HTMLElement>(".md-surface")!;
+    const box = surface.getBoundingClientRect();
+    const candidates = [...document.querySelectorAll<HTMLElement>(".cm-line")]
+      .map((line) => line.getBoundingClientRect())
+      .filter(
+        (line) =>
+          line.width > 20 && line.top >= box.top + box.height * 0.65 && line.bottom <= box.bottom,
+      );
+    const line = candidates[candidates.length - 1];
+    if (!line) return null;
+    return { x: Math.min(line.right - 2, line.left + 32), y: line.top + line.height / 2 };
+  });
+  expect(point, "the setup found no visible text row").not.toBeNull();
+  await page.mouse.click(point!.x, point!.y);
+  await waitForEditorScrollToSettle(page);
 
-      if (ready.caret !== null && ready.caret > height * 0.85 && ready.caret <= height + halfRow) {
-        return true;
-      }
-    }
-  }
-  return false;
+  const at = await page.evaluate(caretInSurface);
+  expect(at.caret, "the pointer caret could not be measured").not.toBeNull();
+  expect(at.caret, "the pointer setup missed the lower viewport").toBeGreaterThan(height * 0.65);
+  expect(at.caret, "the pointer setup placed the caret below the surface").toBeLessThanOrEqual(
+    height,
+  );
 }
 
 /** Drive the next visual rows until the measured edge-return state has settled. */
 async function triggerEdgeReturn(page: import("@playwright/test").Page, height: number) {
-  for (let press = 0; press < 3; press += 1) {
+  for (let press = 0; press < 8; press += 1) {
     const head = await page.evaluate(() => window.zdEditor!.selection().head);
     await page.keyboard.press("ArrowDown");
     await expect
@@ -161,12 +131,7 @@ test("the caret returns to the anchor rather than sticking to the bottom edge", 
   await open(page);
   const { height } = await page.evaluate(caretInSurface);
 
-  /*
-   * Walk down until the caret is at the bottom. Nothing scrolls on the way — the return
-   * only fires at an edge — so these presses can go as fast as the keyboard sends them.
-   */
-  const reached = await walkToTheBottom(page, height);
-  expect(reached, "the caret never reached the bottom of the window").toBe(true);
+  await placeCaretNearBottom(page, height);
 
   /*
    * And now the claim: at the bottom of the page, pressing down again returns the caret
@@ -185,8 +150,7 @@ test("the return is eased rather than a cut", async ({ page }) => {
   await open(page);
   const { height } = await page.evaluate(caretInSurface);
 
-  const reached = await walkToTheBottom(page, height);
-  expect(reached, "the caret never reached the bottom of the window").toBe(true);
+  await placeCaretNearBottom(page, height);
 
   // Sample the surface every frame across the one press that triggers the return. The
   // whole difference between eased and cut lives in the frames between two positions,
