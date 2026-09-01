@@ -217,9 +217,9 @@ export interface Platform {
   readonly notifications: AttentionNotificationAdapter;
   /** Inspect the local, opt-in diagnostic session without enabling it. */
   diagnosticsStatus(): Promise<DiagnosticStatus>;
-  /** Start one bounded local diagnostic session. */
+  /** Start one bounded host diagnostic session. */
   enableDiagnostics(): Promise<DiagnosticStatus>;
-  /** Flush and stop the current local diagnostic session. */
+  /** Flush and stop the current host diagnostic session. */
   disableDiagnostics(): Promise<DiagnosticStatus>;
   /** Write one already-validated closed-schema diagnostic record. */
   recordDiagnostic(record: PreparedDiagnosticRecord): Promise<DiagnosticWriteOutcome>;
@@ -588,7 +588,7 @@ const browser: Platform = {
     enabled: false,
     sessionId: null,
     backgroundSampling: false,
-    problem: "local diagnostics require the desktop shell",
+    problem: "host diagnostics require the desktop shell",
   }),
   disableDiagnostics: async () => ({
     enabled: false,
@@ -598,7 +598,7 @@ const browser: Platform = {
   }),
   recordDiagnostic: async () => ({ recorded: false, problem: null }),
   revealDiagnostics: async () => {
-    throw new Error("local diagnostics require the desktop shell");
+    throw new Error("host diagnostics require the desktop shell");
   },
   terminal: unavailableTerminalAdapter,
   fileTree: unavailableFileTreeAdapter,

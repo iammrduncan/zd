@@ -190,7 +190,7 @@ async function seedDurableState(page: Page, url: string, secret: string): Promis
   );
 }
 
-test("opens a real host file read-only and refuses packet-zero exclusions", async ({
+test("edits through the real host while excluded streaming and shell capabilities stay closed", async ({
   page,
   servedHost,
 }) => {
@@ -214,36 +214,116 @@ test("opens a real host file read-only and refuses packet-zero exclusions", asyn
   );
   await files.locator('[data-file-path="notes.md"]').click();
 
-  const buffer = page.locator('.editor-buffer[data-buffer-kind="read-only"]');
+  const buffer = page.locator('.editor-buffer[data-buffer-kind="editable"]');
   await expect(buffer).toBeVisible();
-  await expect(buffer).toHaveAccessibleName("notes.md, Markdown, read-only");
   await expect(buffer).toContainText("Opened through the real Rust host.");
-  await expect(buffer.locator(".md-editor")).toHaveAttribute("data-editable", "false");
-  await expect(buffer.locator(".cm-content")).toHaveAttribute("contenteditable", "false");
+  await expect(buffer.locator(".md-editor")).toHaveAttribute("data-editable", "true");
+  await expect(buffer.locator(".cm-content")).toHaveAttribute("contenteditable", "true");
 
-  await buffer.locator(".cm-content").click();
-  await page.keyboard.type("should not be written");
+  const content = buffer.locator(".cm-content");
+  await content.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.insertText("\nSaved through the remote host.\n");
+  await expect(files.locator('[data-file-path="notes.md"]')).toHaveAttribute("data-dirty", "true");
   await page.keyboard.press("ControlOrMeta+s");
-  await expect(buffer).toContainText("Served workbenches are read-only. Editing is unavailable.");
-  await expect(buffer).not.toContainText("should not be written");
-  await expect(servedHost.readFixtureFile()).resolves.toBe(servedHost.fileText);
+  await expect.poll(() => servedHost.readFixtureFile()).toContain("Saved through the remote host.");
+  await expect(files.locator('[data-file-path="notes.md"]')).not.toHaveAttribute(
+    "data-dirty",
+    "true",
+  );
   const draftKeys = await page.evaluate(() =>
     Object.keys(localStorage).filter((key) => key.startsWith("zd.fileDraft.v1:")),
   );
   expect(draftKeys).toEqual([]);
+  await expect
+    .poll(() => servedHost.readPersistedState())
+    .not.toContain("Saved through the remote host.");
 
   await files.locator('[data-file-path="docs"]').click({ button: "right" });
   await page.getByRole("menuitem", { name: "New File…" }).click();
   const create = page.getByRole("dialog", { name: "New file in docs" });
-  await create.getByRole("textbox", { name: "Name" }).fill("refused.md");
+  await create.getByRole("textbox", { name: "Name" }).fill("served-new.md");
   await create.getByRole("button", { name: "Create" }).click();
-  await expect(create.getByRole("status")).toContainText("read-only served workbench");
-  await expect(servedHost.readFixtureDocs()).resolves.toEqual(["inside.md"]);
+  const created = files.locator('[data-file-path="docs/served-new.md"]');
+  await expect(created).toBeVisible();
+  await created.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Rename…" }).click();
+  const rename = page.getByRole("dialog", { name: "Rename served-new.md" });
+  await rename.getByRole("textbox", { name: "New name" }).fill("served-renamed.md");
+  await rename.getByRole("button", { name: "Rename" }).click();
+  await expect(files.locator('[data-file-path="docs/served-renamed.md"]')).toBeVisible();
+  await expect
+    .poll(() => servedHost.readFixtureDocs())
+    .toEqual(expect.arrayContaining(["inside.md", "served-renamed.md"]));
+
+  await files.locator('[data-file-path="notes.md"]').click();
+  await content.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.evaluate(() => {
+    const target = document.querySelector<HTMLElement>(".current-file .cm-content");
+    if (!target) throw new Error("the served editor is unavailable");
+    const clipboard = new DataTransfer();
+    clipboard.items.add(
+      new File([Uint8Array.of(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)], "capture.png", {
+        type: "image/png",
+      }),
+    );
+    target.dispatchEvent(
+      new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: clipboard }),
+    );
+  });
+  await expect(buffer.getByRole("img", { name: "Screenshot" })).toBeVisible();
+  await expect.poll(() => servedHost.readFixtureScreenshots()).toHaveLength(1);
+  expect((await servedHost.readFixtureScreenshots())[0]).toMatch(/\.png$/u);
+  await page.keyboard.press("ControlOrMeta+s");
+  await expect
+    .poll(() => servedHost.readFixtureFile())
+    .toContain("![Screenshot](docs/screenshots/");
 
   await files.getByRole("tab", { name: "CHANGES" }).click();
-  await expect(files.getByRole("region", { name: "Changes" })).toContainText(
-    "Git inspection is unavailable",
+  const changes = files.getByRole("region", { name: "Changes" });
+  await changes.getByRole("button", { name: "Refresh Git status" }).click();
+  const changedNotes = changes.getByRole("listitem", { name: "notes.md, modified" });
+  await expect(changedNotes).toBeVisible();
+  await expect(
+    changes.getByRole("listitem", { name: "docs/served-renamed.md, untracked" }),
+  ).toBeVisible();
+  const history = changes.locator("[data-commit-id]");
+  await expect(history).toHaveCount(1);
+  await expect(history).toContainText("Initial served fixture");
+  await changedNotes.click();
+  const comparison = page.getByRole("region", { name: "Read-only file comparison" });
+  await expect(comparison).toBeVisible();
+  await expect(comparison.locator('[data-diff-side="base"]')).toContainText(
+    "Opened through the real Rust host.",
   );
+  await expect(comparison.locator('[data-diff-side="head"]')).toContainText(
+    "Saved through the remote host.",
+  );
+  await comparison.getByRole("button", { name: "Close file comparison" }).click();
+
+  await page.keyboard.press("ControlOrMeta+,");
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  await settings
+    .getByRole("radiogroup", { name: "Theme", exact: true })
+    .getByRole("radio", { name: "Served Fixture" })
+    .click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme-name", "served");
+  const diagnosticSettings = settings.locator('[data-diagnostic-settings="true"]');
+  const diagnosticToggle = diagnosticSettings.getByRole("checkbox", {
+    name: "Host diagnostics",
+  });
+  await expect(diagnosticToggle).not.toBeChecked();
+  await diagnosticToggle.check();
+  await expect(diagnosticSettings.getByRole("status")).toHaveText("Recording on host.");
+  await diagnosticToggle.uncheck();
+  await expect(diagnosticSettings.getByRole("status")).toHaveText("Off.");
+  const diagnosticEvidence = await servedHost.readDiagnostics();
+  expect(diagnosticEvidence).toContain('"operation":"diagnostics.enable"');
+  expect(diagnosticEvidence).not.toContain(servedHost.secret);
+  expect(diagnosticEvidence).not.toContain("notes.md");
+  expect(diagnosticEvidence).not.toContain("Saved through the remote host.");
+  await settings.getByRole("button", { name: "Close Settings" }).click();
 
   await page.keyboard.press("ControlOrMeta+j");
   const terminal = page.locator("[data-project-terminal]");
@@ -290,8 +370,11 @@ test("restores stable identities and all durable records in a new process and or
   await expect(page.locator(".zd-workbench")).toBeVisible();
   await expect(page.locator(`[data-project-id="${seeded.projectId}"]`)).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme-name", "dark");
-  const buffer = page.locator('.editor-buffer[data-buffer-kind="read-only"]');
+  const buffer = page.locator('.editor-buffer[data-buffer-kind="editable"]');
   await expect(buffer).toContainText("Recovered across a new port");
+  await expect(buffer.locator(".cm-content")).toHaveAttribute("contenteditable", "true");
+  await expect(page.locator('[data-file-path="notes.md"]')).toHaveAttribute("data-dirty", "true");
+  await expect(servedHost.readFixtureFile()).resolves.not.toContain("Recovered across a new port");
   await expect(buffer.locator(".cm-content")).not.toHaveClass(/cm-lineWrapping/u);
   await page.getByRole("button", { name: "View Markdown feedback" }).click();
   await expect(page.getByRole("dialog", { name: "Feedback" })).toContainText(

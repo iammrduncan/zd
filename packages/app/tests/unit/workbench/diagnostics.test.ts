@@ -52,7 +52,7 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-describe("local diagnostic settings", () => {
+describe("host diagnostic settings", () => {
   it("shares one Settings sheet with the Attention controls", async () => {
     const notifications: AttentionNotificationAdapter = {
       permission: vi.fn(async () => "unsupported" as const),
@@ -157,6 +157,7 @@ describe("local diagnostic settings", () => {
     const toggle = host.querySelector<HTMLInputElement>("[data-diagnostics-toggle]")!;
 
     expect(settings.open).toBe(false);
+    expect(toggle.labels?.[0]?.textContent).toContain("Host diagnostics");
     expect(toggle.checked).toBe(false);
     expect(instrumentation.enable).not.toHaveBeenCalled();
 
@@ -166,7 +167,7 @@ describe("local diagnostic settings", () => {
     await vi.waitFor(() => expect(instrumentation.enable).toHaveBeenCalledOnce());
     expect(toggle.checked).toBe(true);
     expect(diagnosticsEnabled()).toBe(true);
-    expect(host.querySelector("[role=status]")?.textContent).toContain("Recording locally");
+    expect(host.querySelector("[role=status]")?.textContent).toContain("Recording on host");
 
     host.querySelector<HTMLButtonElement>("[data-diagnostics-reveal]")!.click();
     await vi.waitFor(() => expect(reveal).toHaveBeenCalledOnce());

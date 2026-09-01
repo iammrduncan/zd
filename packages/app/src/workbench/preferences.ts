@@ -72,12 +72,12 @@ export function setWordWrap(on: boolean): void {
   write(WORD_WRAP, String(on));
 }
 
-/** Local diagnostic evidence is an explicit opt-in and therefore defaults off. */
+/** Host diagnostic evidence is an explicit opt-in and therefore defaults off. */
 export function diagnosticsEnabled(): boolean {
   return read(DIAGNOSTICS_ENABLED) === "true";
 }
 
-/** Remember whether the next workbench session should collect local diagnostics. */
+/** Remember whether the next workbench session should collect host diagnostics. */
 export function setDiagnosticsEnabled(enabled: boolean): void {
   write(DIAGNOSTICS_ENABLED, String(enabled));
 }

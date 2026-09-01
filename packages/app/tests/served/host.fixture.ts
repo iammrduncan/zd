@@ -1,22 +1,25 @@
 import { expect, test as base } from "@playwright/test";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { createServer } from "node:net";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
 const STARTUP_TIMEOUT_MS = 15_000;
 const SHUTDOWN_TIMEOUT_MS = 5_000;
 const FIXTURE_TEXT = "# Remote fixture\n\nOpened through the real Rust host.\n";
+const execFileAsync = promisify(execFile);
 
 interface ServedHostFixture {
   readonly url: string;
   readonly secret: string;
-  readonly fileText: string;
   restart(): Promise<Readiness>;
   readFixtureFile(): Promise<string>;
   readFixtureDocs(): Promise<readonly string[]>;
+  readFixtureScreenshots(): Promise<readonly string[]>;
+  readDiagnostics(): Promise<string>;
   readPersistedState(): Promise<string>;
 }
 
@@ -167,6 +170,17 @@ async function readTreeText(root: string): Promise<string> {
   return contents.join("\n");
 }
 
+async function runGit(root: string, ...args: readonly string[]): Promise<void> {
+  await execFileAsync("git", args, {
+    cwd: root,
+    env: {
+      ...process.env,
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_TERMINAL_PROMPT: "0",
+    },
+  });
+}
+
 export const test = base.extend<object, { servedHost: ServedHostFixture }>({
   servedHost: [
     async ({ browserName }, use) => {
@@ -213,6 +227,20 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
         await mkdir(join(projectRoot, "docs"));
         await writeFile(join(projectRoot, "notes.md"), FIXTURE_TEXT, "utf8");
         await writeFile(join(projectRoot, "docs", "inside.md"), "inside\n", "utf8");
+        const builtInTheme = await readFile(
+          join(root, "packages", "app", "src", "design", "themes", "builtins", "dark.theme.config"),
+          "utf8",
+        );
+        const fixtureTheme = builtInTheme.replace('"name": "Dark"', '"name": "Served Fixture"');
+        if (fixtureTheme === builtInTheme) {
+          throw new Error("the served-host fixture could not derive its valid theme");
+        }
+        await writeFile(join(stateRoot, "served.theme.config"), fixtureTheme, "utf8");
+        await runGit(projectRoot, "init", "--initial-branch=main");
+        await runGit(projectRoot, "config", "user.name", "Served Fixture");
+        await runGit(projectRoot, "config", "user.email", "served-fixture@example.invalid");
+        await runGit(projectRoot, "add", "--", "notes.md", "docs/inside.md");
+        await runGit(projectRoot, "commit", "-m", "Initial served fixture");
         await startHost(0);
         await use({
           get url() {
@@ -223,7 +251,6 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
             if (!readiness) throw new Error("the served host is not running");
             return readiness.secret;
           },
-          fileText: FIXTURE_TEXT,
           restart: async () => {
             if (!child || !readiness) throw new Error("the served host is not running");
             const oldPort = new URL(readiness.url).port;
@@ -239,6 +266,8 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
           },
           readFixtureFile: () => readFile(join(projectRoot, "notes.md"), "utf8"),
           readFixtureDocs: () => readdir(join(projectRoot, "docs")),
+          readFixtureScreenshots: () => readdir(join(projectRoot, "docs", "screenshots")),
+          readDiagnostics: () => readTreeText(join(stateRoot, "diagnostics")),
           readPersistedState: () => readTreeText(stateRoot),
         });
       } finally {
