@@ -3,7 +3,7 @@ import type { Platform } from "@/platform";
 type Connector = (secret: string) => Promise<Platform>;
 
 const SERVED_LIMITS =
-  "Read-only served workbench. Save, file changes, Git, automatic file updates, terminals, project picker, recent workspaces, and other project roots are unavailable.";
+  "Editing, file changes, Git, themes, and diagnostics run on the remote host. Automatic file updates, terminals, project picker, recent workspaces, and other project roots are unavailable.";
 
 function problem(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
