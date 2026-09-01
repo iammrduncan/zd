@@ -144,14 +144,25 @@ describe("package ownership", () => {
     expect(rootPackage.scripts["app:open"]).toBe(cwdPreservingLaunch);
   });
 
-  it("builds the packaged app before starting the experimental served host", () => {
+  it("builds the packaged app before dispatching serve from the shipped executable", () => {
     const rootPackage = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
       scripts: Record<string, string>;
     };
+    const fixture = readFileSync(
+      resolve(ROOT, "packages/app/tests/served/host.fixture.ts"),
+      "utf8",
+    );
 
     expect(rootPackage.scripts["app:serve"]).toBe(
-      "npm run build && cargo run -p zd-server --",
+      "npm run build && cargo run -p zd -- serve",
     );
+    expect(rootPackage.scripts["test:e2e:served"]).toBe(
+      "npm run build && cargo build -p zd && playwright test --config playwright.served.config.ts",
+    );
+    expect(fixture).toContain("`zd${extension}`");
+    expect(fixture).not.toContain("`zd-server${extension}`");
+    expect(fixture).toContain('["serve", projectRoot, "--bind"');
+    expect(existsSync(resolve(ROOT, "packages/server/src/main.rs"))).toBe(false);
   });
 
   it("keeps the desktop runtime network-closed by default", () => {

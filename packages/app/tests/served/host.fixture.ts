@@ -36,7 +36,7 @@ function repositoryRoot(): string {
 
 function serverExecutable(root: string): string {
   const extension = process.platform === "win32" ? ".exe" : "";
-  return join(root, "target", "debug", `zd-server${extension}`);
+  return join(root, "target", "debug", `zd${extension}`);
 }
 
 function directIpv4Address(): string {
@@ -233,7 +233,7 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
       const startHost = async (port: number): Promise<Readiness> => {
         const launched = spawn(
           serverExecutable(root),
-          [projectRoot, "--bind", hostAddress, "--port", String(port)],
+          ["serve", projectRoot, "--bind", hostAddress, "--port", String(port)],
           {
             cwd: root,
             env: { ...process.env, ZD_TEST_STATE_DIR: stateRoot },
