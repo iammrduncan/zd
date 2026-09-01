@@ -43,6 +43,46 @@ fn persisted_host(project: &Path, state: &Path) -> HostService {
 }
 
 #[test]
+fn desktop_home_starts_without_approving_the_invocation_directory() {
+    let state = Scratch::new("desktop-home-state");
+
+    let host = HostService::open_desktop_with_state(None, state.path()).expect("open desktop home");
+
+    assert_eq!(
+        host.launch_request(),
+        zd_host::HostLaunchRequest {
+            project: None,
+            worktree_id: None,
+            relative_path: None,
+            problem: None,
+        }
+    );
+    assert!(host.project_grants().is_empty());
+    assert!(host.diagnostics_status().is_ok());
+    assert!(host.describe_durable_state().is_err());
+}
+
+#[test]
+fn desktop_file_launch_approves_its_parent_and_keeps_only_a_relative_file_name() {
+    let project = Scratch::new("desktop-file-project");
+    let state = Scratch::new("desktop-file-state");
+    let file = project.join("plan.md");
+    std::fs::write(&file, "plan\n").expect("write launch file");
+
+    let host =
+        HostService::open_desktop_with_state(Some(&file), state.path()).expect("open desktop file");
+    let launch = host.launch_request();
+    let expected_root = project.path().canonicalize().unwrap();
+
+    assert_eq!(launch.relative_path.as_deref(), Some("plan.md"));
+    assert_eq!(
+        launch.project.as_ref().map(|grant| grant.root.as_str()),
+        Some(expected_root.to_string_lossy().as_ref())
+    );
+    assert!(launch.worktree_id.is_some());
+}
+
+#[test]
 fn startup_project_drives_tree_and_bounded_file_authority() {
     let scratch = Scratch::new("startup");
     std::fs::create_dir_all(scratch.join("docs")).expect("create docs");
