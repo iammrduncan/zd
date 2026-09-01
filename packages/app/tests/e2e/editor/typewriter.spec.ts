@@ -313,6 +313,10 @@ test("Enter eases the line back rather than cutting it back", async ({ page }) =
   await caretInTheMiddle(page);
   await typewriterOn(page);
   await settledOnMidpoint(page, "the caret did not start pinned");
+  // The midpoint poll admits the last two pixels of an active nudge. Let that
+  // setup journey finish before Enter, or this trace folds its remaining motion
+  // into the row-sized journey it claims to measure.
+  await waitForEditorScrollToSettle(page);
 
   /*
    * "the line animation shifting up is not smooth enough. It should be a smoother

@@ -7,7 +7,7 @@
  * place.
  */
 
-import { scrollBoxTo, type ScrollMotion } from "./scroll";
+import { scrollBoxTo, type ScrollBox, type ScrollBoxReader, type ScrollMotion } from "./scroll";
 
 /** How much of the document one focus target covers (DESIGN.md §7.6). */
 export type FocusGranularity = "line" | "paragraph" | "section";
@@ -58,8 +58,9 @@ export function anchorY(surface: Element): number {
  */
 export function scrollBoxToAnchor(
   surface: Element,
-  box: { top: number; height: number },
+  box: ScrollBox,
   motion: ScrollMotion = "instant",
+  readBox?: ScrollBoxReader,
 ): void {
-  scrollBoxTo(surface, box, anchorY(surface), motion);
+  scrollBoxTo(surface, box, anchorY(surface), motion, readBox);
 }

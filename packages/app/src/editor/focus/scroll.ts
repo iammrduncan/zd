@@ -11,6 +11,14 @@
  */
 export type ScrollMotion = "instant" | "smooth" | "nudge" | "follow" | "return";
 
+export interface ScrollBox {
+  readonly top: number;
+  readonly height: number;
+}
+
+/** Re-read the moving target only when another scroll writer changed the surface. */
+export type ScrollBoxReader = () => ScrollBox | null;
+
 /**
  * Checked here because explicit `scrollTo` behaviour and our own animation cannot
  * be reached by a `scroll-behavior` rule in CSS.
@@ -93,14 +101,23 @@ function easeOut(t: number): number {
  * Direct input wins immediately, so an edge return never overwrites a trackpad flick
  * and the reader never has to fight the document.
  *
- * A `scrollTop` change without direct input is different. CodeMirror corrects its
- * scroll position when an estimated off-screen height becomes measured. Treating that
- * as a reader taking control canceled a focus jump halfway through: the document went
- * 979 → 1148 → 1026 and stayed there, the reported catch and release. Translate both
- * ends of the journey by the correction instead. The remaining distance is unchanged,
- * and the animation stays in the document coordinate system CodeMirror just refined.
+ * A `scrollTop` change without direct input is different. CodeMirror both scrolls a new
+ * selection into view and corrects estimated off-screen heights. The first leaves the
+ * target's document coordinate unchanged; the second moves it. Guessing from the scroll
+ * delta cannot distinguish them: translating every destination stranded a caret exactly
+ * one late selection scroll away from its anchor.
+ *
+ * Re-read the target when another writer appears. Move both ends by the target's measured
+ * coordinate change, preserving the journey through a height correction while ignoring a
+ * selection scroll that did not move the target. Callers without a readable target retain
+ * the older scroll-delta fallback.
  */
-function easeScrollTo(surface: Element, top: number, duration: number): void {
+function easeScrollTo(
+  surface: Element,
+  top: number,
+  duration: number,
+  refreshTarget?: () => number | null,
+): void {
   stopEase(surface);
 
   let from = surface.scrollTop;
@@ -119,8 +136,10 @@ function easeScrollTo(surface: Element, top: number, duration: number): void {
   const step = (now: number) => {
     const correction = surface.scrollTop - written;
     if (Math.abs(correction) > 1) {
-      from += correction;
-      target += correction;
+      const refreshed = refreshTarget?.();
+      const shift = refreshed === null || refreshed === undefined ? correction : refreshed - target;
+      from += shift;
+      target += shift;
     }
 
     const through = Math.min(1, (now - started) / duration);
@@ -135,7 +154,12 @@ function easeScrollTo(surface: Element, top: number, duration: number): void {
 }
 
 /** Ease one small correction, or place it immediately if it is already too far. */
-function nudgeTo(surface: Element, top: number, row: number): void {
+function nudgeTo(
+  surface: Element,
+  top: number,
+  row: number,
+  refreshTarget?: () => number | null,
+): void {
   const distance = Math.abs(top - surface.scrollTop);
 
   if (row <= 0 || distance > row * NUDGE_ROWS) {
@@ -144,7 +168,7 @@ function nudgeTo(surface: Element, top: number, row: number): void {
     return;
   }
 
-  easeScrollTo(surface, top, (distance / row) * NUDGE_MS_PER_ROW);
+  easeScrollTo(surface, top, (distance / row) * NUDGE_MS_PER_ROW, refreshTarget);
 }
 
 /**
@@ -209,18 +233,27 @@ function followTo(surface: Element, top: number, row: number): void {
  */
 export function scrollBoxTo(
   surface: Element,
-  box: { top: number; height: number },
+  box: ScrollBox,
   y: number,
   motion: ScrollMotion = "instant",
+  readBox?: ScrollBoxReader,
 ): void {
-  const top = surface.scrollTop + box.top + box.height / 2 - y;
+  const targetFor = (measured: ScrollBox) =>
+    surface.scrollTop + measured.top + measured.height / 2 - y;
+  const top = targetFor(box);
+  const refreshTarget = readBox
+    ? () => {
+        const measured = readBox();
+        return measured ? targetFor(measured) : null;
+      }
+    : undefined;
   const reduceMotion = reducedMotion();
 
   if (!reduceMotion) {
-    if (motion === "nudge") return nudgeTo(surface, top, box.height);
+    if (motion === "nudge") return nudgeTo(surface, top, box.height, refreshTarget);
     if (motion === "follow") return followTo(surface, top, box.height);
     if (motion === "smooth" || motion === "return") {
-      return easeScrollTo(surface, top, FOCAL_JOURNEY_MS);
+      return easeScrollTo(surface, top, FOCAL_JOURNEY_MS, refreshTarget);
     }
   }
 
