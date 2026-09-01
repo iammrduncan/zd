@@ -5,8 +5,39 @@ use std::path::Path;
 
 use serde::Serialize;
 
+use crate::{atomic_write, ResourceRef};
+
 pub const EDITABLE_FILE_LIMIT_BYTES: u64 = 8 * 1024 * 1024;
 pub const FILE_PREVIEW_LIMIT_BYTES: usize = 64 * 1024;
+pub const PROJECT_IMAGE_LIMIT_BYTES: u64 = 16 * 1024 * 1024;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct WorkspaceFile {
+    pub resource: ResourceRef,
+    pub relative: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceListing {
+    pub project_id: String,
+    pub worktree_id: String,
+    pub root: String,
+    pub files: Vec<WorkspaceFile>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectImage {
+    pub media_type: &'static str,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct FileStamp {
+    pub modified: Option<u64>,
+    pub length: u64,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(
@@ -58,6 +89,138 @@ fn safe_preview(bytes: Vec<u8>) -> Option<String> {
 
 pub fn read_bounded_file_at(path: &Path) -> BoundedFileRead {
     read_bounded_file_with_limits(path, EDITABLE_FILE_LIMIT_BYTES, FILE_PREVIEW_LIMIT_BYTES)
+}
+
+pub fn read_text_file_at(path: &Path) -> Result<String, String> {
+    match read_bounded_file_at(path) {
+        BoundedFileRead::Text { text, .. } => Ok(text),
+        BoundedFileRead::Binary { .. } | BoundedFileRead::Undecodable { .. } => {
+            Err("The selected file is not UTF-8 text".to_string())
+        }
+        BoundedFileRead::Missing => Err("The selected file is missing".to_string()),
+        BoundedFileRead::Denied => Err("File access was denied".to_string()),
+        BoundedFileRead::OverLimit { .. } => {
+            Err("The selected file exceeds the 8 MiB editable limit".to_string())
+        }
+        BoundedFileRead::Unavailable { problem } => Err(problem),
+    }
+}
+
+pub fn write_text_file_at(path: &Path, contents: &str) -> Result<(), String> {
+    if contents.len() as u64 > EDITABLE_FILE_LIMIT_BYTES {
+        return Err("The document exceeds the 8 MiB editable limit".to_string());
+    }
+    atomic_write(path, contents.as_bytes())
+        .map_err(|_| "The document could not be saved".to_string())
+}
+
+pub fn file_stamp_at(path: &Path) -> Result<Option<FileStamp>, String> {
+    let metadata = match std::fs::metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
+            return Err("File access was denied".to_string())
+        }
+        Err(_) => return Err("The file stamp is unavailable".to_string()),
+    };
+    if !metadata.is_file() {
+        return Err("The selected resource is not a regular file".to_string());
+    }
+    let modified = metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|since| since.as_millis() as u64);
+    Ok(Some(FileStamp {
+        modified,
+        length: metadata.len(),
+    }))
+}
+
+fn project_image_media_type(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]) {
+        Some("image/png")
+    } else if bytes.starts_with(&[0xff, 0xd8, 0xff]) && bytes.ends_with(&[0xff, 0xd9]) {
+        Some("image/jpeg")
+    } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        Some("image/gif")
+    } else if bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP" {
+        Some("image/webp")
+    } else {
+        None
+    }
+}
+
+pub fn read_project_image_at(path: &Path) -> Result<ProjectImage, String> {
+    let metadata = std::fs::metadata(path).map_err(|_| "The Markdown image is unavailable")?;
+    if !metadata.is_file() {
+        return Err("The Markdown image is not a regular file".to_string());
+    }
+    if metadata.len() > PROJECT_IMAGE_LIMIT_BYTES {
+        return Err("The Markdown image exceeds the 16 MiB limit".to_string());
+    }
+    let mut bytes = Vec::with_capacity(metadata.len() as usize);
+    std::fs::File::open(path)
+        .and_then(|file| {
+            file.take(PROJECT_IMAGE_LIMIT_BYTES.saturating_add(1))
+                .read_to_end(&mut bytes)
+        })
+        .map_err(|_| "The Markdown image could not be read")?;
+    if bytes.len() as u64 > PROJECT_IMAGE_LIMIT_BYTES {
+        return Err("The Markdown image exceeds the 16 MiB limit".to_string());
+    }
+    let media_type = project_image_media_type(&bytes)
+        .ok_or_else(|| "The Markdown image type is not supported".to_string())?;
+    Ok(ProjectImage { media_type, bytes })
+}
+
+pub fn workspace_files_in(
+    root: &Path,
+    project_id: &str,
+    worktree_id: &str,
+) -> Result<WorkspaceListing, String> {
+    let root = root
+        .canonicalize()
+        .map_err(|_| "The approved worktree is unavailable".to_string())?;
+    let mut files = Vec::new();
+    let walker = ignore::WalkBuilder::new(&root)
+        .hidden(true)
+        .git_ignore(true)
+        .git_exclude(true)
+        .git_global(true)
+        .require_git(false)
+        .follow_links(false)
+        .build();
+    for entry in walker {
+        let entry = entry.map_err(|_| "The workspace file listing is unavailable".to_string())?;
+        let path = entry.path();
+        let is_markdown = path
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("md"));
+        if !entry.file_type().is_some_and(|kind| kind.is_file()) || !is_markdown {
+            continue;
+        }
+        let relative = path
+            .strip_prefix(&root)
+            .map_err(|_| "The workspace file listing escaped its grant".to_string())?
+            .to_string_lossy()
+            .into_owned();
+        files.push(WorkspaceFile {
+            resource: ResourceRef {
+                project_id: project_id.to_string(),
+                worktree_id: worktree_id.to_string(),
+                relative_path: relative.clone(),
+            },
+            relative,
+        });
+    }
+    files.sort_by(|left, right| left.relative.cmp(&right.relative));
+    Ok(WorkspaceListing {
+        project_id: project_id.to_string(),
+        worktree_id: worktree_id.to_string(),
+        root: root.to_string_lossy().into_owned(),
+        files,
+    })
 }
 
 #[doc(hidden)]

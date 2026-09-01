@@ -21,8 +21,10 @@ pub use file_tree::{
     snapshot_in, FileTreeEntry, FileTreeEntryKind, FileTreeRequest, FileTreeResult, TreeLimits,
 };
 pub use files::{
-    read_bounded_file_at, read_bounded_file_with_limits, BoundedFileRead,
-    EDITABLE_FILE_LIMIT_BYTES, FILE_PREVIEW_LIMIT_BYTES,
+    file_stamp_at, read_bounded_file_at, read_bounded_file_with_limits, read_project_image_at,
+    read_text_file_at, workspace_files_in, write_text_file_at, BoundedFileRead, FileStamp,
+    ProjectImage, WorkspaceFile, WorkspaceListing, EDITABLE_FILE_LIMIT_BYTES,
+    FILE_PREVIEW_LIMIT_BYTES, PROJECT_IMAGE_LIMIT_BYTES,
 };
 pub use grants::{
     ApprovedProject, GrantAvailability, GrantStore, ProjectGrant, ResourceRef, WorktreeGrant,
