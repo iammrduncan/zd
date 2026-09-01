@@ -21,7 +21,8 @@ changes through a [Zen Suite Improvement Proposal (ZSIP)](../zsip/README.md).
 - [0006: Scope file access to approved project grants](suite/0006-scope-file-access-to-approved-project-grants_H.md)
 - [0007: Dispatch commands from one workbench registry](suite/0007-dispatch-commands-from-one-workbench-registry_H.md)
 - [0008: Serve one host backend to browser and desktop clients](suite/0008-serve-one-host-backend-to-browser-and-desktop-clients_H.md) — superseded
-- [0009: Let browsers connect directly to served hosts](suite/0009-let-browsers-connect-directly-to-served-hosts_H.md)
+- [0009: Let browsers connect directly to served hosts](suite/0009-let-browsers-connect-directly-to-served-hosts_H.md) — superseded
+- [0010: Keep terminal sessions below server lifetime](suite/0010-keep-terminal-sessions-below-server-lifetime_H.md)
 
 ### Editor and current file
 
