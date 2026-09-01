@@ -4,6 +4,10 @@ import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon, type ISearchOptions } from "@xterm/addon-search";
 import { Terminal as XtermTerminal, type ITheme } from "@xterm/xterm";
 
+const COMPOSITION_KEY_CODE = 229;
+const DELETE_CHARACTER = "\u007f";
+const TEXTAREA_EDIT_WINDOW_MS = 100;
+
 export interface TerminalEmulatorSearchOptions {
   readonly caseSensitive: boolean;
   readonly incremental: boolean;
@@ -124,11 +128,39 @@ function opaqueHex(colour: string, fallback: string): string {
     .join("")}`;
 }
 
+function textareaEditData(before: string, after: string): string {
+  let prefix = 0;
+  while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix]) {
+    prefix += 1;
+  }
+
+  let suffix = 0;
+  while (
+    suffix < before.length - prefix &&
+    suffix < after.length - prefix &&
+    before[before.length - suffix - 1] === after[after.length - suffix - 1]
+  ) {
+    suffix += 1;
+  }
+
+  const inserted = after.slice(prefix, after.length - suffix);
+  if (inserted) return inserted;
+  return DELETE_CHARACTER.repeat(before.length - prefix - suffix);
+}
+
+function isLegacyTextareaEmission(data: string, before: string, after: string): boolean {
+  if (after.length > before.length) return data === after.replace(before, "");
+  if (after.length < before.length) return data === DELETE_CHARACTER;
+  return before !== after && data === after;
+}
+
 class XtermEmulator implements TerminalEmulator {
   readonly #fit = new FitAddon();
   readonly #search = new SearchAddon({ highlightLimit: 1_000 });
   readonly #terminal: XtermTerminal;
   #host: HTMLElement | null = null;
+  #pendingTextareaEdit: string | null = null;
+  #pendingTextareaEditTimer: number | null = null;
   #theme: ITheme = {};
 
   constructor(scrollbackRows: number) {
@@ -168,7 +200,19 @@ class XtermEmulator implements TerminalEmulator {
   }
 
   onData(listener: (data: string) => void): () => void {
-    const subscription = this.#terminal.onData(listener);
+    const subscription = this.#terminal.onData((data) => {
+      const before = this.#pendingTextareaEdit;
+      const textarea = this.#host?.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea");
+      const after = textarea?.value;
+      // xterm 5.5 can emit the whole retained textarea after a keyCode 229 edit
+      // (xtermjs/xterm.js#6078). Replace only that legacy emission with its delta.
+      if (before !== null && after !== undefined && isLegacyTextareaEmission(data, before, after)) {
+        this.#clearPendingTextareaEdit();
+        listener(textareaEditData(before, after));
+        return;
+      }
+      listener(data);
+    });
     return () => subscription.dispose();
   }
 
@@ -188,7 +232,28 @@ class XtermEmulator implements TerminalEmulator {
   }
 
   attachCustomKeyEventHandler(handler: (event: KeyboardEvent) => boolean): void {
-    this.#terminal.attachCustomKeyEventHandler(handler);
+    this.#terminal.attachCustomKeyEventHandler((event) => {
+      const accepted = handler(event);
+      if (
+        accepted &&
+        event.type === "keydown" &&
+        event.keyCode === COMPOSITION_KEY_CODE &&
+        !event.isComposing
+      ) {
+        const textarea = this.#host?.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea");
+        if (textarea) {
+          this.#pendingTextareaEdit = textarea.value;
+          if (this.#pendingTextareaEditTimer !== null) {
+            window.clearTimeout(this.#pendingTextareaEditTimer);
+          }
+          this.#pendingTextareaEditTimer = window.setTimeout(
+            () => this.#clearPendingTextareaEdit(),
+            TEXTAREA_EDIT_WINDOW_MS,
+          );
+        }
+      }
+      return accepted;
+    });
   }
 
   setLabel(label: string): void {
@@ -270,7 +335,16 @@ class XtermEmulator implements TerminalEmulator {
   }
 
   dispose(): void {
+    this.#clearPendingTextareaEdit();
     this.#terminal.dispose();
+  }
+
+  #clearPendingTextareaEdit(): void {
+    this.#pendingTextareaEdit = null;
+    if (this.#pendingTextareaEditTimer !== null) {
+      window.clearTimeout(this.#pendingTextareaEditTimer);
+      this.#pendingTextareaEditTimer = null;
+    }
   }
 }
 
