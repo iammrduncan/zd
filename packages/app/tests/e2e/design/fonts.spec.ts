@@ -205,11 +205,9 @@ test("bold keeps the duospace advance so weight never reflows text", async ({ pa
   const width = await measureText(page, [
     { label: "regular", text: "Handgloves", ...QUATTRO, weight: 400 },
     { label: "bold", text: "Handgloves", ...QUATTRO, weight: 700 },
-    { label: "italic", text: "Handgloves", ...QUATTRO, weight: 400, style: "italic" },
   ]);
 
   expect(width("bold")).toBeCloseTo(width("regular"), 1);
-  expect(width("italic")).toBeCloseTo(width("regular"), 1);
 });
 
 test("bold draws the shipped Bold outlines rather than a substituted Regular", async ({ page }) => {

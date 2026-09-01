@@ -26,6 +26,11 @@ import { openEditor } from "./harness";
  */
 
 test.beforeEach(async ({ page }) => {
+  // These commands are intentionally macOS-only in production. Emulate that
+  // platform before the editor loads so Linux Chromium exercises the real keymap.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "platform", { configurable: true, get: () => "MacIntel" });
+  });
   await openEditor(page);
   await page.locator(".cm-content").click();
 });
@@ -61,11 +66,11 @@ for (const { what, needle } of LINES) {
   test(`cmd+left settles at the start of ${what}`, async ({ page }) => {
     await caretInto(page, needle);
 
-    await page.keyboard.press("ControlOrMeta+ArrowLeft");
+    await page.keyboard.press("Meta+ArrowLeft");
     const first = await head(page);
-    await page.keyboard.press("ControlOrMeta+ArrowLeft");
+    await page.keyboard.press("Meta+ArrowLeft");
     const second = await head(page);
-    await page.keyboard.press("ControlOrMeta+ArrowLeft");
+    await page.keyboard.press("Meta+ArrowLeft");
     const third = await head(page);
 
     // Never forward. That is the whole invariant, and it is what oscillation breaks.
@@ -78,9 +83,9 @@ for (const { what, needle } of LINES) {
   test(`cmd+right settles at the end of ${what}`, async ({ page }) => {
     await caretInto(page, needle);
 
-    await page.keyboard.press("ControlOrMeta+ArrowRight");
+    await page.keyboard.press("Meta+ArrowRight");
     const first = await head(page);
-    await page.keyboard.press("ControlOrMeta+ArrowRight");
+    await page.keyboard.press("Meta+ArrowRight");
     const second = await head(page);
 
     expect(second, "the second press moved the caret backward").toBeGreaterThanOrEqual(first);
@@ -93,9 +98,9 @@ test("the keys still reach the line's own edges", async ({ page }) => {
   // has no notation and does not wrap, so both edges are exactly the source line's.
   const line = await caretInto(page, "the claim above is decoration rather than design");
 
-  await page.keyboard.press("ControlOrMeta+ArrowLeft");
+  await page.keyboard.press("Meta+ArrowLeft");
   expect(await head(page), "cmd+left did not reach the line start").toBe(line.from);
 
-  await page.keyboard.press("ControlOrMeta+ArrowRight");
+  await page.keyboard.press("Meta+ArrowRight");
   expect(await head(page), "cmd+right did not reach the line end").toBe(line.to);
 });

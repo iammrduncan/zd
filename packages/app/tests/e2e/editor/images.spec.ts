@@ -88,6 +88,9 @@ test("dragging a text selection across a rendered image keeps it rendered", asyn
   await page.mouse.up();
   await expect(image, "the image disappeared when a selection ended on it").toBeVisible();
 
+  // Each drag is an independent selection gesture. Starting the next drag
+  // inside the prior selection invokes Chromium's native text-move behavior.
+  await page.evaluate(() => window.zdEditor!.setCaret(0));
   await page.mouse.move(points.start.x, points.start.y);
   await page.mouse.down();
   await page.mouse.move(points.end.x, points.end.y, { steps: 12 });
@@ -103,6 +106,7 @@ test("dragging a text selection across a rendered image keeps it rendered", asyn
     source.indexOf(") after") + 1,
   );
 
+  await page.evaluate((at) => window.zdEditor!.setCaret(at), source.length);
   await page.mouse.move(points.end.x, points.end.y);
   await page.mouse.down();
   await page.mouse.move(points.start.x, points.start.y, { steps: 12 });
