@@ -98,6 +98,10 @@
   z-index: 30;
   right: var(--space-3);
   bottom: var(--space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-2);
   max-width: min(34rem, calc(100vw - var(--space-4) - var(--space-4)));
   margin: 0;
   padding: var(--space-2) var(--space-3);
@@ -108,4 +112,25 @@
   font-size: var(--type-supporting-size);
   line-height: var(--type-supporting-line);
   pointer-events: none;
+}
+
+.zd-served-limit-notice p {
+  margin: 0;
+}
+
+.zd-served-limit-notice button {
+  appearance: none;
+  padding: 0 var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  line-height: var(--type-supporting-line);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.zd-served-limit-notice button:hover,
+.zd-served-limit-notice button:focus-visible {
+  color: var(--text-primary);
 }

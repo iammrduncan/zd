@@ -4,6 +4,7 @@ type Connector = (secret: string | null) => Promise<Platform>;
 
 const SERVED_LIMITS =
   "Editing, automatic file updates, Git, terminals, themes, and diagnostics run on the remote host. Remote project folders can be opened beside the current project. Recent workspaces and desktop notifications are unavailable.";
+const SERVED_LIMITS_DURATION_MILLIS = 8_000;
 
 function problem(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
@@ -84,10 +85,24 @@ export function isServedPage(documentRoot: Document = document): boolean {
 }
 
 export function mountServedLimits(host: HTMLElement): void {
-  const notice = document.createElement("p");
+  const notice = document.createElement("aside");
   notice.className = "zd-served-limit-notice";
   notice.setAttribute("role", "status");
   notice.setAttribute("aria-label", "Served workbench limits");
-  notice.textContent = SERVED_LIMITS;
+  const message = document.createElement("p");
+  message.textContent = SERVED_LIMITS;
+  const dismiss = document.createElement("button");
+  dismiss.type = "button";
+  dismiss.setAttribute("aria-label", "Dismiss remote-host notice");
+  dismiss.textContent = "×";
+  let timeout: number | null = null;
+  const remove = (): void => {
+    if (timeout !== null) window.clearTimeout(timeout);
+    timeout = null;
+    notice.remove();
+  };
+  dismiss.addEventListener("click", remove);
+  notice.append(message, dismiss);
   host.append(notice);
+  timeout = window.setTimeout(remove, SERVED_LIMITS_DURATION_MILLIS);
 }
