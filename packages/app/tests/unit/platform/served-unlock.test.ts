@@ -26,7 +26,7 @@ describe("served host unlock", () => {
       "Editing, automatic file updates, Git, terminals, themes, and diagnostics run on the remote host",
     );
     expect(notice?.textContent).toContain(
-      "Project picker, recent workspaces, other project roots, and desktop notifications are unavailable",
+      "Remote project folders can be opened beside the current project. Recent workspaces and desktop notifications are unavailable",
     );
   });
 

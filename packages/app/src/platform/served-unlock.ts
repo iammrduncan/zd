@@ -3,7 +3,7 @@ import type { Platform } from "@/platform";
 type Connector = (secret: string | null) => Promise<Platform>;
 
 const SERVED_LIMITS =
-  "Editing, automatic file updates, Git, terminals, themes, and diagnostics run on the remote host. Project picker, recent workspaces, other project roots, and desktop notifications are unavailable.";
+  "Editing, automatic file updates, Git, terminals, themes, and diagnostics run on the remote host. Remote project folders can be opened beside the current project. Recent workspaces and desktop notifications are unavailable.";
 
 function problem(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);

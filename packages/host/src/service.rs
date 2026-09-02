@@ -12,6 +12,7 @@ use crate::file_tree_watch::{
 use crate::instrumentation::{
     DiagnosticRecordInput, DiagnosticState, DiagnosticStatus, DiagnosticWriteOutcome,
 };
+use crate::project_picker::ProjectPickerState;
 use crate::terminal::{
     TerminalError, TerminalErrorKind, TerminalExitSignal, TerminalExitStatus, TerminalMode,
     TerminalOutputBatch, TerminalOutputSignal, TerminalRuntime, TerminalScope,
@@ -47,6 +48,7 @@ struct HostState {
 /// One authority owner for an approved workbench session.
 pub struct HostService {
     state: Mutex<HostState>,
+    project_picker: Mutex<ProjectPickerState>,
     file_tree_watches: FileTreeWatchState,
     terminals: TerminalRuntime,
     durable: Option<DurableStateStore>,
@@ -126,6 +128,7 @@ impl HostService {
                 },
                 grants: GrantStore::default(),
             }),
+            project_picker: Mutex::new(ProjectPickerState::default()),
             file_tree_watches: FileTreeWatchState::default(),
             terminals: TerminalRuntime::open(terminal_mode, state_directory)?,
             durable: None,
@@ -145,6 +148,7 @@ impl HostService {
         };
         Ok(Self {
             state: Mutex::new(HostState { launch, grants }),
+            project_picker: Mutex::new(ProjectPickerState::default()),
             file_tree_watches: FileTreeWatchState::default(),
             terminals: TerminalRuntime::local(),
             durable: None,
@@ -207,6 +211,7 @@ impl HostService {
         };
         Ok(Self {
             state: Mutex::new(HostState { launch, grants }),
+            project_picker: Mutex::new(ProjectPickerState::default()),
             file_tree_watches: FileTreeWatchState::default(),
             terminals: TerminalRuntime::open(terminal_mode, state_directory)?,
             durable: Some(durable),
@@ -235,7 +240,7 @@ impl HostService {
         let mut state = self
             .state
             .lock()
-            .map_err(|_| "desktop project approval is unavailable".to_string())?;
+            .map_err(|_| "project approval is unavailable".to_string())?;
         let approved = match self.state_directory.as_deref() {
             Some(state_directory) => state
                 .grants
@@ -243,6 +248,92 @@ impl HostService {
             None => state.grants.approve_project(root),
         }?;
         Ok(approved.project)
+    }
+
+    pub fn start_project_picker(&self) -> Result<crate::ProjectPickerSnapshot, String> {
+        let starting_directory = {
+            let state = self
+                .state
+                .lock()
+                .map_err(|_| "The remote project browser is unavailable.".to_string())?;
+            state
+                .launch
+                .project
+                .as_ref()
+                .and_then(|project| state.grants.project_root(&project.id).ok())
+                .and_then(|root| root.parent().map(Path::to_path_buf).or(Some(root)))
+        }
+        .map(Ok)
+        .unwrap_or_else(std::env::current_dir)
+        .map_err(|_| "The remote project browser has no starting folder.".to_string())?;
+        self.project_picker
+            .lock()
+            .map_err(|_| "The remote project browser is unavailable.".to_string())?
+            .start(&starting_directory)
+    }
+
+    pub fn open_project_picker(
+        &self,
+        request: &crate::ProjectPickerDirectoryRequest,
+    ) -> Result<crate::ProjectPickerSnapshot, String> {
+        self.project_picker
+            .lock()
+            .map_err(|_| "The remote project browser is unavailable.".to_string())?
+            .open(request)
+    }
+
+    pub fn search_project_picker(
+        &self,
+        request: &crate::ProjectPickerSearchRequest,
+    ) -> Result<crate::ProjectPickerSnapshot, String> {
+        self.project_picker
+            .lock()
+            .map_err(|_| "The remote project browser is unavailable.".to_string())?
+            .search(request)
+    }
+
+    pub fn choose_project_picker(
+        &self,
+        request: &crate::ProjectPickerDirectoryRequest,
+    ) -> Result<ProjectGrant, String> {
+        let root = self
+            .project_picker
+            .lock()
+            .map_err(|_| "The remote project browser is unavailable.".to_string())?
+            .resolve(request)?;
+        let grant = self.approve_trusted_project(&root)?;
+        self.project_picker
+            .lock()
+            .map_err(|_| "The remote project browser is unavailable.".to_string())?
+            .finish(&request.session_id);
+        Ok(grant)
+    }
+
+    pub fn cancel_project_picker(
+        &self,
+        request: &crate::ProjectPickerCancelRequest,
+    ) -> Result<(), String> {
+        self.project_picker
+            .lock()
+            .map_err(|_| "The remote project browser is unavailable.".to_string())?
+            .cancel(request)
+    }
+
+    pub fn remove_project_grant(&self, project_id: &str) -> Result<ProjectGrant, String> {
+        if self
+            .durable
+            .as_ref()
+            .is_some_and(|durable| durable.project_id() == project_id)
+        {
+            return Err(
+                "The startup project cannot be closed while this host is running.".to_string(),
+            );
+        }
+        self.state
+            .lock()
+            .map_err(|_| "Project removal is unavailable.".to_string())?
+            .grants
+            .remove_project(project_id)
     }
 
     pub fn recover_trusted_project(

@@ -20,8 +20,9 @@ use zd_host::terminal::{
 use zd_host::{
     BoundedFileRead, ClipboardImageMediaType, ClipboardImageRequest, CreateThreadWorktreeRequest,
     DurableStateApply, FileTreeMutationRequest, FileTreeRequest, GitCompareRequest, GitDiffRequest,
-    GitHistoryRequest, GitScope, HostService, ResourceRef, EDITABLE_FILE_LIMIT_BYTES,
-    MAX_CLIPBOARD_IMAGE_BYTES,
+    GitHistoryRequest, GitScope, HostService, ProjectPickerCancelRequest,
+    ProjectPickerDirectoryRequest, ProjectPickerSearchRequest, ResourceRef,
+    EDITABLE_FILE_LIMIT_BYTES, MAX_CLIPBOARD_IMAGE_BYTES,
 };
 
 use crate::{
@@ -139,6 +140,12 @@ struct ReadFileParams {
 struct ProjectScopeParams {
     project_id: String,
     worktree_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ProjectGrantParams {
+    project_id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -521,7 +528,7 @@ fn dispatch_host(
                 "startupWorktreeId": launch.worktree_id,
                 "startupRelativePath": launch.relative_path,
                 "capabilities": {
-                    "projectGrants": "read-only",
+                    "projectGrants": "read-write",
                     "fileTree": "read-only",
                     "fileRead": "read-only",
                     "fileWrite": "read-write",
@@ -535,7 +542,7 @@ fn dispatch_host(
                     "durableState": "read-write",
                     "themeFiles": "read-only",
                     "hostDiagnostics": "read-write",
-                    "projectPicker": "unavailable",
+                    "projectPicker": "read-write",
                     "recentWorkspaces": "unavailable",
                 },
             }))
@@ -577,6 +584,56 @@ fn dispatch_host(
         "projectGrants.list" => {
             parse_params::<EmptyParams>(params)?;
             Ok(json!({ "projects": host.project_grants() }))
+        }
+        "projectGrants.remove" => {
+            let request = parse_params::<ProjectGrantParams>(params)?;
+            let grant = host
+                .remove_project_grant(&request.project_id)
+                .map_err(|_| host_failure("The project could not be closed"))?;
+            result_value(grant, "The removed project grant could not be returned")
+        }
+        "projectPicker.start" => {
+            parse_params::<EmptyParams>(params)?;
+            let snapshot = host
+                .start_project_picker()
+                .map_err(|_| host_failure("The remote project browser could not be started"))?;
+            result_value(
+                snapshot,
+                "The remote project browser state could not be returned",
+            )
+        }
+        "projectPicker.open" => {
+            let request = parse_params::<ProjectPickerDirectoryRequest>(params)?;
+            let snapshot = host
+                .open_project_picker(&request)
+                .map_err(|_| host_failure("The remote folder could not be opened"))?;
+            result_value(
+                snapshot,
+                "The remote project browser state could not be returned",
+            )
+        }
+        "projectPicker.search" => {
+            let request = parse_params::<ProjectPickerSearchRequest>(params)?;
+            let snapshot = host
+                .search_project_picker(&request)
+                .map_err(|_| host_failure("The remote folder filter could not be applied"))?;
+            result_value(
+                snapshot,
+                "The remote project browser state could not be returned",
+            )
+        }
+        "projectPicker.choose" => {
+            let request = parse_params::<ProjectPickerDirectoryRequest>(params)?;
+            let grant = host
+                .choose_project_picker(&request)
+                .map_err(|_| host_failure("The remote folder could not be opened as a project"))?;
+            result_value(grant, "The project grant could not be returned")
+        }
+        "projectPicker.cancel" => {
+            let request = parse_params::<ProjectPickerCancelRequest>(params)?;
+            host.cancel_project_picker(&request)
+                .map_err(|_| host_failure("The remote project browser could not be closed"))?;
+            Ok(Value::Null)
         }
         "state.describe" => {
             parse_params::<EmptyParams>(params)?;

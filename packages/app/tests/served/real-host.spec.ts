@@ -395,7 +395,7 @@ test("edits, watches, and runs a reconnectable shell through the real host", asy
   expect(servedHost.isProcessRunning(Number(originalPid))).toBe(true);
 
   await expect(page.getByRole("status", { name: "Served workbench limits" })).toContainText(
-    "Project picker, recent workspaces, other project roots, and desktop notifications are unavailable",
+    "Remote project folders can be opened beside the current project. Recent workspaces and desktop notifications are unavailable",
   );
   expect(await page.evaluate(() => fetch("/notes.md").then((response) => response.status))).toBe(
     404,
@@ -532,4 +532,38 @@ test("restores stable identities and all durable records in a new process and or
   }));
   expect(browserState).toEqual({ local: [], session: [] });
   expect(JSON.stringify(browserState)).not.toContain(restarted.secret);
+});
+
+test("opens a remote folder beside the current project and activates its file", async ({
+  page,
+  servedHost,
+}) => {
+  await page.goto(servedHost.url);
+  await page.getByLabel("Process secret").fill(servedHost.secret);
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.locator(".zd-workbench")).toBeVisible();
+
+  await page.getByRole("button", { name: "Open project folder" }).click();
+  const picker = page.getByRole("dialog", { name: "Open remote folder" });
+  await expect(picker).toBeVisible();
+  await picker
+    .getByRole("searchbox", { name: "Filter folders by name" })
+    .fill(servedHost.secondProjectName);
+  await picker.getByRole("button", { name: "Filter", exact: true }).click();
+  await picker.getByRole("button", { name: servedHost.secondProjectName, exact: true }).click();
+  await expect(picker.locator(".zd-remote-project-picker-path")).toContainText(
+    servedHost.secondProjectName,
+  );
+  await picker.getByRole("button", { name: "Open This Folder" }).click();
+
+  await expect(page.locator(".zd-project-group")).toHaveCount(2);
+  await expect(
+    page.locator(".zd-project-name").filter({ hasText: servedHost.secondProjectName }),
+  ).toHaveText(servedHost.secondProjectName);
+  const secondFile = page.locator('[data-file-path="second.md"]');
+  await expect(secondFile).toBeVisible();
+  await secondFile.click();
+  await expect(page.locator('.editor-buffer[data-buffer-kind="editable"]')).toContainText(
+    "Opened from the remote folder browser.",
+  );
 });
