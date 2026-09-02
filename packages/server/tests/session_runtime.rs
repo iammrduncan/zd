@@ -125,7 +125,7 @@ fn journal_enforces_both_bounds_and_never_returns_a_partial_suffix() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn reconnect_cancels_grace_while_expiry_releases_runtime_resources() {
+async fn reconnect_cancels_grace_while_expiry_preserves_terminal_processes() {
     assert_eq!(CONTROLLER_DISCONNECT_GRACE, Duration::from_secs(30));
     let (_project, host) = host_with_terminal();
     let runtime = Arc::new(SessionRuntime::new("epoch-c"));
@@ -154,12 +154,12 @@ async fn reconnect_cancels_grace_while_expiry_releases_runtime_resources() {
         serde_json::to_value(event).unwrap()["event"],
         "session.resyncRequired"
     );
-    assert!(host.terminal_snapshot().unwrap().is_empty());
+    assert_eq!(host.terminal_snapshot().unwrap().len(), 1);
     let snapshot = runtime.authoritative_snapshot(&host).unwrap();
-    assert_eq!(snapshot.resource_status, "lost");
+    assert_eq!(snapshot.resource_status, "active");
     assert_eq!(snapshot.terminals.len(), 1);
     assert_eq!(
         serde_json::to_value(snapshot).unwrap()["terminals"][0]["availability"],
-        "unavailable"
+        "running"
     );
 }

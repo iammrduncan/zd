@@ -6,7 +6,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use tokio::sync::broadcast;
 use zd_host::file_tree_watch::FileTreeWatchSnapshot;
-use zd_host::terminal::{TerminalAvailability, TerminalSessionSnapshot};
+use zd_host::terminal::TerminalSessionSnapshot;
 use zd_host::HostService;
 
 use crate::PROTOCOL_VERSION;
@@ -167,8 +167,6 @@ struct LifecycleState {
     controller_active: bool,
     cleanup_in_progress: bool,
     generation: u64,
-    resources_lost: bool,
-    lost_terminals: Vec<TerminalSessionSnapshot>,
     shutting_down: bool,
 }
 
@@ -331,43 +329,22 @@ impl SessionRuntime {
             if !runtime.begin_grace_cleanup(generation) {
                 return;
             }
-            let mut lost_terminals = host.terminal_snapshot().unwrap_or_default();
-            for terminal in &mut lost_terminals {
-                terminal.availability = TerminalAvailability::Unavailable;
-            }
             let cleanup_host = Arc::clone(&host);
             let _ = tokio::task::spawn_blocking(move || cleanup_host.shutdown_runtime()).await;
-            runtime.complete_grace_cleanup(generation, lost_terminals);
+            runtime.complete_grace_cleanup(generation);
         });
     }
 
     pub fn authoritative_snapshot(&self, host: &HostService) -> Result<SessionSnapshot, String> {
         let sequence = self.current_sequence();
         let watches = host.file_tree_watch_snapshot();
-        let mut terminals = host
+        let terminals = host
             .terminal_snapshot()
             .map_err(|_| "Terminal session state is unavailable".to_string())?;
-        let lifecycle = self
-            .lifecycle
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        for lost in &lifecycle.lost_terminals {
-            if !terminals
-                .iter()
-                .any(|terminal| terminal.session == lost.session)
-            {
-                terminals.push(lost.clone());
-            }
-        }
-        terminals.sort_by(|left, right| left.session.session_id.cmp(&right.session.session_id));
         Ok(SessionSnapshot {
             session_epoch: self.epoch.to_string(),
             sequence,
-            resource_status: if lifecycle.resources_lost {
-                "lost".to_string()
-            } else {
-                "active".to_string()
-            },
+            resource_status: "active".to_string(),
             watches,
             terminals,
         })
@@ -410,11 +387,7 @@ impl SessionRuntime {
         true
     }
 
-    fn complete_grace_cleanup(
-        &self,
-        generation: u64,
-        lost_terminals: Vec<TerminalSessionSnapshot>,
-    ) {
+    fn complete_grace_cleanup(&self, generation: u64) {
         {
             let mut lifecycle = self
                 .lifecycle
@@ -425,8 +398,6 @@ impl SessionRuntime {
                 return;
             }
             lifecycle.cleanup_in_progress = false;
-            lifecycle.resources_lost = true;
-            lifecycle.lost_terminals = lost_terminals;
         }
         self.publish(HostEvent::SessionResyncRequired {
             reason: ResyncReason::ControllerGraceExpired,

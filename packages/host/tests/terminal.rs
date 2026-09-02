@@ -49,7 +49,7 @@ fn host_terminal_contract_is_closed_and_bounded() {
 }
 
 #[test]
-fn host_service_resolves_terminal_scopes_snapshots_metadata_and_shuts_down() {
+fn host_service_runtime_shutdown_preserves_terminals_until_explicit_disposal() {
     let project = Scratch::new();
     let host = HostService::open_project(&project.0).unwrap();
     let launch = host.launch_request();
@@ -81,5 +81,7 @@ fn host_service_resolves_terminal_scopes_snapshots_metadata_and_shuts_down() {
     }
 
     host.shutdown_runtime().unwrap();
+    assert_eq!(host.terminal_snapshot().unwrap().len(), 1);
+    host.dispose_terminal(&session).unwrap();
     assert!(host.terminal_snapshot().unwrap().is_empty());
 }
