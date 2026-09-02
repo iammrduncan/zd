@@ -216,7 +216,8 @@ export async function disposeServedTerminals(
   url: string,
   secret: string,
 ): Promise<void> {
-  await page.goto(url);
+  const documentUrl = new URL("/api/pair", url).toString();
+  await page.goto(documentUrl);
   await page.evaluate(
     async ({ processSecret }) => {
       const endpoint = new URL("/api/host", window.location.origin);

@@ -31,6 +31,7 @@ use crate::{
 
 const MAX_CONCURRENT_HOST_JOBS: usize = 4;
 const HOST_DIAGNOSTIC_SPAN_ID: &str = "host-dispatch";
+const PROCESS_SECRET_TEXT_BYTES: usize = 43;
 
 #[derive(Clone)]
 pub struct ProtocolState {
@@ -43,6 +44,16 @@ pub struct ProtocolState {
 impl ProtocolState {
     pub fn host_jobs() -> Arc<Semaphore> {
         Arc::new(Semaphore::new(MAX_CONCURRENT_HOST_JOBS))
+    }
+
+    pub(crate) fn accepts_secret(&self, supplied: &str) -> bool {
+        if supplied.len() != PROCESS_SECRET_TEXT_BYTES {
+            return false;
+        }
+        let Ok(decoded) = URL_SAFE_NO_PAD.decode(supplied) else {
+            return false;
+        };
+        bool::from(self.secret.as_slice().ct_eq(decoded.as_slice()))
     }
 }
 
@@ -57,6 +68,9 @@ enum ClientMessage {
     Authenticate {
         protocol_version: u16,
         secret: String,
+    },
+    AuthenticateBrowser {
+        protocol_version: u16,
     },
     Request {
         protocol_version: u16,
@@ -195,7 +209,7 @@ impl Drop for ControllerLease {
     }
 }
 
-pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState) {
+pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState, browser_paired: bool) {
     let Some(message) = receive_text(&mut socket).await else {
         return;
     };
@@ -204,6 +218,9 @@ pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState) {
             protocol_version,
             secret,
         }) => authenticate(&state, protocol_version, &secret),
+        Ok(ClientMessage::AuthenticateBrowser { protocol_version }) => {
+            authenticate_browser(&state, protocol_version, browser_paired)
+        }
         Ok(ClientMessage::Request { .. }) => Err(ProtocolFailure {
             code: "authentication-required",
             message: "Authenticate before requesting host state",
@@ -274,7 +291,7 @@ pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState) {
                 method,
                 params,
             }) => (protocol_version, request_id, method, params),
-            Ok(ClientMessage::Authenticate { .. }) => {
+            Ok(ClientMessage::Authenticate { .. } | ClientMessage::AuthenticateBrowser { .. }) => {
                 let _ = send_error(
                     &mut socket,
                     None,
@@ -397,13 +414,36 @@ fn authenticate(
             message: "The protocol version is not supported",
         });
     }
-    let decoded = URL_SAFE_NO_PAD.decode(supplied).unwrap_or_default();
-    if !bool::from(state.secret.as_slice().ct_eq(decoded.as_slice())) {
+    if !state.accepts_secret(supplied) {
         return Err(ProtocolFailure {
             code: "authentication-failed",
             message: "The process secret was not accepted",
         });
     }
+    claim_controller(state)
+}
+
+fn authenticate_browser(
+    state: &ProtocolState,
+    protocol_version: u16,
+    browser_paired: bool,
+) -> Result<ControllerLease, ProtocolFailure> {
+    if protocol_version != PROTOCOL_VERSION {
+        return Err(ProtocolFailure {
+            code: "unsupported-protocol",
+            message: "The protocol version is not supported",
+        });
+    }
+    if !browser_paired {
+        return Err(ProtocolFailure {
+            code: "authentication-failed",
+            message: "The browser pairing was not accepted",
+        });
+    }
+    claim_controller(state)
+}
+
+fn claim_controller(state: &ProtocolState) -> Result<ControllerLease, ProtocolFailure> {
     if !state.runtime.claim_controller() {
         return Err(ProtocolFailure {
             code: "controller-unavailable",

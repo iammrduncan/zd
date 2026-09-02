@@ -3,6 +3,8 @@ mod support;
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
 use serde_json::json;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 use tokio::time::{timeout, Duration};
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::tungstenite::Error;
@@ -14,6 +16,40 @@ fn http_status(error: Error) -> StatusCode {
         Error::Http(response) => response.status(),
         other => panic!("expected an HTTP handshake refusal, got {other:?}"),
     }
+}
+
+async fn pair_response(server: &TestServer, secret: &str, origin: &str) -> String {
+    let body = json!({ "protocolVersion": 1, "secret": secret }).to_string();
+    let request = format!(
+        "POST /api/pair HTTP/1.1\r\nHost: {}\r\nOrigin: {origin}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        server.authority(),
+        body.len(),
+    );
+    let mut stream = TcpStream::connect(server.connect_address())
+        .await
+        .expect("connect to pairing endpoint");
+    stream
+        .write_all(request.as_bytes())
+        .await
+        .expect("send pairing request");
+    let mut response = Vec::new();
+    stream
+        .read_to_end(&mut response)
+        .await
+        .expect("read pairing response");
+    String::from_utf8(response).expect("pairing response is HTTP text")
+}
+
+fn pairing_cookie(response: &str) -> String {
+    let header = response
+        .lines()
+        .find_map(|line| line.strip_prefix("set-cookie: "))
+        .expect("pairing response sets a cookie");
+    header
+        .split(';')
+        .next()
+        .expect("pairing cookie has one value")
+        .to_string()
 }
 
 #[tokio::test]
@@ -162,6 +198,76 @@ async fn wrong_secret_and_unknown_auth_fields_fail_closed() {
     let refusal = receive_json(&mut unknown).await;
     assert_eq!(refusal["code"], "invalid-message");
 
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn an_http_only_browser_pairing_survives_a_new_port_and_process_secret() {
+    let server = TestServer::start("browser-pairing").await;
+    let origin = format!("http://{}", server.authority());
+    let first_secret = server.running.secret().to_string();
+    let response = pair_response(&server, &first_secret, &origin).await;
+    assert!(response.starts_with("HTTP/1.1 204"), "{response}");
+    let set_cookie = response
+        .lines()
+        .find_map(|line| line.strip_prefix("set-cookie: "))
+        .expect("pairing response sets a cookie");
+    assert!(set_cookie.contains("Path=/api/host"));
+    assert!(set_cookie.contains("HttpOnly"));
+    assert!(set_cookie.contains("SameSite=Strict"));
+    assert!(set_cookie.contains("Max-Age="));
+    assert!(!set_cookie.contains(&first_secret));
+    let cookie = pairing_cookie(&response);
+
+    let authority = server.authority();
+    let mut first = connect(
+        &server,
+        &authority,
+        Some(&format!("http://{authority}")),
+        &[("cookie", &cookie)],
+    )
+    .await
+    .expect("paired browser connects");
+    send_json(
+        &mut first,
+        json!({ "protocolVersion": 1, "type": "authenticate-browser" }),
+    )
+    .await;
+    assert_eq!(receive_json(&mut first).await["type"], "authenticated");
+    first.close(None).await.expect("close first browser");
+
+    let restarted = server.restart().await;
+    assert_ne!(restarted.running.secret(), first_secret);
+    let authority = restarted.authority();
+    let mut resumed = connect(
+        &restarted,
+        &authority,
+        Some(&format!("http://{authority}")),
+        &[("cookie", &cookie)],
+    )
+    .await
+    .expect("paired browser reconnects on the new port");
+    send_json(
+        &mut resumed,
+        json!({ "protocolVersion": 1, "type": "authenticate-browser" }),
+    )
+    .await;
+    assert_eq!(receive_json(&mut resumed).await["type"], "authenticated");
+    resumed.close(None).await.expect("close resumed browser");
+    restarted.shutdown().await;
+}
+
+#[tokio::test]
+async fn pairing_rejects_a_wrong_secret_and_a_foreign_origin_without_a_cookie() {
+    let server = TestServer::start("browser-pairing-refusal").await;
+    for (secret, origin) in [
+        ("wrong", format!("http://{}", server.authority())),
+        (server.running.secret(), "https://example.com".to_string()),
+    ] {
+        let response = pair_response(&server, secret, &origin).await;
+        assert!(response.starts_with("HTTP/1.1 403"), "{response}");
+        assert!(!response.contains("set-cookie:"));
+    }
     server.shutdown().await;
 }
 

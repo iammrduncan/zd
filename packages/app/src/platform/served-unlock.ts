@@ -1,6 +1,6 @@
 import type { Platform } from "@/platform";
 
-type Connector = (secret: string) => Promise<Platform>;
+type Connector = (secret: string | null) => Promise<Platform>;
 
 const SERVED_LIMITS =
   "Editing, automatic file updates, Git, terminals, themes, and diagnostics run on the remote host. Project picker, recent workspaces, other project roots, and desktop notifications are unavailable.";
@@ -10,6 +10,24 @@ function problem(cause: unknown): string {
 }
 
 export function mountServedUnlock(host: HTMLElement, connect: Connector): Promise<Platform> {
+  const pending = document.createElement("p");
+  pending.className = "zd-served-unlock-status";
+  pending.setAttribute("role", "status");
+  pending.textContent = "Connecting…";
+  host.replaceChildren(pending);
+
+  return new Promise<Platform>((resolve) => {
+    void connect(null)
+      .then(resolve)
+      .catch(() => renderCredentialForm(host, connect, resolve));
+  });
+}
+
+function renderCredentialForm(
+  host: HTMLElement,
+  connect: Connector,
+  resolve: (platform: Platform) => void,
+): void {
   const section = document.createElement("section");
   section.className = "zd-served-unlock";
   section.setAttribute("aria-labelledby", "zd-served-unlock-title");
@@ -42,24 +60,22 @@ export function mountServedUnlock(host: HTMLElement, connect: Connector): Promis
   host.replaceChildren(section);
   input.focus();
 
-  return new Promise<Platform>((resolve) => {
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      if (input.disabled || input.value.length === 0) return;
-      const secret = input.value;
-      input.value = "";
-      input.disabled = true;
-      submit.disabled = true;
-      status.textContent = "Connecting…";
-      void connect(secret)
-        .then(resolve)
-        .catch((cause: unknown) => {
-          status.textContent = `zd could not unlock: ${problem(cause)}`;
-          input.disabled = false;
-          submit.disabled = false;
-          input.focus();
-        });
-    });
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (input.disabled || input.value.length === 0) return;
+    const secret = input.value;
+    input.value = "";
+    input.disabled = true;
+    submit.disabled = true;
+    status.textContent = "Connecting…";
+    void connect(secret)
+      .then(resolve)
+      .catch((cause: unknown) => {
+        status.textContent = `zd could not unlock: ${problem(cause)}`;
+        input.disabled = false;
+        submit.disabled = false;
+        input.focus();
+      });
   });
 }
 

@@ -30,21 +30,37 @@ describe("served host unlock", () => {
     );
   });
 
-  it("keeps the secret in the password field only until submission", async () => {
+  it("tries a saved browser pairing before rendering the credential form", async () => {
     const host = document.createElement("main");
     const platform = detectPlatform();
     const connect = vi.fn(async () => platform);
+
     const unlocked = mountServedUnlock(host, connect);
+
+    await vi.waitFor(() => expect(connect).toHaveBeenCalledExactlyOnceWith(null));
+    await expect(unlocked).resolves.toBe(platform);
+    expect(host.querySelector('input[type="password"]')).toBeNull();
+  });
+
+  it("keeps the secret in the password field only until submission", async () => {
+    const host = document.createElement("main");
+    const platform = detectPlatform();
+    const connect = vi
+      .fn<(secret: string | null) => Promise<typeof platform>>()
+      .mockRejectedValueOnce(new Error("authentication-failed"))
+      .mockResolvedValueOnce(platform);
+    const unlocked = mountServedUnlock(host, connect);
+    await vi.waitFor(() => expect(host.querySelector("form")).not.toBeNull());
     const form = host.querySelector("form")!;
     const input = host.querySelector<HTMLInputElement>('input[type="password"]')!;
 
     expect(input.autocomplete).toBe("off");
-    expect(connect).not.toHaveBeenCalled();
+    expect(connect).toHaveBeenCalledExactlyOnceWith(null);
     input.value = "process-secret";
     form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
 
     await expect(unlocked).resolves.toBe(platform);
-    expect(connect).toHaveBeenCalledExactlyOnceWith("process-secret");
+    expect(connect.mock.calls).toEqual([[null], ["process-secret"]]);
     expect(input.value).toBe("");
     expect(host.textContent).not.toContain("process-secret");
   });
@@ -53,10 +69,12 @@ describe("served host unlock", () => {
     const host = document.createElement("main");
     const platform = detectPlatform();
     const connect = vi
-      .fn<(secret: string) => Promise<typeof platform>>()
+      .fn<(secret: string | null) => Promise<typeof platform>>()
+      .mockRejectedValueOnce(new Error("authentication-failed"))
       .mockRejectedValueOnce(new Error("authentication-failed"))
       .mockResolvedValueOnce(platform);
     const unlocked = mountServedUnlock(host, connect);
+    await vi.waitFor(() => expect(host.querySelector("form")).not.toBeNull());
     const form = host.querySelector("form")!;
     const input = host.querySelector<HTMLInputElement>("input")!;
 
@@ -68,6 +86,6 @@ describe("served host unlock", () => {
     input.value = "right";
     form.dispatchEvent(new SubmitEvent("submit", { bubbles: true, cancelable: true }));
     await expect(unlocked).resolves.toBe(platform);
-    expect(connect).toHaveBeenCalledTimes(2);
+    expect(connect.mock.calls).toEqual([[null], ["wrong"], ["right"]]);
   });
 });

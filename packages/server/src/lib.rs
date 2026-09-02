@@ -3,6 +3,7 @@
 mod assets;
 mod cli;
 mod foreground;
+mod pairing;
 mod protocol;
 mod server;
 mod session;
