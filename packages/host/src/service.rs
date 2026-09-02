@@ -379,10 +379,7 @@ impl HostService {
 
     pub fn shutdown_runtime(&self) -> Result<(), TerminalError> {
         self.file_tree_watches.shutdown();
-        self.terminals
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .shutdown()
+        Ok(())
     }
 
     pub fn file_tree_snapshot(&self, request: &FileTreeRequest) -> FileTreeResult {
