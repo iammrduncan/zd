@@ -5,10 +5,21 @@
 //! grant before constructing `TerminalScope`; it must never add a generic
 //! command/argv/environment endpoint.
 
+#[cfg(unix)]
+mod keeper;
 mod output;
 mod process;
+mod runtime;
 #[cfg(test)]
 mod tests;
+
+#[cfg(unix)]
+pub use keeper::run_terminal_keeper;
+#[cfg(unix)]
+pub(crate) use keeper::TerminalKeeperClient;
+pub(crate) use runtime::{TerminalMode, TerminalRuntime};
+
+pub const TERMINAL_KEEPER_ARGUMENT: &str = "__zd-terminal-keeper";
 
 use std::collections::HashMap;
 use std::fmt;
@@ -28,7 +39,7 @@ pub const MAX_TERMINAL_SESSIONS: usize = 32;
 pub type TerminalOutputSignal = Arc<dyn Fn(TerminalSessionHandle) + Send + Sync + 'static>;
 pub type TerminalExitSignal = Arc<dyn Fn(TerminalSessionHandle) + Send + Sync + 'static>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TerminalErrorKind {
     InvalidScope,
@@ -205,7 +216,7 @@ pub struct TerminalSessionHandle {
     pub worktree_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalOutputBatch {
     pub offset: u64,
@@ -214,7 +225,7 @@ pub struct TerminalOutputBatch {
     pub read_error: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TerminalExitReason {
     Exited,
@@ -222,7 +233,7 @@ pub enum TerminalExitReason {
     Disposed,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalExitStatus {
     pub reason: TerminalExitReason,
@@ -230,7 +241,7 @@ pub struct TerminalExitStatus {
     pub signal: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TerminalAvailability {
     Running,
@@ -238,7 +249,7 @@ pub enum TerminalAvailability {
     Unavailable,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TerminalSessionSnapshot {
     pub session: TerminalSessionHandle,
@@ -522,6 +533,10 @@ impl TerminalSessions {
         self.session(handle).is_ok()
     }
 
+    fn is_empty(&self) -> bool {
+        self.sessions.is_empty()
+    }
+
     pub fn snapshot(&mut self) -> Vec<TerminalSessionSnapshot> {
         let mut snapshot = self
             .sessions
@@ -596,6 +611,19 @@ impl TerminalSessions {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         Ok(output.drain())
+    }
+
+    pub fn read_from(
+        &mut self,
+        handle: &TerminalSessionHandle,
+        after_offset: Option<u64>,
+    ) -> Result<TerminalOutputBatch, TerminalError> {
+        let session = self.session_mut(handle)?;
+        let output = session
+            .output
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        Ok(output.read_from(after_offset))
     }
 
     pub fn poll_exit(

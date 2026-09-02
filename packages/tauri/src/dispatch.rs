@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use zd_server::ServeArgs;
 
@@ -8,6 +8,7 @@ use crate::launch::{parse_launch_args, NativeOpenRequest};
 pub(crate) enum LaunchMode {
     Desktop(NativeOpenRequest),
     Serve(ServeArgs),
+    TerminalKeeper(PathBuf),
     WrapperChild,
 }
 
@@ -15,6 +16,17 @@ pub(crate) fn parse_command(
     arguments: &[String],
     invocation_directory: &Path,
 ) -> Result<LaunchMode, String> {
+    if arguments
+        .first()
+        .is_some_and(|argument| argument == zd_host::terminal::TERMINAL_KEEPER_ARGUMENT)
+    {
+        let state_directory = arguments
+            .get(1)
+            .filter(|path| arguments.len() == 2 && Path::new(path).is_absolute())
+            .map(PathBuf::from)
+            .ok_or_else(|| "terminal keeper mode requires one absolute state path".to_string())?;
+        return Ok(LaunchMode::TerminalKeeper(state_directory));
+    }
     if arguments
         .first()
         .is_some_and(|argument| argument == "__zd-wrapper-child")
@@ -116,5 +128,20 @@ mod tests {
         );
         assert!(parse_command(&args(&["__zd-wrapper-child", "project"]), &cwd()).is_err());
         assert!(parse_command(&args(&["--wrapper-child"]), &cwd()).is_err());
+    }
+
+    #[test]
+    fn terminal_keeper_mode_is_hidden_exact_and_absolute() {
+        assert_eq!(
+            parse_command(&args(&["__zd-terminal-keeper", "/state/zd"]), &cwd(),).unwrap(),
+            LaunchMode::TerminalKeeper(PathBuf::from("/state/zd"))
+        );
+        for invalid in [
+            args(&["__zd-terminal-keeper"]),
+            args(&["__zd-terminal-keeper", "relative"]),
+            args(&["__zd-terminal-keeper", "/one", "/two"]),
+        ] {
+            assert!(parse_command(&invalid, &cwd()).is_err());
+        }
     }
 }

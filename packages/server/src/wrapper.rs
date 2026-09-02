@@ -95,7 +95,7 @@ async fn run() -> Result<(), String> {
     let state_directory = state_directory()?;
     let launch_path = startup.launch_path.as_deref().map(Path::new);
     let host = Arc::new(
-        HostService::open_desktop_with_state(launch_path, &state_directory)
+        HostService::open_desktop_with_terminal_keeper(launch_path, &state_directory)
             .map_err(|_| "the trusted desktop launch could not be approved".to_string())?,
     );
     let server = start(

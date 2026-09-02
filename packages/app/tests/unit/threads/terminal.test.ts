@@ -148,7 +148,7 @@ describe("the terminal-backed thread session", () => {
     expect(adapter.read).not.toHaveBeenCalled();
     await terminal.refresh();
 
-    expect(adapter.read).toHaveBeenCalledExactlyOnceWith(session);
+    expect(adapter.read).toHaveBeenCalledExactlyOnceWith(session, null);
     expect(terminal.snapshot()).toMatchObject({
       rows: ["hello"],
       droppedBytes: 4,
@@ -159,6 +159,7 @@ describe("the terminal-backed thread session", () => {
       output([], 9, { session: { ...session, worktreeId: "other-worktree" } }),
     );
     await expect(terminal.refresh()).rejects.toThrow("different terminal session");
+    expect(adapter.read).toHaveBeenNthCalledWith(2, session, 9);
   });
 
   it("publishes raw PTY bytes and coalesces repeated output-ready refreshes", async () => {
@@ -179,6 +180,7 @@ describe("the terminal-backed thread session", () => {
     await Promise.all([first, second, third]);
 
     expect(adapter.read).toHaveBeenCalledTimes(2);
+    expect(adapter.read).toHaveBeenNthCalledWith(2, session, bytes.length);
     expect(outputBytes).toEqual([bytes]);
   });
 

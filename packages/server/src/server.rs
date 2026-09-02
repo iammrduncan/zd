@@ -1,6 +1,10 @@
+use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 
 use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::State;
@@ -15,11 +19,12 @@ use base64::Engine;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
+use zd_host::terminal::{TerminalAvailability, TerminalSessionSnapshot};
 use zd_host::HostService;
 
 use crate::assets::Assets;
 use crate::protocol::{serve_socket, ProtocolState};
-use crate::SessionRuntime;
+use crate::{HostEvent, SessionRuntime};
 use crate::{MAX_MESSAGE_BYTES, MAX_RESPONSE_MESSAGE_BYTES};
 
 pub struct ServerConfig {
@@ -45,6 +50,7 @@ pub struct RunningServer {
     task: Option<JoinHandle<Result<(), String>>>,
     host: Arc<HostService>,
     runtime: Arc<SessionRuntime>,
+    terminal_events: Option<TerminalEventPump>,
 }
 
 impl RunningServer {
@@ -71,6 +77,9 @@ impl RunningServer {
 
     pub async fn shutdown(mut self) -> Result<(), String> {
         self.runtime.begin_shutdown();
+        if let Some(events) = self.terminal_events.take() {
+            events.stop();
+        }
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }
@@ -90,6 +99,9 @@ impl RunningServer {
 impl Drop for RunningServer {
     fn drop(&mut self) {
         self.runtime.begin_shutdown();
+        if let Some(events) = self.terminal_events.take() {
+            events.stop();
+        }
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }
@@ -112,6 +124,14 @@ pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<Runni
     let secret = URL_SAFE_NO_PAD.encode(secret_bytes.as_slice());
     let session_epoch = Arc::<str>::from(URL_SAFE_NO_PAD.encode(random_bytes::<16>()?));
     let runtime = Arc::new(SessionRuntime::new(session_epoch));
+    let terminal_events = if host.terminal_runtime_is_external() {
+        Some(TerminalEventPump::start(
+            Arc::clone(&host),
+            Arc::clone(&runtime),
+        )?)
+    } else {
+        None
+    };
     let state = AppState {
         assets,
         protocol: ProtocolState {
@@ -148,7 +168,94 @@ pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<Runni
         task: Some(task),
         host,
         runtime,
+        terminal_events,
     })
+}
+
+struct TerminalEventPump {
+    stopping: Arc<AtomicBool>,
+    thread: Option<thread::JoinHandle<()>>,
+}
+
+impl TerminalEventPump {
+    fn start(host: Arc<HostService>, runtime: Arc<SessionRuntime>) -> Result<Self, String> {
+        let stopping = Arc::new(AtomicBool::new(false));
+        let worker_stop = Arc::clone(&stopping);
+        let thread = thread::Builder::new()
+            .name("zd-terminal-event-pump".to_string())
+            .spawn(move || {
+                let mut observer = TerminalEventObserver::default();
+                while !worker_stop.load(Ordering::Acquire) {
+                    if let Ok(snapshot) = host.terminal_snapshot() {
+                        for event in observer.observe(&snapshot) {
+                            runtime.publish(event);
+                        }
+                    }
+                    thread::sleep(Duration::from_millis(16));
+                }
+            })
+            .map_err(|_| "the terminal event pump could not start".to_string())?;
+        Ok(Self {
+            stopping,
+            thread: Some(thread),
+        })
+    }
+
+    fn stop(mut self) {
+        self.stopping.store(true, Ordering::Release);
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
+
+impl Drop for TerminalEventPump {
+    fn drop(&mut self) {
+        self.stopping.store(true, Ordering::Release);
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
+
+#[derive(Default)]
+struct TerminalEventObserver {
+    observed: HashMap<String, (u64, TerminalAvailability)>,
+}
+
+impl TerminalEventObserver {
+    fn observe(&mut self, snapshot: &[TerminalSessionSnapshot]) -> Vec<HostEvent> {
+        let mut events = Vec::new();
+        let mut present = std::collections::HashSet::new();
+        for terminal in snapshot {
+            let session = &terminal.session;
+            present.insert(session.session_id.clone());
+            let previous = self.observed.insert(
+                session.session_id.clone(),
+                (terminal.next_offset, terminal.availability),
+            );
+            let previous_offset = previous.map_or(terminal.retained_from, |value| value.0);
+            if terminal.next_offset > previous_offset {
+                events.push(HostEvent::TerminalOutputReady {
+                    session_id: session.session_id.clone(),
+                    project_id: session.project_id.clone(),
+                    worktree_id: session.worktree_id.clone(),
+                });
+            }
+            if terminal.availability == TerminalAvailability::Exited
+                && previous.is_none_or(|value| value.1 != TerminalAvailability::Exited)
+            {
+                events.push(HostEvent::TerminalExited {
+                    session_id: session.session_id.clone(),
+                    project_id: session.project_id.clone(),
+                    worktree_id: session.worktree_id.clone(),
+                });
+            }
+        }
+        self.observed
+            .retain(|session_id, _| present.contains(session_id));
+        events
+    }
 }
 
 async fn health() -> StatusCode {
@@ -212,4 +319,62 @@ fn random_bytes<const N: usize>() -> Result<[u8; N], String> {
     getrandom::fill(&mut bytes)
         .map_err(|error| format!("secure randomness is unavailable: {error}"))?;
     Ok(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use zd_host::terminal::{
+        TerminalExitReason, TerminalExitStatus, TerminalSessionHandle, TerminalSessionSnapshot,
+    };
+
+    use super::*;
+
+    fn snapshot(next_offset: u64, availability: TerminalAvailability) -> TerminalSessionSnapshot {
+        TerminalSessionSnapshot {
+            session: TerminalSessionHandle {
+                session_id: "terminal-a".to_string(),
+                project_id: "project-a".to_string(),
+                worktree_id: "worktree-a".to_string(),
+            },
+            retained_from: 0,
+            next_offset,
+            availability,
+            exit: (availability == TerminalAvailability::Exited).then_some(TerminalExitStatus {
+                reason: TerminalExitReason::Exited,
+                code: Some(0),
+                signal: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn external_terminal_observation_emits_only_output_and_exit_edges() {
+        let mut observer = TerminalEventObserver::default();
+
+        assert!(observer
+            .observe(&[snapshot(0, TerminalAvailability::Running)])
+            .is_empty());
+        assert_eq!(
+            observer.observe(&[snapshot(4, TerminalAvailability::Running)]),
+            vec![HostEvent::TerminalOutputReady {
+                session_id: "terminal-a".to_string(),
+                project_id: "project-a".to_string(),
+                worktree_id: "worktree-a".to_string(),
+            }]
+        );
+        assert!(observer
+            .observe(&[snapshot(4, TerminalAvailability::Running)])
+            .is_empty());
+        assert_eq!(
+            observer.observe(&[snapshot(4, TerminalAvailability::Exited)]),
+            vec![HostEvent::TerminalExited {
+                session_id: "terminal-a".to_string(),
+                project_id: "project-a".to_string(),
+                worktree_id: "worktree-a".to_string(),
+            }]
+        );
+        assert!(observer
+            .observe(&[snapshot(4, TerminalAvailability::Exited)])
+            .is_empty());
+    }
 }

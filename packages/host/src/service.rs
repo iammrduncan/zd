@@ -13,9 +13,9 @@ use crate::instrumentation::{
     DiagnosticRecordInput, DiagnosticState, DiagnosticStatus, DiagnosticWriteOutcome,
 };
 use crate::terminal::{
-    TerminalError, TerminalErrorKind, TerminalExitSignal, TerminalExitStatus, TerminalOutputBatch,
-    TerminalOutputSignal, TerminalScope, TerminalSessionHandle, TerminalSessionSnapshot,
-    TerminalSessions, TerminalStartRequest, TerminalViewport,
+    TerminalError, TerminalErrorKind, TerminalExitSignal, TerminalExitStatus, TerminalMode,
+    TerminalOutputBatch, TerminalOutputSignal, TerminalRuntime, TerminalScope,
+    TerminalSessionHandle, TerminalSessionSnapshot, TerminalStartRequest, TerminalViewport,
 };
 use crate::{durable, identity};
 use crate::{
@@ -48,7 +48,7 @@ struct HostState {
 pub struct HostService {
     state: Mutex<HostState>,
     file_tree_watches: FileTreeWatchState,
-    terminals: Mutex<TerminalSessions>,
+    terminals: TerminalRuntime,
     durable: Option<DurableStateStore>,
     diagnostics: Option<DiagnosticState>,
     state_directory: Option<PathBuf>,
@@ -69,11 +69,26 @@ impl HostService {
         requested: Option<&Path>,
         state_directory: &Path,
     ) -> Result<Self, String> {
+        Self::open_desktop(requested, state_directory, TerminalMode::Local)
+    }
+
+    pub fn open_desktop_with_terminal_keeper(
+        requested: Option<&Path>,
+        state_directory: &Path,
+    ) -> Result<Self, String> {
+        Self::open_desktop(requested, state_directory, TerminalMode::Keeper)
+    }
+
+    fn open_desktop(
+        requested: Option<&Path>,
+        state_directory: &Path,
+        terminal_mode: TerminalMode,
+    ) -> Result<Self, String> {
         let Some(requested) = requested else {
-            return Self::open_desktop_home(state_directory);
+            return Self::open_desktop_home(state_directory, terminal_mode);
         };
         if requested.is_dir() {
-            return Self::open_project_with_state(requested, state_directory);
+            return Self::open_project_with_mode(requested, state_directory, terminal_mode);
         }
         let parent = requested
             .parent()
@@ -84,7 +99,7 @@ impl HostService {
             .ok_or_else(|| "the desktop launch path has no file name".to_string())?
             .to_string_lossy()
             .into_owned();
-        let host = Self::open_project_with_state(parent, state_directory)?;
+        let host = Self::open_project_with_mode(parent, state_directory, terminal_mode)?;
         host.state
             .lock()
             .map_err(|_| "desktop launch authority is unavailable".to_string())?
@@ -93,7 +108,10 @@ impl HostService {
         Ok(host)
     }
 
-    fn open_desktop_home(state_directory: &Path) -> Result<Self, String> {
+    fn open_desktop_home(
+        state_directory: &Path,
+        terminal_mode: TerminalMode,
+    ) -> Result<Self, String> {
         let diagnostics = DiagnosticState::new(
             state_directory.join("diagnostics"),
             env!("CARGO_PKG_VERSION"),
@@ -109,7 +127,7 @@ impl HostService {
                 grants: GrantStore::default(),
             }),
             file_tree_watches: FileTreeWatchState::default(),
-            terminals: Mutex::new(TerminalSessions::default()),
+            terminals: TerminalRuntime::open(terminal_mode, state_directory)?,
             durable: None,
             diagnostics: Some(diagnostics),
             state_directory: Some(state_directory.to_path_buf()),
@@ -128,7 +146,7 @@ impl HostService {
         Ok(Self {
             state: Mutex::new(HostState { launch, grants }),
             file_tree_watches: FileTreeWatchState::default(),
-            terminals: Mutex::new(TerminalSessions::default()),
+            terminals: TerminalRuntime::local(),
             durable: None,
             diagnostics: None,
             state_directory: None,
@@ -136,8 +154,23 @@ impl HostService {
     }
 
     pub fn open_project_with_state(root: &Path, state_directory: &Path) -> Result<Self, String> {
+        Self::open_project_with_mode(root, state_directory, TerminalMode::Local)
+    }
+
+    pub fn open_project_with_terminal_keeper(
+        root: &Path,
+        state_directory: &Path,
+    ) -> Result<Self, String> {
+        Self::open_project_with_mode(root, state_directory, TerminalMode::Keeper)
+    }
+
+    fn open_project_with_mode(
+        root: &Path,
+        state_directory: &Path,
+        terminal_mode: TerminalMode,
+    ) -> Result<Self, String> {
         let identity = identity::open_project(root, state_directory)?;
-        Self::open_project_with_identity(root, identity, state_directory)
+        Self::open_project_with_identity(root, identity, state_directory, terminal_mode)
     }
 
     pub fn recover_project_with_state(
@@ -146,13 +179,14 @@ impl HostService {
         state_directory: &Path,
     ) -> Result<Self, String> {
         let identity = identity::recover_project(project_id, root, state_directory)?;
-        Self::open_project_with_identity(root, identity, state_directory)
+        Self::open_project_with_identity(root, identity, state_directory, TerminalMode::Local)
     }
 
     fn open_project_with_identity(
         root: &Path,
         identity: identity::ProjectIdentity,
         state_directory: &Path,
+        terminal_mode: TerminalMode,
     ) -> Result<Self, String> {
         let durable = DurableStateStore::new(state_directory, identity.project_id.clone())?;
         let diagnostics = DiagnosticState::new(
@@ -174,7 +208,7 @@ impl HostService {
         Ok(Self {
             state: Mutex::new(HostState { launch, grants }),
             file_tree_watches: FileTreeWatchState::default(),
-            terminals: Mutex::new(TerminalSessions::default()),
+            terminals: TerminalRuntime::open(terminal_mode, state_directory)?,
             durable: Some(durable),
             diagnostics: Some(diagnostics),
             state_directory: Some(state_directory.to_path_buf()),
@@ -301,7 +335,7 @@ impl HostService {
             })?;
         let scope =
             TerminalScope::from_approved_worktree(request.project_id, request.worktree_id, root)?;
-        self.terminal_sessions()?.start_shell_with_id_and_signals(
+        self.terminals.start(
             scope,
             request.terminal_id,
             request.viewport,
@@ -328,7 +362,7 @@ impl HostService {
             })?;
         let scope =
             TerminalScope::from_approved_worktree(request.project_id, request.worktree_id, root)?;
-        self.terminal_sessions()?
+        self.terminals
             .reattach(&scope, &request.terminal_id, request.viewport)
     }
 
@@ -337,7 +371,7 @@ impl HostService {
         session: &TerminalSessionHandle,
         bytes: &[u8],
     ) -> Result<(), TerminalError> {
-        self.terminal_sessions()?.write(session, bytes)
+        self.terminals.write(session, bytes)
     }
 
     pub fn resize_terminal(
@@ -345,36 +379,41 @@ impl HostService {
         session: &TerminalSessionHandle,
         viewport: TerminalViewport,
     ) -> Result<(), TerminalError> {
-        self.terminal_sessions()?.resize(session, viewport)
+        self.terminals.resize(session, viewport)
     }
 
     pub fn read_terminal(
         &self,
         session: &TerminalSessionHandle,
+        after_offset: Option<u64>,
     ) -> Result<TerminalOutputBatch, TerminalError> {
-        self.terminal_sessions()?.read(session)
+        self.terminals.read_from(session, after_offset)
     }
 
     pub fn poll_terminal_exit(
         &self,
         session: &TerminalSessionHandle,
     ) -> Result<Option<TerminalExitStatus>, TerminalError> {
-        self.terminal_sessions()?.poll_exit(session)
+        self.terminals.poll_exit(session)
     }
 
     pub fn terminate_terminal(
         &self,
         session: &TerminalSessionHandle,
     ) -> Result<TerminalExitStatus, TerminalError> {
-        self.terminal_sessions()?.terminate(session)
+        self.terminals.terminate(session)
     }
 
     pub fn dispose_terminal(&self, session: &TerminalSessionHandle) -> Result<(), TerminalError> {
-        self.terminal_sessions()?.dispose(session)
+        self.terminals.dispose(session)
     }
 
     pub fn terminal_snapshot(&self) -> Result<Vec<TerminalSessionSnapshot>, TerminalError> {
-        Ok(self.terminal_sessions()?.snapshot())
+        self.terminals.snapshot()
+    }
+
+    pub fn terminal_runtime_is_external(&self) -> bool {
+        self.terminals.is_external()
     }
 
     pub fn shutdown_runtime(&self) -> Result<(), TerminalError> {
@@ -572,14 +611,6 @@ impl HostService {
         self.diagnostics.as_ref().ok_or_else(|| {
             "host diagnostics are unavailable: persistence was not configured".to_string()
         })
-    }
-
-    fn terminal_sessions(
-        &self,
-    ) -> Result<std::sync::MutexGuard<'_, TerminalSessions>, TerminalError> {
-        self.terminals
-            .lock()
-            .map_err(|_| terminal_runtime_unavailable())
     }
 }
 

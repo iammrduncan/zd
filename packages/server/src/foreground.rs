@@ -16,7 +16,7 @@ pub fn run_foreground(arguments: ServeArgs) -> Result<(), String> {
 
 async fn run(arguments: ServeArgs) -> Result<(), String> {
     let state_directory = state_directory()?;
-    let host = Arc::new(HostService::open_project_with_state(
+    let host = Arc::new(HostService::open_project_with_terminal_keeper(
         arguments.project(),
         &state_directory,
     )?);

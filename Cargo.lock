@@ -5755,6 +5755,7 @@ dependencies = [
 name = "zd-host"
 version = "0.2.10"
 dependencies = [
+ "base64 0.22.1",
  "getrandom 0.4.3",
  "ignore",
  "libc",

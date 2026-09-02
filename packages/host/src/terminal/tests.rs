@@ -157,6 +157,62 @@ fn stable_identity_reattaches_only_the_exact_terminal_in_the_exact_scope() {
     sessions.dispose(&handle).unwrap();
 }
 
+#[cfg(unix)]
+#[test]
+fn keeper_client_replacement_preserves_the_pty_until_explicit_disposal() {
+    let project = Scratch::new("keeper-project");
+    let state = Scratch::new("keeper-state");
+    let keeper = super::keeper::TestKeeper::start(state.path()).unwrap();
+    let first = keeper.client();
+    let approved = scope(&project);
+    let handle = first
+        .start(approved.clone(), "terminal-kept", viewport(24, 80))
+        .unwrap();
+    first
+        .write(&handle, b"printf '__ZD_KEEPER_SURVIVED__\\n'\n")
+        .unwrap();
+    drop(first);
+
+    let second = keeper.client();
+    assert_eq!(
+        second
+            .reattach(&approved, "terminal-kept", viewport(30, 100))
+            .unwrap(),
+        Some(handle.clone())
+    );
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut output = Vec::new();
+    let mut next_offset = None;
+    while Instant::now() < deadline
+        && !output
+            .windows(b"__ZD_KEEPER_SURVIVED__".len())
+            .any(|bytes| bytes == b"__ZD_KEEPER_SURVIVED__")
+    {
+        let batch = second.read_from(&handle, next_offset).unwrap();
+        next_offset = Some(batch.offset + batch.bytes.len() as u64);
+        output.extend(batch.bytes);
+        thread::sleep(Duration::from_millis(10));
+    }
+    assert!(
+        String::from_utf8_lossy(&output).contains("__ZD_KEEPER_SURVIVED__"),
+        "output was {:?}",
+        String::from_utf8_lossy(&output)
+    );
+    second.dispose(&handle).unwrap();
+    assert!(second.snapshot().unwrap().is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn an_empty_idle_keeper_exits_without_a_private_shutdown_command() {
+    let state = Scratch::new("keeper-idle");
+    let mut keeper =
+        super::keeper::TestKeeper::start_with_idle(state.path(), Duration::from_millis(50))
+            .unwrap();
+
+    assert!(keeper.wait_for_exit(Duration::from_secs(2)));
+}
+
 #[test]
 fn one_pty_starts_emits_accepts_input_resizes_and_exits() {
     let scratch = Scratch::new("lifecycle");
@@ -262,6 +318,31 @@ fn pending_output_is_bounded_and_reports_the_released_prefix() {
     assert!(batch.dropped_before >= 4);
     assert_eq!(batch.offset, batch.dropped_before);
     assert!(batch.bytes.ends_with(b"456789"));
+}
+
+#[test]
+fn cursor_reads_replay_retained_output_without_consuming_it() {
+    let scratch = Scratch::new("replay-output");
+    let mut sessions = TerminalSessions::with_output_limit(4 * 1024).unwrap();
+    let handle = sessions
+        .start_probe(
+            scope(&scratch),
+            viewport(24, 80),
+            "/bin/sh",
+            &["-c", "printf '__ZD_REPLAY__'"],
+        )
+        .unwrap();
+    wait_for_exit(&mut sessions, &handle);
+
+    let first = sessions.read_from(&handle, None).unwrap();
+    let replay = sessions.read_from(&handle, None).unwrap();
+    assert_eq!(replay, first);
+    assert!(String::from_utf8_lossy(&first.bytes).contains("__ZD_REPLAY__"));
+    let caught_up = sessions
+        .read_from(&handle, Some(first.offset + first.bytes.len() as u64))
+        .unwrap();
+    assert!(caught_up.bytes.is_empty());
+    assert_eq!(caught_up.dropped_before, 0);
 }
 
 #[cfg(unix)]

@@ -103,6 +103,43 @@ describe("the runtime-only project terminal", () => {
     expect(terminal.dispose).not.toHaveBeenCalled();
   });
 
+  it("reconstructs every retained split pane in the active project scope", async () => {
+    const { context, state, terminal } = fixture();
+    const retained = [1, 2, 4].map((sequence) => ({
+      projectId: grant.id,
+      worktreeId: grant.worktrees[0]!.id,
+      sessionId: `project-terminal:${grant.id}:${grant.worktrees[0]!.id}:${sequence}`,
+    }));
+    terminal.list = vi.fn(async () => retained);
+    terminal.reattach = vi.fn(
+      async (request) => retained.find(({ sessionId }) => sessionId === request.terminalId) ?? null,
+    );
+    await state.activateProject(grant.id);
+    const host = document.createElement("section");
+    const mountSurface = vi.fn(mountHeadlessSurface);
+    const unmount = mountProjectTerminal(host, context, { mountSurface });
+
+    expect(runCommandTarget("projectTerminal.toggle")).toBe(true);
+    await vi.waitFor(() => expect(mountSurface).toHaveBeenCalledTimes(3));
+
+    expect(terminal.list).toHaveBeenCalledWith({
+      projectId: grant.id,
+      worktreeId: grant.worktrees[0]!.id,
+      projectName: grant.name,
+      worktreeLabel: grant.worktrees[0]!.name,
+    });
+    expect(
+      vi
+        .mocked(terminal.reattach!)
+        .mock.calls.map(([request]) => request.terminalId)
+        .sort(),
+    ).toEqual(retained.map(({ sessionId }) => sessionId).sort());
+    expect(terminal.start).not.toHaveBeenCalled();
+    expect(host.querySelectorAll("[data-project-terminal-pane]")).toHaveLength(3);
+
+    unmount();
+  });
+
   it("does not create thread state and guards project removal until its processes stop", async () => {
     const { context, state, terminal } = fixture();
     await state.activateProject(grant.id);

@@ -12,7 +12,7 @@ pub(super) struct BoundedOutput {
     bytes: VecDeque<u8>,
     first_offset: u64,
     next_offset: u64,
-    dropped_since_drain: u64,
+    drain_offset: u64,
     read_error: Option<String>,
 }
 
@@ -23,7 +23,7 @@ impl BoundedOutput {
             bytes: VecDeque::with_capacity(capacity),
             first_offset: 0,
             next_offset: 0,
-            dropped_since_drain: 0,
+            drain_offset: 0,
             read_error: None,
         }
     }
@@ -35,8 +35,6 @@ impl BoundedOutput {
 
         self.next_offset = self.next_offset.saturating_add(incoming.len() as u64);
         if incoming.len() >= self.capacity {
-            let released = self.bytes.len() + incoming.len() - self.capacity;
-            self.dropped_since_drain = self.dropped_since_drain.saturating_add(released as u64);
             self.bytes.clear();
             self.bytes
                 .extend(incoming[incoming.len() - self.capacity..].iter().copied());
@@ -51,7 +49,6 @@ impl BoundedOutput {
             .saturating_sub(self.capacity);
         self.bytes.drain(..overflow);
         self.first_offset = self.first_offset.saturating_add(overflow as u64);
-        self.dropped_since_drain = self.dropped_since_drain.saturating_add(overflow as u64);
         self.bytes.extend(incoming.iter().copied());
     }
 
@@ -62,13 +59,21 @@ impl BoundedOutput {
     }
 
     pub(super) fn drain(&mut self) -> TerminalOutputBatch {
+        let batch = self.read_from(Some(self.drain_offset));
+        self.drain_offset = self.next_offset;
+        batch
+    }
+
+    pub(super) fn read_from(&self, after_offset: Option<u64>) -> TerminalOutputBatch {
+        let requested = after_offset.unwrap_or(self.first_offset);
+        let offset = requested.clamp(self.first_offset, self.next_offset);
+        let skip = offset.saturating_sub(self.first_offset) as usize;
         let batch = TerminalOutputBatch {
-            offset: self.first_offset,
-            dropped_before: std::mem::take(&mut self.dropped_since_drain),
-            bytes: self.bytes.drain(..).collect(),
-            read_error: self.read_error.take(),
+            offset,
+            dropped_before: self.first_offset.saturating_sub(requested),
+            bytes: self.bytes.iter().skip(skip).copied().collect(),
+            read_error: self.read_error.clone(),
         };
-        self.first_offset = self.next_offset;
         batch
     }
 
