@@ -27,6 +27,7 @@ interface ServedHostFixture {
   createExternalFile(): Promise<void>;
   isProcessRunning(pid: number): boolean;
   readFixtureFile(): Promise<string>;
+  readSecondProjectFile(): Promise<string>;
   readFixtureDocs(): Promise<readonly string[]>;
   readFixtureScreenshots(): Promise<readonly string[]>;
   readDiagnostics(): Promise<string>;
@@ -418,6 +419,7 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
             }
           },
           readFixtureFile: () => readFile(join(projectRoot, "notes.md"), "utf8"),
+          readSecondProjectFile: () => readFile(join(secondProjectRoot, "second.md"), "utf8"),
           readFixtureDocs: () => readdir(join(projectRoot, "docs")),
           readFixtureScreenshots: () => readdir(join(projectRoot, "docs", "screenshots")),
           readDiagnostics: () => readTreeText(join(hostStateRoot, "diagnostics")),

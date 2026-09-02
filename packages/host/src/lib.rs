@@ -10,6 +10,7 @@ mod files;
 mod git;
 #[doc(hidden)]
 pub mod git_process;
+mod grant_set;
 mod grants;
 mod identity;
 pub mod instrumentation;

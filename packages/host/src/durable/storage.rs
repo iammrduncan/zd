@@ -1,7 +1,6 @@
 mod maintenance;
 mod validation;
 
-use std::collections::HashSet;
 use std::fs::{File, OpenOptions};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -11,14 +10,15 @@ use serde_json::Value;
 
 use super::{
     DurableFileDraft, DurableReviewLedger, DurableStateApply, DurableStateApplyResult,
-    DurableStateBundle, DurableStateMutation, DurableStateRevision,
+    DurableStateBundle, DurableStateMutation, DurableStateRevision, DurableStateScope,
 };
 use crate::atomic_write;
 use maintenance::{cleanup_records, fresh_record_name};
 use validation::{
     validate_draft, validate_manifest, validate_preferences, validate_relative_path,
-    validate_review, validate_scope, validate_versioned_json, DRAFT_RECORD_LIMIT_BYTES,
-    PREFERENCES_LIMIT_BYTES, REVIEW_LEDGER_LIMIT_BYTES, WORKBENCH_LIMIT_BYTES,
+    validate_review, validate_scope, validate_stored_draft, validate_stored_review,
+    validate_versioned_json, DRAFT_RECORD_LIMIT_BYTES, PREFERENCES_LIMIT_BYTES,
+    REVIEW_LEDGER_LIMIT_BYTES, WORKBENCH_LIMIT_BYTES,
 };
 
 pub(super) fn validate_project_id(project_id: &str) -> Result<(), String> {
@@ -137,22 +137,24 @@ struct ReviewPointer {
 pub(super) fn describe(
     state_directory: &Path,
     project_id: &str,
-    allowed_worktree_ids: &HashSet<String>,
+    scope: &DurableStateScope,
 ) -> Result<DurableStateBundle, String> {
     let paths = StatePaths::new(state_directory, project_id);
     paths.prepare()?;
     let _locks = lock_state(&paths)?;
     let preferences = load_preferences(&paths.preferences)?;
-    let manifest = load_manifest(&paths.project_manifest, project_id, allowed_worktree_ids)?;
+    let manifest = load_manifest(&paths.project_manifest, project_id, scope)?;
     let drafts = manifest
         .drafts
         .iter()
-        .map(|pointer| load_draft(&paths.records, pointer, project_id, allowed_worktree_ids))
+        .filter(|pointer| scope.allows(&pointer.project_id, &pointer.worktree_id))
+        .map(|pointer| load_draft(&paths.records, pointer, scope))
         .collect::<Result<Vec<_>, _>>()?;
     let review_ledgers = manifest
         .review_ledgers
         .iter()
-        .map(|pointer| load_review(&paths.records, pointer, project_id, allowed_worktree_ids))
+        .filter(|pointer| scope.allows(&pointer.project_id, &pointer.worktree_id))
+        .map(|pointer| load_review(&paths.records, pointer, scope))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(DurableStateBundle {
         revision: DurableStateRevision {
@@ -169,14 +171,14 @@ pub(super) fn describe(
 pub(super) fn apply(
     state_directory: &Path,
     project_id: &str,
-    allowed_worktree_ids: &HashSet<String>,
+    scope: &DurableStateScope,
     request: &DurableStateApply,
 ) -> Result<DurableStateApplyResult, String> {
     let paths = StatePaths::new(state_directory, project_id);
     paths.prepare()?;
     let _locks = lock_state(&paths)?;
     let mut preferences = load_preferences(&paths.preferences)?;
-    let mut manifest = load_manifest(&paths.project_manifest, project_id, allowed_worktree_ids)?;
+    let mut manifest = load_manifest(&paths.project_manifest, project_id, scope)?;
     let current_revision = DurableStateRevision {
         preferences: preferences.revision,
         project: manifest.revision,
@@ -196,16 +198,11 @@ pub(super) fn apply(
             validate_versioned_json(record, &[1, 2], WORKBENCH_LIMIT_BYTES, "workbench")?;
             manifest.revision = next_revision(manifest.revision)?;
             manifest.workbench = Some(record.clone());
-            save_manifest(
-                &paths.project_manifest,
-                &manifest,
-                project_id,
-                allowed_worktree_ids,
-            )?;
+            save_manifest(&paths.project_manifest, &manifest, project_id, scope)?;
             cleanup_records(&paths.records, &manifest);
         }
         DurableStateMutation::PutDraft { draft } => {
-            let bytes = validate_draft(draft, project_id, allowed_worktree_ids)?;
+            let bytes = validate_draft(draft, scope)?;
             let file_name = fresh_record_name(&paths.records, "draft")?;
             let pointer = DraftPointer {
                 project_id: draft.project_id.clone(),
@@ -225,15 +222,10 @@ pub(super) fn apply(
                 manifest.drafts.push(pointer);
             }
             manifest.revision = next_revision(manifest.revision)?;
-            validate_manifest(&manifest, project_id, allowed_worktree_ids)?;
+            validate_manifest(&manifest, project_id, scope)?;
             atomic_write(&paths.records.join(file_name), &bytes)
                 .map_err(|_| unavailable("draft record cannot be replaced"))?;
-            save_manifest(
-                &paths.project_manifest,
-                &manifest,
-                project_id,
-                allowed_worktree_ids,
-            )?;
+            save_manifest(&paths.project_manifest, &manifest, project_id, scope)?;
             cleanup_records(&paths.records, &manifest);
         }
         DurableStateMutation::RemoveDraft {
@@ -241,12 +233,7 @@ pub(super) fn apply(
             worktree_id,
             relative_path,
         } => {
-            validate_scope(
-                requested_project,
-                worktree_id,
-                project_id,
-                allowed_worktree_ids,
-            )?;
+            validate_scope(requested_project, worktree_id, scope)?;
             validate_relative_path(relative_path)?;
             manifest.drafts.retain(|draft| {
                 draft.project_id != *requested_project
@@ -254,16 +241,11 @@ pub(super) fn apply(
                     || draft.relative_path != *relative_path
             });
             manifest.revision = next_revision(manifest.revision)?;
-            save_manifest(
-                &paths.project_manifest,
-                &manifest,
-                project_id,
-                allowed_worktree_ids,
-            )?;
+            save_manifest(&paths.project_manifest, &manifest, project_id, scope)?;
             cleanup_records(&paths.records, &manifest);
         }
         DurableStateMutation::ReplaceReviewLedger { ledger } => {
-            let bytes = validate_review(ledger, project_id, allowed_worktree_ids)?;
+            let bytes = validate_review(ledger, scope)?;
             let file_name = fresh_record_name(&paths.records, "review")?;
             let pointer = ReviewPointer {
                 project_id: ledger.project_id.clone(),
@@ -280,15 +262,10 @@ pub(super) fn apply(
                 manifest.review_ledgers.push(pointer);
             }
             manifest.revision = next_revision(manifest.revision)?;
-            validate_manifest(&manifest, project_id, allowed_worktree_ids)?;
+            validate_manifest(&manifest, project_id, scope)?;
             atomic_write(&paths.records.join(file_name), &bytes)
                 .map_err(|_| unavailable("review record cannot be replaced"))?;
-            save_manifest(
-                &paths.project_manifest,
-                &manifest,
-                project_id,
-                allowed_worktree_ids,
-            )?;
+            save_manifest(&paths.project_manifest, &manifest, project_id, scope)?;
             cleanup_records(&paths.records, &manifest);
         }
     }
@@ -340,12 +317,12 @@ fn save_preferences(path: &Path, preferences: &PreferencesRecord) -> Result<(), 
 fn load_manifest(
     path: &Path,
     project_id: &str,
-    allowed_worktree_ids: &HashSet<String>,
+    scope: &DurableStateScope,
 ) -> Result<ProjectManifest, String> {
     let Some(manifest) = load_json(path, PROJECT_MANIFEST_LIMIT_BYTES, "project manifest")? else {
         return Ok(ProjectManifest::empty(project_id));
     };
-    validate_manifest(&manifest, project_id, allowed_worktree_ids)?;
+    validate_manifest(&manifest, project_id, scope)?;
     validate_record_metadata(
         path.parent()
             .expect("a project manifest always has a project directory")
@@ -360,9 +337,9 @@ fn save_manifest(
     path: &Path,
     manifest: &ProjectManifest,
     project_id: &str,
-    allowed_worktree_ids: &HashSet<String>,
+    scope: &DurableStateScope,
 ) -> Result<(), String> {
-    validate_manifest(manifest, project_id, allowed_worktree_ids)?;
+    validate_manifest(manifest, project_id, scope)?;
     let bytes = serde_json::to_vec_pretty(manifest)
         .map_err(|_| unavailable("manifest cannot be encoded"))?;
     if bytes.len() as u64 > PROJECT_MANIFEST_LIMIT_BYTES {
@@ -395,15 +372,14 @@ fn validate_record_metadata(records: &Path, manifest: &ProjectManifest) -> Resul
 fn load_draft(
     records: &Path,
     pointer: &DraftPointer,
-    project_id: &str,
-    allowed_worktree_ids: &HashSet<String>,
+    scope: &DurableStateScope,
 ) -> Result<DurableFileDraft, String> {
     let draft: DurableFileDraft = load_required_json(
         &records.join(&pointer.file_name),
         DRAFT_RECORD_LIMIT_BYTES as u64,
         "draft record",
     )?;
-    let bytes = validate_draft(&draft, project_id, allowed_worktree_ids)?;
+    let bytes = validate_stored_draft(&draft, scope)?;
     if draft.project_id != pointer.project_id
         || draft.worktree_id != pointer.worktree_id
         || draft.relative_path != pointer.relative_path
@@ -418,15 +394,14 @@ fn load_draft(
 fn load_review(
     records: &Path,
     pointer: &ReviewPointer,
-    project_id: &str,
-    allowed_worktree_ids: &HashSet<String>,
+    scope: &DurableStateScope,
 ) -> Result<DurableReviewLedger, String> {
     let ledger: DurableReviewLedger = load_required_json(
         &records.join(&pointer.file_name),
         REVIEW_LEDGER_LIMIT_BYTES as u64,
         "review record",
     )?;
-    let bytes = validate_review(&ledger, project_id, allowed_worktree_ids)?;
+    let bytes = validate_stored_review(&ledger, scope)?;
     if ledger.project_id != pointer.project_id
         || ledger.worktree_id != pointer.worktree_id
         || bytes.len() as u64 != pointer.record_bytes

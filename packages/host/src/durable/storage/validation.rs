@@ -7,7 +7,7 @@ use super::{
     unavailable, PreferencesRecord, ProjectManifest, PROJECT_MANIFEST_LIMIT_BYTES,
     STORAGE_SCHEMA_VERSION,
 };
-use crate::durable::{DurableFileDraft, DurableReviewLedger};
+use crate::durable::{DurableFileDraft, DurableReviewLedger, DurableStateScope};
 use crate::EDITABLE_FILE_LIMIT_BYTES;
 
 pub(super) const PREFERENCES_LIMIT_BYTES: usize = 1024 * 1024;
@@ -38,7 +38,7 @@ pub(super) fn validate_preferences(preferences: &PreferencesRecord) -> Result<()
 pub(super) fn validate_manifest(
     manifest: &ProjectManifest,
     project_id: &str,
-    allowed_worktree_ids: &HashSet<String>,
+    scope: &DurableStateScope,
 ) -> Result<(), String> {
     if manifest.schema_version != STORAGE_SCHEMA_VERSION || manifest.project_id != project_id {
         return Err(unavailable("project manifest schema or scope is invalid"));
@@ -54,12 +54,7 @@ pub(super) fn validate_manifest(
     let mut record_files = HashSet::new();
     let mut draft_total = 0_u64;
     for draft in &manifest.drafts {
-        validate_scope(
-            &draft.project_id,
-            &draft.worktree_id,
-            project_id,
-            allowed_worktree_ids,
-        )?;
+        validate_remembered_scope(&draft.project_id, &draft.worktree_id, scope)?;
         validate_relative_path(&draft.relative_path)?;
         if !valid_record_name(&draft.file_name, "draft")
             || !record_files.insert(draft.file_name.as_str())
@@ -84,12 +79,7 @@ pub(super) fn validate_manifest(
     let mut review_keys = HashSet::new();
     let mut review_total = 0_u64;
     for review in &manifest.review_ledgers {
-        validate_scope(
-            &review.project_id,
-            &review.worktree_id,
-            project_id,
-            allowed_worktree_ids,
-        )?;
+        validate_remembered_scope(&review.project_id, &review.worktree_id, scope)?;
         if !valid_record_name(&review.file_name, "review")
             || !record_files.insert(review.file_name.as_str())
             || !review_keys.insert((review.project_id.as_str(), review.worktree_id.as_str()))
@@ -136,18 +126,20 @@ pub(super) fn validate_versioned_json(
 
 pub(super) fn validate_draft(
     draft: &DurableFileDraft,
-    project_id: &str,
-    allowed_worktree_ids: &HashSet<String>,
+    scope: &DurableStateScope,
+) -> Result<Vec<u8>, String> {
+    validate_draft_record(draft, scope, false)
+}
+
+fn validate_draft_record(
+    draft: &DurableFileDraft,
+    scope: &DurableStateScope,
+    stored: bool,
 ) -> Result<Vec<u8>, String> {
     if draft.schema_version != 1 || draft.updated_at > MAX_SAFE_INTEGER {
         return Err(unavailable("draft schema or timestamp is invalid"));
     }
-    validate_scope(
-        &draft.project_id,
-        &draft.worktree_id,
-        project_id,
-        allowed_worktree_ids,
-    )?;
+    validate_record_scope(&draft.project_id, &draft.worktree_id, scope, stored)?;
     validate_relative_path(&draft.relative_path)?;
     if draft.text.len() as u64 > EDITABLE_FILE_LIMIT_BYTES {
         return Err(unavailable("draft payload exceeds its byte limit"));
@@ -159,20 +151,29 @@ pub(super) fn validate_draft(
     Ok(bytes)
 }
 
+pub(super) fn validate_stored_draft(
+    draft: &DurableFileDraft,
+    scope: &DurableStateScope,
+) -> Result<Vec<u8>, String> {
+    validate_draft_record(draft, scope, true)
+}
+
 pub(super) fn validate_review(
     ledger: &DurableReviewLedger,
-    project_id: &str,
-    allowed_worktree_ids: &HashSet<String>,
+    scope: &DurableStateScope,
+) -> Result<Vec<u8>, String> {
+    validate_review_record(ledger, scope, false)
+}
+
+fn validate_review_record(
+    ledger: &DurableReviewLedger,
+    scope: &DurableStateScope,
+    stored: bool,
 ) -> Result<Vec<u8>, String> {
     if ledger.schema_version != 1 || ledger.comments.len() > MAX_REVIEW_COMMENTS {
         return Err(unavailable("review schema or comment count is invalid"));
     }
-    validate_scope(
-        &ledger.project_id,
-        &ledger.worktree_id,
-        project_id,
-        allowed_worktree_ids,
-    )?;
+    validate_record_scope(&ledger.project_id, &ledger.worktree_id, scope, stored)?;
     let mut comment_ids = HashSet::new();
     for comment in &ledger.comments {
         if comment.id.is_empty()
@@ -194,19 +195,52 @@ pub(super) fn validate_review(
     Ok(bytes)
 }
 
+pub(super) fn validate_stored_review(
+    ledger: &DurableReviewLedger,
+    scope: &DurableStateScope,
+) -> Result<Vec<u8>, String> {
+    validate_review_record(ledger, scope, true)
+}
+
 pub(super) fn validate_scope(
     requested_project_id: &str,
     requested_worktree_id: &str,
-    project_id: &str,
-    allowed_worktree_ids: &HashSet<String>,
+    scope: &DurableStateScope,
 ) -> Result<(), String> {
-    if requested_project_id != project_id
-        || !allowed_worktree_ids.contains(requested_worktree_id)
+    if !valid_hex_id(requested_project_id, "project")
         || !valid_worktree_id(requested_worktree_id)
+        || !scope.allows(requested_project_id, requested_worktree_id)
     {
         return Err(unavailable("record scope is not active"));
     }
     Ok(())
+}
+
+fn validate_remembered_scope(
+    requested_project_id: &str,
+    requested_worktree_id: &str,
+    scope: &DurableStateScope,
+) -> Result<(), String> {
+    if !valid_hex_id(requested_project_id, "project")
+        || !valid_worktree_id(requested_worktree_id)
+        || !scope.remembers(requested_project_id, requested_worktree_id)
+    {
+        return Err(unavailable("record scope is not remembered"));
+    }
+    Ok(())
+}
+
+fn validate_record_scope(
+    requested_project_id: &str,
+    requested_worktree_id: &str,
+    scope: &DurableStateScope,
+    stored: bool,
+) -> Result<(), String> {
+    if stored {
+        validate_remembered_scope(requested_project_id, requested_worktree_id, scope)
+    } else {
+        validate_scope(requested_project_id, requested_worktree_id, scope)
+    }
 }
 
 pub(super) fn validate_relative_path(relative_path: &str) -> Result<(), String> {
@@ -265,17 +299,17 @@ pub(super) fn valid_record_name(file_name: &str, kind: &str) -> bool {
 mod tests {
     use super::{validate_manifest, MAX_DRAFTS, MAX_REVIEW_LEDGERS};
     use crate::durable::storage::{DraftPointer, ProjectManifest, ReviewPointer};
+    use crate::durable::DurableStateScope;
     use crate::EDITABLE_FILE_LIMIT_BYTES;
-    use std::collections::HashSet;
 
     fn id(kind: &str, number: usize) -> String {
         format!("{kind}-{number:032x}")
     }
 
-    fn scope() -> (String, String, HashSet<String>) {
+    fn scope() -> (String, String, DurableStateScope) {
         let project_id = id("project", 1);
         let worktree_id = id("worktree", 2);
-        let allowed = HashSet::from([worktree_id.clone()]);
+        let allowed = DurableStateScope::from_scopes([(project_id.clone(), worktree_id.clone())]);
         (project_id, worktree_id, allowed)
     }
 
@@ -337,7 +371,12 @@ mod tests {
         let review_worktrees = (0..17)
             .map(|index| id("worktree", index + 10))
             .collect::<Vec<_>>();
-        let allowed = review_worktrees.iter().cloned().collect();
+        let allowed = DurableStateScope::from_scopes(
+            review_worktrees
+                .iter()
+                .cloned()
+                .map(|worktree_id| (project_id.clone(), worktree_id)),
+        );
         reviews.review_ledgers = review_worktrees
             .into_iter()
             .enumerate()

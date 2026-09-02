@@ -566,4 +566,48 @@ test("opens a remote folder beside the current project and activates its file", 
   await expect(page.locator('.editor-buffer[data-buffer-kind="editable"]')).toContainText(
     "Opened from the remote folder browser.",
   );
+  const addedBuffer = page.locator('.editor-buffer[data-buffer-kind="editable"]');
+  await addedBuffer.locator(".cm-content").click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.insertText("\nUnsaved in the added remote project.\n");
+  await expect(secondFile).toHaveAttribute("data-dirty", "true");
+  await expect
+    .poll(() => servedHost.readPersistedState())
+    .toContain("Unsaved in the added remote project.");
+
+  await page.keyboard.press("ControlOrMeta+j");
+  const terminal = page.locator("[data-project-terminal]");
+  await expect(terminal).toBeVisible();
+  const terminalSurface = terminal.locator(".zd-terminal-thread-surface");
+  await expect(terminalSurface).toHaveAttribute("data-terminal-status", "running");
+  const originalSessionId = await terminalSurface.getAttribute("data-terminal-session-id");
+  if (!originalSessionId) throw new Error("the added project terminal has no session ID");
+  const marker = "__ZD_ADDED_PROJECT_PID__";
+  await enterTerminalCommand(terminal, `printf '${marker}%s\\n' "$$"`);
+  const originalPid = await terminalPid(terminal.locator(".xterm-rows"), marker);
+  await expect.poll(() => servedHost.readPersistedState()).toContain(servedHost.secondProjectName);
+
+  const restarted = await servedHost.restart();
+  await page.goto(restarted.url);
+  await expect(page.locator(".zd-workbench")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Connect to zd" })).toHaveCount(0);
+  await expect(page.locator(".zd-project-group")).toHaveCount(2);
+  await expect(
+    page.locator(".zd-project-name").filter({ hasText: servedHost.secondProjectName }),
+  ).toHaveText(servedHost.secondProjectName);
+  await expect(page.locator('.editor-buffer[data-buffer-kind="editable"]')).toContainText(
+    "Unsaved in the added remote project.",
+  );
+  await expect(page.locator('[data-file-path="second.md"]')).toHaveAttribute("data-dirty", "true");
+  await expect(servedHost.readSecondProjectFile()).resolves.not.toContain(
+    "Unsaved in the added remote project.",
+  );
+  await page.keyboard.press("ControlOrMeta+j");
+  const restoredTerminal = page.locator("[data-project-terminal]");
+  await expect(restoredTerminal.locator(".zd-terminal-thread-surface")).toHaveAttribute(
+    "data-terminal-session-id",
+    originalSessionId,
+  );
+  expect(servedHost.isProcessRunning(Number(originalPid))).toBe(true);
+  await closeAndDisposeTerminals(page, restarted.url, restarted.secret);
 });

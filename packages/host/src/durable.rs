@@ -2,7 +2,7 @@
 
 mod storage;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -105,33 +105,83 @@ pub enum DurableStateApplyResult {
     },
 }
 
+#[derive(Debug, Clone, Default)]
+pub(crate) struct DurableStateScope {
+    active_worktrees_by_project: HashMap<String, HashSet<String>>,
+    remembered_worktrees_by_project: HashMap<String, HashSet<String>>,
+}
+
+impl DurableStateScope {
+    pub(crate) fn from_projects(projects: &[crate::ProjectGrant]) -> Self {
+        Self::from_scopes(projects.iter().flat_map(|project| {
+            project
+                .worktrees
+                .iter()
+                .map(|worktree| (project.id.clone(), worktree.id.clone()))
+        }))
+    }
+
+    pub(crate) fn from_scopes(scopes: impl IntoIterator<Item = (String, String)>) -> Self {
+        let mut result = Self::default();
+        for (project_id, worktree_id) in scopes {
+            result.remember_active(project_id, worktree_id);
+        }
+        result
+    }
+
+    pub(crate) fn remember_scopes(&mut self, scopes: impl IntoIterator<Item = (String, String)>) {
+        for (project_id, worktree_id) in scopes {
+            self.remembered_worktrees_by_project
+                .entry(project_id)
+                .or_default()
+                .insert(worktree_id);
+        }
+    }
+
+    pub(crate) fn allows(&self, project_id: &str, worktree_id: &str) -> bool {
+        self.active_worktrees_by_project
+            .get(project_id)
+            .is_some_and(|worktrees| worktrees.contains(worktree_id))
+    }
+
+    pub(crate) fn remembers(&self, project_id: &str, worktree_id: &str) -> bool {
+        self.remembered_worktrees_by_project
+            .get(project_id)
+            .is_some_and(|worktrees| worktrees.contains(worktree_id))
+    }
+
+    fn remember_active(&mut self, project_id: String, worktree_id: String) {
+        self.active_worktrees_by_project
+            .entry(project_id.clone())
+            .or_default()
+            .insert(worktree_id.clone());
+        self.remembered_worktrees_by_project
+            .entry(project_id)
+            .or_default()
+            .insert(worktree_id);
+    }
+}
+
 /// A trusted, project-scoped view of durable state for native shell wrappers.
 #[derive(Debug)]
 pub struct DurableStateSession {
     store: DurableStateStore,
-    allowed_worktree_ids: HashSet<String>,
+    scope: DurableStateScope,
 }
 
 impl DurableStateSession {
     pub fn new(state_directory: &Path, project: &crate::ProjectGrant) -> Result<Self, String> {
         let store = DurableStateStore::new(state_directory, project.id.clone())?;
-        let allowed_worktree_ids = project
-            .worktrees
-            .iter()
-            .map(|worktree| worktree.id.clone())
-            .collect();
-        Ok(Self {
-            store,
-            allowed_worktree_ids,
-        })
+        let scope = DurableStateScope::from_projects(std::slice::from_ref(project));
+        Ok(Self { store, scope })
     }
 
     pub fn describe(&self) -> Result<DurableStateBundle, String> {
-        self.store.describe(&self.allowed_worktree_ids)
+        self.store.describe(&self.scope)
     }
 
     pub fn apply(&self, request: &DurableStateApply) -> Result<DurableStateApplyResult, String> {
-        self.store.apply(&self.allowed_worktree_ids, request)
+        self.store.apply(&self.scope, request)
     }
 }
 
@@ -154,27 +204,15 @@ impl DurableStateStore {
         &self.project_id
     }
 
-    pub(crate) fn describe(
-        &self,
-        allowed_worktree_ids: &HashSet<String>,
-    ) -> Result<DurableStateBundle, String> {
-        storage::describe(
-            &self.state_directory,
-            &self.project_id,
-            allowed_worktree_ids,
-        )
+    pub(crate) fn describe(&self, scope: &DurableStateScope) -> Result<DurableStateBundle, String> {
+        storage::describe(&self.state_directory, &self.project_id, scope)
     }
 
     pub(crate) fn apply(
         &self,
-        allowed_worktree_ids: &HashSet<String>,
+        scope: &DurableStateScope,
         request: &DurableStateApply,
     ) -> Result<DurableStateApplyResult, String> {
-        storage::apply(
-            &self.state_directory,
-            &self.project_id,
-            allowed_worktree_ids,
-            request,
-        )
+        storage::apply(&self.state_directory, &self.project_id, scope, request)
     }
 }

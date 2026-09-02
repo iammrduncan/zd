@@ -212,6 +212,127 @@ fn project_records_are_scoped_to_the_active_grant() {
 }
 
 #[test]
+fn records_for_an_explicitly_added_project_survive_the_startup_host_restart() {
+    let startup = Scratch::new("added-scope-startup");
+    let added = Scratch::new("added-scope-project");
+    let state = Scratch::new("added-scope-state");
+    let first = persisted_host(&startup, &state);
+    let grant = first
+        .approve_trusted_project(added.path())
+        .expect("approve added project");
+    let worktree_id = grant.worktrees[0].id.clone();
+    let initial = first.describe_durable_state().unwrap().revision;
+
+    let revision = apply(
+        &first,
+        initial,
+        DurableStateMutation::PutDraft {
+            draft: DurableFileDraft {
+                schema_version: 1,
+                project_id: grant.id.clone(),
+                worktree_id: worktree_id.clone(),
+                relative_path: "second.md".into(),
+                text: "unsaved second project work".into(),
+                updated_at: 3,
+            },
+        },
+    );
+    let revision = apply(
+        &first,
+        revision,
+        DurableStateMutation::ReplaceReviewLedger {
+            ledger: DurableReviewLedger {
+                schema_version: 1,
+                project_id: grant.id.clone(),
+                worktree_id: worktree_id.clone(),
+                comments: vec![DurableReviewComment {
+                    id: "added-project-comment".into(),
+                    relative: "second.md".into(),
+                    start_line: 1,
+                    end_line: 1,
+                    selected: "Second project".into(),
+                    comment: "Keep this across the host restart.".into(),
+                }],
+            },
+        },
+    );
+    drop(first);
+
+    let restored = persisted_host(&startup, &state)
+        .describe_durable_state()
+        .expect("restore added-project records");
+    assert_eq!(restored.revision, revision);
+    assert_eq!(restored.drafts.len(), 1);
+    assert_eq!(restored.drafts[0].project_id, grant.id);
+    assert_eq!(restored.drafts[0].text, "unsaved second project work");
+    assert_eq!(restored.review_ledgers.len(), 1);
+    assert_eq!(
+        restored.review_ledgers[0].comments[0].id,
+        "added-project-comment"
+    );
+}
+
+#[test]
+fn removing_an_added_project_does_not_poison_durable_state() {
+    let startup = Scratch::new("remove-added-scope-startup");
+    let added = Scratch::new("remove-added-scope-project");
+    let state = Scratch::new("remove-added-scope-state");
+    let first = persisted_host(&startup, &state);
+    let grant = first
+        .approve_trusted_project(added.path())
+        .expect("approve added project");
+    let worktree_id = grant.worktrees[0].id.clone();
+    let initial = first.describe_durable_state().unwrap().revision;
+    apply(
+        &first,
+        initial,
+        DurableStateMutation::PutDraft {
+            draft: DurableFileDraft {
+                schema_version: 1,
+                project_id: grant.id.clone(),
+                worktree_id: worktree_id.clone(),
+                relative_path: "closed.md".into(),
+                text: "discarded when the project closes".into(),
+                updated_at: 4,
+            },
+        },
+    );
+
+    first
+        .remove_project_grant(&grant.id)
+        .expect("remove added project");
+    let after_removal = first
+        .describe_durable_state()
+        .expect("describe state after removal");
+    assert!(after_removal.drafts.is_empty());
+    assert_eq!(first.project_grants().len(), 1);
+    let problem = first
+        .apply_durable_state(&DurableStateApply {
+            expected_revision: after_removal.revision,
+            mutation: DurableStateMutation::PutDraft {
+                draft: DurableFileDraft {
+                    schema_version: 1,
+                    project_id: grant.id,
+                    worktree_id,
+                    relative_path: "revoked.md".into(),
+                    text: "must be refused".into(),
+                    updated_at: 5,
+                },
+            },
+        })
+        .expect_err("removed project cannot accept new durable records");
+    assert!(problem.contains("record scope is not active"));
+    drop(first);
+
+    let restarted = persisted_host(&startup, &state);
+    let restored = restarted
+        .describe_durable_state()
+        .expect("restore after removing added project");
+    assert!(restored.drafts.is_empty());
+    assert_eq!(restarted.project_grants().len(), 1);
+}
+
+#[test]
 fn concurrent_expected_revision_allows_exactly_one_writer() {
     let project = Scratch::new("concurrent-project");
     let state = Scratch::new("concurrent-state");
