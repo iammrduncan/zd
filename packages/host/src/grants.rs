@@ -160,6 +160,81 @@ impl GrantStore {
         })
     }
 
+    pub(crate) fn restore_remembered_project(
+        &mut self,
+        remembered: &crate::identity::RememberedProject,
+    ) -> Result<ProjectGrant, String> {
+        if let Some(index) = self
+            .projects
+            .iter()
+            .position(|project| project.id == remembered.id)
+        {
+            let project = &mut self.projects[index];
+            if project.root != remembered.root
+                || project
+                    .worktrees
+                    .first()
+                    .map(|worktree| (&worktree.id, &worktree.root))
+                    != remembered
+                        .worktrees
+                        .first()
+                        .map(|worktree| (&worktree.id, &worktree.root))
+            {
+                return Err("remembered project identity does not match its live grant".to_string());
+            }
+            for worktree in remembered.worktrees.iter().skip(1) {
+                if let Some(existing) = project
+                    .worktrees
+                    .iter()
+                    .find(|existing| existing.id == worktree.id || existing.root == worktree.root)
+                {
+                    if existing.id != worktree.id || existing.root != worktree.root {
+                        return Err("remembered worktree conflicts with its live grant".to_string());
+                    }
+                    continue;
+                }
+                project.worktrees.push(WorktreeRecord {
+                    id: worktree.id.clone(),
+                    name: worktree_label(&worktree.root),
+                    root: worktree.root.clone(),
+                });
+            }
+            return Ok(describe_project(project));
+        }
+
+        if remembered.worktrees.is_empty()
+            || self.projects.iter().any(|project| {
+                project.root == remembered.root
+                    || project.worktrees.iter().any(|existing| {
+                        remembered.worktrees.iter().any(|worktree| {
+                            existing.id == worktree.id || existing.root == worktree.root
+                        })
+                    })
+            })
+        {
+            return Err("remembered project conflicts with a live grant".to_string());
+        }
+        self.projects.push(ProjectRecord {
+            id: remembered.id.clone(),
+            name: display_name(&remembered.root),
+            root: remembered.root.clone(),
+            worktrees: remembered
+                .worktrees
+                .iter()
+                .map(|worktree| WorktreeRecord {
+                    id: worktree.id.clone(),
+                    name: worktree_label(&worktree.root),
+                    root: worktree.root.clone(),
+                })
+                .collect(),
+        });
+        Ok(describe_project(
+            self.projects
+                .last()
+                .expect("the remembered project was just inserted"),
+        ))
+    }
+
     /// Called only by structured native Git worktree creation/discovery flows.
     pub fn approve_worktree(
         &mut self,
@@ -347,20 +422,6 @@ impl GrantStore {
             .iter()
             .find(|project| project.id == project_id)
             .map(|project| project.root.clone())
-            .ok_or_else(|| format!("unknown or removed project grant {project_id}"))
-    }
-
-    pub(crate) fn worktree_ids(&self, project_id: &str) -> Result<Vec<String>, String> {
-        self.projects
-            .iter()
-            .find(|project| project.id == project_id)
-            .map(|project| {
-                project
-                    .worktrees
-                    .iter()
-                    .map(|worktree| worktree.id.clone())
-                    .collect()
-            })
             .ok_or_else(|| format!("unknown or removed project grant {project_id}"))
     }
 

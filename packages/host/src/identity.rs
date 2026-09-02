@@ -21,6 +21,19 @@ pub(crate) struct ProjectIdentity {
     pub root_worktree_id: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RememberedProject {
+    pub id: String,
+    pub root: PathBuf,
+    pub worktrees: Vec<RememberedWorktree>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RememberedWorktree {
+    pub id: String,
+    pub root: PathBuf,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct IdentityCatalog {
@@ -121,6 +134,55 @@ pub(crate) fn project_roots(
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok((roots, false))
+    })
+}
+
+pub(crate) fn remembered_projects(
+    project_ids: &[String],
+    state_directory: &Path,
+) -> Result<Vec<RememberedProject>, String> {
+    with_catalog(state_directory, |catalog| {
+        let projects = project_ids
+            .iter()
+            .map(|project_id| {
+                let project = catalog
+                    .projects
+                    .iter()
+                    .find(|project| project.id == *project_id)
+                    .ok_or_else(|| unavailable("remembered project is unknown"))?;
+                Ok(RememberedProject {
+                    id: project.id.clone(),
+                    root: project.root.clone(),
+                    worktrees: project
+                        .worktrees
+                        .iter()
+                        .map(|worktree| RememberedWorktree {
+                            id: worktree.id.clone(),
+                            root: worktree.root.clone(),
+                        })
+                        .collect(),
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        Ok((projects, false))
+    })
+}
+
+pub(crate) fn remembered_project_scopes(
+    state_directory: &Path,
+) -> Result<Vec<(String, String)>, String> {
+    with_catalog(state_directory, |catalog| {
+        let scopes = catalog
+            .projects
+            .iter()
+            .flat_map(|project| {
+                project
+                    .worktrees
+                    .iter()
+                    .map(|worktree| (project.id.clone(), worktree.id.clone()))
+            })
+            .collect();
+        Ok((scopes, false))
     })
 }
 

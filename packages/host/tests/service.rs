@@ -181,6 +181,87 @@ fn project_and_root_worktree_identities_survive_a_fresh_host_process() {
 }
 
 #[test]
+fn explicitly_added_project_grants_restore_until_they_are_removed() {
+    let startup = Scratch::new("restored-grants-startup");
+    let added = Scratch::new("restored-grants-added");
+    let state = Scratch::new("restored-grants-state");
+
+    let first = persisted_host(startup.path(), state.path());
+    let added_grant = first
+        .approve_trusted_project(added.path())
+        .expect("approve additional project");
+    assert_eq!(first.project_grants().len(), 2);
+    drop(first);
+
+    let restored = persisted_host(startup.path(), state.path());
+    assert!(restored
+        .project_grants()
+        .iter()
+        .any(|project| project.id == added_grant.id));
+    restored
+        .remove_project_grant(&added_grant.id)
+        .expect("remove restored project");
+    drop(restored);
+
+    let reopened = persisted_host(startup.path(), state.path());
+    assert_eq!(reopened.project_grants().len(), 1);
+    assert_eq!(
+        reopened.project_grants()[0].root,
+        startup.path().to_string_lossy()
+    );
+}
+
+#[test]
+fn concurrent_hosts_do_not_erase_each_others_added_project_grants() {
+    let startup = Scratch::new("concurrent-grants-startup");
+    let alpha = Scratch::new("concurrent-grants-alpha");
+    let beta = Scratch::new("concurrent-grants-beta");
+    let state = Scratch::new("concurrent-grants-state");
+    let first = persisted_host(startup.path(), state.path());
+    let second = persisted_host(startup.path(), state.path());
+
+    let alpha_grant = first
+        .approve_trusted_project(alpha.path())
+        .expect("approve alpha project");
+    let beta_grant = second
+        .approve_trusted_project(beta.path())
+        .expect("approve beta project");
+    drop(first);
+    drop(second);
+
+    let reopened = persisted_host(startup.path(), state.path());
+    let project_ids = reopened
+        .project_grants()
+        .into_iter()
+        .map(|project| project.id)
+        .collect::<Vec<_>>();
+    assert_eq!(project_ids.len(), 3);
+    assert!(project_ids.contains(&alpha_grant.id));
+    assert!(project_ids.contains(&beta_grant.id));
+}
+
+#[test]
+fn a_corrupt_served_grant_set_is_preserved_and_fails_closed() {
+    let startup = Scratch::new("corrupt-grants-startup");
+    let state = Scratch::new("corrupt-grants-state");
+    let first = persisted_host(startup.path(), state.path());
+    let project_id = startup_scope(&first).0;
+    drop(first);
+    let grant_set = state
+        .join("served-grants-v1")
+        .join(format!("{project_id}.json"));
+    std::fs::create_dir_all(grant_set.parent().expect("grant-set directory"))
+        .expect("create grant-set directory");
+    std::fs::write(&grant_set, b"{not valid json").expect("write corrupt grant set");
+
+    let problem = HostService::open_project_with_state(startup.path(), state.path())
+        .expect_err("corrupt grant state must stop startup");
+
+    assert!(problem.contains("served grant persistence"));
+    assert_eq!(std::fs::read(&grant_set).unwrap(), b"{not valid json");
+}
+
+#[test]
 fn remembered_identities_do_not_authorize_other_roots() {
     let alpha = Scratch::new("catalog-alpha");
     let beta = Scratch::new("catalog-beta");

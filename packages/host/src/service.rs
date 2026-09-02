@@ -1,14 +1,14 @@
-use std::collections::HashSet;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 
-use crate::durable::DurableStateStore;
+use crate::durable::{DurableStateScope, DurableStateStore};
 use crate::file_tree_watch::{
     FileTreeWatchRequest, FileTreeWatchSnapshot, FileTreeWatchState, WatchListener,
 };
+use crate::grant_set::GrantSetStore;
 use crate::instrumentation::{
     DiagnosticRecordInput, DiagnosticState, DiagnosticStatus, DiagnosticWriteOutcome,
 };
@@ -43,11 +43,13 @@ pub struct HostLaunchRequest {
 struct HostState {
     launch: HostLaunchRequest,
     grants: GrantStore,
+    remembered_durable_scopes: Vec<(String, String)>,
 }
 
 /// One authority owner for an approved workbench session.
 pub struct HostService {
     state: Mutex<HostState>,
+    grant_set: Option<GrantSetStore>,
     project_picker: Mutex<ProjectPickerState>,
     file_tree_watches: FileTreeWatchState,
     terminals: TerminalRuntime,
@@ -127,7 +129,9 @@ impl HostService {
                     problem: None,
                 },
                 grants: GrantStore::default(),
+                remembered_durable_scopes: Vec::new(),
             }),
+            grant_set: None,
             project_picker: Mutex::new(ProjectPickerState::default()),
             file_tree_watches: FileTreeWatchState::default(),
             terminals: TerminalRuntime::open(terminal_mode, state_directory)?,
@@ -147,7 +151,12 @@ impl HostService {
             problem: None,
         };
         Ok(Self {
-            state: Mutex::new(HostState { launch, grants }),
+            state: Mutex::new(HostState {
+                launch,
+                grants,
+                remembered_durable_scopes: Vec::new(),
+            }),
+            grant_set: None,
             project_picker: Mutex::new(ProjectPickerState::default()),
             file_tree_watches: FileTreeWatchState::default(),
             terminals: TerminalRuntime::local(),
@@ -193,6 +202,11 @@ impl HostService {
         terminal_mode: TerminalMode,
     ) -> Result<Self, String> {
         let durable = DurableStateStore::new(state_directory, identity.project_id.clone())?;
+        let grant_set = GrantSetStore::new(state_directory, identity.project_id.clone())?;
+        let remembered_project_ids = grant_set.load()?;
+        let remembered_projects =
+            identity::remembered_projects(&remembered_project_ids, state_directory)?;
+        let remembered_durable_scopes = identity::remembered_project_scopes(state_directory)?;
         let diagnostics = DiagnosticState::new(
             state_directory.join("diagnostics"),
             env!("CARGO_PKG_VERSION"),
@@ -200,17 +214,30 @@ impl HostService {
         let mut grants = GrantStore::default();
         let approved = grants.approve_project_with_identity(
             root,
-            identity.project_id,
-            identity.root_worktree_id,
+            identity.project_id.clone(),
+            identity.root_worktree_id.clone(),
         )?;
+        for remembered in &remembered_projects {
+            grants.restore_remembered_project(remembered)?;
+        }
+        let startup_project = grants
+            .projects()
+            .into_iter()
+            .find(|project| project.id == identity.project_id)
+            .ok_or_else(|| "startup project grant is unavailable".to_string())?;
         let launch = HostLaunchRequest {
-            project: Some(approved.project),
+            project: Some(startup_project),
             worktree_id: Some(approved.worktree_id),
             relative_path: None,
             problem: None,
         };
         Ok(Self {
-            state: Mutex::new(HostState { launch, grants }),
+            state: Mutex::new(HostState {
+                launch,
+                grants,
+                remembered_durable_scopes,
+            }),
+            grant_set: Some(grant_set),
             project_picker: Mutex::new(ProjectPickerState::default()),
             file_tree_watches: FileTreeWatchState::default(),
             terminals: TerminalRuntime::open(terminal_mode, state_directory)?,
@@ -241,12 +268,30 @@ impl HostService {
             .state
             .lock()
             .map_err(|_| "project approval is unavailable".to_string())?;
+        let before = state
+            .grants
+            .projects()
+            .into_iter()
+            .map(|project| project.id)
+            .collect::<Vec<_>>();
         let approved = match self.state_directory.as_deref() {
             Some(state_directory) => state
                 .grants
                 .approve_project_with_state(root, state_directory),
             None => state.grants.approve_project(root),
         }?;
+        remember_project_scope(&mut state.remembered_durable_scopes, &approved.project);
+        let newly_added = !before
+            .iter()
+            .any(|project_id| project_id == &approved.project.id);
+        if newly_added {
+            if let Some(grant_set) = &self.grant_set {
+                if let Err(problem) = grant_set.add(&approved.project.id) {
+                    let _ = state.grants.remove_project(&approved.project.id);
+                    return Err(problem);
+                }
+            }
+        }
         Ok(approved.project)
     }
 
@@ -321,19 +366,27 @@ impl HostService {
 
     pub fn remove_project_grant(&self, project_id: &str) -> Result<ProjectGrant, String> {
         if self
-            .durable
+            .grant_set
             .as_ref()
-            .is_some_and(|durable| durable.project_id() == project_id)
+            .is_some_and(|store| store.startup_project_id() == project_id)
+            || self
+                .durable
+                .as_ref()
+                .is_some_and(|durable| durable.project_id() == project_id)
         {
             return Err(
                 "The startup project cannot be closed while this host is running.".to_string(),
             );
         }
-        self.state
+        let mut state = self
+            .state
             .lock()
-            .map_err(|_| "Project removal is unavailable.".to_string())?
-            .grants
-            .remove_project(project_id)
+            .map_err(|_| "Project removal is unavailable.".to_string())?;
+        state.grants.project_root(project_id)?;
+        if let Some(grant_set) = &self.grant_set {
+            grant_set.remove(project_id)?;
+        }
+        state.grants.remove_project(project_id)
     }
 
     pub fn recover_trusted_project(
@@ -671,31 +724,27 @@ impl HostService {
     }
 
     pub fn describe_durable_state(&self) -> Result<durable::DurableStateBundle, String> {
-        let (durable, worktree_ids) = self.durable_scope()?;
-        durable.describe(&worktree_ids)
+        let (durable, scope) = self.durable_scope()?;
+        durable.describe(&scope)
     }
 
     pub fn apply_durable_state(
         &self,
         request: &durable::DurableStateApply,
     ) -> Result<durable::DurableStateApplyResult, String> {
-        let (durable, worktree_ids) = self.durable_scope()?;
-        durable.apply(&worktree_ids, request)
+        let (durable, scope) = self.durable_scope()?;
+        durable.apply(&scope, request)
     }
 
-    fn durable_scope(&self) -> Result<(&DurableStateStore, HashSet<String>), String> {
+    fn durable_scope(&self) -> Result<(&DurableStateStore, DurableStateScope), String> {
         let durable = self.durable.as_ref().ok_or_else(|| {
             "durable state is unavailable: persistence was not configured".to_string()
         })?;
-        let worktree_ids = self
-            .state
-            .lock()
-            .expect("host state was poisoned")
-            .grants
-            .worktree_ids(durable.project_id())?
-            .into_iter()
-            .collect();
-        Ok((durable, worktree_ids))
+        let mut state = self.state.lock().expect("host state was poisoned");
+        let projects = state.grants.projects();
+        let mut scope = DurableStateScope::from_projects(&projects);
+        scope.remember_scopes(state.remembered_durable_scopes.iter().cloned());
+        Ok((durable, scope))
     }
 
     fn diagnostics(&self) -> Result<&DiagnosticState, String> {
@@ -745,13 +794,34 @@ impl WorktreeAuthority for HostService {
         root: &Path,
     ) -> Result<WorktreeGrant, String> {
         let mut state = self.state.lock().expect("host state was poisoned");
-        match self.state_directory.as_deref() {
+        let worktree = match self.state_directory.as_deref() {
             Some(state_directory) => {
                 state
                     .grants
                     .approve_worktree_with_state(project_id, root, state_directory)
             }
             None => state.grants.approve_worktree(project_id, root),
-        }
+        }?;
+        remember_durable_scope(
+            &mut state.remembered_durable_scopes,
+            project_id,
+            &worktree.id,
+        );
+        Ok(worktree)
+    }
+}
+
+fn remember_project_scope(scopes: &mut Vec<(String, String)>, project: &ProjectGrant) {
+    for worktree in &project.worktrees {
+        remember_durable_scope(scopes, &project.id, &worktree.id);
+    }
+}
+
+fn remember_durable_scope(scopes: &mut Vec<(String, String)>, project_id: &str, worktree_id: &str) {
+    if !scopes
+        .iter()
+        .any(|scope| scope.0 == project_id && scope.1 == worktree_id)
+    {
+        scopes.push((project_id.to_string(), worktree_id.to_string()));
     }
 }
