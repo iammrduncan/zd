@@ -28,6 +28,26 @@ describe("served host unlock", () => {
     expect(notice?.textContent).toContain(
       "Remote project folders can be opened beside the current project. Recent workspaces and desktop notifications are unavailable",
     );
+    const dismiss = host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Dismiss remote-host notice"]',
+    );
+    expect(dismiss).not.toBeNull();
+    dismiss?.click();
+    expect(host.querySelector('[aria-label="Served workbench limits"]')).toBeNull();
+  });
+
+  it("removes the remote-host notice without requiring interaction", () => {
+    vi.useFakeTimers();
+    try {
+      const host = document.createElement("main");
+      mountServedLimits(host);
+
+      vi.advanceTimersByTime(8_000);
+
+      expect(host.querySelector('[aria-label="Served workbench limits"]')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("tries a saved browser pairing before rendering the credential form", async () => {
