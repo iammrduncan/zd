@@ -225,23 +225,27 @@ describe("the terminal-backed thread session", () => {
     expect(adapter.write).toHaveBeenCalledWith(session, [0, 128, 255]);
   });
 
-  it("pipelines bounded writes when the transport preserves concurrent call order", async () => {
+  it("keeps a full remote input window in flight when the transport preserves order", async () => {
     const adapter = Object.assign(fakeAdapter(), {
       writeScheduling: "ordered-pipeline" as const,
     });
-    const gates = Array.from({ length: 5 }, () => deferred<void>());
+    const gates = Array.from({ length: 17 }, () => deferred<void>());
     let invocation = 0;
     adapter.write.mockImplementation(() => gates[invocation++]!.promise);
     const terminal = TerminalThreadSession.attach(adapter, session);
 
-    const writes = [1, 2, 3, 4, 5, 6].map((byte) => terminal.writeBytes(Uint8Array.from([byte])));
+    const writes = Array.from({ length: 18 }, (_, index) =>
+      terminal.writeBytes(Uint8Array.from([index + 1])),
+    );
 
-    await vi.waitFor(() => expect(adapter.write).toHaveBeenCalledTimes(4));
-    expect(adapter.write.mock.calls.map(([, bytes]) => bytes)).toEqual([[1], [2], [3], [4]]);
+    await vi.waitFor(() => expect(adapter.write).toHaveBeenCalledTimes(16));
+    expect(adapter.write.mock.calls.map(([, bytes]) => bytes)).toEqual(
+      Array.from({ length: 16 }, (_, index) => [index + 1]),
+    );
 
     gates[0]!.resolve();
-    await vi.waitFor(() => expect(adapter.write).toHaveBeenCalledTimes(5));
-    expect(adapter.write.mock.calls[4]![1]).toEqual([5, 6]);
+    await vi.waitFor(() => expect(adapter.write).toHaveBeenCalledTimes(17));
+    expect(adapter.write.mock.calls[16]![1]).toEqual([17, 18]);
 
     for (const gate of gates.slice(1)) gate.resolve();
     await Promise.all(writes);

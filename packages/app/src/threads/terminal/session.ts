@@ -22,7 +22,9 @@ import type {
 import type { ThreadLifecycle, ThreadLifecycleSignal } from "../types";
 
 const MAX_WRITE_BYTES = 64 * 1_024;
-const ORDERED_WRITE_CONCURRENCY = 4;
+// Keep enough writes in flight to cover a remote round trip while reserving
+// half of the served client's request window for output reads and other work.
+const ORDERED_WRITE_CONCURRENCY = 16;
 const MAX_READ_BYTES = 16 * 1_024 * 1_024;
 const OUTPUT_RENDER_CHUNK_BYTES = 64 * 1_024;
 const MAX_PENDING_EMULATOR_BYTES = 4 * 1_024 * 1_024;
