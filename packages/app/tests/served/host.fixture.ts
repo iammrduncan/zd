@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import { execFile, spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { networkInterfaces, tmpdir } from "node:os";
-import { dirname, join, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { createServer } from "node:net";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -22,6 +22,7 @@ const execFileAsync = promisify(execFile);
 interface ServedHostFixture {
   readonly url: string;
   readonly secret: string;
+  readonly secondProjectName: string;
   restart(): Promise<Readiness>;
   createExternalFile(): Promise<void>;
   isProcessRunning(pid: number): boolean;
@@ -312,14 +313,19 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
       });
       const hostAddress = directIpv4Address();
       const projectRoot = await mkdtemp(join(tmpdir(), "zd-served-e2e-"));
+      const secondProjectRoot = await mkdtemp(join(tmpdir(), "zd-served-second-e2e-"));
       const stateRoot = await mkdtemp(join(tmpdir(), "zd-served-state-e2e-"));
       const expectedPrefix = `${resolve(tmpdir())}${sep}zd-served-e2e-`;
+      const expectedSecondPrefix = `${resolve(tmpdir())}${sep}zd-served-second-e2e-`;
       const expectedStatePrefix = `${resolve(tmpdir())}${sep}zd-served-state-e2e-`;
       if (!resolve(projectRoot).startsWith(expectedPrefix)) {
         throw new Error("the served-host fixture root escaped the temporary directory");
       }
       if (!resolve(stateRoot).startsWith(expectedStatePrefix)) {
         throw new Error("the served-host state root escaped the temporary directory");
+      }
+      if (!resolve(secondProjectRoot).startsWith(expectedSecondPrefix)) {
+        throw new Error("the second served-host fixture root escaped the temporary directory");
       }
       const hostStateRoot = servedHostStateDirectory(process.env, stateRoot, process.platform);
       let child: ReturnType<typeof spawn> | null = null;
@@ -352,6 +358,11 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
         await mkdir(join(projectRoot, "docs"));
         await writeFile(join(projectRoot, "notes.md"), FIXTURE_TEXT, "utf8");
         await writeFile(join(projectRoot, "docs", "inside.md"), "inside\n", "utf8");
+        await writeFile(
+          join(secondProjectRoot, "second.md"),
+          "# Second remote project\n\nOpened from the remote folder browser.\n",
+          "utf8",
+        );
         const builtInTheme = await readFile(
           join(root, "packages", "app", "src", "design", "themes", "builtins", "dark.theme.config"),
           "utf8",
@@ -377,6 +388,7 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
             if (!readiness) throw new Error("the served host is not running");
             return readiness.secret;
           },
+          secondProjectName: basename(secondProjectRoot),
           restart: async () => {
             if (!child || !readiness) throw new Error("the served host is not running");
             const oldPort = new URL(readiness.url).port;
@@ -425,6 +437,7 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
           if (child) await stopHost(child);
         } finally {
           await rm(projectRoot, { recursive: true, force: true });
+          await rm(secondProjectRoot, { recursive: true, force: true });
           await rm(stateRoot, { recursive: true, force: true });
         }
       }

@@ -38,7 +38,7 @@ interface SessionDescription {
   readonly startupWorktreeId: string | null;
   readonly startupRelativePath: string | null;
   readonly capabilities: {
-    readonly projectGrants: "read-only";
+    readonly projectGrants: "read-write";
     readonly fileTree: "read-only";
     readonly fileRead: "read-only";
     readonly fileWrite: "read-write";
@@ -52,7 +52,7 @@ interface SessionDescription {
     readonly durableState: "read-write";
     readonly themeFiles: "read-only";
     readonly hostDiagnostics: "read-write";
-    readonly projectPicker: "unavailable";
+    readonly projectPicker: "read-write";
     readonly recentWorkspaces: "unavailable";
   };
 }
@@ -93,7 +93,7 @@ interface ServedTerminalSnapshot {
 }
 
 const EXPECTED_CAPABILITIES: SessionDescription["capabilities"] = {
-  projectGrants: "read-only",
+  projectGrants: "read-write",
   fileTree: "read-only",
   fileRead: "read-only",
   fileWrite: "read-write",
@@ -107,7 +107,7 @@ const EXPECTED_CAPABILITIES: SessionDescription["capabilities"] = {
   durableState: "read-write",
   themeFiles: "read-only",
   hostDiagnostics: "read-write",
-  projectPicker: "unavailable",
+  projectPicker: "read-write",
   recentWorkspaces: "unavailable",
 };
 
@@ -680,7 +680,8 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
     saveWorkspace: () => unavailable("Workspace persistence"),
     openWorkspace: () => unavailable("Recent workspaces"),
     createThreadWorktree: (request) => client.request("worktree.create", request),
-    removeProjectGrant: () => unavailable("Project removal"),
+    removeProjectGrant: (projectId) =>
+      client.request<ProjectGrant>("projectGrants.remove", { projectId }),
     themeConfigFiles: () => client.request<readonly ThemeConfigFile[]>("theme.list", {}),
     diagnosticsStatus: () => client.request("diagnostics.status", {}),
     enableDiagnostics: () => client.request("diagnostics.enable", {}),

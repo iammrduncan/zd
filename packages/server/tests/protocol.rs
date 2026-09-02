@@ -38,10 +38,6 @@ async fn session_description_has_a_closed_editing_capability_manifest() {
     assert_timing(&response, "describe-1");
     assert_eq!(response["result"]["protocolVersion"], 1);
     assert_eq!(response["result"]["access"], "read-write");
-    assert_eq!(
-        response["result"]["capabilities"]["projectGrants"],
-        "read-only"
-    );
     assert_eq!(response["result"]["capabilities"]["fileTree"], "read-only");
     assert_eq!(response["result"]["capabilities"]["fileRead"], "read-only");
     for read_write in [
@@ -52,18 +48,18 @@ async fn session_description_has_a_closed_editing_capability_manifest() {
         "durableState",
         "hostDiagnostics",
         "terminal",
+        "projectGrants",
+        "projectPicker",
     ] {
         assert_eq!(response["result"]["capabilities"][read_write], "read-write");
     }
     for read_only in ["fileWatch", "git", "projectImages", "themeFiles"] {
         assert_eq!(response["result"]["capabilities"][read_only], "read-only");
     }
-    for unavailable in ["projectPicker", "recentWorkspaces"] {
-        assert_eq!(
-            response["result"]["capabilities"][unavailable],
-            "unavailable"
-        );
-    }
+    assert_eq!(
+        response["result"]["capabilities"]["recentWorkspaces"],
+        "unavailable"
+    );
     assert_eq!(
         response["result"]["capabilities"]
             .as_object()
@@ -71,6 +67,139 @@ async fn session_description_has_a_closed_editing_capability_manifest() {
             .len(),
         16
     );
+
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn remote_project_picker_uses_opaque_handles_and_adds_the_chosen_folder() {
+    let server = TestServer::start("remote-project-picker").await;
+    let sibling = support::Scratch::new("remote-project-picker-sibling");
+    std::fs::write(sibling.join("second.md"), "second remote project\n")
+        .expect("write second project file");
+    let sibling_name = sibling
+        .path()
+        .file_name()
+        .expect("second project name")
+        .to_string_lossy()
+        .into_owned();
+    let mut socket = authenticated(&server).await;
+
+    let started = request(&mut socket, "picker-1", "projectPicker.start", json!({})).await;
+    assert_eq!(started["type"], "response");
+    let session_id = started["result"]["sessionId"]
+        .as_str()
+        .expect("picker session ID");
+    let path_query = request(
+        &mut socket,
+        "picker-path-query",
+        "projectPicker.search",
+        json!({"sessionId": session_id, "query": sibling.path()}),
+    )
+    .await;
+    assert!(path_query["result"]["directories"]
+        .as_array()
+        .expect("path query result")
+        .is_empty());
+
+    let searched = request(
+        &mut socket,
+        "picker-search",
+        "projectPicker.search",
+        json!({"sessionId": session_id, "query": sibling_name}),
+    )
+    .await;
+    let sibling_entry = searched["result"]["directories"]
+        .as_array()
+        .expect("directory list")
+        .iter()
+        .find(|entry| entry["name"] == sibling_name)
+        .expect("second project is visible");
+    let sibling_id = sibling_entry["id"].as_str().expect("opaque directory ID");
+    assert!(!sibling_id.contains(&sibling_name));
+    assert!(!sibling_id.contains('/'));
+    assert!(sibling_entry.get("path").is_none());
+
+    let forged = request(
+        &mut socket,
+        "picker-forged",
+        "projectPicker.open",
+        json!({
+            "sessionId": session_id,
+            "directoryId": sibling.path(),
+        }),
+    )
+    .await;
+    assert_eq!(forged["code"], "host-failure");
+
+    let opened = request(
+        &mut socket,
+        "picker-2",
+        "projectPicker.open",
+        json!({"sessionId": session_id, "directoryId": sibling_id}),
+    )
+    .await;
+    assert_eq!(
+        opened["result"]["directory"]["path"],
+        sibling
+            .path()
+            .canonicalize()
+            .unwrap()
+            .to_string_lossy()
+            .as_ref()
+    );
+    let chosen = request(
+        &mut socket,
+        "picker-3",
+        "projectPicker.choose",
+        json!({
+            "sessionId": session_id,
+            "directoryId": opened["result"]["directory"]["id"],
+        }),
+    )
+    .await;
+    let project_id = chosen["result"]["id"].as_str().expect("new project ID");
+    let worktree_id = chosen["result"]["worktrees"][0]["id"]
+        .as_str()
+        .expect("new worktree ID");
+    assert_eq!(
+        chosen["result"]["root"],
+        sibling.path().to_string_lossy().as_ref()
+    );
+
+    let tree = request(
+        &mut socket,
+        "picker-tree",
+        "fileTree.snapshot",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "previousRevision": null,
+        }),
+    )
+    .await;
+    assert!(tree["result"]["entries"]
+        .as_array()
+        .expect("second project tree")
+        .iter()
+        .any(|entry| entry["relativePath"] == "second.md"));
+
+    let removed = request(
+        &mut socket,
+        "picker-remove",
+        "projectGrants.remove",
+        json!({"projectId": project_id}),
+    )
+    .await;
+    assert_eq!(removed["result"]["id"], project_id);
+    let grants = request(
+        &mut socket,
+        "picker-grants",
+        "projectGrants.list",
+        json!({}),
+    )
+    .await;
+    assert_eq!(grants["result"]["projects"].as_array().unwrap().len(), 1);
 
     server.shutdown().await;
 }

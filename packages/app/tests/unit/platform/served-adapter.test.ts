@@ -35,7 +35,7 @@ function client(runtimeTerminals: readonly unknown[] = []): FixtureClient {
           startupWorktreeId: "worktree-1",
           startupRelativePath: null,
           capabilities: {
-            projectGrants: "read-only",
+            projectGrants: "read-write",
             fileTree: "read-only",
             fileRead: "read-only",
             fileWrite: "read-write",
@@ -49,7 +49,7 @@ function client(runtimeTerminals: readonly unknown[] = []): FixtureClient {
             durableState: "read-write",
             themeFiles: "read-only",
             hostDiagnostics: "read-write",
-            projectPicker: "unavailable",
+            projectPicker: "read-write",
             recentWorkspaces: "unavailable",
           },
         };
@@ -71,6 +71,14 @@ function client(runtimeTerminals: readonly unknown[] = []): FixtureClient {
               ],
             },
           ],
+        };
+      case "projectGrants.remove":
+        return {
+          id: params?.projectId,
+          name: "fixture",
+          root: "/remote/fixture",
+          availability: "available",
+          worktrees: [],
         };
       case "fileTree.snapshot":
         return {
@@ -580,5 +588,17 @@ describe("served WorkbenchHost", () => {
     await expect(served.saveWorkspace(["project-1"])).rejects.toThrow("unavailable");
     await expect(served.openWorkspace("workspace-1")).rejects.toThrow("unavailable");
     await expect(served.revealDiagnostics()).rejects.toThrow("unavailable");
+  });
+
+  it("closes a non-startup remote project through the host grant boundary", async () => {
+    const hostClient = client();
+    const served = createServedWorkbenchHost(hostClient);
+
+    await expect(served.removeProjectGrant("project-2")).resolves.toMatchObject({
+      id: "project-2",
+    });
+    expect(hostClient.request).toHaveBeenCalledWith("projectGrants.remove", {
+      projectId: "project-2",
+    });
   });
 });

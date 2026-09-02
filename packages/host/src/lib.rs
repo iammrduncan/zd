@@ -13,6 +13,7 @@ pub mod git_process;
 mod grants;
 mod identity;
 pub mod instrumentation;
+mod project_picker;
 mod service;
 pub mod terminal;
 mod themes;
@@ -49,6 +50,10 @@ pub use git::{
 };
 pub use grants::{
     ApprovedProject, GrantAvailability, GrantStore, ProjectGrant, ResourceRef, WorktreeGrant,
+};
+pub use project_picker::{
+    ProjectPickerCancelRequest, ProjectPickerDirectory, ProjectPickerDirectoryRequest,
+    ProjectPickerEntry, ProjectPickerSearchRequest, ProjectPickerSnapshot,
 };
 pub use service::{HostLaunchRequest, HostService};
 pub use themes::{theme_files_in, ThemeConfigFile};

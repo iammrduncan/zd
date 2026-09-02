@@ -29,6 +29,10 @@ import type { ServedHostClient } from "@/platform/served-client";
 import { createServedWorkbenchHost } from "@/platform/served";
 import { composePlatform, type ClientShell } from "@/platform/composition";
 import {
+  chooseRemoteProject,
+  type RemoteProjectPickerSnapshot,
+} from "@/platform/remote-project-picker";
+import {
   createMemoryDurableStateAdapter,
   type DurableStateAdapter,
 } from "@/platform/durable-state";
@@ -557,7 +561,22 @@ export async function connectServedPlatform(secret: string | null): Promise<Plat
     await pairServedBrowser(window.location.origin, secret);
   }
   const client = await connectServedHostClient({ origin: window.location.origin, secret: null });
-  return composePlatform("browser", createServedWorkbenchHost(client), browserShell);
+  const servedBrowserShell: ClientShell = {
+    ...browserShell,
+    chooseProject: () =>
+      chooseRemoteProject({
+        start: () => client.request<RemoteProjectPickerSnapshot>("projectPicker.start", {}),
+        search: (request) =>
+          client.request<RemoteProjectPickerSnapshot>("projectPicker.search", request),
+        open: (request) =>
+          client.request<RemoteProjectPickerSnapshot>("projectPicker.open", request),
+        choose: (request) => client.request<ProjectGrant>("projectPicker.choose", request),
+        cancel: async (request) => {
+          await client.request<null>("projectPicker.cancel", request);
+        },
+      }),
+  };
+  return composePlatform("browser", createServedWorkbenchHost(client), servedBrowserShell);
 }
 
 export function isTauriWindow(): boolean {
