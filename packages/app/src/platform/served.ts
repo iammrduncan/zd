@@ -516,6 +516,19 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
   const terminal: TerminalAdapter = {
     // WebSocket delivery and the host dispatcher both preserve request order.
     writeScheduling: "ordered-pipeline",
+    list: async (scope) => {
+      const snapshotProblem = await initialRuntimeSnapshot;
+      if (snapshotProblem) throw snapshotProblem;
+      return [...terminalRuntime.values()]
+        .filter(
+          ({ availability, session }) =>
+            availability !== "unavailable" &&
+            session.projectId === scope.projectId &&
+            session.worktreeId === scope.worktreeId,
+        )
+        .map(({ session }) => ({ ...session }))
+        .sort((left, right) => left.sessionId.localeCompare(right.sessionId));
+    },
     start: async (request) => {
       const snapshotProblem = await initialRuntimeSnapshot;
       if (snapshotProblem) throw snapshotProblem;
@@ -584,7 +597,7 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
     resize: async (session, viewport) => {
       await client.request<null>("terminal.resize", { session, viewport });
     },
-    read: async (session): Promise<TerminalOutputBatch> => {
+    read: async (session, afterOffset): Promise<TerminalOutputBatch> => {
       const sessionKey = terminalSessionKey(session);
       const runtime = terminalRuntime.get(sessionKey);
       if (runtime?.availability === "unavailable") {
@@ -597,7 +610,7 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
         };
       }
       const result = terminalOutput(
-        await client.request<unknown>("terminal.read", { session }),
+        await client.request<unknown>("terminal.read", { session, afterOffset }),
         session,
       );
       if (!result) throw new Error("the served terminal returned invalid output");

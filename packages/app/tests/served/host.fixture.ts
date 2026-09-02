@@ -1,4 +1,5 @@
 import { expect, test as base } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { execFile, spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { networkInterfaces, tmpdir } from "node:os";
@@ -210,9 +211,95 @@ async function runGit(root: string, ...args: readonly string[]): Promise<void> {
   });
 }
 
+export async function disposeServedTerminals(
+  page: Page,
+  url: string,
+  secret: string,
+): Promise<void> {
+  await page.goto(url);
+  await page.evaluate(
+    async ({ processSecret }) => {
+      const endpoint = new URL("/api/host", window.location.origin);
+      endpoint.protocol = endpoint.protocol === "https:" ? "wss:" : "ws:";
+      const socket = new WebSocket(endpoint);
+      const inbox: unknown[] = [];
+      const waiters: Array<(message: unknown) => void> = [];
+      socket.addEventListener("message", ({ data }) => {
+        const message: unknown = JSON.parse(String(data));
+        const waiter = waiters.shift();
+        if (waiter) waiter(message);
+        else inbox.push(message);
+      });
+      const receive = (): Promise<unknown> => {
+        const queued = inbox.shift();
+        return queued === undefined
+          ? new Promise((resolveMessage) => waiters.push(resolveMessage))
+          : Promise.resolve(queued);
+      };
+      const receiveType = async (
+        type: string,
+        requestId?: string,
+      ): Promise<Record<string, unknown>> => {
+        for (;;) {
+          const message = (await receive()) as Record<string, unknown>;
+          if (
+            message.type === type &&
+            (requestId === undefined || message.requestId === requestId)
+          ) {
+            return message;
+          }
+        }
+      };
+      await new Promise<void>((resolveOpen, rejectOpen) => {
+        socket.addEventListener("open", () => resolveOpen(), { once: true });
+        socket.addEventListener("error", () => rejectOpen(new Error("socket failed")), {
+          once: true,
+        });
+      });
+      socket.send(
+        JSON.stringify({
+          protocolVersion: 1,
+          type: "authenticate",
+          secret: processSecret,
+        }),
+      );
+      await receiveType("authenticated");
+      let sequence = 0;
+      const request = async <Result>(method: string, params: object): Promise<Result> => {
+        const requestId = `cleanup-${++sequence}`;
+        socket.send(
+          JSON.stringify({
+            protocolVersion: 1,
+            type: "request",
+            requestId,
+            method,
+            params,
+          }),
+        );
+        const response = await receiveType("response", requestId);
+        if (response.error !== undefined) throw new Error("terminal cleanup failed");
+        return response.result as Result;
+      };
+      const snapshot = await request<{
+        terminals: Array<{
+          session: { sessionId: string; projectId: string; worktreeId: string };
+        }>;
+      }>("session.snapshot", {});
+      for (const terminal of snapshot.terminals) {
+        await request("terminal.dispose", { session: terminal.session });
+      }
+      await new Promise<void>((resolveClose) => {
+        socket.addEventListener("close", () => resolveClose(), { once: true });
+        socket.close();
+      });
+    },
+    { processSecret: secret },
+  );
+}
+
 export const test = base.extend<object, { servedHost: ServedHostFixture }>({
   servedHost: [
-    async ({ browserName }, use) => {
+    async ({ browser, browserName }, use) => {
       if (browserName !== "chromium") {
         throw new Error("the served-host evidence target requires Chromium");
       }
@@ -236,6 +323,7 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
       const hostStateRoot = servedHostStateDirectory(process.env, stateRoot, process.platform);
       let child: ReturnType<typeof spawn> | null = null;
       let readiness: Readiness | null = null;
+      const currentReadiness = (): Readiness | null => readiness;
 
       const startHost = async (port: number): Promise<Readiness> => {
         const launched = spawn(
@@ -324,6 +412,15 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
         });
       } finally {
         try {
+          const finalReadiness = currentReadiness();
+          if (child && finalReadiness) {
+            const cleanupPage = await browser.newPage();
+            try {
+              await disposeServedTerminals(cleanupPage, finalReadiness.url, finalReadiness.secret);
+            } finally {
+              await cleanupPage.close();
+            }
+          }
           if (child) await stopHost(child);
         } finally {
           await rm(projectRoot, { recursive: true, force: true });

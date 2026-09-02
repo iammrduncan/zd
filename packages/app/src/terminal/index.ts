@@ -60,6 +60,8 @@ export interface TerminalExitStatus {
 export interface TerminalAdapter {
   /** Concurrent calls are committed and settled in invocation order when pipelining is enabled. */
   readonly writeScheduling?: "ordered-pipeline";
+  /** Lists retained terminals in one approved scope so every visible pane can be reconstructed. */
+  list?(scope: TerminalScope): Promise<readonly TerminalSessionHandle[]>;
   start(request: TerminalStartRequest): Promise<TerminalSessionHandle>;
   /** Returns only the exact existing terminal, or null when it no longer exists. */
   reattach?(request: TerminalStartRequest): Promise<TerminalSessionHandle | null>;
@@ -67,7 +69,7 @@ export interface TerminalAdapter {
   onOutputReady?(listener: (session: TerminalSessionHandle) => void): () => void;
   write(session: TerminalSessionHandle, bytes: readonly number[]): Promise<void>;
   resize(session: TerminalSessionHandle, viewport: TerminalViewport): Promise<void>;
-  read(session: TerminalSessionHandle): Promise<TerminalOutputBatch>;
+  read(session: TerminalSessionHandle, afterOffset: number | null): Promise<TerminalOutputBatch>;
   pollExit(session: TerminalSessionHandle): Promise<TerminalExitStatus | null>;
   terminate(session: TerminalSessionHandle): Promise<TerminalExitStatus>;
   dispose(session: TerminalSessionHandle): Promise<void>;

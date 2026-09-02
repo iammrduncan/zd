@@ -44,7 +44,7 @@ fn secondary_request(
         .map_err(|_| "the secondary desktop launch is invalid".to_string())?;
     match launch {
         LaunchMode::Desktop(request) => Ok(request),
-        LaunchMode::Serve(_) | LaunchMode::WrapperChild => {
+        LaunchMode::Serve(_) | LaunchMode::TerminalKeeper(_) | LaunchMode::WrapperChild => {
             Err("the secondary launch is not a desktop request".to_string())
         }
     }
@@ -89,6 +89,10 @@ mod tests {
             (arguments(&["/opt/zd", "serve"]), "/work".to_string()),
             (
                 arguments(&["/opt/zd", "__zd-wrapper-child"]),
+                "/work".to_string(),
+            ),
+            (
+                arguments(&["/opt/zd", "__zd-terminal-keeper", "/state/zd"]),
                 "/work".to_string(),
             ),
             (arguments(&["/opt/zd", "one", "two"]), "/work".to_string()),

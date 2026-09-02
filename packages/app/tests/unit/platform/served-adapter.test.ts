@@ -377,12 +377,16 @@ describe("served WorkbenchHost", () => {
       session,
       bytesBase64: "aGk=",
     });
-    await expect(served.terminal.read(session)).resolves.toEqual({
+    await expect(served.terminal.read(session, null)).resolves.toEqual({
       session,
       offset: 0,
       droppedBefore: 0,
       bytes: [104, 101, 108, 108, 111],
       readError: null,
+    });
+    expect(hostClient.request).toHaveBeenCalledWith("terminal.read", {
+      session,
+      afterOffset: null,
     });
     hostClient.emitEvent({
       protocolVersion: 1,
@@ -394,6 +398,34 @@ describe("served WorkbenchHost", () => {
     });
     expect(output).toEqual(["session-started"]);
     stopOutput?.();
+  });
+
+  it("lists every retained terminal in the requested approved scope", async () => {
+    const retained = {
+      session: {
+        sessionId: "project-terminal:project-1:worktree-1:2",
+        projectId: "project-1",
+        worktreeId: "worktree-1",
+      },
+      retainedFrom: 0,
+      nextOffset: 12,
+      availability: "running",
+      exit: null,
+    };
+    const unavailable = {
+      ...retained,
+      session: { ...retained.session, sessionId: "unavailable" },
+      availability: "unavailable",
+    };
+    const foreign = {
+      ...retained,
+      session: { ...retained.session, sessionId: "foreign", projectId: "project-2" },
+    };
+    const served = createServedWorkbenchHost(client([retained, unavailable, foreign]));
+
+    await expect(
+      served.terminal.list!({ projectId: "project-1", worktreeId: "worktree-1" }),
+    ).resolves.toEqual([retained.session]);
   });
 
   it("refreshes file and Git knowledge after an authoritative resnapshot", async () => {
@@ -466,7 +498,7 @@ describe("served WorkbenchHost", () => {
     await expect(served.terminal.reattach!(terminalRequest("session-lost"))).resolves.toEqual(
       session,
     );
-    await expect(served.terminal.read(session)).resolves.toMatchObject({
+    await expect(served.terminal.read(session, null)).resolves.toMatchObject({
       session,
       offset: 12,
       bytes: [],
@@ -533,7 +565,7 @@ describe("served WorkbenchHost", () => {
     });
 
     expect(output).toEqual([session.sessionId]);
-    await expect(served.terminal.read(session)).resolves.toMatchObject({
+    await expect(served.terminal.read(session, null)).resolves.toMatchObject({
       session,
       offset: 5,
       bytes: [],

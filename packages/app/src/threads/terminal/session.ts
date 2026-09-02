@@ -212,7 +212,7 @@ export class TerminalThreadSession {
   async #refresh(): Promise<void> {
     const handle = this.#attachedHandle();
     try {
-      const batch = await this.adapter.read(handle);
+      const batch = await this.adapter.read(handle, this.#nextOffset);
       if (terminalSessionKey(batch.session) !== terminalSessionKey(handle)) {
         throw new Error("native output belongs to a different terminal session");
       }

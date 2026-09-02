@@ -64,6 +64,17 @@ function live(session: TerminalThreadSession): boolean {
   return status === "running" || status === "starting";
 }
 
+function panePrefix(scope: ProjectTerminalScope): string {
+  return `project-terminal:${scope.projectId}:${scope.worktreeId}:`;
+}
+
+function paneSequence(scope: ProjectTerminalScope, terminalId: string): number | null {
+  const prefix = panePrefix(scope);
+  if (!terminalId.startsWith(prefix)) return null;
+  const sequence = Number(terminalId.slice(prefix.length));
+  return Number.isSafeInteger(sequence) && sequence > 0 ? sequence : null;
+}
+
 export interface ProjectTerminalOptions {
   readonly mountSurface?: typeof mountTerminalThreadSurface;
 }
@@ -110,12 +121,22 @@ export function mountProjectTerminal(
     }
   };
 
-  const createPane = (group: ProjectTerminalGroup): ProjectTerminalPane => {
+  const createPane = (
+    group: ProjectTerminalGroup,
+    restoredTerminalId?: string,
+  ): ProjectTerminalPane => {
     const element = document.createElement("div");
     element.className = "zd-project-terminal-pane";
     element.dataset.projectTerminalPane = "true";
-    group.nextPaneId += 1;
-    const terminalId = `project-terminal:${group.projectId}:${group.scope.worktreeId}:${group.nextPaneId}`;
+    const restoredSequence = restoredTerminalId
+      ? paneSequence(group.scope, restoredTerminalId)
+      : null;
+    if (restoredTerminalId && restoredSequence === null) {
+      throw new Error("the restored project terminal identity is invalid");
+    }
+    if (restoredSequence === null) group.nextPaneId += 1;
+    else group.nextPaneId = Math.max(group.nextPaneId, restoredSequence);
+    const terminalId = restoredTerminalId ?? `${panePrefix(group.scope)}${group.nextPaneId}`;
     const session = new TerminalThreadSession(context.platform.terminal, group.scope, terminalId, {
       onInstrumentation: record,
     });
@@ -148,6 +169,32 @@ export function mountProjectTerminal(
     return pane;
   };
 
+  const restoreAdditionalPanes = async (group: ProjectTerminalGroup): Promise<void> => {
+    const list = context.platform.terminal.list;
+    if (!list) return;
+    let retained: readonly TerminalSessionHandle[];
+    try {
+      retained = await list(group.scope);
+    } catch {
+      return;
+    }
+    if (disposed || groups.get(group.projectId) !== group) return;
+    const terminalIds = retained
+      .map(({ sessionId }) => ({ sessionId, sequence: paneSequence(group.scope, sessionId) }))
+      .filter(
+        (candidate): candidate is { sessionId: string; sequence: number } =>
+          candidate.sequence !== null,
+      )
+      .sort((left, right) => left.sequence - right.sequence);
+    for (const { sessionId } of terminalIds) {
+      if (group.panes.some(({ session }) => session.terminalId === sessionId)) continue;
+      const active = group.active;
+      createPane(group, sessionId);
+      group.active = active;
+      updateGroup(group);
+    }
+  };
+
   const ensureGroup = (scope: ProjectTerminalScope): ProjectTerminalGroup => {
     const existing = groups.get(scope.projectId);
     if (existing) return existing;
@@ -166,6 +213,7 @@ export function mountProjectTerminal(
     groups.set(scope.projectId, group);
     host.append(element);
     group.active = createPane(group);
+    void restoreAdditionalPanes(group);
     return group;
   };
 

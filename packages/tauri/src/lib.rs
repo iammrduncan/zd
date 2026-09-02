@@ -43,6 +43,17 @@ fn run_console_from_environment() -> Result<(), String> {
     match dispatch::parse_command(&arguments, &invocation_directory)? {
         dispatch::LaunchMode::Desktop(launch_request) => launch_desktop(launch_request),
         dispatch::LaunchMode::Serve(arguments) => zd_server::run_foreground(arguments),
+        dispatch::LaunchMode::TerminalKeeper(state_directory) => {
+            #[cfg(unix)]
+            {
+                zd_host::terminal::run_terminal_keeper(&state_directory)
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = state_directory;
+                Err("the terminal keeper is unavailable on this platform".to_string())
+            }
+        }
         dispatch::LaunchMode::WrapperChild => zd_server::run_wrapper_child(),
     }
 }
@@ -56,7 +67,9 @@ fn run_desktop_from_environment() -> Result<(), String> {
             run_desktop_app(launch_request, installed_smoke);
             Ok(())
         }
-        dispatch::LaunchMode::Serve(_) | dispatch::LaunchMode::WrapperChild => {
+        dispatch::LaunchMode::Serve(_)
+        | dispatch::LaunchMode::TerminalKeeper(_)
+        | dispatch::LaunchMode::WrapperChild => {
             Err("zd-desktop accepts only an optional desktop path".to_string())
         }
     }

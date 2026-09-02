@@ -168,6 +168,13 @@ struct TerminalResizeParams {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TerminalReadParams {
+    session: TerminalSessionHandle,
+    after_offset: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TerminalSessionParams {
     session: TerminalSessionHandle,
 }
@@ -736,9 +743,9 @@ fn dispatch_host(
             Ok(Value::Null)
         }
         "terminal.read" => {
-            let request = parse_params::<TerminalSessionParams>(params)?;
+            let request = parse_params::<TerminalReadParams>(params)?;
             let batch = host
-                .read_terminal(&request.session)
+                .read_terminal(&request.session, request.after_offset)
                 .map_err(|_| terminal_failure())?;
             Ok(json!({
                 "session": request.session,

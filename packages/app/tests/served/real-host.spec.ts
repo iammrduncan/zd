@@ -1,4 +1,4 @@
-import { expect, test } from "./host.fixture";
+import { disposeServedTerminals, expect, test } from "./host.fixture";
 import type { Locator, Page } from "@playwright/test";
 
 interface SeededState {
@@ -202,6 +202,17 @@ async function enterTerminalCommand(terminal: Locator, command: string): Promise
   await input.press("Enter");
 }
 
+async function closeAndDisposeTerminals(page: Page, url: string, secret: string): Promise<void> {
+  const context = page.context();
+  await page.close();
+  const cleanupPage = await context.newPage();
+  try {
+    await disposeServedTerminals(cleanupPage, url, secret);
+  } finally {
+    await cleanupPage.close();
+  }
+}
+
 test("edits, watches, and runs a reconnectable shell through the real host", async ({
   page,
   servedHost,
@@ -392,13 +403,13 @@ test("edits, watches, and runs a reconnectable shell through the real host", asy
   expect(requestedUrls.length).toBeGreaterThan(0);
   expect(requestedUrls.every((url) => !url.includes(servedHost.secret))).toBe(true);
   expect(consoleMessages.every((message) => !message.includes(servedHost.secret))).toBe(true);
+  await closeAndDisposeTerminals(page, servedHost.url, servedHost.secret);
 });
 
-test("reports terminal loss after the controller grace period expires", async ({
+test("keeps every project terminal through a served-host process restart", async ({
   page,
   servedHost,
 }) => {
-  test.slow();
   await page.goto(servedHost.url);
   await page.getByLabel("Process secret").fill(servedHost.secret);
   await page.getByRole("button", { name: "Unlock" }).click();
@@ -411,25 +422,62 @@ test("reports terminal loss after the controller grace period expires", async ({
     "data-terminal-status",
     "running",
   );
-  await enterTerminalCommand(terminal, "printf '__ZD_GRACE_PID__%s\\n' \"$$\"");
-  const pid = Number(await terminalPid(terminal.locator(".xterm-rows"), "__ZD_GRACE_PID__"));
+  await page.keyboard.press("ControlOrMeta+d");
+  const originalPanes = terminal.locator("[data-project-terminal-pane]");
+  await expect(originalPanes).toHaveCount(2);
+  for (let index = 0; index < 2; index += 1) {
+    await expect(originalPanes.nth(index).locator(".zd-terminal-thread-surface")).toHaveAttribute(
+      "data-terminal-status",
+      "running",
+    );
+  }
+  const originalSessionIds = await originalPanes
+    .locator(".zd-terminal-thread-surface")
+    .evaluateAll((surfaces) =>
+      surfaces.map((surface) => surface.getAttribute("data-terminal-session-id")),
+    );
+  expect(originalSessionIds.every((sessionId) => sessionId !== null)).toBe(true);
+  const originalPids: string[] = [];
+  for (let index = 0; index < 2; index += 1) {
+    const pane = originalPanes.nth(index);
+    const marker = `__ZD_RESTART_PID_${index + 1}__`;
+    await enterTerminalCommand(pane, `printf '${marker}%s\\n' "$$"`);
+    originalPids.push(await terminalPid(pane.locator(".xterm-rows"), marker));
+  }
 
-  const browserContext = page.context();
-  await page.close();
-  await expect.poll(() => servedHost.isProcessRunning(pid), { timeout: 35_000 }).toBe(false);
-
-  const reconnectedPage = await browserContext.newPage();
-  await reconnectedPage.goto(servedHost.url);
-  await reconnectedPage.getByLabel("Process secret").fill(servedHost.secret);
-  await reconnectedPage.getByRole("button", { name: "Unlock" }).click();
-  await expect(reconnectedPage.locator(".zd-workbench")).toBeVisible();
-  await reconnectedPage.keyboard.press("ControlOrMeta+j");
-  await expect(reconnectedPage.locator("[data-project-terminal]")).toContainText(
-    "Terminal output stopped unexpectedly.",
-    {
-      timeout: 10_000,
-    },
-  );
+  const restarted = await servedHost.restart();
+  await page.goto(restarted.url);
+  await page.getByLabel("Process secret").fill(restarted.secret);
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.locator(".zd-workbench")).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+j");
+  const restored = page.locator("[data-project-terminal]");
+  const restoredPanes = restored.locator("[data-project-terminal-pane]");
+  await expect(restoredPanes).toHaveCount(2);
+  for (let index = 0; index < 2; index += 1) {
+    await expect(restoredPanes.nth(index).locator(".zd-terminal-thread-surface")).toHaveAttribute(
+      "data-terminal-status",
+      "running",
+    );
+  }
+  expect(
+    await restoredPanes
+      .locator(".zd-terminal-thread-surface")
+      .evaluateAll((surfaces) =>
+        surfaces.map((surface) => surface.getAttribute("data-terminal-session-id")),
+      ),
+  ).toEqual(originalSessionIds);
+  for (let index = 0; index < 2; index += 1) {
+    const pane = restoredPanes.nth(index);
+    const marker = `__ZD_RESTART_PID_${index + 1}__`;
+    const afterMarker = `__ZD_RESTART_PID_AFTER_${index + 1}__`;
+    const pid = originalPids[index]!;
+    await expect(pane.locator(".xterm-rows")).toContainText(`${marker}${pid}`);
+    expect(servedHost.isProcessRunning(Number(pid))).toBe(true);
+    await enterTerminalCommand(pane, `printf '${afterMarker}%s\\n' "$$"`);
+    expect(await terminalPid(pane.locator(".xterm-rows"), afterMarker)).toBe(pid);
+  }
+  await closeAndDisposeTerminals(page, restarted.url, restarted.secret);
 });
 
 test("restores stable identities and all durable records in a new process and origin", async ({
