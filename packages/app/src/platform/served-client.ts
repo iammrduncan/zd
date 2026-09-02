@@ -62,7 +62,7 @@ export interface ServedSessionSnapshot {
 
 interface ConnectOptions {
   readonly origin: string;
-  readonly secret: string;
+  readonly secret: string | null;
   readonly socket?: (url: string) => HostSocket;
   readonly now?: () => number;
   readonly requestId?: () => string;
@@ -206,7 +206,7 @@ function servedSnapshot(value: unknown): ServedSessionSnapshot | null {
 
 class ReconnectingSocketClient implements ServedHostClient {
   readonly #origin: string;
-  readonly #secret: string;
+  readonly #secret: string | null;
   readonly #socketFactory: (url: string) => HostSocket;
   readonly #now: () => number;
   readonly #nextRequestId: () => string;
@@ -302,11 +302,18 @@ class ReconnectingSocketClient implements ServedHostClient {
     socket.addEventListener("open", () => {
       if (generation !== this.#generation || this.#closed) return;
       try {
-        const serialized = JSON.stringify({
-          protocolVersion: PROTOCOL_VERSION,
-          type: "authenticate",
-          secret: this.#secret,
-        });
+        const serialized = JSON.stringify(
+          this.#secret === null
+            ? {
+                protocolVersion: PROTOCOL_VERSION,
+                type: "authenticate-browser",
+              }
+            : {
+                protocolVersion: PROTOCOL_VERSION,
+                type: "authenticate",
+                secret: this.#secret,
+              },
+        );
         if (!utf8LengthWithin(serialized, this.#maxMessageBytes)) {
           throw new Error("the served authentication message exceeds its byte limit");
         }
@@ -694,4 +701,25 @@ class ReconnectingSocketClient implements ServedHostClient {
 
 export function connectServedHostClient(options: ConnectOptions): Promise<ServedHostClient> {
   return new ReconnectingSocketClient(options).connect();
+}
+
+type PairingRequest = (input: string, init: RequestInit) => Promise<Pick<Response, "status">>;
+
+export async function pairServedBrowser(
+  origin: string,
+  secret: string,
+  request: PairingRequest = (input, init) => fetch(input, init),
+): Promise<void> {
+  const endpoint = new URL("/api/pair", origin).toString();
+  const response = await request(endpoint, {
+    body: JSON.stringify({ protocolVersion: PROTOCOL_VERSION, secret }),
+    cache: "no-store",
+    credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    method: "POST",
+    redirect: "error",
+  });
+  if (response.status !== 204) {
+    throw new Error("authentication-failed: The process secret was not accepted");
+  }
 }

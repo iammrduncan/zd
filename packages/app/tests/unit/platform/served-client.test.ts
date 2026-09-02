@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   connectServedHostClient,
+  pairServedBrowser,
   type HostSocket,
   type HostSocketEvent,
 } from "@/platform/served-client";
@@ -40,6 +41,55 @@ afterEach(() => {
 });
 
 describe("served host client", () => {
+  it("exchanges a process secret for a same-origin browser pairing", async () => {
+    const request = vi.fn<(input: string, init: RequestInit) => Promise<Response>>(
+      async () => ({ status: 204 }) as Response,
+    );
+
+    await pairServedBrowser("http://remote-workbench:49151", "process-secret", request);
+
+    expect(request).toHaveBeenCalledExactlyOnceWith("http://remote-workbench:49151/api/pair", {
+      body: JSON.stringify({ protocolVersion: 1, secret: "process-secret" }),
+      cache: "no-store",
+      credentials: "same-origin",
+      headers: { "content-type": "application/json" },
+      method: "POST",
+      redirect: "error",
+    });
+    expect(JSON.stringify(request.mock.calls[0]?.[0])).not.toContain("process-secret");
+    expect(localStorage).toHaveLength(0);
+    expect(sessionStorage).toHaveLength(0);
+  });
+
+  it("authenticates a paired browser without putting a credential in JavaScript storage", async () => {
+    document.cookie = "ordinary=value";
+    const socket = new FakeSocket("unused");
+    const connecting = connectServedHostClient({
+      origin: "http://remote-workbench:49151",
+      secret: null,
+      socket: () => socket,
+    });
+
+    socket.emit("open");
+    expect(JSON.parse(socket.sent[0]!)).toEqual({
+      protocolVersion: 1,
+      type: "authenticate-browser",
+    });
+    expect(localStorage).toHaveLength(0);
+    expect(sessionStorage).toHaveLength(0);
+    expect(document.cookie).toBe("ordinary=value");
+
+    socket.emit("message", {
+      data: JSON.stringify({
+        protocolVersion: 1,
+        type: "authenticated",
+        sessionEpoch: "epoch-1",
+        sequence: 0,
+      }),
+    });
+    await expect(connecting).resolves.toBeDefined();
+  });
+
   it("puts the process secret only in the first WebSocket frame", async () => {
     document.cookie = "ordinary=value";
     const sockets: FakeSocket[] = [];

@@ -184,6 +184,15 @@ async function seedDurableState(page: Page, url: string, secret: string): Promis
         socket.addEventListener("close", () => resolveClose(), { once: true });
         socket.close();
       });
+      const paired = await fetch("/api/pair", {
+        body: JSON.stringify({ protocolVersion: 1, secret: processSecret }),
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        method: "POST",
+        redirect: "error",
+      });
+      if (paired.status !== 204) throw new Error("browser pairing failed");
       return { projectId: project.id, worktreeId: worktree.id };
     },
     { secret },
@@ -370,10 +379,8 @@ test("edits, watches, and runs a reconnectable shell through the real host", asy
   expect(await terminalPid(terminalOutput, "__ZD_PID_AFTER__")).toBe(originalPid);
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Connect to zd" })).toBeVisible();
-  await page.getByLabel("Process secret").fill(servedHost.secret);
-  await page.getByRole("button", { name: "Unlock" }).click();
   await expect(page.locator(".zd-workbench")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Connect to zd" })).toHaveCount(0);
   await page.keyboard.press("ControlOrMeta+j");
   const reattachedTerminal = page.locator("[data-project-terminal]");
   await expect(reattachedTerminal).toBeVisible();
@@ -398,8 +405,17 @@ test("edits, watches, and runs a reconnectable shell through the real host", asy
     local: Object.entries(localStorage),
     session: Object.entries(sessionStorage),
   }));
+  expect(browserState.cookies).not.toContain("zd_pairing_v1");
   expect(JSON.stringify(browserState)).not.toContain(servedHost.secret);
-  expect(JSON.stringify(await page.context().cookies())).not.toContain(servedHost.secret);
+  const cookies = await page.context().cookies();
+  const pairingCookie = cookies.find((cookie) => cookie.name === "zd_pairing_v1");
+  expect(pairingCookie).toBeDefined();
+  expect({
+    httpOnly: pairingCookie?.httpOnly,
+    path: pairingCookie?.path,
+    sameSite: pairingCookie?.sameSite,
+  }).toEqual({ httpOnly: true, path: "/api/host", sameSite: "Strict" });
+  expect(JSON.stringify(cookies)).not.toContain(servedHost.secret);
   expect(requestedUrls.length).toBeGreaterThan(0);
   expect(requestedUrls.every((url) => !url.includes(servedHost.secret))).toBe(true);
   expect(consoleMessages.every((message) => !message.includes(servedHost.secret))).toBe(true);
@@ -447,9 +463,8 @@ test("keeps every project terminal through a served-host process restart", async
 
   const restarted = await servedHost.restart();
   await page.goto(restarted.url);
-  await page.getByLabel("Process secret").fill(restarted.secret);
-  await page.getByRole("button", { name: "Unlock" }).click();
   await expect(page.locator(".zd-workbench")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Connect to zd" })).toHaveCount(0);
   await page.keyboard.press("ControlOrMeta+j");
   const restored = page.locator("[data-project-terminal]");
   const restoredPanes = restored.locator("[data-project-terminal-pane]");
@@ -496,10 +511,8 @@ test("restores stable identities and all durable records in a new process and or
   expect(persisted).not.toContain(restarted.secret);
 
   await page.goto(restarted.url);
-  await page.getByLabel("Process secret").fill(restarted.secret);
-  await page.getByRole("button", { name: "Unlock" }).click();
-
   await expect(page.locator(".zd-workbench")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Connect to zd" })).toHaveCount(0);
   await expect(page.locator(`[data-project-id="${seeded.projectId}"]`)).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme-name", "dark");
   const buffer = page.locator('.editor-buffer[data-buffer-kind="editable"]');

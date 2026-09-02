@@ -24,7 +24,7 @@ import {
   type ProjectGrant,
   type RecentWorkspace,
 } from "@/workbench/resources";
-import { connectServedHostClient } from "@/platform/served-client";
+import { connectServedHostClient, pairServedBrowser } from "@/platform/served-client";
 import type { ServedHostClient } from "@/platform/served-client";
 import { createServedWorkbenchHost } from "@/platform/served";
 import { composePlatform, type ClientShell } from "@/platform/composition";
@@ -519,7 +519,7 @@ interface DesktopBootstrap {
 
 type ServedConnector = (options: {
   readonly origin: string;
-  readonly secret: string;
+  readonly secret: string | null;
 }) => Promise<ServedHostClient>;
 
 function urlToken(value: unknown, length: number): value is string {
@@ -552,8 +552,11 @@ export async function connectDesktopServedPlatform(
   return composePlatform("tauri", createServedWorkbenchHost(client), tauriShell);
 }
 
-export async function connectServedPlatform(secret: string): Promise<Platform> {
-  const client = await connectServedHostClient({ origin: window.location.origin, secret });
+export async function connectServedPlatform(secret: string | null): Promise<Platform> {
+  if (secret !== null) {
+    await pairServedBrowser(window.location.origin, secret);
+  }
+  const client = await connectServedHostClient({ origin: window.location.origin, secret: null });
   return composePlatform("browser", createServedWorkbenchHost(client), browserShell);
 }
 

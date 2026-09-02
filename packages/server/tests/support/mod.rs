@@ -95,7 +95,12 @@ impl TestServer {
         );
         let running = start(
             host,
-            ServerConfig::new(assets.path().to_path_buf(), bind, 0),
+            ServerConfig::new(
+                assets.path().to_path_buf(),
+                state.path().to_path_buf(),
+                bind,
+                0,
+            ),
         )
         .await
         .expect("start served host");
@@ -117,6 +122,37 @@ impl TestServer {
 
     pub fn http_url(&self, path: &str) -> String {
         format!("http://{}{}", self.authority(), path)
+    }
+
+    pub async fn restart(self) -> Self {
+        let Self {
+            project,
+            state,
+            assets,
+            running,
+        } = self;
+        running.shutdown().await.expect("stop served host");
+        let host = Arc::new(
+            HostService::open_project_with_state(project.path(), state.path())
+                .expect("reopen persisted project"),
+        );
+        let running = start(
+            host,
+            ServerConfig::new(
+                assets.path().to_path_buf(),
+                state.path().to_path_buf(),
+                Ipv4Addr::UNSPECIFIED,
+                0,
+            ),
+        )
+        .await
+        .expect("restart served host");
+        Self {
+            project,
+            state,
+            assets,
+            running,
+        }
     }
 
     pub async fn shutdown(self) {

@@ -7,15 +7,16 @@ use std::thread;
 use std::time::Duration;
 
 use axum::extract::ws::WebSocketUpgrade;
-use axum::extract::State;
-use axum::http::header::{HOST, ORIGIN};
+use axum::extract::{DefaultBodyLimit, Json, State};
+use axum::http::header::{CACHE_CONTROL, HOST, ORIGIN, SET_COOKIE};
 use axum::http::uri::Authority;
-use axum::http::{HeaderMap, StatusCode, Uri};
+use axum::http::{HeaderMap, HeaderValue, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{any, get};
+use axum::routing::{any, get, post};
 use axum::Router;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
+use serde::Deserialize;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
@@ -23,20 +24,23 @@ use zd_host::terminal::{TerminalAvailability, TerminalSessionSnapshot};
 use zd_host::HostService;
 
 use crate::assets::Assets;
+use crate::pairing::BrowserPairing;
 use crate::protocol::{serve_socket, ProtocolState};
-use crate::{HostEvent, SessionRuntime};
+use crate::{HostEvent, SessionRuntime, PROTOCOL_VERSION};
 use crate::{MAX_MESSAGE_BYTES, MAX_RESPONSE_MESSAGE_BYTES};
 
 pub struct ServerConfig {
     assets_root: PathBuf,
+    state_directory: PathBuf,
     bind: Ipv4Addr,
     port: u16,
 }
 
 impl ServerConfig {
-    pub fn new(assets_root: PathBuf, bind: Ipv4Addr, port: u16) -> Self {
+    pub fn new(assets_root: PathBuf, state_directory: PathBuf, bind: Ipv4Addr, port: u16) -> Self {
         Self {
             assets_root,
+            state_directory,
             bind,
             port,
         }
@@ -115,11 +119,13 @@ impl Drop for RunningServer {
 #[derive(Clone)]
 struct AppState {
     assets: Assets,
+    pairing: BrowserPairing,
     protocol: ProtocolState,
 }
 
 pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<RunningServer, String> {
     let assets = Assets::open(&config.assets_root)?;
+    let pairing = BrowserPairing::open(&config.state_directory)?;
     let secret_bytes = Arc::new(random_bytes::<32>()?);
     let secret = URL_SAFE_NO_PAD.encode(secret_bytes.as_slice());
     let session_epoch = Arc::<str>::from(URL_SAFE_NO_PAD.encode(random_bytes::<16>()?));
@@ -134,6 +140,7 @@ pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<Runni
     };
     let state = AppState {
         assets,
+        pairing,
         protocol: ProtocolState {
             host: Arc::clone(&host),
             secret: secret_bytes,
@@ -143,6 +150,10 @@ pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<Runni
     };
     let router = Router::new()
         .route("/healthz", get(health))
+        .route(
+            "/api/pair",
+            post(pair_browser).layer(DefaultBodyLimit::max(MAX_PAIRING_BODY_BYTES)),
+        )
         .route("/api/host", any(websocket))
         .fallback(get(asset))
         .with_state(state);
@@ -266,6 +277,42 @@ async fn asset(State(state): State<AppState>, uri: Uri) -> Response {
     state.assets.response(&uri).await
 }
 
+const MAX_PAIRING_BODY_BYTES: usize = 1024;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PairingRequest {
+    protocol_version: u16,
+    secret: String,
+}
+
+async fn pair_browser(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<PairingRequest>,
+) -> Response {
+    if !valid_browser_authority(&headers)
+        || request.protocol_version != PROTOCOL_VERSION
+        || !state.protocol.accepts_secret(&request.secret)
+    {
+        return no_store(StatusCode::FORBIDDEN);
+    }
+    let Ok(cookie) = HeaderValue::from_str(&state.pairing.set_cookie_value()) else {
+        return no_store(StatusCode::INTERNAL_SERVER_ERROR);
+    };
+    let mut response = no_store(StatusCode::NO_CONTENT);
+    response.headers_mut().insert(SET_COOKIE, cookie);
+    response
+}
+
+fn no_store(status: StatusCode) -> Response {
+    let mut response = status.into_response();
+    response
+        .headers_mut()
+        .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
+}
+
 async fn websocket(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -274,12 +321,13 @@ async fn websocket(
     if !valid_browser_authority(&headers) {
         return StatusCode::FORBIDDEN.into_response();
     }
+    let browser_paired = state.pairing.accepts_cookie(&headers);
     upgrade
         .write_buffer_size(8 * 1024)
         .max_write_buffer_size(2 * MAX_RESPONSE_MESSAGE_BYTES)
         .max_frame_size(MAX_MESSAGE_BYTES)
         .max_message_size(MAX_MESSAGE_BYTES)
-        .on_upgrade(move |socket| serve_socket(socket, state.protocol))
+        .on_upgrade(move |socket| serve_socket(socket, state.protocol, browser_paired))
 }
 
 fn valid_browser_authority(headers: &HeaderMap) -> bool {
