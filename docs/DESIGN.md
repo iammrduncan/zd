@@ -93,7 +93,11 @@ It offers a folder picker on the same computer as the host and a bounded recent 
 single projects and multi-project workspaces. Every distinct ordered set of open projects is saved
 automatically as a workspace setup. The host persists and reapproves its roots; the client stores
 and submits only opaque project or workspace identities. `zd serve <folder>` starts with its
-CLI-approved folder and does not offer a browser path picker that could widen host authority.
+CLI-approved folder. Its **Open** action uses a host-owned remote folder browser: the host chooses
+the starting directory, lists bounded child directories, and issues opaque handles for navigation
+and selection. Browser input can filter a direct child by name but cannot submit an absolute or
+relative root path. A selected grant is restored beside that startup project until the user closes
+it.
 
 ### Local-first is behavioral
 
@@ -664,6 +668,12 @@ The project terminal is a separate runtime-only dock at the bottom of the active
 retained per project; switching projects changes the visible group without stopping either shell.
 The group uses the approved project-root worktree and never creates a `ThreadState`, navigation row,
 attention event, or persisted terminal handle.
+
+The host owns stable project-terminal session identities outside `WorkbenchState`. Page reload,
+socket interruption, and `zd serve` process restart reattach the exact keeper-owned sessions and do
+not create replacement shells. Only an explicit terminal removal terminates a healthy session. A
+keeper or host operating-system loss reports the session unavailable rather than silently starting
+another process.
 
 `Cmd+D` / `Ctrl+D` splits the visible project terminal side by side. `Cmd+Shift+D` /
 `Ctrl+Shift+D` terminates and removes the active split while another split remains. Project removal

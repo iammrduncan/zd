@@ -31,12 +31,39 @@ all remain on this host.
 2. Enter the separate `zd serve secret:` value in the unlock form.
 3. Select **Unlock**.
 
-The secret is valid only for that running host process. A restart creates a new secret and can
-select a new port. Do not add the secret to the URL or save it in a shared command history.
+The process secret is valid only for that running host process. After the first successful unlock,
+the browser remembers this host and reconnects without asking for the next process secret. This
+works after a reload and after `zd serve` restarts on another free port, as long as you use the same
+host name or IP address and the same browser profile. A different browser profile, host address, or
+cleared site cookie requires the current process secret again.
+
+The remembered credential is an HTTP-only site cookie. Page scripts and browser storage cannot read
+it. Do not add the process secret to the URL or save it in a shared command history.
 
 One served host admits one controlling browser at a time. Reloading that browser reconnects to the
 same session. If another browser reports that the controller is unavailable, close the connected
 workbench before connecting from the other browser.
+
+## Open another folder on the host
+
+1. Choose **Open** in the `PROJECTS` header.
+2. In **Open remote folder**, navigate through the folders shown by the host. Use the name filter to
+   narrow a large directory.
+3. Select a folder, then choose **Open This Folder**.
+
+The selected folder opens beside the current project. It returns the next time you run `zd serve`
+for the same startup project, including its unsaved drafts and terminal identities. Secondary-click
+the project heading and choose **Close** when you no longer want it restored.
+
+The browser never submits an absolute path. It can navigate and select only directory handles that
+the host issued for the current **Open remote folder** dialog.
+
+## Reconnect to live terminals
+
+A page reload or `zd serve` process restart reattaches each terminal to the same terminal process and
+session identity. Use the terminal or thread menu to terminate and remove a terminal when you intend
+to close it. A host operating-system restart or terminal-keeper failure cannot preserve the live
+process; the workbench then reports that the terminal is unavailable instead of starting a duplicate.
 
 ## Use a fixed port
 
@@ -69,5 +96,7 @@ equivalent protected private network that supplies admission control and transpo
 not expose the listener directly to the public Internet. The process secret authenticates the
 browser; it does not encrypt the connection.
 
-Press `Ctrl+C` in the host terminal to stop the listener, watchers, and terminal descendants. A
-browser disconnect by itself does not stop a directly started host.
+Press `Ctrl+C` in the host terminal to stop the listener and watchers. Live terminal sessions stay
+in the host terminal keeper and reconnect when you start `zd serve` again. Terminate them in the UI
+first if you want to close them. A browser disconnect by itself does not stop a directly started
+host.

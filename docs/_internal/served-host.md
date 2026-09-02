@@ -23,8 +23,10 @@ zd serve secret: <process-secret>
 ```
 
 Open the printed URL from the viewing computer. Enter the separate process secret and select
-**Unlock**. Keep the command running while you work. Press `Ctrl+C` in its shell to stop the host,
-watchers, and terminal processes.
+**Unlock**. The browser retains a protected pairing cookie, so later server processes on the same
+host name or IP reconnect without another secret. Keep the command running while you work. Press
+`Ctrl+C` in its shell to stop the host and watchers; keeper-owned terminal processes remain until
+they are explicitly removed in the UI.
 
 ## Use a fixed port
 
@@ -52,7 +54,8 @@ A reachable host returns `204 No Content`. If it does not:
 1. Confirm that the address belongs to the host machine and is reachable through the protected
    network.
 2. Confirm that the port is allowed by the host firewall.
-3. Use the URL and secret from the same running process. A restart creates a new port and secret.
+3. Use the URL and secret from the same running process for first pairing. A restart creates a new
+   port and secret, but a paired browser reconnects without entering it again.
 4. Close another connected workbench. The first version permits one controlling browser at a time.
 
 The browser URL must use the same numeric authority that reached the server. The host rejects
@@ -64,9 +67,11 @@ The initial served host uses plain HTTP. Run it only across Tailscale or an equi
 private network that provides admission and transport encryption. Do not expose it directly to the
 public Internet. The process secret authenticates the controller; it does not encrypt traffic.
 
-The secret is sent only in the first WebSocket frame. It is not placed in the URL, cookies, browser
-storage, diagnostics, or ordinary application logs. Browser requests use project, worktree, and
-relative-resource identities; they cannot submit a new absolute root.
+The process secret is sent only during first authentication and pairing. It is not placed in the
+URL, cookies, browser storage, diagnostics, or ordinary application logs. Successful pairing stores
+a different random credential in an HTTP-only, `SameSite=Strict` cookie restricted to `/api/host`.
+Browser requests use project, worktree, relative-resource, and host-issued directory identities;
+they cannot submit a new absolute root.
 
 ## Desktop behavior
 

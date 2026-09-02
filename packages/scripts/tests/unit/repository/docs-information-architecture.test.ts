@@ -163,6 +163,8 @@ describe("the repository documentation map", () => {
       "zd serve . --bind <protected-network-ip>",
       "zd serve URL:",
       "zd serve secret:",
+      "browser remembers this host",
+      "Open remote folder",
       "one controlling browser",
       "protected private network",
       "public Internet",
@@ -173,6 +175,10 @@ describe("the repository documentation map", () => {
     expect(cli).toContain("zd serve [<folder>] [--bind <ip>] [--port <port>]");
     expect(cli).toContain("0.0.0.0");
     expect(cli).toContain("port `0`");
+    expect(cli).toContain("host-controlled remote folder browser");
+    const architecture = page("docs/user-facing-docs/explanation/architecture.md");
+    expect(architecture).toContain("HTTP-only");
+    expect(architecture).toContain("SameSite=Strict");
     expect(website).toContain("Available for macOS and Linux");
     expect(website).not.toContain("Available for macOS and Windows");
     expect(site).toContain('operatingSystem: "macOS, Linux"');

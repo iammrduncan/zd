@@ -52,9 +52,21 @@ rotate bounded files, and remain on the computer until you reveal or remove them
 
 The Vite-only browser fixtures have no filesystem, terminal, Git, notification, or diagnostic
 authority. A browser opened from `zd serve` receives host capabilities only after it authenticates
-with that process's secret. The host approves the startup folder before listening, accepts one
-controller, and keeps absolute filesystem paths out of browser requests. The initial direct mode is
-plain HTTP, so it belongs only on a protected private network and not on the public Internet.
+with that process's secret. A successful first unlock pairs that browser through an HTTP-only,
+`SameSite=Strict` cookie restricted to the host socket endpoint. The host stores the matching random
+token outside project data, so the pairing survives a new process secret and port while page scripts
+and browser storage cannot read it. The tradeoff is that the browser profile and its site cookies
+become part of the trusted controller boundary.
+
+The host approves the startup folder before listening and accepts one controller. Its remote folder
+browser lists directories itself and gives the page short-lived opaque handles; the page never sends
+an absolute root to widen its own authority. Approved added projects are remembered for that startup
+project until the user closes them. The initial direct mode is plain HTTP, so it belongs only on a
+protected private network and not on the public Internet.
+
+Terminal processes live in a host-side keeper below the `zd serve` process. This lets the same
+session survive page reloads and server restarts without duplicating the shell. It cannot preserve a
+process through a host operating-system restart or keeper failure, so those losses remain explicit.
 
 ## Verification at the boundaries
 

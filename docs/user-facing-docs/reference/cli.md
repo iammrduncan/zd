@@ -35,6 +35,11 @@ ready. It keeps running until `Ctrl+C` or a termination signal stops it. See
 [Serve a workbench](../how-to/serve-a-workbench.md) for the complete remote-browser and security
 steps.
 
+After one successful secret-based unlock, the browser receives a one-year, HTTP-only,
+`SameSite=Strict` cookie restricted to `/api/host`. The cookie works for the same host name or IP
+address across port and process-secret changes. It is not available to page scripts,
+`localStorage`, or `sessionStorage`.
+
 ## Path resolution
 
 - Relative paths resolve from the process working directory—the directory where you invoked `zd`.
@@ -42,8 +47,11 @@ steps.
 - `.` components are normalized before the launch reaches the frontend.
 - A folder launch grants access to that folder. A file launch grants access to its parent.
 - A served folder is resolved by the same rules and approved before the network listener starts.
-- Adding projects or worktrees later requires an explicit native picker or structured worktree
-  operation. Frontend code cannot widen those grants.
+- In a served browser, **Open** uses a host-controlled remote folder browser. The browser can submit
+  only host-issued directory handles and a direct-child name filter; it cannot submit a root path.
+  A selected project is restored beside the startup project until it is closed in the UI.
+- In the desktop wrapper, **Open** uses the viewing computer's native folder picker. Structured Git
+  worktree operations can add another worktree to an existing project.
 
 ## Native launches
 
