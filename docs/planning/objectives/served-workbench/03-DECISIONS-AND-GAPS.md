@@ -33,8 +33,12 @@ not turn those into transport-shaped product APIs.
 - Direct same-origin HTTP over an already-protected network is the first remote transport.
 - Direct serve listens on all IPv4 interfaces by default; an operator may restrict the bind address.
 - One authenticated WebSocket carries privileged protocol traffic.
-- One process-scoped owner secret and one controller are sufficient for the first product.
-- The CLI startup path creates the only initial grant; browser input cannot widen it.
+- One process-scoped owner secret admits the first browser. A persistent HTTP-only host-pairing
+  credential avoids repeated unlocks for the same browser authority. One controller remains the
+  limit.
+- The CLI startup path creates the initial grant. After authentication, a host-owned remote folder
+  browser may create additional persisted grants from opaque directory handles; browser input still
+  cannot supply or widen a root path.
 - The first walking skeleton is read-only and does not modify the default desktop app.
 - Durable work moves behind host persistence before served writes ship.
 - PTY reconnect is designed before terminals migrate.

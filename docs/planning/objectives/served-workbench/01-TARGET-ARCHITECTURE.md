@@ -71,14 +71,19 @@ the operating system select and retain a free port without a probe-and-bind race
 Each process generates a random owner secret. A CLI launch prints connection information and the
 secret separately. The client authenticates in its first socket frame, before receiving state. The
 server requires an HTTP Origin with the exact same authority as Host, rejects forwarding headers,
-uses no cookie or permissive CORS policy, and accepts one controller. Session credentials do not
-enter URLs, logs, argv, durable configuration, or diagnostic records.
+uses no permissive CORS policy, and accepts one controller. A browser's first successful unlock also
+exchanges that process secret for a random host-pairing cookie. The cookie is HTTP-only,
+`SameSite=Strict`, restricted to `/api/host`, and backed by a host-state credential with owner-only
+permissions on Unix. It survives port and process-secret changes without entering JavaScript,
+browser storage, URLs, logs, argv, diagnostics, or project data.
 
 ## Remote connection
 
 The operator starts `zd serve` on the host. A browser with network reachability opens the host URL
-directly and enters the process secret. The viewing computer runs no tunnel, helper, extension, or
-native zd client.
+directly and enters the process secret once. The paired browser reconnects on the same host name or
+IP across later free ports and process secrets. A new browser profile, host authority, or cleared
+cookie requires the current process secret. The viewing computer runs no tunnel, helper, extension,
+or native zd client.
 
 The initial host serves plain HTTP. Tailscale or an equivalent protected private network supplies
 network admission and transport encryption. The host does not claim that its process secret makes
@@ -92,6 +97,11 @@ Browser and Tauri clients share `WorkbenchHost`. They differ only through `Clien
 - browser focus, external navigation, and unsupported desktop actions;
 - Tauri window focus/close, quick access, global shortcut, native notifications, and same-machine
   picker or file-association input.
+
+The browser **Open** action is host authority, not a viewing-computer shell picker. One bounded
+picker session exposes only host-issued directory handles and direct-child name filtering. Choosing
+an issued handle adds a persisted project grant beside the startup project; socket input never
+supplies a root path.
 
 The served page must not receive the retired Tauri file, Git, watcher, or terminal command surface.
 Trusted Tauri launch/open events become narrow host-service inputs rather than arbitrary browser
@@ -131,7 +141,9 @@ loss would violate recovery. Runtime transitions remain client-owned.
 
 Before served PTYs ship, reconnect returns an authoritative resource snapshot and subscription
 epoch. A client either reattaches explicitly or receives a clear unavailable/exited result. It never
-silently creates a duplicate terminal after a tunnel interruption.
+silently creates a duplicate terminal after a tunnel interruption. A keeper below the server
+process retains the PTY and stable session identity through page reload and `zd serve` restart. An
+explicit UI disposal terminates it; keeper or operating-system loss remains an explicit failure.
 
 ## Observability
 

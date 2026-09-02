@@ -6,8 +6,13 @@ terminal context.
 
 ## Add a project
 
-Choose **Open** in the `PROJECTS` header, then select a folder in the native picker.
-`zd` adds that folder as an approved project without replacing projects that are already open.
+Choose **Open** in the `PROJECTS` header. In the desktop wrapper, select a folder in the native
+picker. In a browser connected to `zd serve`, use **Open remote folder** to navigate folders on the
+host, select one, and choose **Open This Folder**.
+
+`zd` adds the folder as an approved project without replacing projects that are already open. A
+served host restores the added project the next time it starts for the same initial folder. The
+remote browser can select only folders listed by the host; it cannot enter an absolute host path.
 
 ## Switch and arrange projects
 

@@ -340,10 +340,16 @@ retain another file, Git, watcher, or pseudoterminal backend.
 - File access is a host-owned set of explicit project/worktree grants.
 - Every path operation canonicalizes its target and rejects parent or symbolic-link escape.
 - The frontend may choose among existing grants but cannot widen them by supplying a path.
+- After authentication, a served browser may ask the host to enumerate directories and may select
+  only opaque handles issued by that host-owned folder browser. Added grants persist beside the
+  startup project until explicit removal.
 - `zd serve` approves its startup folder before listening, accepts direct same-origin connections on
   the host network by default, and authenticates its controlling client before sending project
   state. The desktop wrapper selects loopback explicitly. Direct plain HTTP requires an already
   protected network and is not a public-Internet transport.
+- A first successful process-secret unlock pairs that browser through a persistent HTTP-only,
+  same-site credential. Reload and host-process restart do not require another secret while the
+  browser retains that host credential.
 - Project content is data. The host never serves project HTML, scripts, SVG, or other workspace
   files as trusted application assets.
 - Markdown, Mermaid, and agent-produced markup are untrusted. Raw HTML is inert, remote images are
