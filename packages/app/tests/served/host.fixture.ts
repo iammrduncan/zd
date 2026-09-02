@@ -313,20 +313,17 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
         repositoryRoot: root,
       });
       const hostAddress = directIpv4Address();
-      const projectRoot = await mkdtemp(join(tmpdir(), "zd-served-e2e-"));
-      const secondProjectRoot = await mkdtemp(join(tmpdir(), "zd-served-second-e2e-"));
+      const fixtureRoot = await mkdtemp(join(tmpdir(), "zd-served-e2e-"));
+      const projectRoot = join(fixtureRoot, "startup");
+      const secondProjectRoot = join(fixtureRoot, "second");
       const stateRoot = await mkdtemp(join(tmpdir(), "zd-served-state-e2e-"));
       const expectedPrefix = `${resolve(tmpdir())}${sep}zd-served-e2e-`;
-      const expectedSecondPrefix = `${resolve(tmpdir())}${sep}zd-served-second-e2e-`;
       const expectedStatePrefix = `${resolve(tmpdir())}${sep}zd-served-state-e2e-`;
-      if (!resolve(projectRoot).startsWith(expectedPrefix)) {
+      if (!resolve(fixtureRoot).startsWith(expectedPrefix)) {
         throw new Error("the served-host fixture root escaped the temporary directory");
       }
       if (!resolve(stateRoot).startsWith(expectedStatePrefix)) {
         throw new Error("the served-host state root escaped the temporary directory");
-      }
-      if (!resolve(secondProjectRoot).startsWith(expectedSecondPrefix)) {
-        throw new Error("the second served-host fixture root escaped the temporary directory");
       }
       const hostStateRoot = servedHostStateDirectory(process.env, stateRoot, process.platform);
       let child: ReturnType<typeof spawn> | null = null;
@@ -356,6 +353,13 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
       };
 
       try {
+        await mkdir(projectRoot);
+        await mkdir(secondProjectRoot);
+        await Promise.all(
+          Array.from({ length: 48 }, (_, index) =>
+            mkdir(join(fixtureRoot, `picker-folder-${String(index + 1).padStart(2, "0")}`)),
+          ),
+        );
         await mkdir(join(projectRoot, "docs"));
         await writeFile(join(projectRoot, "notes.md"), FIXTURE_TEXT, "utf8");
         await writeFile(join(projectRoot, "docs", "inside.md"), "inside\n", "utf8");
@@ -438,8 +442,7 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
           }
           if (child) await stopHost(child);
         } finally {
-          await rm(projectRoot, { recursive: true, force: true });
-          await rm(secondProjectRoot, { recursive: true, force: true });
+          await rm(fixtureRoot, { recursive: true, force: true });
           await rm(stateRoot, { recursive: true, force: true });
         }
       }

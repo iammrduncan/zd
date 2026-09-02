@@ -241,6 +241,21 @@ test("edits, watches, and runs a reconnectable shell through the real host", asy
   expect(page.url()).not.toContain(servedHost.secret);
 
   const files = page.getByRole("complementary", { name: "Files and Changes" });
+  const docs = files.locator('[data-file-path="docs"]');
+  await expect(docs).toHaveAttribute("aria-expanded", "false");
+  await docs.click();
+  await expect(docs).toHaveAttribute("aria-expanded", "true");
+  const nested = files.locator('[data-file-path="docs/inside.md"]');
+  await expect(nested).toBeVisible();
+  await nested.click();
+  await expect(page.locator('.editor-buffer[data-buffer-kind="editable"]')).toContainText("inside");
+  const servedNotice = page.getByRole("status", { name: "Served workbench limits" });
+  await expect(servedNotice).toContainText(
+    "Remote project folders can be opened beside the current project. Recent workspaces and desktop notifications are unavailable",
+  );
+  await servedNotice.getByRole("button", { name: "Dismiss remote-host notice" }).click();
+  await expect(servedNotice).toHaveCount(0);
+
   await servedHost.createExternalFile();
   await expect(files.locator('[data-file-path="external-watch.md"]')).toBeVisible();
   await files.locator('[data-file-path="notes.md"]').click();
@@ -394,9 +409,6 @@ test("edits, watches, and runs a reconnectable shell through the real host", asy
   );
   expect(servedHost.isProcessRunning(Number(originalPid))).toBe(true);
 
-  await expect(page.getByRole("status", { name: "Served workbench limits" })).toContainText(
-    "Remote project folders can be opened beside the current project. Recent workspaces and desktop notifications are unavailable",
-  );
   expect(await page.evaluate(() => fetch("/notes.md").then((response) => response.status))).toBe(
     404,
   );
@@ -546,6 +558,42 @@ test("opens a remote folder beside the current project and activates its file", 
   await page.getByRole("button", { name: "Open project folder" }).click();
   const picker = page.getByRole("dialog", { name: "Open remote folder" });
   await expect(picker).toBeVisible();
+  const pickerList = picker.locator(".zd-remote-project-picker-list");
+  await expect
+    .poll(() =>
+      pickerList.evaluate((list) => ({
+        clientHeight: list.clientHeight,
+        scrollHeight: list.scrollHeight,
+      })),
+    )
+    .toMatchObject({
+      clientHeight: expect.any(Number),
+      scrollHeight: expect.any(Number),
+    });
+  const pickerGeometry = await picker.evaluate((dialog) => {
+    const list = dialog.querySelector<HTMLElement>(".zd-remote-project-picker-list");
+    if (!list) throw new Error("the remote folder list is missing");
+    const dialogBounds = dialog.getBoundingClientRect();
+    const listBounds = list.getBoundingClientRect();
+    return {
+      dialogBottom: dialogBounds.bottom,
+      dialogTop: dialogBounds.top,
+      listBottom: listBounds.bottom,
+      listTop: listBounds.top,
+      listClientHeight: list.clientHeight,
+      listScrollHeight: list.scrollHeight,
+      viewportHeight: window.innerHeight,
+    };
+  });
+  expect(pickerGeometry.dialogTop).toBeGreaterThanOrEqual(0);
+  expect(pickerGeometry.dialogBottom).toBeLessThanOrEqual(pickerGeometry.viewportHeight);
+  expect(pickerGeometry.listTop).toBeGreaterThanOrEqual(pickerGeometry.dialogTop);
+  expect(pickerGeometry.listBottom).toBeLessThanOrEqual(pickerGeometry.dialogBottom);
+  expect(pickerGeometry.listScrollHeight).toBeGreaterThan(pickerGeometry.listClientHeight);
+  await pickerList.evaluate((list) => {
+    list.scrollTop = list.scrollHeight;
+  });
+  await expect.poll(() => pickerList.evaluate((list) => list.scrollTop)).toBeGreaterThan(0);
   await picker
     .getByRole("searchbox", { name: "Filter folders by name" })
     .fill(servedHost.secondProjectName);

@@ -1,6 +1,10 @@
 .zd-remote-project-picker {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto;
   inline-size: min(calc(var(--reading-measure) + var(--space-5)), calc(100% - 2 * var(--space-4)));
-  max-block-size: min(80vh, calc(var(--space-5) * 10));
+  block-size: min(80dvh, calc(var(--space-5) * 10));
+  max-block-size: calc(100dvh - 2 * var(--space-4));
   padding: var(--space-4);
   overflow: hidden;
   color: var(--text-primary);
@@ -76,7 +80,7 @@
 .zd-remote-project-picker-navigation {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  min-block-size: calc(var(--space-5) * 6);
+  min-block-size: 0;
   margin-block-start: var(--space-2);
   overflow: hidden;
   border: var(--hairline) solid var(--line-quiet);
@@ -87,6 +91,8 @@
   align-content: start;
   min-block-size: 0;
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .zd-remote-project-picker-list [role="listitem"] {
