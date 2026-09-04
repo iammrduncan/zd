@@ -58,11 +58,13 @@ token outside project data, so the pairing survives a new process secret and por
 and browser storage cannot read it. The tradeoff is that the browser profile and its site cookies
 become part of the trusted controller boundary.
 
-The host approves the startup folder before listening and accepts one controller. Its remote folder
-browser lists directories itself and gives the page short-lived opaque handles; the page never sends
-an absolute root to widen its own authority. Approved added projects are remembered for that startup
-project until the user closes them. The initial direct mode is plain HTTP, so it belongs only on a
-protected private network and not on the public Internet.
+The host approves the startup folder before listening and accepts one active controller. A newly
+authenticated page takes the controller lease and retires the previous page, so the previous page
+cannot continue issuing commands. Its remote folder browser lists directories itself and gives the
+page short-lived opaque handles; the page never sends an absolute root to widen its own authority.
+Approved added projects are remembered for that startup project until the user closes them. The
+initial direct mode is plain HTTP, so it belongs only on a protected private network and not on the
+public Internet.
 
 Terminal processes live in a host-side keeper below the `zd serve` process. This lets the same
 session survive page reloads and server restarts without duplicating the shell. It cannot preserve a

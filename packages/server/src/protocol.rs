@@ -25,6 +25,7 @@ use zd_host::{
     EDITABLE_FILE_LIMIT_BYTES, MAX_CLIPBOARD_IMAGE_BYTES,
 };
 
+use crate::session::{ControllerClaim, ControllerClaimEnd, ControllerClaimError};
 use crate::{
     HostEvent, ReplayDecision, ResyncReason, SessionRuntime, HEARTBEAT_TIMEOUT, MAX_MESSAGE_BYTES,
     MAX_REPORTED_DURATION_MICROS, MAX_RESPONSE_MESSAGE_BYTES, PROTOCOL_VERSION,
@@ -33,6 +34,7 @@ use crate::{
 const MAX_CONCURRENT_HOST_JOBS: usize = 4;
 const HOST_DIAGNOSTIC_SPAN_ID: &str = "host-dispatch";
 const PROCESS_SECRET_TEXT_BYTES: usize = 43;
+const CONTROLLER_ID_TEXT_BYTES: usize = 32;
 
 #[derive(Clone)]
 pub struct ProtocolState {
@@ -69,9 +71,11 @@ enum ClientMessage {
     Authenticate {
         protocol_version: u16,
         secret: String,
+        controller_id: Option<String>,
     },
     AuthenticateBrowser {
         protocol_version: u16,
+        controller_id: Option<String>,
     },
     Request {
         protocol_version: u16,
@@ -208,11 +212,19 @@ struct ProtocolFailure {
 struct ControllerLease {
     runtime: Arc<SessionRuntime>,
     host: Arc<HostService>,
+    claim: ControllerClaim,
+}
+
+impl ControllerLease {
+    async fn ended(&mut self) -> ControllerClaimEnd {
+        self.claim.ended().await
+    }
 }
 
 impl Drop for ControllerLease {
     fn drop(&mut self) {
-        self.runtime.controller_disconnected(Arc::clone(&self.host));
+        self.runtime
+            .controller_claim_disconnected(self.claim.generation(), Arc::clone(&self.host));
     }
 }
 
@@ -224,10 +236,17 @@ pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState, browser_p
         Ok(ClientMessage::Authenticate {
             protocol_version,
             secret,
-        }) => authenticate(&state, protocol_version, &secret),
-        Ok(ClientMessage::AuthenticateBrowser { protocol_version }) => {
-            authenticate_browser(&state, protocol_version, browser_paired)
-        }
+            controller_id,
+        }) => authenticate(&state, protocol_version, &secret, controller_id.as_deref()),
+        Ok(ClientMessage::AuthenticateBrowser {
+            protocol_version,
+            controller_id,
+        }) => authenticate_browser(
+            &state,
+            protocol_version,
+            browser_paired,
+            controller_id.as_deref(),
+        ),
         Ok(ClientMessage::Request { .. }) => Err(ProtocolFailure {
             code: "authentication-required",
             message: "Authenticate before requesting host state",
@@ -237,7 +256,7 @@ pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState, browser_p
             message: "The authentication message is invalid",
         }),
     };
-    let lease = match authenticated {
+    let mut lease = match authenticated {
         Ok(lease) => lease,
         Err(failure) => {
             let _ = send_error(&mut socket, None, failure).await;
@@ -262,6 +281,21 @@ pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState, browser_p
     tokio::pin!(heartbeat_deadline);
     loop {
         let message = tokio::select! {
+            biased;
+            ending = lease.ended() => {
+                if matches!(ending, ControllerClaimEnd::Replaced) {
+                    let _ = send_error(
+                        &mut socket,
+                        None,
+                        ProtocolFailure {
+                            code: "controller-replaced",
+                            message: "A newer authenticated page replaced this controller",
+                        },
+                    )
+                    .await;
+                }
+                break;
+            }
             _ = &mut heartbeat_deadline => break,
             message = receive_text(&mut socket) => {
                 let Some(message) = message else {
@@ -414,6 +448,7 @@ fn authenticate(
     state: &ProtocolState,
     protocol_version: u16,
     supplied: &str,
+    controller_id: Option<&str>,
 ) -> Result<ControllerLease, ProtocolFailure> {
     if protocol_version != PROTOCOL_VERSION {
         return Err(ProtocolFailure {
@@ -427,13 +462,14 @@ fn authenticate(
             message: "The process secret was not accepted",
         });
     }
-    claim_controller(state)
+    claim_controller(state, controller_id)
 }
 
 fn authenticate_browser(
     state: &ProtocolState,
     protocol_version: u16,
     browser_paired: bool,
+    controller_id: Option<&str>,
 ) -> Result<ControllerLease, ProtocolFailure> {
     if protocol_version != PROTOCOL_VERSION {
         return Err(ProtocolFailure {
@@ -447,19 +483,39 @@ fn authenticate_browser(
             message: "The browser pairing was not accepted",
         });
     }
-    claim_controller(state)
+    claim_controller(state, controller_id)
 }
 
-fn claim_controller(state: &ProtocolState) -> Result<ControllerLease, ProtocolFailure> {
-    if !state.runtime.claim_controller() {
+fn claim_controller(
+    state: &ProtocolState,
+    controller_id: Option<&str>,
+) -> Result<ControllerLease, ProtocolFailure> {
+    if controller_id.is_some_and(|value| {
+        value.len() != CONTROLLER_ID_TEXT_BYTES
+            || !value.bytes().all(|byte| byte.is_ascii_hexdigit())
+    }) {
         return Err(ProtocolFailure {
-            code: "controller-unavailable",
-            message: "Another controller is already connected",
+            code: "invalid-controller-id",
+            message: "The controller ID is invalid",
         });
     }
+    let claim = state
+        .runtime
+        .claim_controller_with_id(controller_id)
+        .map_err(|problem| match problem {
+            ControllerClaimError::Replaced => ProtocolFailure {
+                code: "controller-replaced",
+                message: "A newer authenticated page replaced this controller",
+            },
+            ControllerClaimError::Unavailable => ProtocolFailure {
+                code: "controller-unavailable",
+                message: "Another controller is already connected",
+            },
+        })?;
     Ok(ControllerLease {
         runtime: Arc::clone(&state.runtime),
         host: Arc::clone(&state.host),
+        claim,
     })
 }
 

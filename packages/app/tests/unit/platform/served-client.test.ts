@@ -74,6 +74,7 @@ describe("served host client", () => {
     expect(JSON.parse(socket.sent[0]!)).toEqual({
       protocolVersion: 1,
       type: "authenticate-browser",
+      controllerId: expect.stringMatching(/^[0-9a-f]{32}$/u),
     });
     expect(localStorage).toHaveLength(0);
     expect(sessionStorage).toHaveLength(0);
@@ -113,6 +114,7 @@ describe("served host client", () => {
       protocolVersion: 1,
       type: "authenticate",
       secret: "process-secret",
+      controllerId: expect.stringMatching(/^[0-9a-f]{32}$/u),
     });
     expect(localStorage).toHaveLength(0);
     expect(document.cookie).toBe("ordinary=value");
@@ -281,6 +283,48 @@ describe("served host client", () => {
     expect(socket.closed).toBe(true);
   });
 
+  it("retires a replaced controller without reconnecting against the newer page", async () => {
+    vi.useFakeTimers();
+    const sockets: FakeSocket[] = [];
+    const connecting = connectServedHostClient({
+      origin: "http://127.0.0.1:49151",
+      secret: "process-secret",
+      socket: (url) => {
+        const socket = new FakeSocket(url);
+        sockets.push(socket);
+        return socket;
+      },
+    });
+    const socket = sockets[0]!;
+    socket.emit("open");
+    socket.emit("message", {
+      data: JSON.stringify({
+        protocolVersion: 1,
+        type: "authenticated",
+        sessionEpoch: "epoch-1",
+        sequence: 0,
+      }),
+    });
+    const client = await connecting;
+
+    socket.emit("message", {
+      data: JSON.stringify({
+        protocolVersion: 1,
+        type: "error",
+        code: "controller-replaced",
+        message: "A newer controller replaced this page",
+      }),
+    });
+    socket.emit("close");
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(socket.closed).toBe(true);
+    expect(sockets).toHaveLength(1);
+    await expect(client.request("session.describe", {})).rejects.toThrow(
+      "served host connection is closed",
+    );
+  });
+
   it("bounds the number of client requests awaiting a response", async () => {
     const socket = new FakeSocket("unused");
     const connecting = connectServedHostClient({
@@ -370,6 +414,8 @@ describe("served host client", () => {
       }),
     });
     const client = await connecting;
+    const controllerId = JSON.parse(first.sent[0]!).controllerId as string;
+    expect(controllerId).toMatch(/^[0-9a-f]{32}$/u);
     const events: number[] = [];
     client.onEvent((event) => events.push(event.sequence));
     first.emit("message", {
@@ -391,6 +437,7 @@ describe("served host client", () => {
       protocolVersion: 1,
       type: "authenticate",
       secret: "process-secret",
+      controllerId,
     });
     second.emit("message", {
       data: JSON.stringify({

@@ -166,6 +166,7 @@ describe("the repository documentation map", () => {
       "browser remembers this host",
       "Open remote folder",
       "one controlling browser",
+      "takes control and retires the previous page",
       "protected private network",
       "public Internet",
       "Ctrl+C",

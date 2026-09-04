@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::{json, Value};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, watch};
 use zd_host::file_tree_watch::FileTreeWatchSnapshot;
 use zd_host::terminal::TerminalSessionSnapshot;
 use zd_host::HostService;
@@ -15,6 +15,7 @@ pub const MAX_EVENT_JOURNAL_EVENTS: usize = 1_024;
 pub const MAX_EVENT_JOURNAL_BYTES: usize = 1_024 * 1_024;
 pub const CONTROLLER_DISCONNECT_GRACE: Duration = Duration::from_secs(30);
 const OUTBOUND_EVENT_CAPACITY: usize = 256;
+const MAX_RETIRED_CONTROLLER_IDS: usize = 64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResyncReason {
@@ -164,10 +165,58 @@ struct JournalState {
 
 #[derive(Default)]
 struct LifecycleState {
-    controller_active: bool,
+    active_controller: Option<ActiveController>,
+    retired_controller_ids: VecDeque<String>,
     cleanup_in_progress: bool,
     generation: u64,
     shutting_down: bool,
+}
+
+struct ActiveController {
+    generation: u64,
+    controller_id: Option<String>,
+}
+
+pub(crate) enum ControllerClaimError {
+    Replaced,
+    Unavailable,
+}
+
+pub(crate) enum ControllerClaimEnd {
+    Replaced,
+    ServerShutdown,
+}
+
+#[derive(Clone, Copy)]
+struct ControllerSignal {
+    generation: u64,
+    shutting_down: bool,
+}
+
+pub(crate) struct ControllerClaim {
+    generation: u64,
+    changes: watch::Receiver<ControllerSignal>,
+}
+
+impl ControllerClaim {
+    pub(crate) fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub(crate) async fn ended(&mut self) -> ControllerClaimEnd {
+        loop {
+            let signal = *self.changes.borrow_and_update();
+            if signal.shutting_down {
+                return ControllerClaimEnd::ServerShutdown;
+            }
+            if signal.generation != self.generation {
+                return ControllerClaimEnd::Replaced;
+            }
+            if self.changes.changed().await.is_err() {
+                return ControllerClaimEnd::ServerShutdown;
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -184,16 +233,22 @@ pub struct SessionRuntime {
     epoch: Arc<str>,
     journal: Mutex<JournalState>,
     lifecycle: Mutex<LifecycleState>,
+    controller_generation: watch::Sender<ControllerSignal>,
     events: broadcast::Sender<EventEnvelope>,
 }
 
 impl SessionRuntime {
     pub fn new(epoch: impl Into<Arc<str>>) -> Self {
         let (events, _) = broadcast::channel(OUTBOUND_EVENT_CAPACITY);
+        let (controller_generation, _) = watch::channel(ControllerSignal {
+            generation: 0,
+            shutting_down: false,
+        });
         Self {
             epoch: epoch.into(),
             journal: Mutex::new(JournalState::default()),
             lifecycle: Mutex::new(LifecycleState::default()),
+            controller_generation,
             events,
         }
     }
@@ -297,31 +352,102 @@ impl SessionRuntime {
     }
 
     pub fn claim_controller(&self) -> bool {
+        self.claim_controller_with_id(None).is_ok()
+    }
+
+    pub(crate) fn claim_controller_with_id(
+        &self,
+        controller_id: Option<&str>,
+    ) -> Result<ControllerClaim, ControllerClaimError> {
         let mut lifecycle = self
             .lifecycle
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        if lifecycle.controller_active || lifecycle.cleanup_in_progress || lifecycle.shutting_down {
-            return false;
+        if lifecycle.cleanup_in_progress || lifecycle.shutting_down {
+            return Err(ControllerClaimError::Unavailable);
+        }
+        if controller_id.is_some_and(|candidate| {
+            lifecycle
+                .retired_controller_ids
+                .iter()
+                .any(|retired| retired == candidate)
+        }) {
+            return Err(ControllerClaimError::Replaced);
+        }
+        if let Some(active) = &lifecycle.active_controller {
+            match controller_id {
+                None if active.controller_id.is_some() => {
+                    return Err(ControllerClaimError::Replaced)
+                }
+                None => return Err(ControllerClaimError::Unavailable),
+                Some(candidate) if active.controller_id.as_deref() == Some(candidate) => {}
+                Some(_) => {
+                    if let Some(retired) = active.controller_id.clone() {
+                        lifecycle
+                            .retired_controller_ids
+                            .retain(|value| value != &retired);
+                        lifecycle.retired_controller_ids.push_back(retired);
+                        while lifecycle.retired_controller_ids.len() > MAX_RETIRED_CONTROLLER_IDS {
+                            lifecycle.retired_controller_ids.pop_front();
+                        }
+                    }
+                }
+            }
         }
         lifecycle.generation = lifecycle.generation.saturating_add(1);
-        lifecycle.controller_active = true;
-        true
+        let generation = lifecycle.generation;
+        lifecycle.active_controller = Some(ActiveController {
+            generation,
+            controller_id: controller_id.map(str::to_string),
+        });
+        drop(lifecycle);
+        self.controller_generation.send_replace(ControllerSignal {
+            generation,
+            shutting_down: false,
+        });
+        Ok(ControllerClaim {
+            generation,
+            changes: self.controller_generation.subscribe(),
+        })
     }
 
     pub fn controller_disconnected(self: &Arc<Self>, host: Arc<HostService>) {
+        let generation = self
+            .lifecycle
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .active_controller
+            .as_ref()
+            .map_or(0, |active| active.generation);
+        self.controller_claim_disconnected(generation, host);
+    }
+
+    pub(crate) fn controller_claim_disconnected(
+        self: &Arc<Self>,
+        controller_generation: u64,
+        host: Arc<HostService>,
+    ) {
         let generation = {
             let mut lifecycle = self
                 .lifecycle
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            if !lifecycle.controller_active || lifecycle.shutting_down {
+            if lifecycle.shutting_down
+                || lifecycle
+                    .active_controller
+                    .as_ref()
+                    .is_none_or(|active| active.generation != controller_generation)
+            {
                 return;
             }
-            lifecycle.controller_active = false;
+            lifecycle.active_controller = None;
             lifecycle.generation = lifecycle.generation.saturating_add(1);
             lifecycle.generation
         };
+        self.controller_generation.send_replace(ControllerSignal {
+            generation,
+            shutting_down: false,
+        });
         let runtime = Arc::clone(self);
         let deadline = tokio::time::Instant::now() + CONTROLLER_DISCONNECT_GRACE;
         tokio::spawn(async move {
@@ -356,8 +482,14 @@ impl SessionRuntime {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         lifecycle.shutting_down = true;
-        lifecycle.controller_active = false;
+        lifecycle.active_controller = None;
         lifecycle.generation = lifecycle.generation.saturating_add(1);
+        let generation = lifecycle.generation;
+        drop(lifecycle);
+        self.controller_generation.send_replace(ControllerSignal {
+            generation,
+            shutting_down: true,
+        });
     }
 
     pub fn journal_usage(&self) -> JournalUsage {
@@ -377,7 +509,7 @@ impl SessionRuntime {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         if lifecycle.generation != generation
-            || lifecycle.controller_active
+            || lifecycle.active_controller.is_some()
             || lifecycle.cleanup_in_progress
             || lifecycle.shutting_down
         {
