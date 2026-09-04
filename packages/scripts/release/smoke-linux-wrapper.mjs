@@ -14,7 +14,11 @@ import { tmpdir } from "node:os";
 import { basename, join, resolve, sep } from "node:path";
 import process from "node:process";
 
-import { parseParentPid, parseTcpListeners } from "./linux-process.mjs";
+import {
+  isWrapperHostCommandLine,
+  parseParentPid,
+  parseTcpListeners,
+} from "./linux-process.mjs";
 import { runInstalledWrapperSmoke } from "./wrapper/smoke.mjs";
 
 const installArgument = process.argv[2];
@@ -70,7 +74,7 @@ async function executableForPid(pid) {
 }
 
 async function directHostChild(parentPid) {
-  for (const pid of await pidsForExecutable(canonicalConsole)) {
+  for (const pid of await hostPids()) {
     try {
       const status = await readFile(`/proc/${pid}/status`, "utf8");
       if (parseParentPid(status) === parentPid) return pid;
@@ -79,6 +83,20 @@ async function directHostChild(parentPid) {
     }
   }
   return undefined;
+}
+
+async function hostPids() {
+  const pids = await pidsForExecutable(canonicalConsole);
+  const roles = await Promise.all(
+    pids.map(async (pid) => {
+      try {
+        return isWrapperHostCommandLine(await readFile(`/proc/${pid}/cmdline`)) ? pid : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return roles.filter((pid) => pid !== null);
 }
 
 async function pidsForExecutable(executable) {
@@ -118,7 +136,20 @@ async function installedCounts() {
     pidsForExecutable(canonicalConsole),
     pidsForExecutable(canonicalDesktop),
   ]);
-  return { console: consolePids.length, desktop: desktopPids.length };
+  const hostRoles = await Promise.all(
+    consolePids.map(async (pid) => {
+      try {
+        return isWrapperHostCommandLine(await readFile(`/proc/${pid}/cmdline`));
+      } catch {
+        return false;
+      }
+    }),
+  );
+  return {
+    console: consolePids.length,
+    desktop: desktopPids.length,
+    host: hostRoles.filter(Boolean).length,
+  };
 }
 
 try {

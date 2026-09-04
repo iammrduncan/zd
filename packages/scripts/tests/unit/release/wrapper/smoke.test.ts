@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { parseSmokeReport } from "../../../../release/wrapper/smoke.mjs";
+import {
+  parseSmokeReport,
+  retainedHostObservation,
+} from "../../../../release/wrapper/smoke.mjs";
 
 describe("installed wrapper smoke reports", () => {
+  it("retries a missing process sample but rejects a different host", () => {
+    expect(retainedHostObservation(42, undefined)).toBeUndefined();
+    expect(retainedHostObservation(42, 42)).toBe(true);
+    expect(retainedHostObservation(42, 43)).toBe(false);
+  });
+
   it("accepts only a same-generation, same-session reload after one controller connects", () => {
     const source = [
       JSON.stringify({
