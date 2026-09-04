@@ -62,7 +62,14 @@ async function verifyDesktopIcons(installRoot) {
   }
 }
 
-export async function verifyLinuxInstallRoot({ expectedAssets, installRoot }) {
+export async function verifyLinuxInstallRoot({
+  expectedAssets,
+  forbiddenBuildPath,
+  installRoot,
+}) {
+  if (typeof forbiddenBuildPath !== "string" || forbiddenBuildPath.length === 0) {
+    throw new Error("Linux build path check is required");
+  }
   const consolePath = join(installRoot, "usr", "bin", "zd");
   const desktopPath = join(installRoot, "usr", "bin", "zd-desktop");
   const [consoleBytes, desktopBytes] = await Promise.all([
@@ -75,6 +82,10 @@ export async function verifyLinuxInstallRoot({ expectedAssets, installRoot }) {
   const developmentUrl = Buffer.from("http://localhost:1420");
   if (consoleBytes.includes(developmentUrl) || desktopBytes.includes(developmentUrl)) {
     throw new Error("release artifact contains a development server URL");
+  }
+  const buildPath = Buffer.from(forbiddenBuildPath);
+  if (consoleBytes.includes(buildPath) || desktopBytes.includes(buildPath)) {
+    throw new Error("Linux package contains an absolute build path");
   }
 
   const binEntries = (await readdir(join(installRoot, "usr", "bin"))).sort();

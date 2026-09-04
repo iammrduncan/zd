@@ -1,5 +1,6 @@
 export interface LinuxInstallRootOptions {
   readonly expectedAssets: string;
+  readonly forbiddenBuildPath: string;
   readonly installRoot: string;
 }
 
