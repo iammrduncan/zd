@@ -240,7 +240,6 @@ const terminalOutput = new Map<string, Uint8Array>();
 type FixtureAgent = "claude-code" | "codex" | "opencode" | "shell";
 type TerminalScene = { readonly agent: FixtureAgent; readonly task: string };
 const terminalScenes: TerminalScene[] = [];
-let terminalSequence = 0;
 
 function terminalTranscript(scene: TerminalScene | undefined, projectName: string): string {
   if (!scene || scene.agent === "shell") {
@@ -273,7 +272,7 @@ function terminalTranscript(scene: TerminalScene | undefined, projectName: strin
 
 const terminal: Platform["terminal"] = {
   start: async (request) => {
-    const sessionId = `fixture-terminal-${++terminalSequence}`;
+    const sessionId = request.terminalId;
     const project = projects.find(({ id }) => id === request.projectId);
     const transcript = terminalTranscript(terminalScenes.shift(), project?.name ?? "project");
     terminalOutput.set(sessionId, new TextEncoder().encode(transcript));
