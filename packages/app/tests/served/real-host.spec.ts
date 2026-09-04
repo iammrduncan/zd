@@ -527,6 +527,25 @@ test("keeps every project terminal through a served-host process restart", async
   await closeAndDisposeTerminals(page, restarted.url, restarted.secret);
 });
 
+test("hands a paired workbench to a new page without another secret", async ({
+  page,
+  servedHost,
+}) => {
+  await page.goto(servedHost.url);
+  await page.getByLabel("Process secret").fill(servedHost.secret);
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.locator(".zd-workbench")).toBeVisible();
+
+  const replacement = await page.context().newPage();
+  try {
+    await replacement.goto(servedHost.url);
+    await expect(replacement.locator(".zd-workbench")).toBeVisible();
+    await expect(replacement.getByRole("heading", { name: "Connect to zd" })).toHaveCount(0);
+  } finally {
+    await replacement.close();
+  }
+});
+
 test("restores stable identities and all durable records in a new process and origin", async ({
   page,
   servedHost,

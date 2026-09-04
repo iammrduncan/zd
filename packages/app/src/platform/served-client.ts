@@ -5,6 +5,7 @@ const MAX_HOST_DURATION_MICROS = 60_000_000;
 const HEARTBEAT_INTERVAL_MILLIS = 10_000;
 const MAX_BUFFERED_EVENTS = 256;
 const MAX_RECONNECT_DELAY_MILLIS = 1_000;
+const CONTROLLER_ID_BYTES = 16;
 export const MAX_SERVED_MESSAGE_BYTES = 64 * 1024 * 1024;
 
 export interface HostSocketEvent {
@@ -100,6 +101,11 @@ function websocketUrl(origin: string): string {
   url.search = "";
   url.hash = "";
   return url.toString();
+}
+
+function createControllerId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(CONTROLLER_ID_BYTES));
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function recordObject(value: unknown): Record<string, unknown> | null {
@@ -211,6 +217,7 @@ class ReconnectingSocketClient implements ServedHostClient {
   readonly #now: () => number;
   readonly #nextRequestId: () => string;
   readonly #maxMessageBytes: number;
+  readonly #controllerId = createControllerId();
   readonly #pending = new Map<string, PendingRequest>();
   readonly #timings: ServedRequestTiming[] = [];
   readonly #eventListeners = new Set<(event: ServedHostEvent) => void>();
@@ -307,11 +314,13 @@ class ReconnectingSocketClient implements ServedHostClient {
             ? {
                 protocolVersion: PROTOCOL_VERSION,
                 type: "authenticate-browser",
+                controllerId: this.#controllerId,
               }
             : {
                 protocolVersion: PROTOCOL_VERSION,
                 type: "authenticate",
                 secret: this.#secret,
+                controllerId: this.#controllerId,
               },
         );
         if (!utf8LengthWithin(serialized, this.#maxMessageBytes)) {
@@ -359,6 +368,10 @@ class ReconnectingSocketClient implements ServedHostClient {
         } else {
           void this.#recoverAfterAuthentication(epoch, generation);
         }
+        return;
+      }
+      if (message.type === "error" && message.code === "controller-replaced") {
+        this.#fatal(messageProblem(message));
         return;
       }
       const event = servedEvent(message);

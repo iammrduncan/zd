@@ -40,9 +40,9 @@ cleared site cookie requires the current process secret again.
 The remembered credential is an HTTP-only site cookie. Page scripts and browser storage cannot read
 it. Do not add the process secret to the URL or save it in a shared command history.
 
-One served host admits one controlling browser at a time. Reloading that browser reconnects to the
-same session. If another browser reports that the controller is unavailable, close the connected
-workbench before connecting from the other browser.
+One served host admits one controlling browser page at a time. When another paired page connects,
+it takes control and retires the previous page. You do not need to close the previous page or enter
+the process secret again. Reload a retired page if you want that page to take control again.
 
 ## Open another folder on the host
 

@@ -198,6 +198,20 @@ async fn wrong_secret_and_unknown_auth_fields_fail_closed() {
     let refusal = receive_json(&mut unknown).await;
     assert_eq!(refusal["code"], "invalid-message");
 
+    let mut malformed_controller = connect_same_origin(&server).await;
+    send_json(
+        &mut malformed_controller,
+        json!({
+            "protocolVersion": 1,
+            "type": "authenticate",
+            "secret": server.running.secret(),
+            "controllerId": "not-a-controller-id",
+        }),
+    )
+    .await;
+    let refusal = receive_json(&mut malformed_controller).await;
+    assert_eq!(refusal["code"], "invalid-controller-id");
+
     server.shutdown().await;
 }
 
@@ -286,6 +300,114 @@ async fn only_one_authenticated_controller_is_admitted() {
 
     first.close(None).await.unwrap();
     server.shutdown().await;
+}
+
+#[tokio::test]
+async fn a_new_identified_controller_replaces_the_previous_controller() {
+    let server = TestServer::start("controller-handoff").await;
+    let mut first = connect_same_origin(&server).await;
+    send_json(
+        &mut first,
+        json!({
+            "protocolVersion": 1,
+            "type": "authenticate",
+            "secret": server.running.secret(),
+            "controllerId": "11111111111111111111111111111111",
+        }),
+    )
+    .await;
+    assert_eq!(receive_json(&mut first).await["type"], "authenticated");
+
+    let mut second = connect_same_origin(&server).await;
+    send_json(
+        &mut second,
+        json!({
+            "protocolVersion": 1,
+            "type": "authenticate",
+            "secret": server.running.secret(),
+            "controllerId": "22222222222222222222222222222222",
+        }),
+    )
+    .await;
+    assert_eq!(receive_json(&mut second).await["type"], "authenticated");
+
+    let replaced = timeout(Duration::from_secs(1), receive_json(&mut first))
+        .await
+        .expect("the previous controller is retired promptly");
+    assert_eq!(replaced["code"], "controller-replaced");
+
+    let mut retired = connect_same_origin(&server).await;
+    send_json(
+        &mut retired,
+        json!({
+            "protocolVersion": 1,
+            "type": "authenticate",
+            "secret": server.running.secret(),
+            "controllerId": "11111111111111111111111111111111",
+        }),
+    )
+    .await;
+    assert_eq!(
+        receive_json(&mut retired).await["code"],
+        "controller-replaced"
+    );
+
+    send_json(
+        &mut second,
+        json!({
+            "protocolVersion": 1,
+            "type": "request",
+            "requestId": "description-after-handoff",
+            "method": "session.describe",
+            "params": {},
+        }),
+    )
+    .await;
+    assert_eq!(receive_json(&mut second).await["type"], "response");
+
+    let mut third = connect_same_origin(&server).await;
+    send_json(
+        &mut third,
+        json!({
+            "protocolVersion": 1,
+            "type": "authenticate",
+            "secret": server.running.secret(),
+            "controllerId": "33333333333333333333333333333333",
+        }),
+    )
+    .await;
+    assert_eq!(receive_json(&mut third).await["type"], "authenticated");
+    let replaced = timeout(Duration::from_secs(1), receive_json(&mut second))
+        .await
+        .expect("the next handoff still retires the active controller");
+    assert_eq!(replaced["code"], "controller-replaced");
+
+    third.close(None).await.unwrap();
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn server_shutdown_closes_without_retiring_the_controller_page() {
+    let server = TestServer::start("controller-shutdown").await;
+    let mut socket = connect_same_origin(&server).await;
+    send_json(
+        &mut socket,
+        json!({
+            "protocolVersion": 1,
+            "type": "authenticate",
+            "secret": server.running.secret(),
+            "controllerId": "11111111111111111111111111111111",
+        }),
+    )
+    .await;
+    assert_eq!(receive_json(&mut socket).await["type"], "authenticated");
+
+    let shutdown = tokio::spawn(async move { server.shutdown().await });
+    let message = timeout(Duration::from_secs(1), socket.next())
+        .await
+        .expect("server shutdown closes the controller promptly");
+    assert!(matches!(message, Some(Ok(Message::Close(_)))));
+    shutdown.await.expect("server shutdown task finishes");
 }
 
 #[tokio::test(start_paused = true)]
