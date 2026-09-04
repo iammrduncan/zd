@@ -1,6 +1,7 @@
 export interface InstalledCounts {
   readonly console: number;
   readonly desktop: number;
+  readonly host: number;
 }
 
 export interface InstalledWrapperSmokeOptions {
@@ -17,4 +18,8 @@ export interface InstalledWrapperSmokeOptions {
 }
 
 export function parseSmokeReport(source: string, expectedPhase: string): Record<string, unknown>;
+export function retainedHostObservation(
+  expectedPid: number,
+  observedPid: number | undefined,
+): boolean | undefined;
 export function runInstalledWrapperSmoke(options: InstalledWrapperSmokeOptions): Promise<void>;
