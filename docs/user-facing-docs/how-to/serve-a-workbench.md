@@ -41,8 +41,9 @@ The remembered credential is an HTTP-only site cookie. Page scripts and browser 
 it. Do not add the process secret to the URL or save it in a shared command history.
 
 One served host admits one controlling browser page at a time. When another paired page connects,
-it takes control and retires the previous page. You do not need to close the previous page or enter
-the process secret again. Reload a retired page if you want that page to take control again.
+it takes control and pauses the previous page. Return to or interact with a paused page to take
+control again; the page reconnects and resynchronizes automatically. You do not need to close a
+page, reload it, or enter the process secret again.
 
 ## Open another folder on the host
 

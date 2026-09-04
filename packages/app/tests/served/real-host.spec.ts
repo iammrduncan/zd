@@ -10,6 +10,18 @@ interface SeededState {
   readonly worktreeId: string;
 }
 
+async function openNestedFixtureFile(page: Page): Promise<void> {
+  const files = page.getByRole("complementary", { name: "Files and Changes" });
+  const filesTab = files.getByRole("tab", { name: "FILES" });
+  if ((await filesTab.getAttribute("aria-selected")) !== "true") await filesTab.click();
+  await expect(filesTab).toHaveAttribute("aria-selected", "true");
+  const docs = files.locator('[data-file-path="docs"]');
+  await docs.click();
+  await expect(docs).toHaveAttribute("aria-expanded", "true");
+  await files.locator('[data-file-path="docs/inside.md"]').click();
+  await expect(page.locator('.editor-buffer[data-buffer-kind="editable"]')).toContainText("inside");
+}
+
 test("tolerates a durable record replaced while test evidence is read", async () => {
   const root = await mkdtemp(join(tmpdir(), "zd-served-tree-read-"));
   const record = join(root, "record.json");
@@ -591,6 +603,10 @@ test("hands a paired workbench to a new page without another secret", async ({
     await replacement.goto(servedHost.url);
     await expect(replacement.locator(".zd-workbench")).toBeVisible();
     await expect(replacement.getByRole("heading", { name: "Connect to zd" })).toHaveCount(0);
+    await openNestedFixtureFile(replacement);
+
+    await page.bringToFront();
+    await openNestedFixtureFile(page);
   } finally {
     await replacement.close();
   }

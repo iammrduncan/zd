@@ -78,6 +78,11 @@ interface PendingRequest {
   readonly reject: (problem: Error) => void;
 }
 
+interface ControllerReactivation {
+  readonly promise: Promise<void>;
+  readonly resolve: () => void;
+}
+
 function browserSocket(url: string): HostSocket {
   const socket = new WebSocket(url);
   return {
@@ -217,7 +222,7 @@ class ReconnectingSocketClient implements ServedHostClient {
   readonly #now: () => number;
   readonly #nextRequestId: () => string;
   readonly #maxMessageBytes: number;
-  readonly #controllerId = createControllerId();
+  #controllerId = createControllerId();
   readonly #pending = new Map<string, PendingRequest>();
   readonly #timings: ServedRequestTiming[] = [];
   readonly #eventListeners = new Set<(event: ServedHostEvent) => void>();
@@ -226,6 +231,7 @@ class ReconnectingSocketClient implements ServedHostClient {
   #generation = 0;
   #closed = false;
   #connected = false;
+  #retired = false;
   #authenticatedOnce = false;
   #recovering = false;
   #sessionEpoch: string | null = null;
@@ -237,6 +243,8 @@ class ReconnectingSocketClient implements ServedHostClient {
   #heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
   #heartbeatPending = false;
   #missedHeartbeats = 0;
+  #reactivation: ControllerReactivation | null = null;
+  #stopActivationListener: (() => void) | null = null;
   #initialResolve: ((client: ServedHostClient) => void) | null = null;
   #initialReject: ((problem: Error) => void) | null = null;
 
@@ -263,6 +271,9 @@ class ReconnectingSocketClient implements ServedHostClient {
 
   request<Result>(method: string, params: object): Promise<Result> {
     if (this.#closed) return Promise.reject(new Error("the served host connection is closed"));
+    if (this.#reactivation) {
+      return this.#reactivation.promise.then(() => this.request<Result>(method, params));
+    }
     if (!this.#connected || this.#recovering) {
       return Promise.reject(new Error("the served host connection is temporarily unavailable"));
     }
@@ -287,6 +298,9 @@ class ReconnectingSocketClient implements ServedHostClient {
     if (this.#closed) return;
     this.#closed = true;
     this.#connected = false;
+    this.#retired = false;
+    this.#stopListeningForActivation();
+    this.#finishReactivation();
     this.#clearTimers();
     this.#rejectPending(new Error("the served host connection was closed"));
     this.#socket?.close();
@@ -340,7 +354,9 @@ class ReconnectingSocketClient implements ServedHostClient {
       }
       if (!authenticated) {
         if (message.type === "error") {
-          if (message.code === "controller-unavailable" && this.#authenticatedOnce) {
+          if (message.code === "controller-replaced" && this.#authenticatedOnce) {
+            this.#retireController(generation, messageProblem(message));
+          } else if (message.code === "controller-unavailable" && this.#authenticatedOnce) {
             socket.close();
             this.#connectionFailed(generation, messageProblem(message));
           } else {
@@ -371,7 +387,7 @@ class ReconnectingSocketClient implements ServedHostClient {
         return;
       }
       if (message.type === "error" && message.code === "controller-replaced") {
-        this.#fatal(messageProblem(message));
+        this.#retireController(generation, messageProblem(message));
         return;
       }
       const event = servedEvent(message);
@@ -510,12 +526,12 @@ class ReconnectingSocketClient implements ServedHostClient {
     if (generation !== this.#generation || this.#closed) return;
     this.#recovering = true;
     try {
-      let needsSnapshot = false;
+      let needsSnapshot = this.#reactivation !== null;
       if (this.#sessionEpoch !== epoch) {
         this.#sessionEpoch = epoch;
         this.#lastSequence = 0;
         needsSnapshot = true;
-      } else {
+      } else if (!needsSnapshot) {
         const resume = await this.#sendRequest<unknown>("session.resume", {
           sessionEpoch: epoch,
           afterSequence: this.#lastSequence,
@@ -589,6 +605,8 @@ class ReconnectingSocketClient implements ServedHostClient {
     this.#recovering = false;
     this.#connected = true;
     this.#startHeartbeat(generation);
+    this.#retired = false;
+    this.#finishReactivation();
   }
 
   #failRecovery(generation: number): void {
@@ -690,10 +708,79 @@ class ReconnectingSocketClient implements ServedHostClient {
     this.#pending.clear();
   }
 
+  #retireController(generation: number, problem: Error): void {
+    if (generation !== this.#generation || this.#closed) return;
+    this.#generation += 1;
+    this.#connected = false;
+    this.#recovering = false;
+    this.#retired = true;
+    this.#clearTimers();
+    this.#rejectPending(problem);
+    const socket = this.#socket;
+    this.#socket = null;
+    socket?.close();
+    this.#finishReactivation();
+    this.#listenForActivation();
+  }
+
+  #listenForActivation(): void {
+    if (this.#stopActivationListener !== null || typeof window === "undefined") return;
+    const activate = () => this.#beginReactivation();
+    const activateVisiblePage = () => {
+      if (this.#pageIsActive()) this.#beginReactivation();
+    };
+    window.addEventListener("focus", activate);
+    window.addEventListener("pointerdown", activate, true);
+    window.addEventListener("click", activate, true);
+    window.addEventListener("keydown", activate, true);
+    document.addEventListener("visibilitychange", activateVisiblePage);
+    this.#stopActivationListener = () => {
+      window.removeEventListener("focus", activate);
+      window.removeEventListener("pointerdown", activate, true);
+      window.removeEventListener("click", activate, true);
+      window.removeEventListener("keydown", activate, true);
+      document.removeEventListener("visibilitychange", activateVisiblePage);
+    };
+  }
+
+  #stopListeningForActivation(): void {
+    this.#stopActivationListener?.();
+    this.#stopActivationListener = null;
+  }
+
+  #pageIsActive(): boolean {
+    return (
+      typeof document !== "undefined" &&
+      document.visibilityState === "visible" &&
+      document.hasFocus()
+    );
+  }
+
+  #beginReactivation(): void {
+    if (this.#closed || !this.#retired || this.#reactivation !== null) return;
+    this.#stopListeningForActivation();
+    this.#controllerId = createControllerId();
+    let resolve: () => void = () => undefined;
+    const promise = new Promise<void>((complete) => {
+      resolve = complete;
+    });
+    this.#reactivation = { promise, resolve };
+    this.#openSocket();
+  }
+
+  #finishReactivation(): void {
+    const reactivation = this.#reactivation;
+    this.#reactivation = null;
+    reactivation?.resolve();
+  }
+
   #fatal(problem: Error): void {
     if (this.#closed) return;
     this.#closed = true;
     this.#connected = false;
+    this.#retired = false;
+    this.#stopListeningForActivation();
+    this.#finishReactivation();
     this.#clearTimers();
     this.#rejectPending(problem);
     this.#socket?.close();

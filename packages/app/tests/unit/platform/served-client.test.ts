@@ -283,9 +283,10 @@ describe("served host client", () => {
     expect(socket.closed).toBe(true);
   });
 
-  it("retires a replaced controller without reconnecting against the newer page", async () => {
+  it("reactivates a replaced controller when its page receives focus", async () => {
     vi.useFakeTimers();
     const sockets: FakeSocket[] = [];
+    let requestSequence = 0;
     const connecting = connectServedHostClient({
       origin: "http://127.0.0.1:49151",
       secret: "process-secret",
@@ -294,10 +295,12 @@ describe("served host client", () => {
         sockets.push(socket);
         return socket;
       },
+      requestId: () => `request-${++requestSequence}`,
     });
-    const socket = sockets[0]!;
-    socket.emit("open");
-    socket.emit("message", {
+    const first = sockets[0]!;
+    first.emit("open");
+    const firstControllerId = JSON.parse(first.sent[0]!).controllerId as string;
+    first.emit("message", {
       data: JSON.stringify({
         protocolVersion: 1,
         type: "authenticated",
@@ -307,7 +310,7 @@ describe("served host client", () => {
     });
     const client = await connecting;
 
-    socket.emit("message", {
+    first.emit("message", {
       data: JSON.stringify({
         protocolVersion: 1,
         type: "error",
@@ -315,14 +318,65 @@ describe("served host client", () => {
         message: "A newer controller replaced this page",
       }),
     });
-    socket.emit("close");
-    await vi.advanceTimersByTimeAsync(5_000);
+    first.emit("close");
 
-    expect(socket.closed).toBe(true);
+    expect(first.closed).toBe(true);
     expect(sockets).toHaveLength(1);
-    await expect(client.request("session.describe", {})).rejects.toThrow(
-      "served host connection is closed",
-    );
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(sockets).toHaveLength(1);
+    window.dispatchEvent(new Event("focus"));
+    expect(sockets).toHaveLength(2);
+
+    const pending = client.request<{ startupProjectId: string }>("session.describe", {});
+    const second = sockets[1]!;
+    second.emit("open");
+    const secondAuthentication = JSON.parse(second.sent[0]!);
+    expect(secondAuthentication.controllerId).toMatch(/^[0-9a-f]{32}$/u);
+    expect(secondAuthentication.controllerId).not.toBe(firstControllerId);
+    second.emit("message", {
+      data: JSON.stringify({
+        protocolVersion: 1,
+        type: "authenticated",
+        sessionEpoch: "epoch-1",
+        sequence: 0,
+      }),
+    });
+    const snapshot = JSON.parse(second.sent[1]!);
+    expect(snapshot.method).toBe("session.snapshot");
+    second.emit("message", {
+      data: JSON.stringify({
+        protocolVersion: 1,
+        type: "response",
+        requestId: snapshot.requestId,
+        method: "session.snapshot",
+        result: {
+          sessionEpoch: "epoch-1",
+          sequence: 0,
+          resourceStatus: "active",
+          watches: [],
+          terminals: [],
+        },
+        timing: { queueMicros: 0, handlerMicros: 0, serializationMicros: 0 },
+      }),
+    });
+    await vi.waitFor(() => expect(second.sent).toHaveLength(3));
+    const description = JSON.parse(second.sent[2]!);
+    expect(description.method).toBe("session.describe");
+    second.emit("message", {
+      data: JSON.stringify({
+        protocolVersion: 1,
+        type: "response",
+        requestId: description.requestId,
+        method: "session.describe",
+        result: { startupProjectId: "project-1" },
+        timing: { queueMicros: 0, handlerMicros: 0, serializationMicros: 0 },
+      }),
+    });
+
+    await expect(pending).resolves.toEqual({ startupProjectId: "project-1" });
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(sockets).toHaveLength(2);
+    client.close();
   });
 
   it("bounds the number of client requests awaiting a response", async () => {
