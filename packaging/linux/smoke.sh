@@ -22,10 +22,15 @@ trap cleanup EXIT
 
 cd "$repo_root"
 node packages/scripts/release/inspect-linux-package.mjs "$artifact"
-dpkg-deb --extract "$artifact" "$install_root"
+node packages/scripts/release/linux-install-lifecycle.mjs prepare "$artifact" "$install_root"
+installed_zd="$(PATH="$install_root/usr/bin:$PATH" command -v zd)"
+if [[ "$installed_zd" != "$install_root/usr/bin/zd" ]]; then
+  echo "zd: installed Linux console command is unavailable on PATH" >&2
+  exit 1
+fi
 browser_log="$install_root/browser-smoke.log"
 browser_started=$SECONDS
-if ! ZD_SERVE_EXECUTABLE="$install_root/usr/bin/zd" \
+if ! ZD_SERVE_EXECUTABLE="$installed_zd" \
   npx playwright test --config playwright.served.config.ts >"$browser_log" 2>&1; then
   echo "zd: installed Linux browser smoke failed" >&2
   exit 1
@@ -45,3 +50,4 @@ if ! XDG_CONFIG_HOME="$install_root/home" \
   exit 1
 fi
 echo "Verified installed Linux wrapper: controller=one reload=same-session shell=show-workbench secondary=reused graceful=passed forced=passed crash=presented cleanup=passed"
+node packages/scripts/release/linux-install-lifecycle.mjs remove "$install_root"
