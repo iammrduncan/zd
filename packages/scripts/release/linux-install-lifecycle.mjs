@@ -18,7 +18,7 @@ const staleRelativePath = "usr/lib/zd/assets/stale-package-owned.txt";
 const markers = [
   ["home/zd-smoke/project/keep.md", "project data survives package removal\n"],
   [
-    "home/zd-smoke/.config/com.zensuite.zd/keep.state",
+    "home/com.zensuite.zd/keep.state",
     "application state survives package removal\n",
   ],
 ];
