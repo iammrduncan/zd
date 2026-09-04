@@ -67,7 +67,13 @@ describe("the extracted Linux artifact inspector", () => {
   it("accepts exactly two executable roles and one byte-identical frontend", async () => {
     const { expectedAssets, installRoot } = fixture();
 
-    await expect(verifyLinuxInstallRoot({ expectedAssets, installRoot })).resolves.toEqual({
+    await expect(
+      verifyLinuxInstallRoot({
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+        installRoot,
+      }),
+    ).resolves.toEqual({
       assetBytes: 57,
       assetFiles: 2,
       executables: ["usr/bin/zd", "usr/bin/zd-desktop"],
@@ -81,9 +87,13 @@ describe("the extracted Linux artifact inspector", () => {
       "console.log('changed');\n",
     );
 
-    await expect(verifyLinuxInstallRoot({ expectedAssets, installRoot })).rejects.toThrow(
-      "packaged frontend assets differ from packages/app/dist",
-    );
+    await expect(
+      verifyLinuxInstallRoot({
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+        installRoot,
+      }),
+    ).rejects.toThrow("packaged frontend assets differ from packages/app/dist");
   });
 
   it.each([
@@ -99,7 +109,13 @@ describe("the extracted Linux artifact inspector", () => {
     if (relative === "usr/bin/zd") rmSync(path);
     else write(path, "[Desktop Entry]\nExec=zd-desktop\n");
 
-    await expect(verifyLinuxInstallRoot({ expectedAssets, installRoot })).rejects.toThrow(message);
+    await expect(
+      verifyLinuxInstallRoot({
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+        installRoot,
+      }),
+    ).rejects.toThrow(message);
   });
 
   it("rejects source maps and development server references", async () => {
@@ -112,9 +128,13 @@ describe("the extracted Linux artifact inspector", () => {
       "fetch('http://localhost:1420');\n",
     );
 
-    await expect(verifyLinuxInstallRoot({ expectedAssets, installRoot })).rejects.toThrow(
-      "release frontend contains a source map",
-    );
+    await expect(
+      verifyLinuxInstallRoot({
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+        installRoot,
+      }),
+    ).rejects.toThrow("release frontend contains a source map");
   });
 
   it("rejects a development server URL embedded in an executable", async () => {
@@ -125,9 +145,26 @@ describe("the extracted Linux artifact inspector", () => {
       0o755,
     );
 
-    await expect(verifyLinuxInstallRoot({ expectedAssets, installRoot })).rejects.toThrow(
-      "release artifact contains a development server URL",
-    );
+    await expect(
+      verifyLinuxInstallRoot({
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+        installRoot,
+      }),
+    ).rejects.toThrow("release artifact contains a development server URL");
+  });
+
+  it("rejects an absolute checkout path embedded in an executable", async () => {
+    const { expectedAssets, installRoot } = fixture();
+    write(join(installRoot, "usr", "bin", "zd"), "console-role /build/zd\n", 0o755);
+
+    await expect(
+      verifyLinuxInstallRoot({
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+        installRoot,
+      }),
+    ).rejects.toThrow("Linux package contains an absolute build path");
   });
 
   it("rejects a missing desktop icon", async () => {
@@ -136,17 +173,25 @@ describe("the extracted Linux artifact inspector", () => {
       join(installRoot, "usr", "share", "icons", "hicolor", "128x128", "apps", "zd-desktop.png"),
     );
 
-    await expect(verifyLinuxInstallRoot({ expectedAssets, installRoot })).rejects.toThrow(
-      "required Linux desktop icon is missing",
-    );
+    await expect(
+      verifyLinuxInstallRoot({
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+        installRoot,
+      }),
+    ).rejects.toThrow("required Linux desktop icon is missing");
   });
 
   it("rejects a second installed frontend copy", async () => {
     const { expectedAssets, installRoot } = fixture();
     write(join(installRoot, "usr", "share", "zd", "index.html"), "duplicate\n");
 
-    await expect(verifyLinuxInstallRoot({ expectedAssets, installRoot })).rejects.toThrow(
-      "Linux package contains more than one frontend",
-    );
+    await expect(
+      verifyLinuxInstallRoot({
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+        installRoot,
+      }),
+    ).rejects.toThrow("Linux package contains more than one frontend");
   });
 });

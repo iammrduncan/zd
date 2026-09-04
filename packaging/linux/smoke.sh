@@ -32,6 +32,7 @@ browser_log="$install_root/browser-smoke.log"
 browser_started=$SECONDS
 if ! ZD_SERVE_EXECUTABLE="$installed_zd" \
   npx playwright test --config playwright.served.config.ts >"$browser_log" 2>&1; then
+  cat "$browser_log" >&2
   echo "zd: installed Linux browser smoke failed" >&2
   exit 1
 fi
@@ -46,6 +47,7 @@ wrapper_log="$install_root/wrapper-smoke.log"
 if ! XDG_CONFIG_HOME="$install_root/home" \
   xvfb-run -a dbus-run-session -- \
   node packages/scripts/release/smoke-linux-wrapper.mjs "$install_root" >"$wrapper_log" 2>&1; then
+  cat "$wrapper_log" >&2
   echo "zd: installed Linux wrapper smoke failed" >&2
   exit 1
 fi

@@ -37,6 +37,8 @@ describe("the Linux Debian package", () => {
     expect(source).toContain('wrapper_log="$install_root/wrapper-smoke.log"');
     expect(source).toContain("installed Linux browser smoke failed");
     expect(source).toContain("installed Linux wrapper smoke failed");
+    expect(source).toContain('cat "$browser_log" >&2');
+    expect(source).toContain('cat "$wrapper_log" >&2');
     expect(source).toContain('>"$wrapper_log" 2>&1');
     expect(lifecycle).toContain(
       "Verified installed Linux package: install=passed upgrade=passed stale=removed",

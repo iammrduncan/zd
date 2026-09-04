@@ -57,6 +57,7 @@ try {
   await execFileAsync("dpkg-deb", ["--extract", artifact, installRoot]);
   const summary = await verifyLinuxInstallRoot({
     expectedAssets: join(repositoryRoot, "packages", "app", "dist"),
+    forbiddenBuildPath: repositoryRoot,
     installRoot,
   });
   const artifactBytes = (await stat(artifact)).size;

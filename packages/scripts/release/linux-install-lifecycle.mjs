@@ -176,6 +176,7 @@ async function prepare(artifactArgument, rootArgument) {
 
   const summary = await verifyLinuxInstallRoot({
     expectedAssets: join(repositoryRoot, "packages", "app", "dist"),
+    forbiddenBuildPath: repositoryRoot,
     installRoot: root,
   });
   await verifyMarkers(root);
