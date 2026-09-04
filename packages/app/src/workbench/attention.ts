@@ -186,6 +186,7 @@ function row(labelText: string, control: HTMLElement): HTMLLabelElement {
 function checkbox(marker: string): HTMLInputElement {
   const input = document.createElement("input");
   input.type = "checkbox";
+  input.name = marker;
   input.dataset[marker] = "true";
   return input;
 }
@@ -217,6 +218,7 @@ export function mountAttentionSettings(
   const muted = checkbox("soundMute");
   const volume = document.createElement("input");
   volume.type = "range";
+  volume.name = "sound-volume";
   volume.min = "0";
   volume.max = "100";
   volume.step = "5";
@@ -225,6 +227,7 @@ export function mountAttentionSettings(
   const selects = new Map<SupportedAttentionAgent, HTMLSelectElement>();
   const agentRows = supportedAttentionAgents.map((agent) => {
     const select = document.createElement("select");
+    select.name = `${agent}-completion-sound`;
     select.dataset.agentSound = agent;
     for (const choice of completionSounds) {
       const option = document.createElement("option");

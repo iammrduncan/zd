@@ -26,6 +26,56 @@ test("tolerates a durable record replaced while test evidence is read", async ()
   }
 });
 
+test("gives served form fields stable browser identities", async ({ page, servedHost }) => {
+  await page.goto(servedHost.url);
+  await page.getByLabel("Process secret").fill(servedHost.secret);
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.locator(".zd-workbench")).toBeVisible();
+
+  const unnamedFields = page.locator(":is(input, select, textarea):not([id]):not([name])");
+  expect(
+    await unnamedFields.evaluateAll((fields) =>
+      fields.map((field) => ({
+        tagName: field.tagName,
+        className: field.className,
+        ariaLabel: field.getAttribute("aria-label"),
+        type: field.getAttribute("type"),
+      })),
+    ),
+  ).toEqual([]);
+
+  await page.getByRole("button", { name: "Open project folder" }).click();
+  await expect(page.getByRole("dialog", { name: "Open remote folder" })).toBeVisible();
+  expect(
+    await unnamedFields.evaluateAll((fields) =>
+      fields.map((field) => ({
+        tagName: field.tagName,
+        className: field.className,
+        ariaLabel: field.getAttribute("aria-label"),
+        type: field.getAttribute("type"),
+      })),
+    ),
+  ).toEqual([]);
+  await page
+    .getByRole("dialog", { name: "Open remote folder" })
+    .getByRole("button", { name: "Cancel" })
+    .click();
+
+  await page.keyboard.press("ControlOrMeta+j");
+  await expect(page.locator("[data-project-terminal]")).toBeVisible();
+  expect(
+    await unnamedFields.evaluateAll((fields) =>
+      fields.map((field) => ({
+        tagName: field.tagName,
+        className: field.className,
+        ariaLabel: field.getAttribute("aria-label"),
+        type: field.getAttribute("type"),
+      })),
+    ),
+  ).toEqual([]);
+  await closeAndDisposeTerminals(page, servedHost.url, servedHost.secret);
+});
+
 async function seedDurableState(page: Page, url: string, secret: string): Promise<SeededState> {
   await page.goto(url);
   return page.evaluate(

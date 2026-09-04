@@ -36,6 +36,7 @@ function elements(): FileTreeElements {
   filter.hidden = true;
   const filterInput = document.createElement("input");
   filterInput.type = "search";
+  filterInput.name = "file-filter";
   filterInput.className = "zd-file-tree-filter-input";
   filterInput.autocomplete = "off";
   filterInput.spellcheck = false;
@@ -219,6 +220,7 @@ export function mountFileTree(
     label.textContent = title;
     const input = document.createElement("input");
     input.type = "text";
+    input.name = "file-operation-name";
     input.value = operation === "rename" ? name : "";
     input.setAttribute("aria-label", operation === "rename" ? "New name" : "Name");
     const problem = document.createElement("span");

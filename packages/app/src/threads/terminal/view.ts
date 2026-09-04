@@ -81,6 +81,7 @@ export function mountTerminalThreadSurface(
   search.hidden = true;
   const query = document.createElement("input");
   query.type = "search";
+  query.name = "terminal-search";
   query.spellcheck = false;
   query.autocomplete = "off";
   query.setAttribute("aria-label", "Find in terminal");
@@ -88,6 +89,7 @@ export function mountTerminalThreadSurface(
   caseLabel.className = "zd-terminal-thread-search-option";
   const caseSensitive = document.createElement("input");
   caseSensitive.type = "checkbox";
+  caseSensitive.name = "terminal-search-case-sensitive";
   caseSensitive.setAttribute("aria-label", "Match terminal case");
   caseLabel.append(caseSensitive, document.createTextNode("Aa"));
   const previous = document.createElement("button");

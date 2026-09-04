@@ -46,6 +46,7 @@ export function mountShortcutSettings(
   status.setAttribute("aria-live", "polite");
   const query = document.createElement("input");
   query.type = "search";
+  query.name = "shortcut-filter";
   query.className = "zd-shortcut-settings-filter";
   query.placeholder = "Filter shortcuts";
   query.setAttribute("aria-label", "Filter shortcuts");

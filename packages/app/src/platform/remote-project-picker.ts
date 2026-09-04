@@ -88,6 +88,7 @@ async function runRemoteProjectPicker(
   filterForm.setAttribute("role", "search");
   const filterInput = document.createElement("input");
   filterInput.type = "search";
+  filterInput.name = "folder-filter";
   filterInput.maxLength = 256;
   filterInput.dataset.remoteProjectFilter = "true";
   filterInput.setAttribute("aria-label", "Filter folders by name");

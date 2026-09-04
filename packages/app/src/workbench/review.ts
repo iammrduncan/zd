@@ -173,6 +173,7 @@ export function mountReview(host: HTMLElement, platform: Platform): Review {
   composer.setAttribute("aria-label", "Add comment");
 
   const textbox = document.createElement("textarea");
+  textbox.name = "comment";
   textbox.rows = 3;
   textbox.placeholder = "Comment on selected text";
   textbox.setAttribute("aria-label", "Comment");

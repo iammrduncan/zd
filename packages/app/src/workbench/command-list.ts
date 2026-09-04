@@ -45,6 +45,7 @@ export function mountCommandList(
     const query = document.createElement("input");
     query.className = "zd-command-list-query";
     query.type = "text";
+    query.name = "command-filter";
     query.placeholder = "Type a command";
     query.setAttribute("aria-label", "Filter commands");
     query.setAttribute("aria-controls", "zd-command-list-results");

@@ -257,9 +257,10 @@ class XtermEmulator implements TerminalEmulator {
   }
 
   setLabel(label: string): void {
-    this.#host
-      ?.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea")
-      ?.setAttribute("aria-label", label);
+    const textarea = this.#host?.querySelector<HTMLTextAreaElement>(".xterm-helper-textarea");
+    if (!textarea) return;
+    textarea.name = "terminal-input";
+    textarea.setAttribute("aria-label", label);
   }
 
   focus(): void {

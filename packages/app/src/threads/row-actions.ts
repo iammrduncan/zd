@@ -18,6 +18,7 @@ export function renderThreadRename(
   renameForm.dataset.threadRenameInline = "true";
   renameForm.hidden = true;
   const name = document.createElement("input");
+  name.name = "thread-name";
   name.value = thread.name;
   name.required = true;
   name.maxLength = 160;
