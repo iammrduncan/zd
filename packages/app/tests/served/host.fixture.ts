@@ -189,13 +189,29 @@ function freeHostPort(host: string, excluding: number): Promise<number> {
   });
 }
 
-async function readTreeText(root: string): Promise<string> {
+export async function readTreeText(
+  root: string,
+  readText: (path: string) => Promise<string> = (path) => readFile(path, "utf8"),
+): Promise<string> {
   const contents: string[] = [];
   const visit = async (directory: string): Promise<void> => {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
       if (entry.isDirectory()) await visit(path);
-      else if (entry.isFile()) contents.push(await readFile(path, "utf8"));
+      else if (entry.isFile()) {
+        try {
+          contents.push(await readText(path));
+        } catch (cause) {
+          if (
+            typeof cause !== "object" ||
+            cause === null ||
+            !("code" in cause) ||
+            cause.code !== "ENOENT"
+          ) {
+            throw cause;
+          }
+        }
+      }
     }
   };
   await visit(root);
