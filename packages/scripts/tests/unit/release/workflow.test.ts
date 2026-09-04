@@ -9,6 +9,16 @@ const RELEASE_GUIDE = resolve(ROOT, "docs/_internal/releasing.md");
 const workflow = () => readFileSync(WORKFLOW, "utf8");
 
 describe("the tagged release workflow", () => {
+  it("only invokes npm scripts defined by the repository", () => {
+    const manifest = JSON.parse(readFileSync(resolve(ROOT, "package.json"), "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    const invoked = [...workflow().matchAll(/npm run ([\w:-]+)/gu)].map((match) => match[1]!);
+
+    expect(invoked.length).toBeGreaterThan(0);
+    expect(invoked.filter((name) => manifest.scripts[name] === undefined)).toEqual([]);
+  });
+
   it("publishes only from version tags and validates the package version", () => {
     const source = workflow();
 
