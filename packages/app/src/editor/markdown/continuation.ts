@@ -1,5 +1,5 @@
 /** Markdown-specific structure continuation for the shared editor owner. */
-import { markdownKeymap } from "@codemirror/lang-markdown";
+import { deleteMarkupBackward, insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import {
   Annotation,
@@ -40,6 +40,22 @@ const UNORDERED_ITEM_PREFIX = /^[\t ]*[-+*][\t ]+(?:\[[ xX]\][\t ]+)?/u;
 
 /** A structural fence edit that is allowed to cross a protected delimiter boundary. */
 const fenceStructureEdit = Annotation.define<boolean>();
+
+/** Continue Markdown only after its syntax tree reaches every active caret. */
+export const continueParsedMarkdown: StateCommand = (target) => {
+  const lastCaret = target.state.selection.ranges.at(-1)?.to ?? 0;
+  const parsed = ensureSyntaxTree(target.state, lastCaret);
+  if (!parsed || parsed === syntaxTree(target.state)) {
+    return insertNewlineContinueMarkup(target);
+  }
+
+  const parseUpdate = target.state.update({});
+  target.dispatch(parseUpdate);
+  return insertNewlineContinueMarkup({
+    state: parseUpdate.state,
+    dispatch: target.dispatch,
+  });
+};
 
 /**
  * A second Enter leaves the complete list, including from a nested empty item.
@@ -479,6 +495,9 @@ export function markdownStructure(): Extension {
       { key: "Enter", run: continueListFromContinuation },
       { key: "Backspace", run: removeEmptyFence },
     ]),
-    keymap.of(markdownKeymap),
+    keymap.of([
+      { key: "Enter", run: continueParsedMarkdown },
+      { key: "Backspace", run: deleteMarkupBackward },
+    ]),
   ];
 }
