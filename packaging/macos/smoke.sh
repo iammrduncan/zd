@@ -52,7 +52,12 @@ if ! ZD_SERVE_EXECUTABLE="$install_root/bin/zd" \
   echo "zd: installed macOS browser smoke failed" >&2
   exit 1
 fi
-echo "Verified installed macOS browser: tests=3 cleanup=passed durationSeconds=$((SECONDS - browser_started))"
+browser_tests="$(sed -nE 's/^[[:space:]]*([0-9]+) passed .*/\1/p' "$browser_log" | tail -n 1)"
+if [[ ! "$browser_tests" =~ ^[1-9][0-9]*$ ]]; then
+  echo "zd: installed macOS browser smoke result is unavailable" >&2
+  exit 1
+fi
+echo "Verified installed macOS browser: tests=$browser_tests cleanup=passed durationSeconds=$((SECONDS - browser_started))"
 
 wrapper_log="$install_root/wrapper-smoke.log"
 if ! node packages/scripts/release/smoke-macos-wrapper.mjs "$installed_app" \
