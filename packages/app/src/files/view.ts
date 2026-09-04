@@ -3,7 +3,7 @@ import "./files.css";
 
 import { fileTreeStateText } from "./labels";
 import { maximumRowColumns } from "./model";
-import { createFileTreeRow } from "./row";
+import { activateFileTreeEntry, createFileTreeRow } from "./row";
 import type { FileTreeController } from "./controller";
 import type { FileTreeViewSnapshot } from "./types";
 import { FILE_TREE_ROW_HEIGHT, fileTreeWindow } from "./virtualizer";
@@ -594,6 +594,7 @@ export function mountFileTree(
         readonly startX: number;
         readonly startY: number;
         active: boolean;
+        moved: boolean;
       }
     | undefined;
   let suppressDragClick = false;
@@ -614,18 +615,20 @@ export function mountFileTree(
 
   function moveMouseDrag(event: MouseEvent): void {
     if (!mouseDrag) return;
+    const path = pathUnderPointer(event.clientX, event.clientY);
     if (!mouseDrag.active) {
       const distance = Math.hypot(
         event.clientX - mouseDrag.startX,
         event.clientY - mouseDrag.startY,
       );
       if (distance < 5) return;
+      mouseDrag.moved = true;
+      if (path !== undefined && mouseDrag.paths.includes(path ?? "")) return;
       mouseDrag.active = true;
       ui.root.dataset.dragging = "true";
     }
 
     event.preventDefault();
-    const path = pathUnderPointer(event.clientX, event.clientY);
     setDropTarget(path === undefined ? null : path);
   }
 
@@ -633,8 +636,10 @@ export function mountFileTree(
     const gesture = mouseDrag;
     if (!gesture) return;
     const path = pathUnderPointer(event.clientX, event.clientY);
-    const transfer = gesture.active && path !== undefined;
-    if (gesture.active) {
+    const sameRow = path !== null && path !== undefined && gesture.paths.includes(path);
+    const jitteredClick = gesture.moved && !gesture.active && sameRow;
+    const transfer = gesture.active && path !== undefined && !gesture.paths.includes(path ?? "");
+    if (gesture.active || jitteredClick) {
       event.preventDefault();
       suppressDragClick = true;
       if (suppressDragClickTimer !== null) clearTimeout(suppressDragClickTimer);
@@ -645,6 +650,13 @@ export function mountFileTree(
     }
     clearDropTarget();
     stopMouseDrag();
+    if (jitteredClick && path) {
+      const entry = controller
+        .snapshot()
+        .entries.find((candidate) => candidate.relativePath === path);
+      if (entry) activateFileTreeEntry(entry, controller, event);
+      return;
+    }
     if (transfer) {
       void controller.transferPaths(
         gesture.paths,
@@ -665,6 +677,7 @@ export function mountFileTree(
       startX: event.clientX,
       startY: event.clientY,
       active: false,
+      moved: false,
     };
     window.addEventListener("mousemove", moveMouseDrag, { capture: true, passive: false });
     window.addEventListener("mouseup", finishMouseDrag, { capture: true, passive: false });

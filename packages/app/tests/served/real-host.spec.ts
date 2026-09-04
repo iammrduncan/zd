@@ -15,6 +15,22 @@ interface TerminalWriteCapture {
   textAfter(sessionId: string, checkpoint: number): string;
 }
 
+async function clickWithPointerJitter(page: Page, target: Locator): Promise<void> {
+  await expect(target).toBeVisible();
+  let bounds = await target.boundingBox();
+  for (let attempt = 0; bounds === null && attempt < 100; attempt += 1) {
+    await page.waitForTimeout(50);
+    bounds = await target.boundingBox();
+  }
+  if (bounds === null) throw new Error("the file-tree row has no pointer geometry");
+  const x = bounds.x + bounds.width / 2;
+  const y = bounds.y + bounds.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 6, y);
+  await page.mouse.up();
+}
+
 function captureTerminalWrites(page: Page): TerminalWriteCapture {
   const writes = new Map<string, Buffer[]>();
   page.on("websocket", (socket) => {
@@ -129,6 +145,23 @@ test("gives served form fields stable browser identities", async ({ page, served
     ),
   ).toEqual([]);
   await closeAndDisposeTerminals(page, servedHost.url, servedHost.secret);
+});
+
+test("opens file-tree rows despite normal pointer jitter", async ({ page, servedHost }) => {
+  await page.goto(servedHost.url);
+  await page.getByLabel("Process secret").fill(servedHost.secret);
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.locator(".zd-workbench")).toBeVisible();
+
+  const files = page.getByRole("complementary", { name: "Files and Changes" });
+  const docs = files.locator('[data-file-path="docs"]');
+  await clickWithPointerJitter(page, docs);
+  await expect(docs).toHaveAttribute("aria-expanded", "true");
+
+  await clickWithPointerJitter(page, files.locator('[data-file-path="docs/inside.md"]'));
+  await expect(page.locator('.editor-buffer[data-buffer-kind="editable"]')).toContainText(
+    "inside",
+  );
 });
 
 async function seedDurableState(page: Page, url: string, secret: string): Promise<SeededState> {
