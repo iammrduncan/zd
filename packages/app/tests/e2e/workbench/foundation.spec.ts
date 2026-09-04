@@ -1,8 +1,61 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+
+async function expectMountedFieldsToHaveBrowserIdentity(
+  page: Page,
+  surface: string,
+): Promise<void> {
+  const unnamed = await page
+    .locator(":is(input, select, textarea):not([id]):not([name])")
+    .evaluateAll((fields) =>
+      fields.map((field) => ({
+        tagName: field.tagName,
+        className: field.className,
+        ariaLabel: field.getAttribute("aria-label"),
+        type: field.getAttribute("type"),
+      })),
+    );
+  expect(unnamed, `${surface} mounted unnamed browser fields`).toEqual([]);
+}
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/dev/workbench.html");
   await page.locator(".current-file .cm-editor").waitFor();
+});
+
+test("every mounted workbench field has a stable browser identity", async ({ page }) => {
+  await expectMountedFieldsToHaveBrowserIdentity(page, "initial workbench");
+
+  const files = page.getByRole("complementary", { name: "Files and Changes" });
+  await files.locator('[data-file-path="docs"]').click({ button: "right" });
+  await page.getByRole("menuitem", { name: "New File…" }).click();
+  const createFile = page.getByRole("dialog", { name: "New file in docs" });
+  await expect(createFile).toBeVisible();
+  await expectMountedFieldsToHaveBrowserIdentity(page, "file creation");
+  await createFile.getByRole("button", { name: "Cancel" }).click();
+
+  await page.keyboard.press("ControlOrMeta+,");
+  await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+  await expectMountedFieldsToHaveBrowserIdentity(page, "Settings");
+  await page.keyboard.press("Escape");
+
+  await page.keyboard.press("ControlOrMeta+Period");
+  await expect(page.getByRole("dialog", { name: "Shortcut Reference" })).toBeVisible();
+  await expectMountedFieldsToHaveBrowserIdentity(page, "Shortcut Reference");
+  await page.keyboard.press("Escape");
+
+  await page.keyboard.press("ControlOrMeta+Shift+p");
+  await expect(page.getByRole("dialog", { name: "Command List" })).toBeVisible();
+  await expectMountedFieldsToHaveBrowserIdentity(page, "Command List");
+  await page.keyboard.press("Escape");
+
+  await page.keyboard.press("ControlOrMeta+n");
+  const activeThread = page.locator('[data-thread-id][aria-current="true"]');
+  await expect(activeThread).toBeVisible();
+  await expectMountedFieldsToHaveBrowserIdentity(page, "terminal thread");
+  await activeThread.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Rename" }).click();
+  await expect(page.locator("[data-thread-rename-form]:visible")).toBeVisible();
+  await expectMountedFieldsToHaveBrowserIdentity(page, "thread rename");
 });
 
 test("the root file surface owns editing, Find, save, and explicit Focus Mode", async ({

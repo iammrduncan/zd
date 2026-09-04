@@ -70,6 +70,7 @@ export function mountDiagnosticSettings(
   label.className = "zd-diagnostic-toggle";
   const toggle = document.createElement("input");
   toggle.type = "checkbox";
+  toggle.name = "diagnostics-enabled";
   toggle.dataset.diagnosticsToggle = "true";
   toggle.checked = instrumentation.snapshot().enabled && diagnosticsEnabled();
   const name = document.createElement("span");

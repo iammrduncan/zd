@@ -100,6 +100,7 @@ function range(
   controls.className = "zd-settings-range";
   const input = document.createElement("input");
   input.type = "range";
+  input.name = `settings-${label.toLocaleLowerCase().replaceAll(" ", "-")}`;
   input.min = String(minimum);
   input.max = String(maximum);
   input.step = String(step);

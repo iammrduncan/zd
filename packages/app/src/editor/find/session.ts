@@ -83,6 +83,7 @@ export function createEditorFind(
   const queryInput = document.createElement("input");
   queryInput.className = "editor-find-query";
   queryInput.type = "text";
+  queryInput.name = "editor-find-query";
   queryInput.autocomplete = "off";
   queryInput.spellcheck = false;
   queryInput.setAttribute("aria-label", "Find");
@@ -108,6 +109,7 @@ export function createEditorFind(
     replacementInput = document.createElement("input");
     replacementInput.className = "editor-find-replacement";
     replacementInput.type = "text";
+    replacementInput.name = "editor-find-replacement";
     replacementInput.autocomplete = "off";
     replacementInput.spellcheck = false;
     replacementInput.setAttribute("aria-label", "Replace");

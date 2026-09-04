@@ -80,6 +80,7 @@ function elements(): ChangesElements {
   toolbar.className = "zd-changes-toolbar";
   const filter = document.createElement("input");
   filter.type = "search";
+  filter.name = "change-filter";
   filter.className = "zd-changes-filter";
   filter.placeholder = "Filter changes";
   filter.autocomplete = "off";
