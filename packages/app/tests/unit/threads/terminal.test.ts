@@ -272,6 +272,20 @@ describe("the terminal-backed thread session", () => {
     expect(adapter.write.mock.calls.map(([, bytes]) => bytes)).toEqual([[1], [2]]);
   });
 
+  it("coalesces concurrent exit polls raised by terminal output", async () => {
+    const adapter = fakeAdapter();
+    const exit = deferred<null>();
+    adapter.pollExit.mockReturnValue(exit.promise);
+    const terminal = TerminalThreadSession.attach(adapter, session);
+
+    const first = terminal.pollExit();
+    const second = terminal.pollExit();
+
+    expect(adapter.pollExit).toHaveBeenCalledOnce();
+    exit.resolve(null);
+    await expect(Promise.all([first, second])).resolves.toEqual([null, null]);
+  });
+
   it("never infers busy or waiting merely because output arrived", async () => {
     const adapter = fakeAdapter([output([...new TextEncoder().encode("done\n")])]);
     const lifecycle = vi.fn();

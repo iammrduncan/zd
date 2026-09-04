@@ -72,6 +72,7 @@ export class TerminalThreadSession {
   #outputDeliveryTail: Promise<void> = Promise.resolve();
   #pendingOutput: Uint8Array[] = [];
   #pendingOutputBytes = 0;
+  #pollExitPromise: Promise<TerminalExitStatus | null> | null = null;
   #readError: string | null = null;
   #refreshPromise: Promise<void> | null = null;
   #refreshQueued = false;
@@ -330,17 +331,24 @@ export class TerminalThreadSession {
     return this.#transcript.search(query, options);
   }
 
-  async pollExit(): Promise<TerminalExitStatus | null> {
+  pollExit(): Promise<TerminalExitStatus | null> {
+    if (this.#pollExitPromise) return this.#pollExitPromise;
     const handle = this.#attachedHandle();
-    try {
-      const exit = await this.adapter.pollExit(handle);
-      if (exit) this.#applyExit(exit);
-      this.#record("terminal.poll-exit", "ok");
-      return exit ? { ...exit } : null;
-    } catch (cause) {
-      this.#record("terminal.poll-exit", "failed");
-      throw cause;
-    }
+    const work = this.adapter.pollExit(handle).then(
+      (exit) => {
+        if (exit) this.#applyExit(exit);
+        this.#record("terminal.poll-exit", "ok");
+        return exit ? { ...exit } : null;
+      },
+      (cause) => {
+        this.#record("terminal.poll-exit", "failed");
+        throw cause;
+      },
+    );
+    this.#pollExitPromise = work.finally(() => {
+      this.#pollExitPromise = null;
+    });
+    return this.#pollExitPromise;
   }
 
   async terminate(): Promise<TerminalExitStatus | null> {

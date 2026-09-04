@@ -10,6 +10,49 @@ interface SeededState {
   readonly worktreeId: string;
 }
 
+interface TerminalWriteCapture {
+  checkpoint(sessionId: string): number;
+  textAfter(sessionId: string, checkpoint: number): string;
+}
+
+function captureTerminalWrites(page: Page): TerminalWriteCapture {
+  const writes = new Map<string, Buffer[]>();
+  page.on("websocket", (socket) => {
+    socket.on("framesent", ({ payload }) => {
+      if (typeof payload !== "string") return;
+      let message: unknown;
+      try {
+        message = JSON.parse(payload);
+      } catch {
+        return;
+      }
+      if (typeof message !== "object" || message === null || !("method" in message)) return;
+      if (message.method !== "terminal.write" || !("params" in message)) return;
+      const params = message.params;
+      if (typeof params !== "object" || params === null) return;
+      if (!("session" in params) || !("bytesBase64" in params)) return;
+      const session = params.session;
+      if (
+        typeof session !== "object" ||
+        session === null ||
+        !("sessionId" in session) ||
+        typeof session.sessionId !== "string" ||
+        typeof params.bytesBase64 !== "string"
+      ) {
+        return;
+      }
+      const chunks = writes.get(session.sessionId) ?? [];
+      chunks.push(Buffer.from(params.bytesBase64, "base64"));
+      writes.set(session.sessionId, chunks);
+    });
+  });
+  const contents = (sessionId: string): Buffer => Buffer.concat(writes.get(sessionId) ?? []);
+  return {
+    checkpoint: (sessionId) => contents(sessionId).length,
+    textAfter: (sessionId, checkpoint) => contents(sessionId).subarray(checkpoint).toString("utf8"),
+  };
+}
+
 async function openNestedFixtureFile(page: Page): Promise<void> {
   const files = page.getByRole("complementary", { name: "Files and Changes" });
   const filesTab = files.getByRole("tab", { name: "FILES" });
@@ -520,6 +563,7 @@ test("keeps every project terminal through a served-host process restart", async
   page,
   servedHost,
 }) => {
+  const terminalWrites = captureTerminalWrites(page);
   await page.goto(servedHost.url);
   await page.getByLabel("Process secret").fill(servedHost.secret);
   await page.getByRole("button", { name: "Unlock" }).click();
@@ -550,8 +594,12 @@ test("keeps every project terminal through a served-host process restart", async
   const originalPids: string[] = [];
   for (let index = 0; index < 2; index += 1) {
     const pane = originalPanes.nth(index);
+    const sessionId = originalSessionIds[index]!;
     const marker = `__ZD_RESTART_PID_${index + 1}__`;
-    await enterTerminalCommand(pane, `printf '${marker}%s\\n' "$$"`);
+    const command = `printf '${marker}%s\\n' "$$"`;
+    const checkpoint = terminalWrites.checkpoint(sessionId);
+    await enterTerminalCommand(pane, command);
+    await expect.poll(() => terminalWrites.textAfter(sessionId, checkpoint)).toBe(`${command}\r`);
     originalPids.push(await terminalPid(pane.locator(".xterm-rows"), marker));
   }
 
@@ -578,12 +626,16 @@ test("keeps every project terminal through a served-host process restart", async
   ).toEqual(originalSessionIds);
   for (let index = 0; index < 2; index += 1) {
     const pane = restoredPanes.nth(index);
+    const sessionId = originalSessionIds[index]!;
     const marker = `__ZD_RESTART_PID_${index + 1}__`;
     const afterMarker = `__ZD_RESTART_PID_AFTER_${index + 1}__`;
     const pid = originalPids[index]!;
     await expect(pane.locator(".xterm-rows")).toContainText(`${marker}${pid}`);
     expect(servedHost.isProcessRunning(Number(pid))).toBe(true);
-    await enterTerminalCommand(pane, `printf '${afterMarker}%s\\n' "$$"`);
+    const command = `printf '${afterMarker}%s\\n' "$$"`;
+    const checkpoint = terminalWrites.checkpoint(sessionId);
+    await enterTerminalCommand(pane, command);
+    await expect.poll(() => terminalWrites.textAfter(sessionId, checkpoint)).toBe(`${command}\r`);
     expect(await terminalPid(pane.locator(".xterm-rows"), afterMarker)).toBe(pid);
   }
   await closeAndDisposeTerminals(page, restarted.url, restarted.secret);
