@@ -1,10 +1,30 @@
-import { disposeServedTerminals, expect, test } from "./host.fixture";
 import type { Locator, Page } from "@playwright/test";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { disposeServedTerminals, expect, readTreeText, test } from "./host.fixture";
 
 interface SeededState {
   readonly projectId: string;
   readonly worktreeId: string;
 }
+
+test("tolerates a durable record replaced while test evidence is read", async () => {
+  const root = await mkdtemp(join(tmpdir(), "zd-served-tree-read-"));
+  const record = join(root, "record.json");
+  try {
+    await writeFile(record, '{"revision":1}', "utf8");
+    const contents = await readTreeText(root, async (path) => {
+      await rm(path);
+      return readFile(path, "utf8");
+    });
+
+    expect(contents).toBe("");
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
 
 async function seedDurableState(page: Page, url: string, secret: string): Promise<SeededState> {
   await page.goto(url);
