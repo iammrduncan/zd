@@ -24,6 +24,9 @@ describe("the Linux Debian package", () => {
     expect(source).toContain("xvfb-run -a");
     expect(source).toContain("smoke-linux-wrapper.mjs");
     expect(source).toContain('browser_log="$install_root/browser-smoke.log"');
+    expect(source).toContain('browser_tests="$(sed -nE');
+    expect(source).toContain("tests=$browser_tests");
+    expect(source).not.toMatch(/tests=\d+/u);
     expect(source).toContain('wrapper_log="$install_root/wrapper-smoke.log"');
     expect(source).toContain("installed Linux browser smoke failed");
     expect(source).toContain("installed Linux wrapper smoke failed");

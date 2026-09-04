@@ -46,6 +46,9 @@ describe("the macOS application bundle", () => {
     expect(source).toContain("inspect-macos-app.mjs");
     expect(source).toContain('ZD_SERVE_EXECUTABLE="$install_root/bin/zd"');
     expect(source).toContain("playwright.served.config.ts");
+    expect(source).toContain('browser_tests="$(sed -nE');
+    expect(source).toContain("tests=$browser_tests");
+    expect(source).not.toMatch(/tests=\d+/u);
     expect(source).toContain("smoke-macos-wrapper.mjs");
     expect(source).toContain(
       "Verified installed macOS wrapper: controller=one reload=same-session " +
