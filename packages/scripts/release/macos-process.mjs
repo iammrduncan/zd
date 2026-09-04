@@ -12,6 +12,10 @@ export function parseProcessTable(source) {
   return processes;
 }
 
+export function isWrapperHostCommand(command, executable) {
+  return command === `${executable} __zd-wrapper-child`;
+}
+
 export function parseLsofListeners(source) {
   const ports = [];
   for (const line of source.split(/\r?\n/u)) {

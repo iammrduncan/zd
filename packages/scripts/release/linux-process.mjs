@@ -3,6 +3,16 @@ export function parseParentPid(status) {
   return match ? Number(match[1]) : null;
 }
 
+export function isWrapperHostCommandLine(source) {
+  const argumentsList = source.toString().split("\0");
+  if (argumentsList.at(-1) === "") argumentsList.pop();
+  return (
+    argumentsList.length === 2 &&
+    argumentsList[0].length > 0 &&
+    argumentsList[1] === "__zd-wrapper-child"
+  );
+}
+
 export function parseTcpListeners(table, ownedInodes) {
   const ports = [];
   for (const line of table.split(/\r?\n/u).slice(1)) {

@@ -72,6 +72,10 @@ export function parseSmokeReport(source, expectedPhase) {
   return record;
 }
 
+export function retainedHostObservation(expectedPid, observedPid) {
+  return observedPid === undefined ? undefined : observedPid === expectedPid;
+}
+
 async function waitUntil(check, message) {
   const deadline = Date.now() + STARTUP_TIMEOUT_MS;
   while (Date.now() < deadline) {
@@ -169,8 +173,21 @@ async function processState(options, primary, expectedPhase) {
 async function requireOnePair(options) {
   await waitUntil(async () => {
     const counts = await options.installedCounts();
-    return counts.console === 1 && counts.desktop === 1;
+    return counts.host === 1 && counts.desktop === 1;
   }, "installed wrapper did not retain one desktop and one host");
+}
+
+async function requireSameHost(options, primaryPid, expectedPid) {
+  await waitUntil(async () => {
+    const retained = retainedHostObservation(
+      expectedPid,
+      await options.directHostChild(primaryPid),
+    );
+    if (retained === false) {
+      throw new Error("secondary installed launch replaced the desktop host");
+    }
+    return retained;
+  }, "secondary installed launch did not retain an observable desktop host");
 }
 
 async function requireNoProcesses(options) {
@@ -211,9 +228,7 @@ async function runNormal(options) {
       throw new Error("secondary installed launch did not return successfully");
     }
     await requireOnePair(options);
-    if ((await options.directHostChild(scenario.child.pid)) !== hostPid) {
-      throw new Error("secondary installed launch replaced the desktop host");
-    }
+    await requireSameHost(options, scenario.child.pid, hostPid);
     await closeFromTrigger(scenario, GRACEFUL_CLOSE_MAX_MS);
     await requireNoProcesses(options);
     await proveReusablePort(port);

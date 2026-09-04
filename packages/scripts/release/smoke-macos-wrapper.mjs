@@ -7,7 +7,11 @@ import { join, resolve, sep } from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
 
-import { parseLsofListeners, parseProcessTable } from "./macos-process.mjs";
+import {
+  isWrapperHostCommand,
+  parseLsofListeners,
+  parseProcessTable,
+} from "./macos-process.mjs";
 import { runInstalledWrapperSmoke } from "./wrapper/smoke.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -60,6 +64,7 @@ async function installedCounts() {
   return {
     desktop: table.filter((entry) => commandUses(entry.command, desktopPath)).length,
     console: table.filter((entry) => commandUses(entry.command, consolePath)).length,
+    host: table.filter((entry) => isWrapperHostCommand(entry.command, consolePath)).length,
   };
 }
 

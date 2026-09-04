@@ -1,11 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import { parseParentPid, parseTcpListeners } from "../../../../release/linux-process.mjs";
+import {
+  isWrapperHostCommandLine,
+  parseParentPid,
+  parseTcpListeners,
+} from "../../../../release/linux-process.mjs";
 
 describe("Linux installed-wrapper process inspection", () => {
   it("reads process parentage independently of the spawning thread", () => {
     expect(parseParentPid("Name:\tzd\nState:\tS (sleeping)\nPPid:\t4321\n")).toBe(4321);
     expect(parseParentPid("Name:\tzd\nState:\tS (sleeping)\n")).toBeNull();
+  });
+
+  it("counts only the wrapper host role when private processes share the zd executable", () => {
+    expect(isWrapperHostCommandLine("/usr/bin/zd\0__zd-wrapper-child\0")).toBe(true);
+    expect(
+      isWrapperHostCommandLine("/usr/bin/zd\0__zd-terminal-keeper\0/state/com.zensuite.zd\0"),
+    ).toBe(false);
+    expect(isWrapperHostCommandLine("/usr/bin/zd\0/tmp/project\0")).toBe(false);
   });
 
   it("selects the one loopback listener owned by the host", () => {

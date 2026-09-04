@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { parseLsofListeners, parseProcessTable } from "../../../../release/macos-process.mjs";
+import {
+  isWrapperHostCommand,
+  parseLsofListeners,
+  parseProcessTable,
+} from "../../../../release/macos-process.mjs";
 
 describe("macOS installed-wrapper process inspection", () => {
   it("parses parentage without losing executable paths", () => {
@@ -22,6 +26,19 @@ describe("macOS installed-wrapper process inspection", () => {
         pid: 200,
       },
     ]);
+  });
+
+  it("counts only the wrapper host role when private processes share the zd executable", () => {
+    const executable = "/tmp/installed app/zd.app/Contents/Resources/bin/zd";
+
+    expect(isWrapperHostCommand(`${executable} __zd-wrapper-child`, executable)).toBe(true);
+    expect(
+      isWrapperHostCommand(
+        `${executable} __zd-terminal-keeper /tmp/state/com.zensuite.zd`,
+        executable,
+      ),
+    ).toBe(false);
+    expect(isWrapperHostCommand(`${executable} /tmp/project`, executable)).toBe(false);
   });
 
   it("selects only IPv4 loopback listener ports", () => {
