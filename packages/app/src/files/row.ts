@@ -1,6 +1,12 @@
 import { categoryIconClass, categoryLabel, fileTreeEntryLabel } from "./labels";
 import type { FileTreeController } from "./controller";
-import type { FileTreeViewSnapshot, VisibleFileTreeRow } from "./types";
+import type { FileTreeEntry, FileTreeViewSnapshot, VisibleFileTreeRow } from "./types";
+
+interface FileTreeActivationModifiers {
+  readonly ctrlKey: boolean;
+  readonly metaKey: boolean;
+  readonly shiftKey: boolean;
+}
 
 function gitStateClass(row: VisibleFileTreeRow): string | null {
   const state = row.entry.gitState;
@@ -9,6 +15,25 @@ function gitStateClass(row: VisibleFileTreeRow): string | null {
   if (state === "deleted") return "deleted";
   if (state === "ignored") return "ignored";
   return "changed";
+}
+
+export function activateFileTreeEntry(
+  entry: FileTreeEntry,
+  controller: FileTreeController,
+  modifiers: FileTreeActivationModifiers,
+): void {
+  const mode = modifiers.shiftKey
+    ? "range"
+    : modifiers.metaKey || modifiers.ctrlKey
+      ? "toggle"
+      : "replace";
+  controller.select(entry.relativePath, mode);
+  if (mode !== "replace") return;
+  if (entry.kind === "directory") {
+    controller.toggle(entry.relativePath);
+    return;
+  }
+  void controller.activateSelected();
 }
 
 export function createFileTreeRow(
@@ -57,14 +82,7 @@ export function createFileTreeRow(
   name.textContent = row.entry.name;
   button.append(guides, disclosure, icon, name);
   button.addEventListener("click", (event) => {
-    const mode = event.shiftKey ? "range" : event.metaKey || event.ctrlKey ? "toggle" : "replace";
-    controller.select(row.entry.relativePath, mode);
-    if (mode !== "replace") return;
-    if (row.entry.kind === "directory") {
-      controller.toggle(row.entry.relativePath);
-      return;
-    }
-    void controller.activateSelected();
+    activateFileTreeEntry(row.entry, controller, event);
   });
   return button;
 }
