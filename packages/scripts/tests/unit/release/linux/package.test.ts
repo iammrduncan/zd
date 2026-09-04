@@ -15,11 +15,18 @@ describe("the Linux Debian package", () => {
     expect(manifest.scripts["smoke:linux"]).toBe("bash packaging/linux/smoke.sh");
   });
 
-  it("inspects and exercises the extracted artifact before release", () => {
+  it("installs, upgrades, exercises, and removes the artifact before release", () => {
     const source = readFileSync(resolve(ROOT, "packaging/linux/smoke.sh"), "utf8");
+    const lifecycle = readFileSync(
+      resolve(ROOT, "packages/scripts/release/linux-install-lifecycle.mjs"),
+      "utf8",
+    );
 
     expect(source).toContain("inspect-linux-package.mjs");
-    expect(source).toContain('ZD_SERVE_EXECUTABLE="$install_root/usr/bin/zd"');
+    expect(source).toContain('linux-install-lifecycle.mjs prepare "$artifact" "$install_root"');
+    expect(source).toContain('linux-install-lifecycle.mjs remove "$install_root"');
+    expect(source).toContain('PATH="$install_root/usr/bin:$PATH" command -v zd');
+    expect(source).toContain('ZD_SERVE_EXECUTABLE="$installed_zd"');
     expect(source).toContain("playwright.served.config.ts");
     expect(source).toContain("xvfb-run -a");
     expect(source).toContain("smoke-linux-wrapper.mjs");
@@ -31,6 +38,13 @@ describe("the Linux Debian package", () => {
     expect(source).toContain("installed Linux browser smoke failed");
     expect(source).toContain("installed Linux wrapper smoke failed");
     expect(source).toContain('>"$wrapper_log" 2>&1');
+    expect(lifecycle).toContain(
+      "Verified installed Linux package: install=passed upgrade=passed stale=removed",
+    );
+    expect(lifecycle).toContain(
+      "Verified removed Linux package: package-files=removed user-data=preserved",
+    );
+    expect(source).not.toContain("dpkg-deb --extract");
     expect(source).toContain(
       "Verified installed Linux wrapper: controller=one reload=same-session " +
         "shell=show-workbench secondary=reused graceful=passed forced=passed " +
