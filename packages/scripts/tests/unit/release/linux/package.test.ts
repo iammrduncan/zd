@@ -44,6 +44,7 @@ describe("the Linux Debian package", () => {
     expect(lifecycle).toContain(
       "Verified removed Linux package: package-files=removed user-data=preserved",
     );
+    expect(lifecycle).toContain('"home/com.zensuite.zd/keep.state"');
     expect(source).not.toContain("dpkg-deb --extract");
     expect(source).toContain(
       "Verified installed Linux wrapper: controller=one reload=same-session " +
