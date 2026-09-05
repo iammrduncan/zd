@@ -128,6 +128,15 @@ describe("the repository documentation map", () => {
     expect(guide).not.toMatch(/\bxattr\b|\bspctl\b/);
   });
 
+  it("uses the host's exact configuration directory for local themes", () => {
+    const guide = page("docs/user-facing-docs/how-to/customize-themes.md");
+
+    expect(guide).toContain("~/Library/Application Support/com.zensuite.zd");
+    expect(guide).toContain("%APPDATA%\\com.zensuite.zd");
+    expect(guide).toContain("$XDG_CONFIG_HOME/com.zensuite.zd");
+    expect(guide).toContain("~/.config/com.zensuite.zd");
+  });
+
   it("documents only the supported downloads and the direct remote-browser path", () => {
     const readme = page("README.md");
     const hub = page("docs/user-facing-docs/README.md");

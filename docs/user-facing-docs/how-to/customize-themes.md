@@ -40,9 +40,9 @@ remount an editor.
 
    | Platform | Directory |
    | --- | --- |
-   | macOS | `~/Library/Application Support/zd` |
-   | Windows | `%APPDATA%\zd` |
-   | Linux | `$XDG_CONFIG_HOME/zd`, or `~/.config/zd` when `XDG_CONFIG_HOME` is unset |
+   | macOS | `~/Library/Application Support/com.zensuite.zd` |
+   | Windows | `%APPDATA%\com.zensuite.zd` |
+   | Linux | `$XDG_CONFIG_HOME/com.zensuite.zd`, or `~/.config/com.zensuite.zd` when `XDG_CONFIG_HOME` is unset |
 
 2. Create a direct child named `<name>.theme.config`. Use only letters, numbers, `_`, or `-` in
    `<name>`. Do not use `system` or `workbench`.
