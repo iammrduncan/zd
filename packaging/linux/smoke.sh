@@ -32,8 +32,8 @@ browser_log="$install_root/browser-smoke.log"
 browser_started=$SECONDS
 if ! ZD_SERVE_EXECUTABLE="$installed_zd" \
   npx playwright test --config playwright.served.config.ts >"$browser_log" 2>&1; then
-  cat "$browser_log" >&2
-  echo "zd: installed Linux browser smoke failed" >&2
+  browser_log_bytes="$(wc -c <"$browser_log" | tr -d '[:space:]')"
+  echo "zd: installed Linux browser smoke failed outcome=failed durationSeconds=$((SECONDS - browser_started)) logBytes=$browser_log_bytes" >&2
   exit 1
 fi
 browser_tests="$(sed -nE 's/^[[:space:]]*([0-9]+) passed .*/\1/p' "$browser_log" | tail -n 1)"
@@ -43,12 +43,21 @@ if [[ ! "$browser_tests" =~ ^[1-9][0-9]*$ ]]; then
 fi
 echo "Verified installed Linux browser: tests=$browser_tests cleanup=passed durationSeconds=$((SECONDS - browser_started))"
 
+if ! command -v xvfb-run >/dev/null 2>&1; then
+  echo "zd: installed Linux wrapper smoke unavailable dependency=xvfb-run" >&2
+  exit 1
+fi
+if ! command -v dbus-run-session >/dev/null 2>&1; then
+  echo "zd: installed Linux wrapper smoke unavailable dependency=dbus-run-session" >&2
+  exit 1
+fi
 wrapper_log="$install_root/wrapper-smoke.log"
+wrapper_started=$SECONDS
 if ! XDG_CONFIG_HOME="$install_root/home" \
   xvfb-run -a dbus-run-session -- \
   node packages/scripts/release/smoke-linux-wrapper.mjs "$install_root" >"$wrapper_log" 2>&1; then
-  cat "$wrapper_log" >&2
-  echo "zd: installed Linux wrapper smoke failed" >&2
+  wrapper_log_bytes="$(wc -c <"$wrapper_log" | tr -d '[:space:]')"
+  echo "zd: installed Linux wrapper smoke failed outcome=failed durationSeconds=$((SECONDS - wrapper_started)) logBytes=$wrapper_log_bytes" >&2
   exit 1
 fi
 echo "Verified installed Linux wrapper: controller=one reload=same-session shell=show-workbench secondary=reused graceful=passed forced=passed crash=presented cleanup=passed"
