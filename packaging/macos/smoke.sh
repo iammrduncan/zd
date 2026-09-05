@@ -49,6 +49,7 @@ browser_log="$install_root/browser-smoke.log"
 browser_started=$SECONDS
 if ! ZD_SERVE_EXECUTABLE="$install_root/bin/zd" \
   npx playwright test --config playwright.served.config.ts >"$browser_log" 2>&1; then
+  cat "$browser_log" >&2
   echo "zd: installed macOS browser smoke failed" >&2
   exit 1
 fi
@@ -62,6 +63,7 @@ echo "Verified installed macOS browser: tests=$browser_tests cleanup=passed dura
 wrapper_log="$install_root/wrapper-smoke.log"
 if ! node packages/scripts/release/smoke-macos-wrapper.mjs "$installed_app" \
   >"$wrapper_log" 2>&1; then
+  cat "$wrapper_log" >&2
   echo "zd: installed macOS wrapper smoke failed" >&2
   exit 1
 fi
