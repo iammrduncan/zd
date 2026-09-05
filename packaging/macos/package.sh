@@ -10,9 +10,16 @@ version="$(node -p "require('$repo_root/package.json').version")"
 architecture="$(uname -m)"
 dmg_path="$bundle_dir/dmg/zd_${version}_${architecture}.dmg"
 staging="$(mktemp -d "${TMPDIR:-/tmp}/zd-dmg.XXXXXX")"
+case "$staging" in
+  "${TMPDIR:-/tmp}"/zd-dmg.*) ;;
+  *) echo "zd: refusing unexpected package staging path" >&2; exit 1 ;;
+esac
 
 cleanup() {
-  rm -rf "$staging"
+  case "$staging" in
+    "${TMPDIR:-/tmp}"/zd-dmg.*) rm -rf -- "$staging" ;;
+    *) echo "zd: refusing unexpected package cleanup target" >&2; return 1 ;;
+  esac
 }
 trap cleanup EXIT
 

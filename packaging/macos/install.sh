@@ -26,12 +26,41 @@ fi
 mkdir -p "$applications_dir" "$bin_dir"
 app_staging="$(mktemp -d "$applications_dir/.zd-install.XXXXXX")"
 link_staging="$(mktemp -d "$bin_dir/.zd-install.XXXXXX")"
+
+is_safe_staging() {
+  local candidate="$1"
+  local parent="$2"
+  local name
+  name="$(basename "$candidate")"
+  [[ -d "$candidate" &&
+    ! -L "$candidate" &&
+    "$(dirname "$candidate")" == "$parent" &&
+    "$name" == .zd-install.* ]]
+}
+
+if ! is_safe_staging "$app_staging" "$applications_dir" ||
+  ! is_safe_staging "$link_staging" "$bin_dir"; then
+  echo "zd: refusing unexpected installer staging path" >&2
+  exit 1
+fi
+
 previous_app="$app_staging/previous.app"
 staged_app="$app_staging/zd.app"
 staged_link="$link_staging/zd"
 
 cleanup() {
-  rm -rf "$app_staging" "$link_staging"
+  if is_safe_staging "$app_staging" "$applications_dir"; then
+    rm -rf -- "$app_staging"
+  else
+    echo "zd: refusing unexpected app staging cleanup target" >&2
+    return 1
+  fi
+  if is_safe_staging "$link_staging" "$bin_dir"; then
+    rm -rf -- "$link_staging"
+  else
+    echo "zd: refusing unexpected link staging cleanup target" >&2
+    return 1
+  fi
 }
 trap cleanup EXIT
 

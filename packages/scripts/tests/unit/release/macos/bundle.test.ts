@@ -76,6 +76,9 @@ describe("the macOS application bundle", () => {
     expect(source).toContain('codesign --force --sign - "$app_path/Contents/MacOS/zd-desktop"');
     expect(source).toContain('codesign --force --sign - "$app_path"');
     expect(source).toContain('codesign --verify --deep --strict "$app_path"');
+    expect(source).toContain('case "$staging" in');
+    expect(source).toContain('"${TMPDIR:-/tmp}"/zd-dmg.*) rm -rf -- "$staging"');
+    expect(source).not.toContain('rm -rf "$staging"');
     expect(source).not.toContain("--bundles app,dmg");
     expect(source).not.toContain("osascript");
   });
