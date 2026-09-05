@@ -1,9 +1,31 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import {
+  chmodSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd());
+const temporaryDirectories: string[] = [];
+
+afterEach(() => {
+  for (const directory of temporaryDirectories.splice(0)) {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+function temporaryDirectory() {
+  const directory = mkdtempSync(join(tmpdir(), "zd-macos-package-test-"));
+  temporaryDirectories.push(directory);
+  return directory;
+}
 
 describe("the macOS application bundle", () => {
   it("registers zd as an alternate editor for Markdown documents", () => {
@@ -81,5 +103,32 @@ describe("the macOS application bundle", () => {
     expect(source).not.toContain('rm -rf "$staging"');
     expect(source).not.toContain("--bundles app,dmg");
     expect(source).not.toContain("osascript");
+  });
+
+  it("refuses and preserves an unexpected package staging directory", () => {
+    const root = temporaryDirectory();
+    const commands = resolve(root, "commands");
+    const unsafeStaging = resolve(root, "unrelated");
+    const sentinel = resolve(unsafeStaging, "keep.txt");
+    const mktemp = resolve(commands, "mktemp");
+    mkdirSync(commands);
+    mkdirSync(unsafeStaging);
+    writeFileSync(sentinel, "keep me");
+    writeFileSync(mktemp, '#!/bin/sh\nprintf "%s\\n" "$ZD_TEST_UNSAFE_STAGING"\n');
+    chmodSync(mktemp, 0o755);
+
+    const result = spawnSync("bash", [resolve(ROOT, "packaging/macos/package.sh")], {
+      cwd: ROOT,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        ZD_TEST_UNSAFE_STAGING: unsafeStaging,
+        PATH: `${commands}:${process.env.PATH ?? ""}`,
+      },
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("refusing unexpected package staging path");
+    expect(readFileSync(sentinel, "utf8")).toBe("keep me");
   });
 });
