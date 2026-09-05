@@ -39,19 +39,35 @@ function fakeApplication(root: string) {
   return resolve(root, "source", "zd.app");
 }
 
-function fakeSystemCommands(root: string) {
+function fakeSystemCommands(root: string, failLinkMove = false) {
   const commands = resolve(root, "commands");
   const ditto = resolve(commands, "ditto");
-  mkdirSync(commands);
+  mkdirSync(commands, { recursive: true });
   writeFileSync(ditto, '#!/bin/sh\nset -eu\ncp -R "$1" "$2"\n');
   chmodSync(ditto, 0o755);
+  if (failLinkMove) {
+    const move = resolve(commands, "mv");
+    writeFileSync(
+      move,
+      [
+        "#!/bin/sh",
+        "set -eu",
+        'if [ "${1:-}" = "-f" ] && [ "${3:-}" = "$ZD_TEST_COMMAND_PATH" ]; then',
+        "  exit 1",
+        "fi",
+        'exec /bin/mv "$@"',
+        "",
+      ].join("\n"),
+    );
+    chmodSync(move, 0o755);
+  }
   return commands;
 }
 
-function install(root: string, source: string) {
+function install(root: string, source: string, failLinkMove = false) {
   const applications = resolve(root, "Applications");
   const bin = resolve(root, "bin");
-  const commands = fakeSystemCommands(root);
+  const commands = fakeSystemCommands(root, failLinkMove);
   const result = spawnSync("bash", [INSTALLER], {
     cwd: ROOT,
     encoding: "utf8",
@@ -60,6 +76,7 @@ function install(root: string, source: string) {
       ZD_APP_SOURCE: source,
       ZD_APPLICATIONS_DIR: applications,
       ZD_BIN_DIR: bin,
+      ZD_TEST_COMMAND_PATH: resolve(bin, "zd"),
       PATH: `${commands}:${process.env.PATH ?? ""}`,
     },
   });
@@ -117,6 +134,23 @@ describe("the macOS command installer", () => {
 
     expect(result.status, result.stderr).toBe(0);
     expect(existsSync(stale)).toBe(false);
+  });
+
+  it("restores the previous app when the command-link replacement fails", () => {
+    const root = temporaryDirectory();
+    const source = fakeApplication(root);
+    const first = install(root, source);
+    expect(first.result.status, first.result.stderr).toBe(0);
+    const preserved = resolve(first.applications, "zd.app", "Contents", "preserved.txt");
+    writeFileSync(preserved, "previous release");
+
+    const failed = install(root, source, true);
+
+    expect(failed.result.status).toBe(1);
+    expect(readFileSync(preserved, "utf8")).toBe("previous release");
+    expect(readlinkSync(resolve(failed.bin, "zd"))).toBe(
+      resolve(failed.applications, "zd.app", "Contents", "Resources", "bin", "zd"),
+    );
   });
 
   it("refuses a source without both executable roles", () => {
