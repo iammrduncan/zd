@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Superseded by
+[0005: Publish versioned macOS and Linux releases](0005-publish-macos-and-linux-releases_H.md).
 
 ## Context
 

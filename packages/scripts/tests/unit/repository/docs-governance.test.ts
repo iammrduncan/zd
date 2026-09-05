@@ -18,6 +18,7 @@ const ADRS = [
   "docs/adr/repository/0001-use-a-feedback-driven-session-loop_H.md",
   "docs/adr/repository/0002-publish-versioned-desktop-releases_H.md",
   "docs/adr/repository/0003-organize-docs-by-authority-and-audience_H.md",
+  "docs/adr/repository/0005-publish-macos-and-linux-releases_H.md",
 ];
 
 const page = (path: string): string => readFileSync(resolve(ROOT, path), "utf8");
