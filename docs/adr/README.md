@@ -34,9 +34,10 @@ changes through a [Zen Suite Improvement Proposal (ZSIP)](../zsip/README.md).
 ### Repository
 
 - [0001: Use a feedback-driven session loop](repository/0001-use-a-feedback-driven-session-loop_H.md)
-- [0002: Publish versioned desktop releases](repository/0002-publish-versioned-desktop-releases_H.md)
+- [0002: Publish versioned desktop releases](repository/0002-publish-versioned-desktop-releases_H.md) — superseded
 - [0003: Organize docs by authority and audience](repository/0003-organize-docs-by-authority-and-audience_H.md) — superseded
 - [0004: Use docs/planning for active work](repository/0004-use-docs-planning-for-active-work_H.md)
+- [0005: Publish versioned macOS and Linux releases](repository/0005-publish-macos-and-linux-releases_H.md)
 
 ## Minimal format
 
