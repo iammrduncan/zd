@@ -6,25 +6,15 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd());
-const ADRS = [
-  "docs/adr/suite/0001-use-tauri-with-portable-web-frontend_H.md",
-  "docs/adr/suite/0002-put-native-authority-behind-platform-boundary_H.md",
-  "docs/adr/suite/0003-scope-file-access-to-launch-workspace_H.md",
-  "docs/adr/suite/0004-dispatch-application-commands-from-suite-registry_H.md",
-  "docs/adr/md/0001-use-browser-layout-for-markdown_H.md",
-  "docs/adr/md/0002-use-one-always-editable-document-surface_H.md",
-  "docs/adr/md/0003-confirm-writes-before-marking-a-document-clean_H.md",
-  "docs/adr/md/0004-treat-rendered-markdown-as-untrusted_H.md",
-  "docs/adr/repository/0001-use-a-feedback-driven-session-loop_H.md",
-  "docs/adr/repository/0002-publish-versioned-desktop-releases_H.md",
-  "docs/adr/repository/0003-organize-docs-by-authority-and-audience_H.md",
-  "docs/adr/repository/0005-publish-macos-and-linux-releases_H.md",
-];
+const ADRS = readdirSync(resolve(ROOT, "docs/adr"), { recursive: true })
+  .filter((path) => /(?:^|\/)\d{4}-.+_H\.md$/.test(path))
+  .map((path) => `docs/adr/${path}`)
+  .sort();
 
 const page = (path: string): string => readFileSync(resolve(ROOT, path), "utf8");
 
 describe("the ZenSuite documentation governance system", () => {
-  it("records the accepted decisions recovered from audits, feedback, and implementation", () => {
+  it("indexes every ADR stored in the repository", () => {
     expect(ADRS.filter((path) => !existsSync(resolve(ROOT, path)))).toEqual([]);
 
     const index = page("docs/adr/README.md");
