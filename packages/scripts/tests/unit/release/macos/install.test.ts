@@ -141,4 +141,36 @@ describe("the macOS command installer", () => {
     expect(result.stderr).toContain("refusing to replace unrelated command");
     expect(readFileSync(command, "utf8")).toBe("leave me alone");
   });
+
+  it("refuses and preserves a staging directory outside the requested install roots", () => {
+    const root = temporaryDirectory();
+    const source = fakeApplication(root);
+    const applications = resolve(root, "Applications");
+    const bin = resolve(root, "bin");
+    const commands = fakeSystemCommands(root);
+    const unsafeStaging = resolve(root, "unrelated");
+    const sentinel = resolve(unsafeStaging, "keep.txt");
+    const mktemp = resolve(commands, "mktemp");
+    mkdirSync(unsafeStaging);
+    writeFileSync(sentinel, "keep me");
+    writeFileSync(mktemp, '#!/bin/sh\nprintf "%s\\n" "$ZD_TEST_UNSAFE_STAGING"\n');
+    chmodSync(mktemp, 0o755);
+
+    const result = spawnSync("bash", [INSTALLER], {
+      cwd: ROOT,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        ZD_APP_SOURCE: source,
+        ZD_APPLICATIONS_DIR: applications,
+        ZD_BIN_DIR: bin,
+        ZD_TEST_UNSAFE_STAGING: unsafeStaging,
+        PATH: `${commands}:${process.env.PATH ?? ""}`,
+      },
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("refusing unexpected installer staging path");
+    expect(readFileSync(sentinel, "utf8")).toBe("keep me");
+  });
 });
