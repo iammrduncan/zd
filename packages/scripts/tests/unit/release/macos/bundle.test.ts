@@ -47,13 +47,15 @@ describe("the macOS application bundle", () => {
     expect(source).toContain('ZD_SERVE_EXECUTABLE="$install_root/bin/zd"');
     expect(source).toContain("playwright.served.config.ts");
     expect(source).toContain('browser_log="$install_root/browser-smoke.log"');
-    expect(source).toContain('cat "$browser_log" >&2');
+    expect(source).not.toContain('cat "$browser_log"');
+    expect(source).toContain("logBytes=$browser_log_bytes");
     expect(source).toContain('browser_tests="$(sed -nE');
     expect(source).toContain("tests=$browser_tests");
     expect(source).not.toMatch(/tests=\d+/u);
     expect(source).toContain("smoke-macos-wrapper.mjs");
     expect(source).toContain('wrapper_log="$install_root/wrapper-smoke.log"');
-    expect(source).toContain('cat "$wrapper_log" >&2');
+    expect(source).not.toContain('cat "$wrapper_log"');
+    expect(source).toContain("logBytes=$wrapper_log_bytes");
     expect(source).toContain(
       "Verified installed macOS wrapper: controller=one reload=same-session " +
         "shell=show-workbench secondary=reused graceful=passed forced=passed " +
