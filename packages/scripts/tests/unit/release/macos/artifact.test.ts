@@ -50,7 +50,13 @@ describe("the macOS application artifact inspector", () => {
   it("accepts two executable roles and one byte-identical frontend", async () => {
     const { appPath, expectedAssets } = fixture();
 
-    await expect(verifyMacosAppBundle({ appPath, expectedAssets })).resolves.toEqual({
+    await expect(
+      verifyMacosAppBundle({
+        appPath,
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+      }),
+    ).resolves.toEqual({
       assetBytes: 57,
       assetFiles: 2,
       executables: ["Contents/MacOS/zd-desktop", "Contents/Resources/bin/zd"],
@@ -61,9 +67,13 @@ describe("the macOS application artifact inspector", () => {
     const { appPath, expectedAssets } = fixture();
     rmSync(join(appPath, "Contents", "Resources", "bin", "zd"));
 
-    await expect(verifyMacosAppBundle({ appPath, expectedAssets })).rejects.toThrow(
-      "required macOS executable is missing",
-    );
+    await expect(
+      verifyMacosAppBundle({
+        appPath,
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+      }),
+    ).rejects.toThrow("required macOS executable is missing");
   });
 
   it("rejects a changed or duplicated frontend", async () => {
@@ -71,9 +81,13 @@ describe("the macOS application artifact inspector", () => {
     write(join(appPath, "Contents", "Resources", "assets", "assets", "app.js"), "changed\n");
     write(join(appPath, "Contents", "Resources", "duplicate", "index.html"), "duplicate\n");
 
-    await expect(verifyMacosAppBundle({ appPath, expectedAssets })).rejects.toThrow(
-      "macOS package contains more than one frontend",
-    );
+    await expect(
+      verifyMacosAppBundle({
+        appPath,
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+      }),
+    ).rejects.toThrow("macOS package contains more than one frontend");
   });
 
   it("rejects an embedded development server URL", async () => {
@@ -84,8 +98,29 @@ describe("the macOS application artifact inspector", () => {
       0o755,
     );
 
-    await expect(verifyMacosAppBundle({ appPath, expectedAssets })).rejects.toThrow(
-      "release artifact contains a development server URL",
+    await expect(
+      verifyMacosAppBundle({
+        appPath,
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+      }),
+    ).rejects.toThrow("release artifact contains a development server URL");
+  });
+
+  it("rejects an absolute checkout path embedded in the app", async () => {
+    const { appPath, expectedAssets } = fixture();
+    write(
+      join(appPath, "Contents", "MacOS", "zd-desktop"),
+      "desktop-role /build/zd\n",
+      0o755,
     );
+
+    await expect(
+      verifyMacosAppBundle({
+        appPath,
+        expectedAssets,
+        forbiddenBuildPath: "/build/zd",
+      }),
+    ).rejects.toThrow("macOS app contains an absolute build path");
   });
 });

@@ -1,14 +1,11 @@
 #!/usr/bin/env node
 
-import { Buffer } from "node:buffer";
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
-import { regularFilesUnder } from "./frontend-artifact.mjs";
 import { verifyMacosAppBundle } from "./macos-artifact.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -24,6 +21,7 @@ if (!appPath.endsWith(".app")) throw new Error("macOS artifact must be an .app b
 const summary = await verifyMacosAppBundle({
   appPath,
   expectedAssets: join(repositoryRoot, "packages", "app", "dist"),
+  forbiddenBuildPath: repositoryRoot,
 });
 const plist = join(appPath, "Contents", "Info.plist");
 const plistField = async (name, format = "raw") =>
@@ -60,13 +58,6 @@ for (const executable of [
   }
 }
 await execFileAsync("codesign", ["--verify", "--deep", "--strict", appPath]);
-
-const forbiddenBuildPath = Buffer.from(repositoryRoot);
-for (const path of await regularFilesUnder(appPath)) {
-  if ((await readFile(path)).includes(forbiddenBuildPath)) {
-    throw new Error("macOS app contains an absolute build path");
-  }
-}
 process.stdout.write(
   `Verified ${basename(appPath)}: architecture=${expectedArchitecture} ` +
     `executables=${summary.executables.length} assets=${summary.assetFiles} ` +

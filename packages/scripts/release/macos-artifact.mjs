@@ -23,7 +23,10 @@ async function requiredNonemptyFile(path, message) {
   }
 }
 
-export async function verifyMacosAppBundle({ appPath, expectedAssets }) {
+export async function verifyMacosAppBundle({ appPath, expectedAssets, forbiddenBuildPath }) {
+  if (typeof forbiddenBuildPath !== "string" || forbiddenBuildPath.length === 0) {
+    throw new Error("macOS build path check is required");
+  }
   const desktopPath = join(appPath, "Contents", "MacOS", "zd-desktop");
   const consolePath = join(appPath, "Contents", "Resources", "bin", "zd");
   const [desktopBytes, consoleBytes] = await Promise.all([
@@ -46,13 +49,20 @@ export async function verifyMacosAppBundle({ appPath, expectedAssets }) {
     join(appPath, "Contents", "Resources", "icon.icns"),
     "macOS application icon is missing",
   );
-  const installedFiles = relativeFiles(appPath, await regularFilesUnder(appPath));
+  const installedPaths = await regularFilesUnder(appPath);
+  const installedFiles = relativeFiles(appPath, installedPaths);
   const frontendEntries = installedFiles.filter((path) => path.endsWith("/index.html"));
   if (
     frontendEntries.length !== 1 ||
     frontendEntries[0] !== "Contents/Resources/assets/index.html"
   ) {
     throw new Error("macOS package contains more than one frontend");
+  }
+  const buildPath = Buffer.from(forbiddenBuildPath);
+  for (const path of installedPaths) {
+    if ((await readFile(path)).includes(buildPath)) {
+      throw new Error("macOS app contains an absolute build path");
+    }
   }
   const assets = await verifyPackagedFrontend(
     expectedAssets,
