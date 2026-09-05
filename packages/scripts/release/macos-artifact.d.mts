@@ -1,6 +1,7 @@
 export interface MacosAppBundleOptions {
   readonly appPath: string;
   readonly expectedAssets: string;
+  readonly forbiddenBuildPath: string;
 }
 
 export interface MacosAppBundleSummary {
