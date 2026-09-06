@@ -7,6 +7,7 @@ repo_root="$(cd "$script_dir/../.." && pwd)"
 bundle_dir="$repo_root/target/release/bundle/deb"
 
 cd "$repo_root"
+npm run build
 cargo build --locked --release -p zd-desktop --bin zd
 ./node_modules/.bin/tauri build \
   --config packages/tauri/tauri.conf.json \
