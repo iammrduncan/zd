@@ -48,6 +48,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run browser end-to-end checks
         run: npm run test:e2e
+      - name: Run release browser fixtures
+        run: npm run test:e2e:release
       - name: Run served-host end-to-end checks
         run: npm run test:e2e:served
       - name: Test the Rust workspace
