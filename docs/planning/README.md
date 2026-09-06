@@ -19,7 +19,10 @@ The current product expansion is coordinated by the
 ## Active objectives
 
 - [Served workbench](objectives/served-workbench/README.md) — one host backend for browser and Tauri
-  clients; the first executable goal is a read-only browser-to-Rust walking skeleton.
+  clients. The next planned follow-up is an
+  [audit of durability, performance, and feature behavior](objectives/served-workbench/04-DURABILITY-PERFORMANCE-AUDIT.md),
+  followed by an [implementation plan](objectives/served-workbench/05-DURABILITY-PERFORMANCE-IMPLEMENTATION.md)
+  that the audit must revise before execution. Neither follow-up has started.
 
 ## Historical snapshots
 
