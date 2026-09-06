@@ -24,7 +24,7 @@ interface ServedHostFixture {
   readonly secret: string;
   readonly secondProjectName: string;
   restart(): Promise<Readiness>;
-  createExternalFile(): Promise<void>;
+  createExternalFile(name?: string): Promise<void>;
   isProcessRunning(pid: number): boolean;
   readFixtureFile(): Promise<string>;
   readSecondProjectFile(): Promise<string>;
@@ -423,12 +423,8 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
             }
             return restarted;
           },
-          createExternalFile: () =>
-            writeFile(
-              join(projectRoot, "external-watch.md"),
-              "created outside the browser\n",
-              "utf8",
-            ),
+          createExternalFile: (name = "external-watch.md") =>
+            writeFile(join(projectRoot, name), "created outside the browser\n", "utf8"),
           isProcessRunning: (pid) => {
             try {
               process.kill(pid, 0);
