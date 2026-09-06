@@ -207,4 +207,48 @@ describe("the macOS command installer", () => {
     expect(result.stderr).toContain("refusing unexpected installer staging path");
     expect(readFileSync(sentinel, "utf8")).toBe("keep me");
   });
+
+  it("removes the first staging directory when the second allocation fails", () => {
+    const root = temporaryDirectory();
+    const source = fakeApplication(root);
+    const applications = resolve(root, "Applications");
+    const bin = resolve(root, "bin");
+    const commands = fakeSystemCommands(root);
+    const allocationState = resolve(root, "mktemp-called");
+    const mktemp = resolve(commands, "mktemp");
+    writeFileSync(
+      mktemp,
+      [
+        "#!/bin/sh",
+        "set -eu",
+        'if [ ! -e "$ZD_TEST_MKTEMP_STATE" ]; then',
+        '  touch "$ZD_TEST_MKTEMP_STATE"',
+        '  candidate="${2%XXXXXX}first"',
+        '  mkdir "$candidate"',
+        '  printf "%s\\n" "$candidate"',
+        "  exit 0",
+        "fi",
+        "exit 1",
+        "",
+      ].join("\n"),
+    );
+    chmodSync(mktemp, 0o755);
+
+    const result = spawnSync("bash", [INSTALLER], {
+      cwd: ROOT,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        ZD_APP_SOURCE: source,
+        ZD_APPLICATIONS_DIR: applications,
+        ZD_BIN_DIR: bin,
+        ZD_TEST_MKTEMP_STATE: allocationState,
+        PATH: `${commands}:${process.env.PATH ?? ""}`,
+      },
+    });
+
+    expect(result.status).toBe(1);
+    expect(existsSync(allocationState)).toBe(true);
+    expect(existsSync(resolve(applications, ".zd-install.first"))).toBe(false);
+  });
 });
