@@ -44,6 +44,25 @@ export function createFileTreeRow(
   const button = document.createElement("button");
   button.type = "button";
   button.className = "zd-file-tree-row";
+  button.setAttribute("role", "treeitem");
+  button.setAttribute("aria-haspopup", "menu");
+  for (const part of ["guides", "disclosure", "icon", "name"]) {
+    const span = document.createElement("span");
+    span.className = `zd-file-tree-${part}`;
+    if (part !== "name") span.setAttribute("aria-hidden", "true");
+    button.append(span);
+  }
+  updateFileTreeRow(button, row, snapshot, controller);
+  return button;
+}
+
+/** Keep pointer targets and keyboard focus attached through host and selection updates. */
+export function updateFileTreeRow(
+  button: HTMLButtonElement,
+  row: VisibleFileTreeRow,
+  snapshot: FileTreeViewSnapshot,
+  controller: FileTreeController,
+): void {
   button.dataset.filePath = row.entry.relativePath;
   button.dataset.fileKind = row.entry.kind;
   button.dataset.fileCategory = row.entry.category;
@@ -51,38 +70,32 @@ export function createFileTreeRow(
   button.dataset.dirty = String(dirty);
   const stateClass = gitStateClass(row);
   if (stateClass) button.dataset.gitState = stateClass;
-  button.setAttribute("role", "treeitem");
+  else delete button.dataset.gitState;
   button.setAttribute("aria-level", String(row.depth + 1));
   button.setAttribute("aria-posinset", String(row.positionInSet));
   button.setAttribute("aria-setsize", String(row.setSize));
   button.setAttribute("aria-label", fileTreeEntryLabel(row.entry, dirty));
   button.setAttribute("aria-description", row.entry.relativePath);
   button.setAttribute("aria-selected", String(snapshot.selectedPaths.has(row.entry.relativePath)));
-  button.setAttribute("aria-haspopup", "menu");
   if (snapshot.activePath === row.entry.relativePath) button.setAttribute("aria-current", "page");
+  else button.removeAttribute("aria-current");
   if (row.entry.kind === "directory" && row.hasChildren) {
     button.setAttribute("aria-expanded", String(row.expanded));
-  }
+  } else button.removeAttribute("aria-expanded");
   button.tabIndex = snapshot.selectedPath === row.entry.relativePath ? 0 : -1;
-  const guides = document.createElement("span");
-  guides.className = "zd-file-tree-guides";
-  guides.setAttribute("aria-hidden", "true");
-  for (let depth = 0; depth < row.depth; depth += 1) guides.append(document.createElement("span"));
-  const disclosure = document.createElement("span");
-  disclosure.className = "zd-file-tree-disclosure";
-  disclosure.setAttribute("aria-hidden", "true");
-  disclosure.textContent = row.hasChildren ? (row.expanded ? "▾" : "›") : "";
-  const icon = document.createElement("span");
+  const guides = button.children[0] as HTMLElement;
+  const disclosure = button.children[1] as HTMLElement;
+  const icon = button.children[2] as HTMLElement;
+  const name = button.children[3] as HTMLElement;
+  while (guides.childElementCount > row.depth) guides.lastElementChild?.remove();
+  while (guides.childElementCount < row.depth) guides.append(document.createElement("span"));
+  const marker = row.hasChildren ? (row.expanded ? "▾" : "›") : "";
+  if (disclosure.textContent !== marker) disclosure.textContent = marker;
   icon.className = `zd-file-tree-icon codicon ${categoryIconClass(row.entry.category)}`;
   icon.dataset.icon = row.entry.category;
-  icon.setAttribute("aria-hidden", "true");
   icon.title = categoryLabel(row.entry.category);
-  const name = document.createElement("span");
-  name.className = "zd-file-tree-name";
-  name.textContent = row.entry.name;
-  button.append(guides, disclosure, icon, name);
-  button.addEventListener("click", (event) => {
+  if (name.textContent !== row.entry.name) name.textContent = row.entry.name;
+  button.onclick = (event) => {
     activateFileTreeEntry(row.entry, controller, event);
-  });
-  return button;
+  };
 }

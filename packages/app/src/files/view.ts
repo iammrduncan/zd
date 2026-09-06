@@ -3,7 +3,7 @@ import "./files.css";
 
 import { fileTreeStateText } from "./labels";
 import { maximumRowColumns } from "./model";
-import { activateFileTreeEntry, createFileTreeRow } from "./row";
+import { activateFileTreeEntry, createFileTreeRow, updateFileTreeRow } from "./row";
 import type { FileTreeController } from "./controller";
 import type { FileTreeViewSnapshot } from "./types";
 import { FILE_TREE_ROW_HEIGHT, fileTreeWindow } from "./virtualizer";
@@ -482,20 +482,33 @@ export function mountFileTree(
     rows = controller.rows();
     const viewportHeight = ui.viewport.clientHeight || FALLBACK_VIEWPORT_HEIGHT;
     const window = fileTreeWindow(rows.length, ui.viewport.scrollTop, viewportHeight);
-    const fragment = document.createDocumentFragment();
+    const existing = new Map(
+      [...ui.layer.querySelectorAll<HTMLButtonElement>("[data-file-path]")].map((element) => [
+        element.dataset.filePath,
+        element,
+      ]),
+    );
+    let position = ui.layer.firstElementChild;
     rows.slice(window.start, window.end).forEach((row, index) => {
-      const element = createFileTreeRow(row, current, controller);
+      const retained = existing.get(row.entry.relativePath);
+      const element = retained ?? createFileTreeRow(row, current, controller);
+      if (retained) updateFileTreeRow(element, row, current, controller);
+      existing.delete(row.entry.relativePath);
       if (current.selectedPath === null && window.start + index === 0) element.tabIndex = 0;
       if (row.entry.relativePath === dropTargetPath) {
         element.dataset.dropTarget = "true";
         element.dataset.dropPosition = row.entry.kind === "directory" ? "inside" : "parent";
+      } else {
+        delete element.dataset.dropTarget;
+        delete element.dataset.dropPosition;
       }
-      fragment.append(element);
+      if (element !== position) ui.layer.insertBefore(element, position);
+      position = element.nextElementSibling;
     });
+    for (const element of existing.values()) element.remove();
     ui.spacer.style.height = `${window.totalHeight}px`;
     ui.spacer.style.minWidth = `${maximumRowColumns(rows)}ch`;
     ui.layer.style.transform = `translateY(${window.offset}px)`;
-    ui.layer.replaceChildren(fragment);
   };
 
   const render = (snapshot: FileTreeViewSnapshot): void => {
