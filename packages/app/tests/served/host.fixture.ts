@@ -28,7 +28,7 @@ interface ServedHostFixture {
   restart(options?: { failedThreadId: string }): Promise<Readiness>;
   createExternalFile(name?: string): Promise<void>;
   isProcessRunning(pid: number): boolean;
-  readFixtureFile(): Promise<string>;
+  readFixtureFile(path?: string): Promise<string>;
   readSecondProjectFile(): Promise<string>;
   readFixtureDocs(): Promise<readonly string[]>;
   readFixtureScreenshots(): Promise<readonly string[]>;
@@ -470,7 +470,7 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
               throw cause;
             }
           },
-          readFixtureFile: () => readFile(join(projectRoot, "notes.md"), "utf8"),
+          readFixtureFile: (path = "notes.md") => readFile(join(projectRoot, path), "utf8"),
           readSecondProjectFile: () => readFile(join(secondProjectRoot, "second.md"), "utf8"),
           readFixtureDocs: () => readdir(join(projectRoot, "docs")),
           readFixtureScreenshots: () => readdir(join(projectRoot, "docs", "screenshots")),

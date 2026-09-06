@@ -23,6 +23,8 @@
 }
 
 .editor-buffer-content {
+  /* Auto inline margins in the flex column otherwise shrink an empty editor to zero width. */
+  width: 100%;
   min-width: 0;
   min-height: 0;
   flex: 1;
