@@ -24,6 +24,7 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$repo_root"
+npm run build
 cargo build --locked --release -p zd-desktop --bin zd
 ./node_modules/.bin/tauri build \
   --config packages/tauri/tauri.conf.json \

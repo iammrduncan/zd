@@ -133,6 +133,9 @@ describe("the macOS application bundle", () => {
   it("builds the DMG without Finder automation", () => {
     const source = readFileSync(resolve(ROOT, "packaging/macos/package.sh"), "utf8");
 
+    expect(source).toMatch(
+      /npm run build[\s\S]*cargo build --locked --release -p zd-desktop --bin zd[\s\S]*tauri build/u,
+    );
     expect(source).toContain("cargo build --locked --release -p zd-desktop --bin zd");
     expect(source).toContain("--bundles app");
     expect(source).toContain('bundle_dir="$repo_root/target/release/bundle"');
