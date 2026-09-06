@@ -98,19 +98,22 @@ large regressions, while this page preserves the measured baseline.
 1. Build the application:
 
    ```sh
-   npx tauri build --config packages/tauri/tauri.conf.json --bundles app
+   npm run package:macos
    ```
 
 2. Record artifact sizes:
 
    ```sh
-   stat -f 'binary_bytes=%z' packages/tauri/target/release/bundle/macos/zd.app/Contents/MacOS/zd
-   du -sk packages/tauri/target/release/bundle/macos/zd.app
+   stat -f 'desktop_binary_bytes=%z' target/release/bundle/macos/zd.app/Contents/MacOS/zd-desktop
+   stat -f 'console_binary_bytes=%z' target/release/bundle/macos/zd.app/Contents/Resources/bin/zd
+   du -sk target/release/bundle/macos/zd.app
    ```
 
 3. Launch the bundle, open the required local projects, and create terminal threads. Identify the
-   `zd` process, the three WebKit processes with the same launch time, and shells whose parent PID is
-   the `zd` process.
+   `zd-desktop` wrapper, its `Contents/Resources/bin/zd __zd-wrapper-child` host, the
+   `Contents/Resources/bin/zd __zd-terminal-keeper` process, the WebKit processes with the same
+   launch time, and shells owned by the keeper. Save the process tree with the measurements so the
+   host and keeper are not mistaken for duplicate application backends.
 
 4. Use `footprint -p <pid> ...` for a shared-aware summary. Use repeated `top` or `ps` samples for
    CPU and RSS. Keep the sampling interval, project count, thread count, visible surface, and output
