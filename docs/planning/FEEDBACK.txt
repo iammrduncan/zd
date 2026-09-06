@@ -2,7 +2,10 @@
 # Rule: If item needs additional comment or instruction or input please put it in docs/planning/FEEDBACK_INFO.txt
 # Goal command: `/goal address feedback in docs/planning/FEEDBACK.txt until complete.`
 <=== New Feedback ===>
+\everytime I start the app the terminal shows like the left side... ![Screenshot](../screenshots/screenshot-1788667076015791355.png)
 <=== Feedback Addressed ===>
+dracula highlight on greyed out text makes it impossible to read. ![Screenshot](../screenshots/screenshot-1788667165980835812.png)
+highlighted records and selected text are same color on editor. which means the highlighted text cannot be seen...
 dracula... I liked the yellow that was there for changed files... and for in progres items on feedback etc... was nice.
 markdown docs: be able to expand a mermaid diagram to full window, and zoom/pan on the diagram. use zoom/expand icon in top right of mermaid diagram on markdown file to expand it.
 markdown docs: return/enter on unordered list causes funkyness... ![Screenshot](../screenshots/screenshot-1787718456189921000.png)

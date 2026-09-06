@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { contrast } from "../colour";
+
 declare global {
   interface Window {
     fileTreeFixture: {
@@ -153,6 +155,46 @@ test("renders a dense horizontally and vertically scrollable virtual tree", asyn
   expect(scrolling.scrollHeight).toBeGreaterThan(scrolling.clientHeight);
   expect(await page.evaluate(() => window.fileTreeFixture.initialRenderMs)).toBeLessThan(2_000);
 });
+
+for (const theme of ["light", "dark", "dracula", "homebrew"] as const) {
+  test(`selected ignored files and folders remain readable in ${theme}`, async ({
+    page,
+  }, testInfo) => {
+    await mountFixture(page);
+    await page.evaluate(async (selected) => {
+      const appearanceModule = "/src/design/appearance.ts";
+      const { setTheme } = await import(appearanceModule);
+      setTheme(selected);
+      window.fileTreeFixture.controller.reconcileGit(
+        new Map([
+          ["src", "ignored"],
+          ["file-00002.txt", "ignored"],
+        ]),
+      );
+    }, theme);
+
+    for (const path of ["src", "file-00002.txt"]) {
+      const row = page.locator(`[data-file-path="${path}"]`);
+      await row.click();
+      await expect(row).toHaveAttribute("aria-selected", "true");
+      await expect(row).toHaveAccessibleName(/ignored/);
+      const colours = await row.evaluate((element) => ({
+        background: getComputedStyle(element).backgroundColor,
+        foregrounds: [
+          ...element.querySelectorAll(
+            ".zd-file-tree-name, .zd-file-tree-icon, .zd-file-tree-disclosure",
+          ),
+        ].map((part) => getComputedStyle(part).color),
+      }));
+      for (const foreground of colours.foregrounds) {
+        expect(contrast(foreground, colours.background)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+    await page
+      .locator("#file-tree-fixture")
+      .screenshot({ path: testInfo.outputPath("selected-ignored.png") });
+  });
+}
 
 test("offers create, rename, copy-path, and confirmed Trash actions for folders", async ({
   page,
