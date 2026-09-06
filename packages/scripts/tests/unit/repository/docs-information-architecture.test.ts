@@ -137,6 +137,15 @@ describe("the repository documentation map", () => {
     expect(guide).toContain("~/.config/com.zensuite.zd");
   });
 
+  it("keeps the performance review aligned with the packaged macOS process topology", () => {
+    const review = page("docs/planning/performance.md");
+
+    expect(review).toContain("npm run package:macos");
+    expect(review).toContain("target/release/bundle/macos/zd.app/Contents/MacOS/zd-desktop");
+    expect(review).toContain("Contents/Resources/bin/zd");
+    expect(review).toContain("__zd-terminal-keeper");
+  });
+
   it("documents only the supported downloads and the direct remote-browser path", () => {
     const readme = page("README.md");
     const hub = page("docs/user-facing-docs/README.md");
