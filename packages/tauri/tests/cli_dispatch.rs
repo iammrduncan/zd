@@ -104,6 +104,23 @@ fn wait_for_exit(child: &mut Child) {
     }
 }
 
+fn wait_for_contents(path: &Path, expected: &str) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        match fs::read_to_string(path) {
+            Ok(contents) if contents == expected => return,
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => panic!("read desktop arguments: {error}"),
+        }
+        assert!(
+            Instant::now() < deadline,
+            "desktop arguments did not finish writing"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
 #[test]
 fn release_topology_has_distinct_console_and_desktop_executables() {
     let console = Path::new(env!("CARGO_BIN_EXE_zd"));
@@ -127,7 +144,7 @@ fn ordinary_zd_launches_the_desktop_role_and_returns() {
     let record = scratch.join("desktop-arguments.txt");
     fs::write(
         &desktop,
-        "#!/bin/sh\nset -eu\nprintf '%s\\n' \"$@\" > \"$ZD_TEST_DESKTOP_RECORD\"\n",
+        "#!/bin/sh\nset -eu\n: > \"$ZD_TEST_DESKTOP_RECORD\"\nsleep 0.05\nprintf '%s\\n' \"$@\" > \"$ZD_TEST_DESKTOP_RECORD\"\n",
     )
     .expect("write fake desktop executable");
     let mut permissions = fs::metadata(&desktop)
@@ -153,13 +170,9 @@ fn ordinary_zd_launches_the_desktop_role_and_returns() {
     );
     assert!(output.stdout.is_empty());
     assert!(output.stderr.is_empty());
-    let deadline = Instant::now() + Duration::from_secs(2);
-    while !record.is_file() && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(10));
-    }
-    assert_eq!(
-        fs::read_to_string(record).expect("read desktop arguments"),
-        format!("{}\n", invocation.join("project/notes.md").display())
+    wait_for_contents(
+        &record,
+        &format!("{}\n", invocation.join("project/notes.md").display()),
     );
 }
 
