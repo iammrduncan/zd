@@ -10,15 +10,36 @@ fi
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 artifact="$(realpath "$1")"
-install_root="$(mktemp -d "${TMPDIR:-/tmp}/zd-linux-install.XXXXXX")"
+temporary_root="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+install_root=""
+
+is_safe_staging() {
+  local candidate="$1"
+  local name
+  name="$(basename "$candidate")"
+  [[ -d "$candidate" &&
+    ! -L "$candidate" &&
+    "$(dirname "$candidate")" == "$temporary_root" &&
+    "$name" == zd-linux-install.* ]]
+}
 
 cleanup() {
-  case "$install_root" in
-    "${TMPDIR:-/tmp}"/zd-linux-install.*) rm -rf -- "$install_root" ;;
-    *) echo "zd: refusing unexpected smoke cleanup target" >&2; return 1 ;;
-  esac
+  if [[ -n "$install_root" && ( -e "$install_root" || -L "$install_root" ) ]]; then
+    if is_safe_staging "$install_root"; then
+      rm -rf -- "$install_root"
+    else
+      echo "zd: refusing unexpected smoke cleanup target" >&2
+      return 1
+    fi
+  fi
 }
 trap cleanup EXIT
+
+install_root="$(mktemp -d "$temporary_root/zd-linux-install.XXXXXX")"
+if ! is_safe_staging "$install_root"; then
+  echo "zd: refusing unexpected smoke staging path" >&2
+  exit 1
+fi
 
 cd "$repo_root"
 node packages/scripts/release/inspect-linux-package.mjs "$artifact"

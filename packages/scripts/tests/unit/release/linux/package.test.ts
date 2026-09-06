@@ -1,5 +1,15 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 
 import { describe, expect, it } from "vitest";
 
@@ -57,6 +67,46 @@ describe("the Linux Debian package", () => {
         "shell=show-workbench secondary=reused graceful=passed forced=passed " +
         "crash=presented cleanup=passed",
     );
+  });
+
+  it("refuses an install root outside the requested temporary directory", () => {
+    const root = mkdtempSync(join(tmpdir(), "zd-linux-smoke-test-"));
+    try {
+      const commands = resolve(root, "commands");
+      const scratch = resolve(root, "scratch");
+      const unsafeRoot = resolve(root, "unrelated");
+      const sentinel = resolve(unsafeRoot, "keep.txt");
+      const artifact = resolve(root, "zd.deb");
+      const invoked = resolve(root, "node-invoked");
+      mkdirSync(commands);
+      mkdirSync(scratch);
+      mkdirSync(unsafeRoot);
+      writeFileSync(sentinel, "keep me");
+      writeFileSync(artifact, "test artifact");
+      writeFileSync(resolve(commands, "mktemp"), '#!/bin/sh\nprintf "%s\\n" "$ZD_TEST_ROOT"\n');
+      writeFileSync(resolve(commands, "node"), '#!/bin/sh\ntouch "$ZD_TEST_NODE_INVOKED"\n');
+      chmodSync(resolve(commands, "mktemp"), 0o755);
+      chmodSync(resolve(commands, "node"), 0o755);
+
+      const result = spawnSync("bash", [resolve(ROOT, "packaging/linux/smoke.sh"), artifact], {
+        cwd: ROOT,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          TMPDIR: scratch,
+          ZD_TEST_ROOT: unsafeRoot,
+          ZD_TEST_NODE_INVOKED: invoked,
+          PATH: `${commands}:${process.env.PATH ?? ""}`,
+        },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("refusing unexpected smoke staging path");
+      expect(existsSync(invoked)).toBe(false);
+      expect(readFileSync(sentinel, "utf8")).toBe("keep me");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("builds the console executable before Tauri assembles the desktop package", () => {
