@@ -45,6 +45,7 @@ describe("the tagged release workflow", () => {
     expect(source).toContain("npm ci");
     expect(source).toContain("npm run check");
     expect(source).toContain("npm run test:e2e");
+    expect(source).toContain("npm run test:e2e:release");
     expect(source).toContain("npm run test:e2e:served");
     expect(source).toContain("cargo test --workspace");
     expect(source).toContain("cargo fmt --all -- --check");
