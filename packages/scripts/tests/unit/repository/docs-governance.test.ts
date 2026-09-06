@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd());
-const ADRS = readdirSync(resolve(ROOT, "docs/adr"), { recursive: true })
+const ADRS = readdirSync(resolve(ROOT, "docs/adr"), { encoding: "utf8", recursive: true })
   .filter((path) => /(?:^|\/)\d{4}-.+_H\.md$/.test(path))
   .map((path) => `docs/adr/${path}`)
   .sort();
