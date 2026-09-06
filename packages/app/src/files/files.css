@@ -196,6 +196,13 @@
   color: var(--state-ignored);
 }
 
+.zd-file-tree-row[data-git-state="ignored"]:is(
+    [aria-selected="true"],
+    [data-drop-target="true"][data-drop-position="inside"]
+  ) {
+  color: var(--text-primary);
+}
+
 .zd-file-tree-guides {
   display: flex;
   align-self: stretch;
@@ -213,6 +220,11 @@
   font-size: 0.82em;
   pointer-events: auto;
   text-align: center;
+}
+
+.zd-file-tree-row:is([aria-selected="true"], [data-drop-target="true"][data-drop-position="inside"])
+  .zd-file-tree-disclosure {
+  color: var(--text-primary);
 }
 
 .zd-file-tree-icon.codicon {

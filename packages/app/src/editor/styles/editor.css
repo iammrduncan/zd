@@ -158,12 +158,12 @@
 /*
  * A conventional code plane keeps the caret's row visible across source and
  * line-number gutter. CodeMirror owns which row is current; the stylesheet only
- * maps that state to the shared selection plane, so moving the selection cannot
- * leave a stale copy behind. Markdown deliberately never receives these classes.
+ * uses a quieter mix of the shared selection and canvas colours so text selection
+ * remains visible on the current row. Markdown never receives these classes.
  */
 .md-editor[data-language="code"] .cm-activeLine,
 .md-editor[data-language="code"] .cm-activeLineGutter {
-  background: var(--surface-selection);
+  background: color-mix(in srgb, var(--surface-selection) 35%, var(--surface-canvas));
 }
 
 .md-editor[data-language="code"] .cm-activeLineGutter {
@@ -499,6 +499,7 @@
 .md-editor .cm-content ::selection,
 .md-editor .cm-line::selection {
   background: var(--surface-selection);
+  color: var(--text-primary);
 }
 
 /*

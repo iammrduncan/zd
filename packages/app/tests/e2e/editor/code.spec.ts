@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { sameColour } from "../colour";
+import { contrast, sameColour } from "../colour";
 import { materializeEditorTarget, openEditor } from "./harness";
 
 /*
@@ -194,11 +194,72 @@ test("the current code line is highlighted across the source and gutter", async 
     };
   });
 
-  expect(sameColour(colours.line, colours.selection), "the source uses another wash").toBe(true);
-  expect(sameColour(colours.gutter, colours.selection), "the gutter loses the current row").toBe(
-    true,
-  );
+  expect(
+    sameColour(colours.line, colours.selection),
+    "text selection disappears on the current row",
+  ).toBe(false);
+  expect(sameColour(colours.gutter, colours.line), "the gutter loses the current row").toBe(true);
 });
+
+for (const theme of ["light", "dark", "dracula", "homebrew"] as const) {
+  test(`text selection is distinct from the current code line in ${theme}`, async ({
+    page,
+  }, testInfo) => {
+    await open(page, CODE);
+    await page.evaluate(async (selected) => {
+      const appearanceModule = "/src/design/appearance.ts";
+      const { setTheme } = await import(appearanceModule);
+      setTheme(selected);
+    }, theme);
+    await page.locator(".cm-content").click();
+    await page.evaluate(() => {
+      const at = window.zdEditor!.text().indexOf("const retries = 3");
+      if (at < 0) throw new Error("code fixture line is missing");
+      window.zdEditor!.setCaret(at);
+    });
+    const line = page.locator(".cm-line").filter({ hasText: "const retries = 3" });
+    const currentBackground = await line.evaluate(
+      (element) => getComputedStyle(element).backgroundColor,
+    );
+    await page.keyboard.press("Shift+ArrowRight");
+    await page.keyboard.press("Shift+ArrowRight");
+    await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe("co");
+    const selectionBackground = await line.evaluate(
+      (element) => getComputedStyle(element, "::selection").backgroundColor,
+    );
+    expect(sameColour(currentBackground, selectionBackground)).toBe(false);
+    await page.screenshot({ path: testInfo.outputPath("code-selection.png") });
+  });
+}
+
+for (const theme of ["light", "dark", "dracula", "homebrew"] as const) {
+  test(`muted code text remains readable when selected in ${theme}`, async ({ page }) => {
+    await open(page, CODE);
+    await page.evaluate(async (selected) => {
+      const appearanceModule = "/src/design/appearance.ts";
+      const { setTheme } = await import(appearanceModule);
+      setTheme(selected);
+    }, theme);
+    await page.locator(".cm-content").click();
+    await page.evaluate(() => {
+      const at = window.zdEditor!.text().indexOf("A comment");
+      if (at < 0) throw new Error("the muted source fixture is missing");
+      window.zdEditor!.setCaret(at);
+    });
+    await page.keyboard.press("Shift+End");
+    await expect
+      .poll(() => page.evaluate(() => window.getSelection()?.toString()))
+      .toContain("A comment");
+    const colours = await page
+      .locator(".md-syn-comment")
+      .first()
+      .evaluate((element) => {
+        const selected = getComputedStyle(element, "::selection");
+        return { foreground: selected.color, background: selected.backgroundColor };
+      });
+    expect(contrast(colours.foreground, colours.background)).toBeGreaterThanOrEqual(4.5);
+  });
+}
 
 test("a markdown file still takes the prose family", async ({ page }) => {
   await open(page, MARKDOWN);

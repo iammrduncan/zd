@@ -467,6 +467,10 @@ No visible status-letter column, count badge, or Git toolbar is added. The compl
 the row's accessible name and contextual description. A selected conflicted/deleted item also states
 its condition in the content surface.
 
+Selected ignored rows use primary text for the filename and icon. Selected disclosure chevrons also
+use primary text. The accessible name retains the ignored state when the selection colour replaces
+its muted appearance.
+
 Filter is a focused text row that appears only when summoned. It narrows the current hierarchy by
 name, path, or supported category and states result count quietly. Its visible close action and
 `Escape` both dismiss the row and restore the existing expansion, selection, scroll, and tree focus.
@@ -535,6 +539,10 @@ lifecycle control, not a second navigation surface.
 
 The editor opens without a caret. First pointer or keyboard intent places one. Selection, caret,
 undo, save truth, Find, Focus, and viewport restoration derive from one document state.
+
+The current code line and its gutter use a quiet mix of selection and canvas colours. Text selection
+uses the full selection colour and primary text so it remains distinct and readable on that line,
+including within muted comments and addressed feedback.
 
 Unsaved editable text is kept as a recoverable draft under the approved project, worktree, and
 relative-file identity. A file, thread, or project switch is never refused solely because the
