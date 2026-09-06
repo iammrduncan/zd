@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import {
   chmodSync,
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -83,6 +84,50 @@ describe("the macOS application bundle", () => {
         "shell=show-workbench secondary=reused graceful=passed forced=passed " +
         "crash=presented cleanup=passed",
     );
+  });
+
+  it("cleans the mount root when install-root allocation fails", () => {
+    const root = temporaryDirectory();
+    const commands = resolve(root, "commands");
+    const scratch = resolve(root, "scratch");
+    const artifact = resolve(root, "zd.dmg");
+    const allocationState = resolve(root, "mktemp-called");
+    const mktemp = resolve(commands, "mktemp");
+    mkdirSync(commands);
+    mkdirSync(scratch);
+    writeFileSync(artifact, "test artifact");
+    writeFileSync(
+      mktemp,
+      [
+        "#!/bin/sh",
+        "set -eu",
+        'if [ ! -e "$ZD_TEST_MKTEMP_STATE" ]; then',
+        '  touch "$ZD_TEST_MKTEMP_STATE"',
+        '  candidate="${2%XXXXXX}first"',
+        '  mkdir "$candidate"',
+        '  printf "%s\\n" "$candidate"',
+        "  exit 0",
+        "fi",
+        "exit 1",
+        "",
+      ].join("\n"),
+    );
+    chmodSync(mktemp, 0o755);
+
+    const result = spawnSync("bash", [resolve(ROOT, "packaging/macos/smoke.sh"), artifact], {
+      cwd: ROOT,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        TMPDIR: scratch,
+        ZD_TEST_MKTEMP_STATE: allocationState,
+        PATH: `${commands}:${process.env.PATH ?? ""}`,
+      },
+    });
+
+    expect(result.status).toBe(1);
+    expect(existsSync(allocationState)).toBe(true);
+    expect(existsSync(resolve(scratch, "zd-macos-mount.first"))).toBe(false);
   });
 
   it("builds the DMG without Finder automation", () => {
