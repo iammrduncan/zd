@@ -14,6 +14,10 @@ Unix-process, direct-browser, and served-browser evidence. Goal 05 is implemente
 Linux. It remains open until the release jobs produce installed-smoke evidence on native macOS arm64
 and x86_64 runners.
 
+The durability/performance follow-up is planned, not started. Run plan 04's audit first. It must
+revise plan 05 with findings and acceptance gates before implementation begins. This does not change
+the open packaging goal's evidence requirements.
+
 ## Plan documents
 
 | # | Document | What it decides |
@@ -22,6 +26,8 @@ and x86_64 runners.
 | 01 | [Target architecture](01-TARGET-ARCHITECTURE.md) | Host/client-shell split, WebSocket, security, persistence, observability, and process topology |
 | 02 | [Delivery plan](02-DELIVERY-PLAN.md) | Five ordered work packets, evidence gates, relative change surface, and exclusions |
 | 03 | [Decisions and gaps](03-DECISIONS-AND-GAPS.md) | Authority changes, applied decisions, deferred gaps, and stop conditions |
+| 04 | [Durability, performance, and feature audit](04-DURABILITY-PERFORMANCE-AUDIT.md) | Future failure tests, latency measurements, full capability coverage, and mandatory implementation-plan revision |
+| 05 | [Durable terminal implementation](05-DURABILITY-PERFORMANCE-IMPLEMENTATION.md) | Provisional ordered goals for session recovery, input/output correctness, measured latency, feature fixes, and verification; blocked on plan 04 |
 
 ## Research
 
