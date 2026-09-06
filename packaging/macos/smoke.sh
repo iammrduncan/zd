@@ -10,24 +10,55 @@ fi
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 artifact="$(realpath "$1")"
-mount_root="$(mktemp -d "${TMPDIR:-/tmp}/zd-macos-mount.XXXXXX")"
-install_root="$(mktemp -d "${TMPDIR:-/tmp}/zd-macos-install.XXXXXX")"
+temporary_root="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+mount_root=""
+install_root=""
 mounted=false
+
+is_safe_staging() {
+  local candidate="$1"
+  local prefix="$2"
+  local name
+  name="$(basename "$candidate")"
+  [[ -d "$candidate" &&
+    ! -L "$candidate" &&
+    "$(dirname "$candidate")" == "$temporary_root" &&
+    "$name" == "$prefix".* ]]
+}
 
 cleanup() {
   if [[ "$mounted" == true ]]; then
     hdiutil detach "$mount_root" -quiet || true
   fi
-  case "$mount_root" in
-    "${TMPDIR:-/tmp}"/zd-macos-mount.*) rm -rf -- "$mount_root" ;;
-    *) echo "zd: refusing unexpected mount cleanup target" >&2; return 1 ;;
-  esac
-  case "$install_root" in
-    "${TMPDIR:-/tmp}"/zd-macos-install.*) rm -rf -- "$install_root" ;;
-    *) echo "zd: refusing unexpected install cleanup target" >&2; return 1 ;;
-  esac
+  if [[ -n "$mount_root" && ( -e "$mount_root" || -L "$mount_root" ) ]]; then
+    if is_safe_staging "$mount_root" "zd-macos-mount"; then
+      rm -rf -- "$mount_root"
+    else
+      echo "zd: refusing unexpected mount cleanup target" >&2
+      return 1
+    fi
+  fi
+  if [[ -n "$install_root" && ( -e "$install_root" || -L "$install_root" ) ]]; then
+    if is_safe_staging "$install_root" "zd-macos-install"; then
+      rm -rf -- "$install_root"
+    else
+      echo "zd: refusing unexpected install cleanup target" >&2
+      return 1
+    fi
+  fi
 }
 trap cleanup EXIT
+
+mount_root="$(mktemp -d "$temporary_root/zd-macos-mount.XXXXXX")"
+if ! is_safe_staging "$mount_root" "zd-macos-mount"; then
+  echo "zd: refusing unexpected mount staging path" >&2
+  exit 1
+fi
+install_root="$(mktemp -d "$temporary_root/zd-macos-install.XXXXXX")"
+if ! is_safe_staging "$install_root" "zd-macos-install"; then
+  echo "zd: refusing unexpected install staging path" >&2
+  exit 1
+fi
 
 cd "$repo_root"
 hdiutil verify "$artifact" >/dev/null
