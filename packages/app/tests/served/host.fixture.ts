@@ -8,6 +8,8 @@ import { createServer } from "node:net";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
+import type { ThreadState } from "../../src/workbench/state";
+
 import {
   resolveServedHostExecutable,
   servedHostEnvironment,
@@ -23,7 +25,7 @@ interface ServedHostFixture {
   readonly url: string;
   readonly secret: string;
   readonly secondProjectName: string;
-  restart(): Promise<Readiness>;
+  restart(options?: { failedThreadId: string }): Promise<Readiness>;
   createExternalFile(name?: string): Promise<void>;
   isProcessRunning(pid: number): boolean;
   readFixtureFile(): Promise<string>;
@@ -280,6 +282,9 @@ export async function disposeServedTerminals(
           protocolVersion: 1,
           type: "authenticate",
           secret: processSecret,
+          controllerId: Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+            byte.toString(16).padStart(2, "0"),
+          ).join(""),
         }),
       );
       await receiveType("authenticated");
@@ -410,12 +415,43 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
             return readiness.secret;
           },
           secondProjectName: basename(secondProjectRoot),
-          restart: async () => {
+          restart: async (options) => {
             if (!child || !readiness) throw new Error("the served host is not running");
             const oldPort = new URL(readiness.url).port;
             await stopHost(child);
             child = null;
             readiness = null;
+            if (options) {
+              const projectsDirectory = join(hostStateRoot, "durable-state-v1", "projects");
+              let replaced = false;
+              for (const projectId of await readdir(projectsDirectory)) {
+                const manifestPath = join(projectsDirectory, projectId, "manifest-v1.json");
+                const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+                  revision: number;
+                  workbench: { threads: ThreadState[] };
+                };
+                const thread = manifest.workbench.threads.find(
+                  ({ id }) => id === options.failedThreadId,
+                );
+                if (!thread) continue;
+                Object.assign(thread, {
+                  lifecycle: "failed",
+                  lifecycleSource: "process",
+                  lifecycleRevision: thread.lifecycleRevision + 1,
+                  backingAvailability: "missing",
+                  recovery: {
+                    kind: "failed",
+                    summary: "The terminal process could not be started or observed.",
+                    actionLabel: "Restart terminal",
+                  },
+                });
+                manifest.revision += 1;
+                await writeFile(manifestPath, JSON.stringify(manifest), "utf8");
+                replaced = true;
+              }
+              if (!replaced)
+                throw new Error("the terminal failure fixture did not find its durable thread");
+            }
             const port = await freeHostPort(hostAddress, Number(oldPort));
             const restarted = await startHost(port);
             if (new URL(restarted.url).port === oldPort) {

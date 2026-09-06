@@ -91,6 +91,75 @@ describe("the root Threads runtime adapter", () => {
     expect(native.start).not.toHaveBeenCalled();
   });
 
+  it("reattaches a live terminal even when a previous client persisted a failure", async () => {
+    const state = owner();
+    await state.addThread(
+      durableThread({
+        lifecycle: "failed",
+        lifecycleRevision: 13,
+        backingAvailability: "missing",
+        recovery: {
+          kind: "failed",
+          summary: "The terminal process could not be started or observed.",
+          actionLabel: "Restart terminal",
+        },
+      }),
+    );
+    const native = terminalAdapter();
+    const reattach = vi.fn(
+      async (request: TerminalStartRequest): Promise<TerminalSessionHandle> => ({
+        projectId: request.projectId,
+        worktreeId: request.worktreeId,
+        sessionId: request.terminalId,
+      }),
+    );
+    const runtime = createRootThreadsAdapter(state, platform(Object.assign(native, { reattach })));
+
+    await vi.waitFor(() =>
+      expect(runtime.session("thread-existing")?.snapshot().status).toBe("running"),
+    );
+    await vi.waitFor(() =>
+      expect(state.snapshot().threads[0]).toMatchObject({
+        lifecycle: "idle",
+        backingAvailability: "ready",
+        recovery: null,
+      }),
+    );
+    expect(reattach).toHaveBeenCalledOnce();
+    expect(native.start).not.toHaveBeenCalled();
+    native.read.mockResolvedValueOnce({
+      session: {
+        projectId: project.id,
+        worktreeId: "worktree-alpha",
+        sessionId: "terminal-thread-existing",
+      },
+      bytes: [],
+      offset: 0,
+      droppedBefore: 0,
+      readError: "reader stopped",
+    });
+    await runtime.session("thread-existing")!.refresh();
+    await vi.waitFor(() =>
+      expect(state.snapshot().threads[0]).toMatchObject({
+        lifecycle: "failed",
+        lifecycleRevision: 14,
+      }),
+    );
+    await runtime.dispose();
+  });
+
+  it("does not reattach a terminal the user explicitly closed", async () => {
+    const state = owner();
+    await state.addThread(durableThread({ lifecycle: "exited", backingAvailability: "closed" }));
+    const native = terminalAdapter();
+    const reattach = vi.fn(async () => null);
+    const runtime = createRootThreadsAdapter(state, platform(Object.assign(native, { reattach })));
+    expect(runtime.session("thread-existing")).toBeNull();
+    expect(reattach).not.toHaveBeenCalled();
+    expect(native.start).not.toHaveBeenCalled();
+    await runtime.dispose();
+  });
+
   it("detaches from live terminals without disposing them when the workbench unloads", async () => {
     const state = owner();
     const native = terminalAdapter();

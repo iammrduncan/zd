@@ -430,9 +430,7 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
   #restoreDurableSessions(): void {
     if (!this.platform.terminal.reattach) return;
     for (const thread of this.owner.snapshot().threads) {
-      if (thread.backingAvailability !== "ready" && thread.backingAvailability !== "starting") {
-        continue;
-      }
+      if (thread.backingAvailability === "closed") continue;
       const terminal = this.#createSession(thread, thread.lifecycleRevision);
       this.#sessions.set(thread.id, terminal);
       void this.#restoreSession(thread.id, terminal);
@@ -467,6 +465,28 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
       await terminal.pollExit();
     } catch {
       // The session remains attached so a later output-ready edge can retry the recorded failure.
+    }
+    const thread = this.owner.snapshot().threads.find(({ id }) => id === threadId);
+    if (
+      !this.#disposed &&
+      this.#sessions.get(threadId) === terminal &&
+      terminal.snapshot().status === "running" &&
+      thread &&
+      thread.backingAvailability !== "closed" &&
+      (thread.backingAvailability !== "ready" || thread.recovery)
+    ) {
+      await this.owner.updateThreadRuntime(threadId, {
+        lifecycle:
+          thread.lifecycle === "failed" || thread.lifecycle === "unknown"
+            ? "idle"
+            : thread.lifecycle,
+        lifecycleSource: thread.lifecycleSource,
+        lifecycleRevision: thread.lifecycleRevision,
+        attentionUnread: thread.attentionUnread,
+        attentionVersion: thread.attentionVersion,
+        backingAvailability: "ready",
+        recovery: null,
+      });
     }
   }
 
