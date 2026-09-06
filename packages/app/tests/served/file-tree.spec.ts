@@ -17,6 +17,60 @@ async function expectOpenFile(page: Page, row: Locator, path: string, text: stri
   await expect(page.locator('.editor-buffer[data-buffer-kind="editable"]')).toContainText(text);
 }
 
+test("a new empty Markdown file accepts typing and saves through the host", async ({
+  page,
+  servedHost,
+}) => {
+  await unlock(page, servedHost.url, servedHost.secret);
+  const tree = page.getByRole("tree", { name: "Project files" });
+  await tree.locator('[data-file-path="docs"]').click({ button: "right" });
+  await page.getByRole("menuitem", { name: "New File…" }).click();
+  const create = page.getByRole("dialog", { name: "New file in docs" });
+  await create.getByRole("textbox", { name: "Name" }).fill("audit-goal.md");
+  await create.getByRole("button", { name: "Create" }).click();
+  await expect(create).toHaveCount(0);
+  const row = tree.locator('[data-file-path="docs/audit-goal.md"]');
+  await row.click();
+  await expect(page.locator(".current-file-path")).toHaveText("docs/audit-goal.md");
+  const content = page.locator('.editor-buffer[data-buffer-kind="editable"] .cm-content');
+  await expect(content).toHaveAttribute("contenteditable", "true");
+  await content.click();
+  const emptyWidth = await content.evaluate((element) => element.getBoundingClientRect().width);
+  await page.keyboard.type("Run the durability audit.");
+  await expect(content).toHaveText("Run the durability audit.");
+  expect(await content.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(
+    emptyWidth,
+    0,
+  );
+  await expect(row).toHaveAttribute("data-dirty", "true");
+  await page.keyboard.press("ControlOrMeta+s");
+  await expect
+    .poll(() => servedHost.readFixtureFile("docs/audit-goal.md"))
+    .toBe("Run the durability audit.");
+  await expect(row).not.toHaveAttribute("data-dirty", "true");
+  await page.reload();
+  await expect(content).toHaveText("Run the durability audit.");
+  const docs = tree.locator('[data-file-path="docs"]');
+  if ((await docs.getAttribute("aria-expanded")) !== "true") await docs.click();
+  await expect(row).not.toHaveAttribute("data-dirty", "true");
+  await content.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Backspace");
+  await content.click();
+  await page.keyboard.type("A fresh goal.");
+  await expect(content).toHaveText("A fresh goal.");
+  await page.keyboard.press("ControlOrMeta+s");
+  await expect(row).not.toHaveAttribute("data-dirty", "true");
+  // The host fixture is shared by this worker; leave its tree unchanged for navigation tests.
+  await row.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Move to Trash…" }).click();
+  await page
+    .getByRole("alertdialog", { name: "Move audit-goal.md to Trash" })
+    .getByRole("button", { name: "Move to Trash" })
+    .click();
+  await expect(row).toHaveCount(0);
+});
+
 test("left-click opens and closes folders and switches files after using the context menu", async ({
   page,
   servedHost,
