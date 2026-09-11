@@ -155,9 +155,12 @@ describe("package ownership", () => {
     const runtime = readFileSync(resolve(ROOT, "packages/app/tests/served/runtime.ts"), "utf8");
 
     expect(rootPackage.scripts["app:serve"]).toBe(
-      "npm run build && cargo run -p zd-desktop --bin zd -- serve",
+      "npm run build && packaging/linux/dev-container.sh --if-needed cargo run -p zd-desktop --bin zd -- serve",
     );
     expect(rootPackage.scripts["test:e2e:served"]).toBe(
+      "packaging/linux/dev-container.sh --if-needed npm run test:e2e:served:pipeline --",
+    );
+    expect(rootPackage.scripts["test:e2e:served:pipeline"]).toBe(
       "npm run build && cargo build -p zd-desktop --bin zd && playwright test --config playwright.served.config.ts",
     );
     expect(runtime).toContain("`zd${extension}`");

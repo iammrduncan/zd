@@ -6,6 +6,12 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 bundle_dir="$repo_root/target/release/bundle/deb"
 
+# Hosts without the native toolchain run the same build inside the checked-in
+# podman image; see dev-container.sh.
+if [[ "${ZD_DEV_CONTAINER_RESOLVED:-}" != "1" ]]; then
+  exec "$script_dir/dev-container.sh" --if-needed bash "$script_dir/package.sh" "$@"
+fi
+
 cd "$repo_root"
 npm run build
 cargo build --locked --release -p zd-desktop --bin zd
