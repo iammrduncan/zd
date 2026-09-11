@@ -58,7 +58,15 @@ impl TestServer {
         Self::start_with_bind(name, Ipv4Addr::UNSPECIFIED).await
     }
 
+    pub async fn start_with_secret(name: &str, secret: &str) -> Self {
+        Self::start_with_config(name, Ipv4Addr::LOCALHOST, Some(secret.to_string())).await
+    }
+
     pub async fn start_with_bind(name: &str, bind: Ipv4Addr) -> Self {
+        Self::start_with_config(name, bind, None).await
+    }
+
+    async fn start_with_config(name: &str, bind: Ipv4Addr, secret: Option<String>) -> Self {
         let project = Scratch::new(&format!("{name}-project"));
         let state = Scratch::new(&format!("{name}-state"));
         let assets = Scratch::new(&format!("{name}-assets"));
@@ -100,6 +108,7 @@ impl TestServer {
                 state.path().to_path_buf(),
                 bind,
                 0,
+                secret,
             ),
         )
         .await
@@ -143,6 +152,7 @@ impl TestServer {
                 state.path().to_path_buf(),
                 Ipv4Addr::UNSPECIFIED,
                 0,
+                None,
             ),
         )
         .await

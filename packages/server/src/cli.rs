@@ -1,11 +1,14 @@
 use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 
+const MAX_FIXED_SECRET_BYTES: usize = 128;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServeArgs {
     project: PathBuf,
     bind: Ipv4Addr,
     port: u16,
+    secret: Option<String>,
 }
 
 impl ServeArgs {
@@ -19,6 +22,7 @@ impl ServeArgs {
         let mut project = None;
         let mut bind = None;
         let mut port = None;
+        let mut secret = None;
         let mut index = 0;
         while index < arguments.len() {
             match arguments[index].as_str() {
@@ -50,6 +54,21 @@ impl ServeArgs {
                             .map_err(|_| "--port must be between 0 and 65535".to_string())?,
                     );
                 }
+                "--secret" => {
+                    if secret.is_some() {
+                        return Err("--secret may be supplied only once".to_string());
+                    }
+                    index += 1;
+                    let value = arguments
+                        .get(index)
+                        .ok_or_else(|| "--secret requires a value".to_string())?;
+                    if value.is_empty() || value.len() > MAX_FIXED_SECRET_BYTES {
+                        return Err(format!(
+                            "--secret must be between 1 and {MAX_FIXED_SECRET_BYTES} bytes"
+                        ));
+                    }
+                    secret = Some(value.clone());
+                }
                 argument if argument.starts_with('-') => {
                     return Err(format!("unknown serve option: {argument}"));
                 }
@@ -67,10 +86,22 @@ impl ServeArgs {
                 }
             })
             .unwrap_or_else(|| invocation_directory.to_path_buf());
+        // A fixed secret exists for typing by hand on the same machine, so it
+        // is only ever valid on a loopback bind; an omitted --bind narrows to
+        // loopback instead of listening on every interface.
+        let bind = match (bind, secret.is_some()) {
+            (Some(bind), true) if !bind.is_loopback() => {
+                return Err("--secret requires a loopback bind".to_string());
+            }
+            (Some(bind), _) => bind,
+            (None, true) => Ipv4Addr::LOCALHOST,
+            (None, false) => Ipv4Addr::UNSPECIFIED,
+        };
         Ok(Self {
             project,
-            bind: bind.unwrap_or(Ipv4Addr::UNSPECIFIED),
+            bind,
             port: port.unwrap_or(0),
+            secret,
         })
     }
 
@@ -84,5 +115,66 @@ impl ServeArgs {
 
     pub fn bind(&self) -> Ipv4Addr {
         self.bind
+    }
+
+    pub fn secret(&self) -> Option<&str> {
+        self.secret.as_deref()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| value.to_string()).collect()
+    }
+
+    fn cwd() -> PathBuf {
+        PathBuf::from("/work/notes")
+    }
+
+    #[test]
+    fn a_fixed_secret_defaults_the_bind_to_loopback() {
+        let served = ServeArgs::parse_in(&args(&["--secret", "12345"]), &cwd()).unwrap();
+        assert_eq!(served.secret(), Some("12345"));
+        assert_eq!(served.bind(), Ipv4Addr::LOCALHOST);
+        assert_eq!(served.project(), cwd());
+    }
+
+    #[test]
+    fn a_fixed_secret_accepts_an_explicit_loopback_bind_only() {
+        let served =
+            ServeArgs::parse_in(&args(&["--bind", "127.0.0.1", "--secret", "local"]), &cwd())
+                .unwrap();
+        assert_eq!(served.bind(), Ipv4Addr::LOCALHOST);
+
+        for bind in ["0.0.0.0", "192.168.1.20", "100.80.233.115"] {
+            let result = ServeArgs::parse_in(&args(&["--bind", bind, "--secret", "local"]), &cwd());
+            assert!(result.is_err(), "accepted --bind {bind} with --secret");
+        }
+    }
+
+    #[test]
+    fn secret_option_is_single_valued_and_bounded() {
+        for invalid in [
+            args(&["--secret"]),
+            args(&["--secret", "one", "--secret", "two"]),
+            args(&["--secret", ""]),
+            args(&["--secret", &"x".repeat(129)]),
+        ] {
+            assert!(
+                ServeArgs::parse_in(&invalid, &cwd()).is_err(),
+                "accepted {invalid:?}"
+            );
+        }
+        assert!(ServeArgs::parse_in(&args(&["--secret", &"x".repeat(128)]), &cwd()).is_ok());
+    }
+
+    #[test]
+    fn serve_without_a_secret_keeps_the_unspecified_default_bind() {
+        let served = ServeArgs::parse_in(&args(&["project"]), &cwd()).unwrap();
+        assert_eq!(served.secret(), None);
+        assert_eq!(served.bind(), Ipv4Addr::UNSPECIFIED);
     }
 }

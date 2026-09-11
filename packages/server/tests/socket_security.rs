@@ -1,5 +1,7 @@
 mod support;
 
+use std::net::Ipv4Addr;
+
 use futures_util::{SinkExt, StreamExt};
 use http::StatusCode;
 use serde_json::json;
@@ -269,6 +271,76 @@ async fn an_http_only_browser_pairing_survives_a_new_port_and_process_secret() {
     assert_eq!(receive_json(&mut resumed).await["type"], "authenticated");
     resumed.close(None).await.expect("close resumed browser");
     restarted.shutdown().await;
+}
+
+#[tokio::test]
+async fn an_operator_fixed_secret_pairs_and_authenticates_on_loopback() {
+    let server = TestServer::start_with_secret("fixed-secret", "12345").await;
+    assert_eq!(server.running.secret(), "12345");
+    assert_eq!(server.running.address().ip(), Ipv4Addr::LOCALHOST);
+
+    let origin = format!("http://{}", server.authority());
+    let refused = pair_response(&server, "not-12345", &origin).await;
+    assert!(refused.starts_with("HTTP/1.1 403"), "{refused}");
+
+    let response = pair_response(&server, "12345", &origin).await;
+    assert!(response.starts_with("HTTP/1.1 204"), "{response}");
+    let cookie = pairing_cookie(&response);
+    let authority = server.authority();
+    let mut paired = connect(
+        &server,
+        &authority,
+        Some(&format!("http://{authority}")),
+        &[("cookie", &cookie)],
+    )
+    .await
+    .expect("paired browser connects");
+    send_json(
+        &mut paired,
+        json!({ "protocolVersion": 1, "type": "authenticate-browser" }),
+    )
+    .await;
+    assert_eq!(receive_json(&mut paired).await["type"], "authenticated");
+    paired.close(None).await.expect("close paired browser");
+
+    let mut direct = connect_same_origin(&server).await;
+    send_json(
+        &mut direct,
+        json!({
+            "protocolVersion": 1,
+            "type": "authenticate",
+            "secret": "12345",
+        }),
+    )
+    .await;
+    assert_eq!(receive_json(&mut direct).await["type"], "authenticated");
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn a_fixed_secret_is_rejected_on_a_non_loopback_bind() {
+    let project = support::Scratch::new("fixed-secret-bind-project");
+    let state = support::Scratch::new("fixed-secret-bind-state");
+    let assets = support::Scratch::new("fixed-secret-bind-assets");
+    let host = std::sync::Arc::new(
+        zd_host::HostService::open_project_with_state(project.path(), state.path())
+            .expect("approve persisted project"),
+    );
+    let result = zd_server::start(
+        host,
+        zd_server::ServerConfig::new(
+            assets.path().to_path_buf(),
+            state.path().to_path_buf(),
+            Ipv4Addr::UNSPECIFIED,
+            0,
+            Some("12345".to_string()),
+        ),
+    )
+    .await;
+    assert_eq!(
+        result.err().as_deref(),
+        Some("a fixed serve secret requires a loopback bind")
+    );
 }
 
 #[tokio::test]

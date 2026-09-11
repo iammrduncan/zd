@@ -23,7 +23,13 @@ async fn run(arguments: ServeArgs) -> Result<(), String> {
     let assets = assets_directory()?;
     let server = start(
         host,
-        ServerConfig::new(assets, state_directory, arguments.bind(), arguments.port()),
+        ServerConfig::new(
+            assets,
+            state_directory,
+            arguments.bind(),
+            arguments.port(),
+            arguments.secret().map(str::to_owned),
+        ),
     )
     .await?;
 
