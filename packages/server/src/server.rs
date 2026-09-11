@@ -34,15 +34,23 @@ pub struct ServerConfig {
     state_directory: PathBuf,
     bind: Ipv4Addr,
     port: u16,
+    secret: Option<String>,
 }
 
 impl ServerConfig {
-    pub fn new(assets_root: PathBuf, state_directory: PathBuf, bind: Ipv4Addr, port: u16) -> Self {
+    pub fn new(
+        assets_root: PathBuf,
+        state_directory: PathBuf,
+        bind: Ipv4Addr,
+        port: u16,
+        secret: Option<String>,
+    ) -> Self {
         Self {
             assets_root,
             state_directory,
             bind,
             port,
+            secret,
         }
     }
 }
@@ -124,10 +132,20 @@ struct AppState {
 }
 
 pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<RunningServer, String> {
+    let secret = match config.secret {
+        Some(secret) if secret.is_empty() => {
+            return Err("a fixed serve secret must not be empty".to_string());
+        }
+        Some(secret) => {
+            if !config.bind.is_loopback() {
+                return Err("a fixed serve secret requires a loopback bind".to_string());
+            }
+            secret
+        }
+        None => URL_SAFE_NO_PAD.encode(random_bytes::<32>()?),
+    };
     let assets = Assets::open(&config.assets_root)?;
     let pairing = BrowserPairing::open(&config.state_directory)?;
-    let secret_bytes = Arc::new(random_bytes::<32>()?);
-    let secret = URL_SAFE_NO_PAD.encode(secret_bytes.as_slice());
     let session_epoch = Arc::<str>::from(URL_SAFE_NO_PAD.encode(random_bytes::<16>()?));
     let runtime = Arc::new(SessionRuntime::new(session_epoch));
     let terminal_events = if host.terminal_runtime_is_external() {
@@ -143,7 +161,7 @@ pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<Runni
         pairing,
         protocol: ProtocolState {
             host: Arc::clone(&host),
-            secret: secret_bytes,
+            secret: Arc::from(secret.as_str()),
             runtime: Arc::clone(&runtime),
             host_jobs: ProtocolState::host_jobs(),
         },

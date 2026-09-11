@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use axum::extract::ws::{Message, WebSocket};
-use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
+use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -33,13 +33,13 @@ use crate::{
 
 const MAX_CONCURRENT_HOST_JOBS: usize = 4;
 const HOST_DIAGNOSTIC_SPAN_ID: &str = "host-dispatch";
-const PROCESS_SECRET_TEXT_BYTES: usize = 43;
+
 const CONTROLLER_ID_TEXT_BYTES: usize = 32;
 
 #[derive(Clone)]
 pub struct ProtocolState {
     pub host: Arc<HostService>,
-    pub secret: Arc<[u8; 32]>,
+    pub secret: Arc<str>,
     pub runtime: Arc<SessionRuntime>,
     pub host_jobs: Arc<Semaphore>,
 }
@@ -50,13 +50,8 @@ impl ProtocolState {
     }
 
     pub(crate) fn accepts_secret(&self, supplied: &str) -> bool {
-        if supplied.len() != PROCESS_SECRET_TEXT_BYTES {
-            return false;
-        }
-        let Ok(decoded) = URL_SAFE_NO_PAD.decode(supplied) else {
-            return false;
-        };
-        bool::from(self.secret.as_slice().ct_eq(decoded.as_slice()))
+        let expected = self.secret.as_bytes();
+        supplied.len() == expected.len() && bool::from(expected.ct_eq(supplied.as_bytes()))
     }
 }
 

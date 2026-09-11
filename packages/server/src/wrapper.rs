@@ -100,7 +100,13 @@ async fn run() -> Result<(), String> {
     );
     let server = start(
         Arc::clone(&host),
-        ServerConfig::new(assets_directory()?, state_directory, Ipv4Addr::LOCALHOST, 0),
+        ServerConfig::new(
+            assets_directory()?,
+            state_directory,
+            Ipv4Addr::LOCALHOST,
+            0,
+            None,
+        ),
     )
     .await?;
     let readiness = WrapperReadiness {

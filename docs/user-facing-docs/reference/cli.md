@@ -6,7 +6,7 @@
 zd
 zd <folder>
 zd <file>
-zd serve [<folder>] [--bind <ip>] [--port <port>]
+zd serve [<folder>] [--bind <ip>] [--port <port>] [--secret <text>]
 ```
 
 ## Launch forms
@@ -17,7 +17,7 @@ zd serve [<folder>] [--bind <ip>] [--port <port>]
 | `zd .` | Open the current directory as an approved project. |
 | `zd <folder>` | Open that directory as an approved project. |
 | `zd <file>` | Approve the file’s parent as a project and open the file. A missing file is created on its first successful save. |
-| `zd serve [<folder>] [--bind <ip>] [--port <port>]` | Run a foreground workbench host for direct browser access. The folder defaults to the current directory. |
+| `zd serve [<folder>] [--bind <ip>] [--port <port>] [--secret <text>]` | Run a foreground workbench host for direct browser access. The folder defaults to the current directory. |
 
 The first positional argument in a desktop launch is the launch path. `serve` is the only public
 subcommand. Use `./serve` to open a folder named `serve` instead.
@@ -29,6 +29,7 @@ subcommand. Use `./serve` to open a folder named `serve` instead.
 | `<folder>` | One folder to approve. The default is the process working directory. |
 | `--bind <ip>` | One numeric IPv4 address. The default is `0.0.0.0`, which listens on all IPv4 interfaces. Use the host's protected-network address for remote access or `127.0.0.1` for same-machine access. |
 | `--port <port>` | An integer from `0` through `65535`. The default port `0` asks the operating system to choose a free port. |
+| `--secret <text>` | A fixed process secret you choose, for typing by hand on the same machine. When it is supplied the host binds `127.0.0.1` unless `--bind` names a loopback address; any other bind is refused. Omit it for a generated secret. |
 
 The foreground process prints `zd serve URL:` and `zd serve secret:` on separate lines when it is
 ready. It keeps running until `Ctrl+C` or a termination signal stops it. See
