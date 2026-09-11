@@ -6,7 +6,9 @@ projects, files, Git, terminals, windows, notifications, diagnostics, or packagi
 ## Set up the checkout
 
 Install a Node version accepted by `package.json` and Rust through rustup. The repository pins its
-Rust toolchain in `rust-toolchain.toml`.
+Rust toolchain in `rust-toolchain.toml`. On Debian or Ubuntu,
+`packaging/linux/install-dev-deps.sh` installs the C toolchain, the desktop wrapper's WebKit/GTK
+stack, and the browser system dependencies the checks need.
 
 ```sh
 npm ci
