@@ -21,15 +21,11 @@
 The audit can begin on this machine immediately; these items decide whether it can be declared
 *complete* rather than whether it can run. Answer them now or let the audit record the gaps.
 
-| # | What | Why it needs you |
-| --- | --- | --- |
-| 1 | Approval to spawn fixture-owned processes, disposable projects, and a separate test configuration and keeper namespace on this machine | The audit injects crashes and signals; it must never touch the owner's live host, keeper, or real projects (`04-DURABILITY-PERFORMANCE-AUDIT.md:22-24`) |
-| 2 | A native macOS test environment for installed-wrapper and lifecycle evidence, or a recorded gap | A Playwright WebKit run is not native Tauri evidence (`04-DURABILITY-PERFORMANCE-AUDIT.md:24-25`) |
-| 3 | A representative protected-network remote route (for example Tailscale), or a recorded gap | Loopback and synthetic shaping cannot establish remote typing behavior (`04-DURABILITY-PERFORMANCE-AUDIT.md:132-134`) |
-
-Owner decisions (2026-09-11): run fixture-owned processes and keepers in podman instances; defer
-native macOS evidence — the desktop wrapper is lower priority — and record the gap; the
-protected-network route already exists over Tailscale at `http://mbox01-mini-s.taila9c138.ts.net/`.
+| # | What | Why it needs you | answer |
+| --- | --- | --- | --- |
+| 1 | Approval to spawn fixture-owned processes, disposable projects, and a separate test configuration and keeper namespace on this machine | The audit injects crashes and signals; it must never touch the owner's live host, keeper, or real projects (04-DURABILITY-PERFORMANCE-AUDIT.md:22-24) | do so in podman instances |
+| 2 | A native macOS test environment for installed-wrapper and lifecycle evidence, or a recorded gap | A Playwright WebKit run is not native Tauri evidence (`04-DURABILITY-PERFORMANCE-AUDIT.md:24-25`) | do native mac later less priority on tauri|
+| 3 | A representative protected-network remote route (for example Tailscale), or a recorded gap | Loopback and synthetic shaping cannot establish remote typing behavior (`04-DURABILITY-PERFORMANCE-AUDIT.md:132-134`) | you are alrerady on tailscale use your own address http://mbox01-mini-s.taila9c138.ts.net/|
 
 ## `/goal` objective
 
