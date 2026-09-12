@@ -16,6 +16,9 @@ was therefore promoted from a simple goal to an objective.
 | [Current system](01-current-system.md) | Existing production paths, reusable boundaries, actual duplication, persistence and single-client constraints |
 | [Protocol and security](02-protocol-and-security.md) | Loopback binding, SSH forwarding, authentication, WebSocket shape, bounds, and latency evidence |
 | [Wrapper and delivery](03-wrapper-and-delivery.md) | Tauri ownership, process-topology choice, shutdown, assets, release constraints, and test boundaries |
+| [Terminal reliability audit](04-terminal-reliability-audit.md) | Process/state map, 22-row failure matrix, finding register F-01–F-07, authority conflicts |
+| [Terminal performance baseline](05-terminal-performance-baseline.md) | Release-build latency/resource measurements at 0–200 ms injected RTT, attribution, fixed gates |
+| [Feature coverage matrix](06-feature-coverage-matrix.md) | Capability × platform/browser coverage, test quality, verified prior symptoms, explicit gaps |
 
 Raw subagent returns remain unedited under [`subagent_outputs/`](subagent_outputs/).
 
