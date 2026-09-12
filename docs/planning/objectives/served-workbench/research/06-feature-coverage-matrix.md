@@ -95,7 +95,7 @@ protocol-level fixture runs (evidence under `/tmp/zd-audit/evidence`, harness un
 
 | Capability | Evidence | Notes |
 | --- | --- | --- |
-| Packaged assets match binary | `package.sh` + layout tests; audit notes the container path | — |
+| Packaged assets match binary | `package.sh` + layout tests + `smoke:linux` on `zd_0.2.10_amd64.deb` (install/upgrade/stale verified; installed browser smoke 15/15 native; wrapper lifecycle verified standalone in the dev container — the orchestrated run aborts there on the F-05 browser leg) | hosts need `xvfb xauth dbus-x11` for the wrapper phase |
 | CLI and wrapper share backend | `zd-serve`/`zd` share `run_foreground`; Tauri supervises the binary | native Tauri run unverified (deferred) |
 | Startup/shutdown/upgrade | audit restart rows; **upgrade wire-compat = F-04** | — |
 | User docs match verified behavior | `cli.md` updated with `--secret`; docs tests green | — |
@@ -106,7 +106,7 @@ protocol-level fixture runs (evidence under `/tmp/zd-audit/evidence`, harness un
 | --- | --- |
 | Blank Markdown editor | fixed at `2b58d97`; covered by file-tree spec |
 | Terminal lost on server restart | **cannot reproduce as a defect** — survives by design; e2e + audit rows pass |
-| Podman suite failures | environment-specific (F-05), reproduced on pre-change code |
+| Podman suite failures | environment-specific (F-05): flaky terminal-disposal zombie check, deterministic restart-spec + desktop-launch failures without a display |
 | Stale `failed` thread hides live session | covered: `terminal-restoration` spec passes |
 
 ## Missing coverage — explicit gaps

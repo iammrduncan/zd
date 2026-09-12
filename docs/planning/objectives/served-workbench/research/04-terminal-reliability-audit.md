@@ -113,17 +113,24 @@ reproducible through `audit-matrix*.mjs` in the harness). PASS means the row's c
 | Slow consumer (never reads) during flood | PASS | retention stays ≤ 4 MiB; client responsive; no resync storm |
 | Controller grace expiry | PASS | watches stop at 30 s; resync published; watches restart on client re-request |
 | Heartbeat contract | PASS (contract note) | only `session.heartbeat` resets the 30 s socket deadline — a continuously busy client that never heartbeats is still disconnected at auth+30 s (observed: socket death at ~31 s mid-traffic). The app client always heartbeats so the contract holds; scripted/third-party clients must too |
+| Wrapper hide/close/quit/crash (Tauri) | **GAP — environment** | no display server on this host and no native runner; the wrapper path is supervisor code review + unit tests only. Recorded, not claimed |
+| Version mismatch (old keeper, new server) | **N/A structurally** | the keeper wire has no version field — there is nothing to negotiate against (F-04). Any schema change breaks decode; no runtime injection needed to prove it |
+| Degraded-state writes | PARTIAL | durable files use atomic write + lock + size caps (code-read). Startup-time corruption injected and fails loudly. Mid-operation torn-write injection not run — the atomic-write design makes the failure mode a stale-but-valid prior file |
 
 ### Container (Podman) rows — recorded, not hidden
 
-Two existing tests fail inside the dev container and pass on the native host:
+Three existing tests misbehave inside the dev container while the native host passes:
 
 - `real-host.spec.ts` "keeps every project terminal through a served-host process restart" — spawned
   shells exit early (`logout` / `data-terminal-status="exited"`), at different points per run.
-- `terminal::tests::disposal_terminates_the_session_process_group` — a descendant survives.
+- `terminal::tests::disposal_terminates_the_session_process_group` — **flaky** in-container: the
+  killed descendant reparents to the container's non-reaping PID 1 (`node`), so `kill -0` reads a
+  zombie as "survived" (F-05 mechanism; observed pass/fail flip on the same revision).
+- `cli_dispatch::ordinary_zd_launches_the_desktop_role_and_returns` — deterministic container
+  failure: the desktop role cannot finish its launch record without a display server.
 
-Both were re-run on the pre-`--secret` revision and with and without `--userns=keep-id`: identical
-failure. They are container PTY/process-group semantics, not a product regression — but they are
+The first two were re-run on the pre-`--secret` revision and with and without `--userns=keep-id`:
+identical failure. They are container PTY/display semantics, not product regressions — but they are
 exactly the kind of environment gap this audit exists to record (F-05).
 
 ## Finding register
