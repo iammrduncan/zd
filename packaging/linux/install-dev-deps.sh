@@ -42,7 +42,10 @@ $sudo apt-get install -y \
   libayatana-appindicator3-dev \
   librsvg2-dev \
   libsoup-3.0-dev \
-  libxdo-dev
+  libxdo-dev \
+  xvfb \
+  xauth \
+  dbus-x11
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
