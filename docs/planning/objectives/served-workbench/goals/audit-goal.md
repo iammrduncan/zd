@@ -27,6 +27,10 @@ The audit can begin on this machine immediately; these items decide whether it c
 | 2 | A native macOS test environment for installed-wrapper and lifecycle evidence, or a recorded gap | A Playwright WebKit run is not native Tauri evidence (`04-DURABILITY-PERFORMANCE-AUDIT.md:24-25`) |
 | 3 | A representative protected-network remote route (for example Tailscale), or a recorded gap | Loopback and synthetic shaping cannot establish remote typing behavior (`04-DURABILITY-PERFORMANCE-AUDIT.md:132-134`) |
 
+Owner decisions (2026-09-11): run fixture-owned processes and keepers in podman instances; defer
+native macOS evidence — the desktop wrapper is lower priority — and record the gap; the
+protected-network route already exists over Tailscale at `http://mbox01-mini-s.taila9c138.ts.net/`.
+
 ## `/goal` objective
 
 This goal delivers the audit defined by `../04-DURABILITY-PERFORMANCE-AUDIT.md:1-210` — the
