@@ -1,10 +1,13 @@
 # Implementation plan: make zd a durable, responsive terminal workbench
 
-Date: 2026-09-05
+Date: 2026-09-05 · **Audit revision: 2026-09-12**
 
-Status: **Provisional; blocked on the audit and its revision of this plan.** No implementation is
-authorized by the current planning request. The work packets below are candidate goal boundaries,
-not a claim that each area needs a rewrite.
+Status: **Revised by the executed audit.** The packets below are no longer hypotheses: each cites
+finding IDs from [the reliability audit](research/04-terminal-reliability-audit.md), the measured
+baseline in [the performance report](research/05-terminal-performance-baseline.md), and the
+coverage matrix in [report 06](research/06-feature-coverage-matrix.md). Source revision audited:
+`032daf2` (code: `c42128b`), Linux x86_64, debug + release `zd-serve`. Remaining open evidence:
+native macOS and Firefox/WebKit browser runs — recorded gaps, not passes.
 
 ## Outcome and prerequisites
 
@@ -66,31 +69,39 @@ Preserve the frontend's single workbench-transition owner. The keeper supplies l
 host-owned durable records preserve identities and relationships; the frontend owns presentation
 transitions. The audit must resolve disagreements at these boundaries without adding competing owners.
 
-## Candidate performance gates
+## Performance gates — audit-fixed
 
-These are proposed acceptance targets, **not measurements or current guarantees**. The audit must
-record reference hardware, workloads, instrumentation error, and final gates before implementation.
-Any change to a target needs a documented reason; a slower result alone does not justify relaxing it.
+Measured reference: `target/release/zd-serve` on `mbox01-MINI-S` (Linux 7.0.0-31-generic x86_64),
+protocol-level harness, 1000 samples per injected-RTT condition, monotonic clock plus server-side
+`queueMicros`/`handlerMicros`/`serializationMicros`. Raw evidence:
+`/tmp/zd-audit/evidence/a3-latency-*.ndjson` and `a3-resources-*.ndjson`. Full numbers in
+[report 05](research/05-terminal-performance-baseline.md).
 
-| Measure | Candidate gate on the reference workload |
+Measured starting points that constrain the gates:
+
+- Real op cost is sub-millisecond: `handlerMicros` p50 ≈ 0.7 ms at 200 ms spacing. The ~9–10 ms
+  seen at loopback is keeper-mutex contention with the 16 ms snapshot pump, measured inside the
+  handler (F-06). Sustained sibling output inflates every op by ~30 ms; busy `read` adds payload
+  transfer (~120 ms p50).
+- Output delivery costs **a second RTT** (`outputReady` carries no bytes, F-07).
+- Idle CPU on release: `zd-serve` ~0.3%, keeper ~0.65% of one core — both under the 1% gate.
+- Bounded retention verified: 8.6 MiB written → exactly 4 MiB retained, `droppedBefore` reported;
+  `zd-serve` RSS ~28 MiB after bursts, flat across attach/detach cycles.
+
+| Measure | Fixed gate on the reference workload |
 | --- | --- |
-| Browser input event to WebSocket send | p95 ≤ 8 ms; p99 ≤ 16 ms |
-| Input event to visible deterministic child echo | p95 ≤ measured RTT + 30 ms; p99 ≤ RTT + 60 ms |
+| Browser input event to WebSocket send | p95 ≤ 8 ms; p99 ≤ 16 ms (unchanged) |
+| Input event to visible deterministic child echo | p95 ≤ RTT + 30 ms; p99 ≤ RTT + 60 ms — **blocked until F-07 lands** (today ≈ 2×RTT + ~10 ms + ≤16 ms pump) |
+| Quiet `terminal.write`/`read`/`pollExit` at 0 ms injected | p50 ≤ 12 ms, p99 ≤ 45 ms (matches measured quiet baseline) |
+| Busy-session op inflation | p50 ≤ quiet + 5 ms for `write`/`pollExit` under a continuous-output sibling (today ~+30 ms; F-06 gate) |
 | Warm switch to an already attached terminal | p95 ≤ 100 ms, without losing keystrokes or viewport |
-| Reattach after gateway is ready and reachable | p95 ≤ 2 seconds + two RTTs; no replacement process |
-| Foreground output under load | Sustain ≥ 2 MiB/s for the audit's ANSI fixture while meeting input gates |
-| Idle resource use | Mean ≤ 1% of one CPU core per zd process role over 60 seconds; no continuous UI repaint |
-| Memory and retained output | Explicit per-session and total caps; settled memory stays within 10% of the warmed baseline after ten fixed-size attach/output/detach cycles |
+| Reattach after gateway ready | p95 ≤ 2 s + two RTTs — **passes today** (measured well under bound) |
+| Foreground output under load | ≥ 2 MiB/s sustained — passes for throughput; input gates under load are the open half (F-06) |
+| Idle resource use | ≤ 1% of one core per process role over 60 s — **passes on release**: serve ~0.3%, keeper ~0.65% (debug build reads higher; not the gate's subject) |
+| Memory | settled within 10% of warmed baseline across 10 attach/output/detach cycles — **passes today**; absolute caps already explicit (4 MiB/session, 16 MiB hard, 32 MiB keeper reply) |
 
-Use both one terminal and foreground typing with seven busy background terminals. Record the 32-live
-terminal stress profile separately with its own audit-fixed limits. Run typing gates at controlled
-0/40/100/200 ms RTT without loss; report jitter/loss behavior separately and require bounded recovery,
-no duplicate input, and no unbounded queues. Measure real remote routes separately from those profiles.
-Report child execution delay instead of attributing a slow agent response to zd.
-
-The audit must set absolute memory, scrollback, replay, and queue caps as well as the relative memory
-gate. A high starting footprint cannot pass merely because it stays high. Keep renderer-only
-fixtures, but do not use their broad ceilings as proof of end-to-end terminal responsiveness.
+The jitter/loss profile and the tailnet route are reported separately in report 05; the harness's
+user-space relay does not model TCP loss recovery, so loss behavior is stress evidence only.
 
 ## Ordered implementation packets
 
@@ -101,101 +112,150 @@ changes when the audit proves its contract already holds; retain its verificatio
 
 ### I1. Lock the failures and measurements into executable regressions
 
-Depends on: completed audit and revised plan.
+Depends on: completed audit and revised plan. **Findings it must cover: F-01, F-05 (test-assertion
+half), F-06.**
 
-Owns: `packages/app/tests/served/`, applicable existing unit/integration suites, performance fixtures,
-and Playwright configuration where collection or browser coverage needs correction.
+Owns: `packages/app/tests/served/`, `packages/host/src/terminal/tests.rs`,
+`packages/host/tests/terminal.rs`, performance fixtures, and Playwright configuration where
+collection or browser coverage needs correction.
 
-Turn audit reproductions into collected tests. Run each bug regression against the pre-fix revision
-and record the relevant failure, then make it a required check for the owning fix. Preserve the
-release-build baseline and network profiles. Build isolated keeper/process ownership into lifecycle
-tests before adding crash cases. Do not commit a deliberately failing default suite between goals;
-land red-to-green evidence with the corresponding fix or keep the audit reproduction documented.
+Turn audit reproductions into collected tests:
+
+- **F-01:** a job-control regression — an *interactive* shell (`bash -i`, not `sh -c`), a `&`
+  background child, dispose. Asserts the child dies, the session record is removed, and the keeper
+  goes empty. The existing disposal test cannot see this defect (non-interactive `sh` keeps the
+  child in the same pgroup).
+- **F-05 (test half):** replace `kill -0` liveness with a real-dead check (`/proc/<pid>/stat`
+  state, or waitpid semantics) so zombies can't false-positive — the container failure mode.
+- **F-06:** a contention test — quiet-session p50 vs busy-output-session p50 for `write`/`pollExit`,
+  asserting the fixed bound.
+- **Heartbeat contract:** a client that stays request-busy without heartbeating must be
+  disconnected at 30 s (already-true product behavior, currently untested).
+
+Run each bug regression against the pre-fix revision and record the failure, then make it a required
+check for the owning fix. Preserve the release-build baseline and network profiles
+(`audit-latency.mjs`/`audit-resources.mjs` shapes are the reference harness). Build isolated
+keeper/process ownership into lifecycle tests before adding crash cases. Do not commit a
+deliberately failing default suite between goals; land red-to-green evidence with the fix.
 
 Exit evidence: tests exercise real host paths, can detect the original symptom, and cannot terminate
 unrelated processes. Input tests compare exact bytes; recovery tests compare live process identity.
 Performance measurements identify the leg being measured and use fixed workloads and thresholds.
 
-### I2. Make live sessions discoverable below the gateway lifetime
+### I2. Keeper session lifecycle — fix dispose, add a handshake, decide fencing
 
-Depends on: I1's lifecycle harness and the audit's chosen catalog/versioning policy.
+Depends on: I1's lifecycle harness. **Findings it must cover: F-01 (runtime half), F-03 (owner
+decision), F-04.**
 
-Owns: `packages/host/src/terminal/`, host persistence, server lifecycle, and wrapper supervision.
+Owns: `packages/host/src/terminal/keeper.rs` (dispatch, wire enums, `Hello` exchange),
+`packages/host/src/terminal/process.rs` (terminate/session-member cleanup, reader join),
+`packages/host/src/terminal/mod.rs` (session map, dispose path), server lifecycle, and wrapper
+supervision.
 
-Address confirmed failures in keeper detachment, singleton startup, private socket permissions,
-stable session catalog, crash-consistent metadata, and reattachment discovery. Cover both thread
-terminals and project-terminal splits. Reconcile a live session whose create acknowledgement or
-frontend save was lost; do not leave inaccessible processes or create duplicates on retry.
+What the audit proved already works (do not re-engineer): server SIGTERM/SIGKILL/restart survival
+(10/10), WS reconnect (10/10), keeper dedup via lock+ping, 30 s/5 min stall survival, SIGHUP of the
+server's process group, resize-while-detached, output continuity, UTF-8/ANSI/alt-screen, bounded
+retention with `droppedBefore`, natural-exit records, corrupt-catalog loud failure.
 
-Define atomic creation/closure records, idempotent operation identities, closed-session tombstone
-retention, keeper generation, and schema compatibility only as required by the audited failure cases.
-Bound metadata and exited-session retention without expiring live processes. Distinguish transport
-unavailability from confirmed process loss. Preserve live processes during incompatible upgrades.
+What must change:
 
-Exit evidence: the audit's crash matrix passes for unchanged process identity and continued work;
-multiple gateway launches do not create conflicting authorities; explicit close is targeted and
-durable; keeper loss is visible and never triggers silent replacement.
+- **F-01 (P2):** dispose must kill the *session's* member set, not only the shell's process group —
+  job-control children get their own pgroup inside the same session. Fix: group signal first, then
+  enumerate session members and kill survivors; and detach `OutputReader::join` from EOF dependence
+  (bounded drain, then abandon) so a slave-holding orphan cannot hang dispose and leak the record.
+- **F-04 (P3→P2 risk):** add a `Hello{protocolVersion}` handshake on the keeper socket before any
+  op; mismatch returns an explicit `incompatible-keeper` error and never kills the keeper or its
+  terminals. `deny_unknown_fields` on both enums makes any schema change fatal today.
+- **F-03 (P2, owner decision pending):** two serves on one state dir share the keeper and both can
+  write any session — input fencing is per-server only. Either add keeper-side session ownership
+  (epoch/owner field) or document same-user multi-serve as a single-writer convenience.
+- Lost-ack retry: a `terminal.start` retry after a lost ack must return a typed
+  `already-exists` (→reattach) rather than the generic `terminal-unavailable` (F-02, runtime half
+  here; wire surface in I3).
 
-### I3. Restore terminal state and make reconnect input safe
+Exit evidence: the audit's crash matrix passes unchanged (it already does — keep it green); the
+F-01 job-control regression goes red-to-green; a mismatched-keeper handshake test proves
+non-destructive refusal; the F-03 decision is recorded as an owner answer in the finding register.
 
-Depends on: I2's identity and lifecycle contract.
+### I3. Typed error surface and reconnect input contract
 
-Owns: host terminal output/IPC, `packages/server/src/protocol.rs`, server session/controller logic,
-`packages/app/src/platform/served*.ts`, and terminal session/emulator restoration.
+Depends on: I2's keeper handshake (wire changes serialize there first). **Findings it must cover:
+F-02.**
 
-Implement the audit-selected output cursor, replay, and screen-restoration design. Define ordering,
-acknowledgement, truncation, replay-to-live transition, resize, and stale-generation rejection. A raw
-suffix of escape sequences is not automatically a valid screen snapshot. Test alternate-screen
-programs, cursor/input modes, split Unicode/ANSI sequences, and resize during reconnect.
+Owns: `packages/host/src/terminal/` error kinds → `packages/server/src/protocol.rs` public error
+codes → `packages/app/src/platform/served-client.ts` / `session.ts` error routing.
 
-Give terminal input one ordered path. Prevent old controllers and uncertain reconnect retries from
-repeating commands. If acknowledged input is retried, deduplication must live with the surviving
-keeper, not only in the gateway that can crash. If delivery is ambiguous and deduplication cannot
-resolve it, report uncertainty and do not resend silently. Bound pending paste/input and visibly
-disable disconnected input instead of collecting hidden commands to execute later.
+The audit's restoration rows already pass: reconnect returns the same session (PID+nonce verified),
+exited sessions stay listed and reattachable, missing project dirs refuse without respawning,
+controller replacement fences the stale socket, and grace expiry stops watches but leaves terminals.
 
-Exit evidence: exact bytes arrive once and in order for the supported retry contract; the restored
-screen matches the live session; stale snapshots/controllers cannot overwrite current truth; large
-detached output stays bounded and reports truncation.
+What must change:
 
-### I4. Remove the measured latency causes
+- **F-02 (P3):** map `TerminalErrorKind` to typed public codes — `already-exists` (retry→reattach),
+  `project-missing` (→project error), `not-found` (→null path) — keeping `terminal-unavailable`
+  only as fallback. Clients currently cannot route these causes.
+- Input ordering/dedup contract: no defect observed (10/10 reconnect cycles, no repeated commands),
+  but the contract is implicit — define it: acknowledged writes are committed once; ambiguous
+  reconnect retries must not resend silently. Keeper-side dedup only if a failure case is
+  reproduced; otherwise document the contract.
 
-Depends on: I1's baseline and I3's stable transport/replay contract.
+Exit evidence: typed codes asserted per cause; the reconnect/restore suite stays green; input
+contract documented and, where ambiguous, visibly refused rather than silently retried.
 
-Owns: only the host, IPC, server, browser transport, or terminal-rendering paths implicated by audit
-traces. Serialize protocol changes with I2/I3; do not develop incompatible encodings in parallel.
+### I4. Remove the two measured latency causes
 
-Run one controlled change at a time against the same baseline. Candidate investigations include
-polling delay, connection setup, lock contention, queue head-of-line blocking, batching, serialization,
-unnecessary DOM work, and inactive-terminal output consumption. Select changes from measured cost,
-not from the appeal of a binary protocol or a different renderer.
+Depends on: I1's baseline harness and I2/I3's wire changes. **Findings it must cover: F-06, F-07.**
 
-Preserve input ordering while keeping bulk output and file/Git work from delaying interactive input.
-Drain bounded output without blocking a child indefinitely merely because no browser is attached.
-Define slow-consumer overflow behavior, fair scheduling, and memory bounds. Do not mask network
-latency with unconditional local echo: password input, shell editing, and fullscreen apps must remain
-correct. Any predictive echo would require separate evidence and an explicit design decision.
+Owns: `packages/server/src/server.rs` (`TerminalEventPump`, 16 ms poll, `outputReady` shape),
+`packages/host/src/terminal/keeper.rs` (global `sessions` mutex, per-session granularity),
+`packages/server/src/session.rs` (event journal/broadcast), and the client read path in
+`packages/app/src/threads/terminal/session.ts`. Serialize protocol changes with I2/I3; no parallel
+incompatible encodings.
 
-Exit evidence: audit-fixed input, output, reconnect, CPU, and memory gates pass in production builds,
-including background load. Show before/after distributions and costs per process role, not only an
-average or a renderer microbenchmark. Durability and byte-correctness tests remain green.
+The audit's attribution is specific — these are the measured causes, not a survey:
 
-### I5. Close the audited feature failures
+- **F-07 (P2, first):** `terminal.outputReady` carries no bytes; output costs a second RTT.
+  Piggyback bounded bytes on the signal (or a streamed frame) — halves the remote echo path.
+- **F-06 (P2, second):** the 16 ms `terminal_snapshot()` pump takes the keeper's single `sessions`
+  mutex while iterating; every op queues behind it (+~30 ms under output flow; reads ~120 ms p50
+  including payload). Push readiness from the keeper or take per-session locks/`RwLock`.
 
-Depends on: I1 reproductions; session-related fixes also depend on I2/I3. Independent UI fixes may
-land earlier when they do not compete for shared files. P0/P1 findings take priority over cosmetic work.
+Preserve input ordering; keep bulk output from delaying interactive input. Bounded output drain is
+already correct (slow-consumer row passed; retention capped). No unconditional local echo.
 
-Owns: finding-specific file-tree, picker, editor, workbench, connection, terminal-view, and shell files.
+Exit evidence: the fixed gates pass — echo p95 ≤ RTT+30 ms (needs F-07), busy-vs-quiet op inflation
+≤ 5 ms (needs F-06), quiet p50 ≤ 12 ms and p99 ≤ 45 ms preserved. Show before/after distributions
+from the same harness, per process role. Durability and byte-correctness suites stay green.
 
-Use the audit's matrix as the work list. It must explicitly account for prior reports: left-click
-file/folder activation despite working right-click; watcher races; picker overflow and scrolling;
-remote project selection; persistent banners; remembered credentials and stale-controller rejection;
-repeated pasted terminal input; and misleading “no longer attached” state. These reports require
-verification, not an assumption that they still fail or that prior fixes resolved every variant.
+### I5. Close the audited coverage gaps
 
-Exit evidence: each accepted finding has a red-to-green regression or documented pre-existing pass,
-plus the actual user-visible outcome on a real host. Cover keyboard/focus behavior and browser/Tauri
-parity. No browser-specific filesystem or terminal backend is introduced to make a test pass.
+Depends on: I1 harness; session-related items depend on I2/I3. **Covers report 06's gap list plus
+prior-reported symptoms the audit verified.**
+
+Owns: Playwright config (`playwright.served.config.ts` — browser projects), the served-path
+terminal input path (`session.ts`, emulator glue), file-tree/picker/editor files only where a
+reproduction shows a live defect.
+
+The audit's capability matrix (report 06) shows the served path is well covered on Chromium+Linux.
+The verified-prior-symptoms table recorded: blank editor fixed at `2b58d97`; restart-survival works
+by design (not a defect); stale `failed` thread recovery passes. Prior reports still needing
+verification where the audit did not reach: left-click file activation, picker overflow on long
+lists, persistent banners, repeated pasted input, misleading "no longer attached" state.
+
+Coverage gaps to close (all recorded, none hidden):
+
+- **Firefox and WebKit served-path runs** — no config exists; add projects to the served Playwright
+  config and record results separately per browser.
+- **Terminal input fidelity over the wire** — bracketed paste, IME composition, key ordering,
+  copy/selection: unit-tested only; add served-path tests that type them end to end.
+- **Git e2e on the served path** — host tests only today.
+- **Long project-picker lists** — unit-tested; needs e2e scroll evidence.
+- **Container PTY divergence (F-05)** — dev-container environment characterization, not a product
+  defect; the `real-host` restart spec stays Chromium-native until the container shell-exit cause
+  is understood.
+
+Exit evidence: each gap either gets a real run with recorded results or an explicit owner deferral.
+No browser-specific filesystem or terminal backend to make a test pass.
 
 ### I6. Prove the integrated result and document the limits
 
@@ -236,20 +296,39 @@ explicit termination, retention bounds, and how to locate a slow interaction.
 
 ## Audit revision and implementation readiness
 
-The audit must replace the pending entries below before this plan becomes executable. It may split,
-merge, reorder, or remove candidate packets based on evidence while preserving the required outcomes.
+Audit executed 2026-09-12 against `032daf2` (code `c42128b`). Evidence:
+[report 04](research/04-terminal-reliability-audit.md) (process map, 22-row failure matrix, finding
+register F-01…F-07), [report 05](research/05-terminal-performance-baseline.md) (release-build
+latency/resource baseline), [report 06](research/06-feature-coverage-matrix.md) (capability ×
+platform/browser matrix). Raw protocol-level evidence: `/tmp/zd-audit/evidence/*.ndjson`;
+harness: `/tmp/zd-audit/bin/` (uncommitted by design — I1 decides what to commit).
 
-| Required audit handoff | Current state |
+| Required audit handoff | State |
 | --- | --- |
-| Finding register and complete capability/platform matrix | Pending; audit not run |
-| Durability failures, session catalog, ownership, and upgrade policy | Pending |
-| Screen restoration and input retry/controller contract | Pending |
-| Attributed latency baseline, memory caps, and final performance gates | Pending |
-| Finding-to-packet mapping, exact file ownership, tests, and dependencies | Pending |
-| Owner decisions, explicit deferrals, and native evidence availability | Pending |
+| Finding register | **Delivered** — F-01…F-07 in report 04, each with severity, repro, evidence, cause confidence, test gap, destination packet |
+| Capability/platform matrix | **Delivered** — report 06; gaps are explicit, not hidden |
+| Durability matrix | **Delivered** — 22 rows; 21 pass, 1 fail (F-01). Keeper-death and session-death bounds honestly recorded |
+| Upgrade/versioning policy | **Decided as a finding** — F-04: no keeper handshake exists; I2 owns the `Hello{version}` addition |
+| Screen restoration / input contract | **Mostly verified** — restoration rows pass; F-02 error typing and the implicit input-ordering contract go to I3 |
+| Attributed latency baseline | **Delivered** — report 05; host ~9–10 ms/op quiet, +~30 ms under output flow (F-06), second-RTT output cost (F-07) |
+| Fixed performance gates | **Set above** — echo gate blocked on F-07; all other gates pass on the measured release baseline |
+| Finding→packet map, ownership, tests | **Done** — packets I1–I5 carry finding IDs and file ownership |
+| Owner decisions | **One pending** — F-03 below |
+| Deferrals | macOS native evidence (owner-deferred), Windows (plan-deferred), container e2e (F-05 env gap) |
 
-Record the audit revision date, source revision, evidence links, and remaining blockers here. Do not
-mark this table ready because reports exist if measurements or decisions are still missing.
+### Owner decisions this plan cannot proceed past
+
+| Decision | Why it blocks | Default if unanswered |
+| --- | --- | --- |
+| **F-03 — cross-server input fencing:** is same-user multi-serve sharing a supported topology? | Changes I2's scope — keeper-side fencing (new epoch/owner field) vs documenting single-writer. | Treat as supported + document "one writer at a time" (no fencing) — matches how the keeper is already shared. |
+
+### Remaining blockers (evidence, not decisions)
+
+1. **Native macOS run** — required by the original plan; owner-deferred for this audit. Implementation
+   gates on Linux evidence; macOS stays an open row until a native runner exists.
+2. **Firefox/WebKit served runs** — no driver config exists; I5 owns adding them.
+3. **F-01 fix must not regress normal dispose** — the session-member enumeration is the risky part;
+   I1's regression lands first.
 
 ## Constraints and completion definition
 
