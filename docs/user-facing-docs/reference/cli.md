@@ -29,7 +29,7 @@ subcommand. Use `./serve` to open a folder named `serve` instead.
 | `<folder>` | One folder to approve. The default is the process working directory. |
 | `--bind <ip>` | One numeric IPv4 address. The default is `0.0.0.0`, which listens on all IPv4 interfaces. Use the host's protected-network address for remote access or `127.0.0.1` for same-machine access. |
 | `--port <port>` | An integer from `0` through `65535`. The default port `0` asks the operating system to choose a free port. |
-| `--secret <text>` | A fixed process secret you choose, for typing by hand on the same machine. When it is supplied the host binds `127.0.0.1` unless `--bind` names a loopback address; any other bind is refused. Omit it for a generated secret. |
+| `--secret <text>` | A fixed process secret you choose, for typing by hand. When it is supplied the host binds `127.0.0.1` unless `--bind` names a loopback or Tailscale-range (`100.64.0.0/10`) address; any other bind is refused. Omit it for a generated secret. |
 
 The foreground process prints `zd serve URL:` and `zd serve secret:` on separate lines when it is
 ready. It keeps running until `Ctrl+C` or a termination signal stops it. See

@@ -3,6 +3,13 @@ use std::path::{Path, PathBuf};
 
 const MAX_FIXED_SECRET_BYTES: usize = 128;
 
+/// A fixed, human-typed secret may only guard a listener that cannot be
+/// reached by an open network: loopback, or a Tailscale tailnet address in the
+/// carrier-grade NAT range (the protected network remote access assumes).
+pub(crate) fn fixed_secret_bind_allowed(bind: Ipv4Addr) -> bool {
+    bind.is_loopback() || (bind.octets()[0] == 100 && (64..=127).contains(&bind.octets()[1]))
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ServeArgs {
     project: PathBuf,
@@ -86,12 +93,14 @@ impl ServeArgs {
                 }
             })
             .unwrap_or_else(|| invocation_directory.to_path_buf());
-        // A fixed secret exists for typing by hand on the same machine, so it
-        // is only ever valid on a loopback bind; an omitted --bind narrows to
+        // A fixed secret exists for typing by hand, so it is only ever valid
+        // on a loopback or Tailscale-range bind; an omitted --bind narrows to
         // loopback instead of listening on every interface.
         let bind = match (bind, secret.is_some()) {
-            (Some(bind), true) if !bind.is_loopback() => {
-                return Err("--secret requires a loopback bind".to_string());
+            (Some(bind), true) if !fixed_secret_bind_allowed(bind) => {
+                return Err(
+                    "--secret requires a loopback or Tailscale (100.64.0.0/10) bind".to_string(),
+                );
             }
             (Some(bind), _) => bind,
             (None, true) => Ipv4Addr::LOCALHOST,
@@ -143,13 +152,20 @@ mod tests {
     }
 
     #[test]
-    fn a_fixed_secret_accepts_an_explicit_loopback_bind_only() {
-        let served =
-            ServeArgs::parse_in(&args(&["--bind", "127.0.0.1", "--secret", "local"]), &cwd())
-                .unwrap();
-        assert_eq!(served.bind(), Ipv4Addr::LOCALHOST);
+    fn a_fixed_secret_accepts_loopback_and_tailscale_binds_only() {
+        for bind in ["127.0.0.1", "127.55.0.9", "100.80.233.115", "100.127.0.1"] {
+            let served =
+                ServeArgs::parse_in(&args(&["--bind", bind, "--secret", "local"]), &cwd()).unwrap();
+            assert_eq!(served.bind().to_string(), bind);
+        }
 
-        for bind in ["0.0.0.0", "192.168.1.20", "100.80.233.115"] {
+        for bind in [
+            "0.0.0.0",
+            "192.168.1.20",
+            "8.8.8.8",
+            "100.63.255.255",
+            "100.128.0.1",
+        ] {
             let result = ServeArgs::parse_in(&args(&["--bind", bind, "--secret", "local"]), &cwd());
             assert!(result.is_err(), "accepted --bind {bind} with --secret");
         }

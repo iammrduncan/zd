@@ -318,7 +318,7 @@ async fn an_operator_fixed_secret_pairs_and_authenticates_on_loopback() {
 }
 
 #[tokio::test]
-async fn a_fixed_secret_is_rejected_on_a_non_loopback_bind() {
+async fn a_fixed_secret_is_rejected_on_a_wildcard_or_lan_bind() {
     let project = support::Scratch::new("fixed-secret-bind-project");
     let state = support::Scratch::new("fixed-secret-bind-state");
     let assets = support::Scratch::new("fixed-secret-bind-assets");
@@ -326,21 +326,24 @@ async fn a_fixed_secret_is_rejected_on_a_non_loopback_bind() {
         zd_host::HostService::open_project_with_state(project.path(), state.path())
             .expect("approve persisted project"),
     );
-    let result = zd_server::start(
-        host,
-        zd_server::ServerConfig::new(
-            assets.path().to_path_buf(),
-            state.path().to_path_buf(),
-            Ipv4Addr::UNSPECIFIED,
-            0,
-            Some("12345".to_string()),
-        ),
-    )
-    .await;
-    assert_eq!(
-        result.err().as_deref(),
-        Some("a fixed serve secret requires a loopback bind")
-    );
+    for bind in [Ipv4Addr::UNSPECIFIED, Ipv4Addr::new(192, 168, 1, 20)] {
+        let result = zd_server::start(
+            std::sync::Arc::clone(&host),
+            zd_server::ServerConfig::new(
+                assets.path().to_path_buf(),
+                state.path().to_path_buf(),
+                bind,
+                0,
+                Some("12345".to_string()),
+            ),
+        )
+        .await;
+        assert_eq!(
+            result.err().as_deref(),
+            Some("a fixed serve secret requires a loopback or Tailscale bind"),
+            "accepted --bind {bind} with a fixed secret"
+        );
+    }
 }
 
 #[tokio::test]

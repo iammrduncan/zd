@@ -137,8 +137,10 @@ pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<Runni
             return Err("a fixed serve secret must not be empty".to_string());
         }
         Some(secret) => {
-            if !config.bind.is_loopback() {
-                return Err("a fixed serve secret requires a loopback bind".to_string());
+            if !crate::cli::fixed_secret_bind_allowed(config.bind) {
+                return Err(
+                    "a fixed serve secret requires a loopback or Tailscale bind".to_string()
+                );
             }
             secret
         }
