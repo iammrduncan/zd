@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     xdg-utils \
     xvfb \
+    xauth \
+    dbus-x11 \
     libssl-dev \
     libgtk-3-dev \
     libwebkit2gtk-4.1-dev \

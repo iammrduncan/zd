@@ -8,7 +8,8 @@ projects, files, Git, terminals, windows, notifications, diagnostics, or packagi
 Install a Node version accepted by `package.json` and Rust through rustup. The repository pins its
 Rust toolchain in `rust-toolchain.toml`. On Debian or Ubuntu,
 `packaging/linux/install-dev-deps.sh` installs the C toolchain, the desktop wrapper's WebKit/GTK
-stack, and the browser system dependencies the checks need.
+stack, the browser system dependencies the checks need, and the headless display tools
+(`xvfb`, `xauth`, `dbus-x11`) the Linux package smoke test uses.
 
 Machines without that toolchain can run the same commands inside the checked-in podman image:
 `packaging/linux/dev-container.sh cargo test --workspace`. `npm run app:serve`,
