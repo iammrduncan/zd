@@ -6,6 +6,7 @@ import type {
   ServedHostEvent,
   ServedSessionSnapshot,
 } from "@/platform/served-client";
+import { ServedRequestError } from "@/platform/served-client";
 
 interface FixtureClient extends ServedHostClient {
   emitEvent(event: ServedHostEvent): void;
@@ -21,7 +22,10 @@ function terminalRequest(terminalId: string) {
   } as const;
 }
 
-function client(runtimeTerminals: readonly unknown[] = []): FixtureClient {
+function client(
+  runtimeTerminals: readonly unknown[] = [],
+  startFailures: Readonly<Record<string, string>> = {},
+): FixtureClient {
   const eventListeners = new Set<(event: ServedHostEvent) => void>();
   const snapshotListeners = new Set<(snapshot: ServedSessionSnapshot) => void>();
   const request = vi.fn(async (method: string, params?: Record<string, unknown>) => {
@@ -174,12 +178,15 @@ function client(runtimeTerminals: readonly unknown[] = []): FixtureClient {
           status: "applied",
           revision: { preferences: 1, project: 0 },
         };
-      case "terminal.start":
+      case "terminal.start": {
+        const failure = startFailures[String(params?.terminalId)];
+        if (failure) throw new ServedRequestError(failure, "fixture start failure");
         return {
           sessionId: params?.terminalId,
           projectId: params?.projectId,
           worktreeId: params?.worktreeId,
         };
+      }
       case "terminal.reattach": {
         const matching = runtimeTerminals.find((value) => {
           const snapshot = value as {
@@ -546,6 +553,40 @@ describe("served WorkbenchHost", () => {
 
     await expect(served.terminal.reattach!(terminalRequest("session-missing"))).resolves.toBeNull();
     expect(hostClient.request).not.toHaveBeenCalledWith("terminal.start", expect.anything());
+  });
+
+  it("claims the surviving session when a retried start reports already-exists", async () => {
+    const surviving = {
+      session: {
+        sessionId: "session-survived",
+        projectId: "project-1",
+        worktreeId: "worktree-1",
+      },
+      retainedFrom: 0,
+      nextOffset: 20,
+      availability: "running",
+      exit: null,
+    };
+    const hostClient = client([surviving], { "session-survived": "already-exists" });
+    const served = createServedWorkbenchHost(hostClient);
+
+    await expect(served.terminal.start(terminalRequest("session-survived"))).resolves.toEqual(
+      surviving.session,
+    );
+    expect(hostClient.request).toHaveBeenCalledWith(
+      "terminal.reattach",
+      expect.objectContaining({ terminalId: "session-survived" }),
+    );
+  });
+
+  it("propagates a start failure that is not already-exists without reattaching", async () => {
+    const hostClient = client([], { "session-lost": "terminal-unavailable" });
+    const served = createServedWorkbenchHost(hostClient);
+
+    await expect(served.terminal.start(terminalRequest("session-lost"))).rejects.toThrow(
+      "terminal-unavailable",
+    );
+    expect(hostClient.request).not.toHaveBeenCalledWith("terminal.reattach", expect.anything());
   });
 
   it("turns a post-grace terminal tombstone into an explicit lost read", async () => {

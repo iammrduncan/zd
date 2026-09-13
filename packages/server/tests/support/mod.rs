@@ -59,14 +59,26 @@ impl TestServer {
     }
 
     pub async fn start_with_secret(name: &str, secret: &str) -> Self {
-        Self::start_with_config(name, Ipv4Addr::LOCALHOST, Some(secret.to_string())).await
+        Self::start_with_config(name, Ipv4Addr::LOCALHOST, Some(secret.to_string()), None).await
     }
 
     pub async fn start_with_bind(name: &str, bind: Ipv4Addr) -> Self {
-        Self::start_with_config(name, bind, None).await
+        Self::start_with_config(name, bind, None, None).await
     }
 
-    async fn start_with_config(name: &str, bind: Ipv4Addr, secret: Option<String>) -> Self {
+    pub async fn start_with_heartbeat_timeout(
+        name: &str,
+        heartbeat_timeout: std::time::Duration,
+    ) -> Self {
+        Self::start_with_config(name, Ipv4Addr::LOCALHOST, None, Some(heartbeat_timeout)).await
+    }
+
+    async fn start_with_config(
+        name: &str,
+        bind: Ipv4Addr,
+        secret: Option<String>,
+        heartbeat_timeout: Option<std::time::Duration>,
+    ) -> Self {
         let project = Scratch::new(&format!("{name}-project"));
         let state = Scratch::new(&format!("{name}-state"));
         let assets = Scratch::new(&format!("{name}-assets"));
@@ -101,18 +113,17 @@ impl TestServer {
             HostService::open_project_with_state(project.path(), state.path())
                 .expect("approve persisted project"),
         );
-        let running = start(
-            host,
-            ServerConfig::new(
-                assets.path().to_path_buf(),
-                state.path().to_path_buf(),
-                bind,
-                0,
-                secret,
-            ),
-        )
-        .await
-        .expect("start served host");
+        let mut config = ServerConfig::new(
+            assets.path().to_path_buf(),
+            state.path().to_path_buf(),
+            bind,
+            0,
+            secret,
+        );
+        if let Some(heartbeat_timeout) = heartbeat_timeout {
+            config = config.with_heartbeat_timeout(heartbeat_timeout);
+        }
+        let running = start(host, config).await.expect("start served host");
         Self {
             project,
             state,

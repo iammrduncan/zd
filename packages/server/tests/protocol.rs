@@ -2,7 +2,9 @@ mod support;
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use futures_util::{SinkExt, StreamExt};
 use serde_json::{json, Value};
+use tokio_tungstenite::tungstenite::protocol::Message;
 
 use support::{authenticate, connect_same_origin, receive_event, request, TestServer};
 
@@ -341,6 +343,158 @@ async fn watches_terminals_snapshot_and_resume_share_the_authenticated_socket() 
         request(&mut socket, "watch-2", "fileTree.watch.stop", watch).await["result"],
         Value::Null
     );
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn terminal_failures_carry_typed_error_codes() {
+    let server = TestServer::start("terminal-error-codes").await;
+    let mut socket = authenticated(&server).await;
+    let (project_id, worktree_id) = startup_scope(&mut socket).await;
+    let viewport = json!({"rows": 24, "columns": 80, "pixelWidth": 0, "pixelHeight": 0});
+
+    let missing_project = request(
+        &mut socket,
+        "missing-project",
+        "terminal.start",
+        json!({
+            "projectId": "no-such-project",
+            "worktreeId": worktree_id,
+            "terminalId": "terminal-unknown-project",
+            "viewport": viewport,
+        }),
+    )
+    .await;
+    assert_eq!(missing_project["type"], "error");
+    assert_eq!(missing_project["code"], "project-missing");
+
+    let start = request(
+        &mut socket,
+        "start",
+        "terminal.start",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "terminalId": "terminal-typed",
+            "viewport": viewport,
+        }),
+    )
+    .await;
+    let session = start["result"].clone();
+    assert_eq!(session["sessionId"], "terminal-typed");
+
+    let duplicate = request(
+        &mut socket,
+        "duplicate",
+        "terminal.start",
+        json!({
+            "projectId": project_id,
+            "worktreeId": worktree_id,
+            "terminalId": "terminal-typed",
+            "viewport": viewport,
+        }),
+    )
+    .await;
+    assert_eq!(duplicate["type"], "error");
+    assert_eq!(duplicate["code"], "already-exists");
+
+    let mut unknown_session = session.clone();
+    unknown_session["sessionId"] = json!("terminal-not-there");
+    let unknown = request(
+        &mut socket,
+        "unknown",
+        "terminal.pollExit",
+        json!({"session": unknown_session.clone()}),
+    )
+    .await;
+    assert_eq!(unknown["type"], "error");
+    assert_eq!(unknown["code"], "not-found");
+
+    let idempotent_dispose = request(
+        &mut socket,
+        "dispose-unknown",
+        "terminal.dispose",
+        json!({"session": unknown_session}),
+    )
+    .await;
+    assert_eq!(idempotent_dispose["result"], Value::Null);
+
+    assert_eq!(
+        request(
+            &mut socket,
+            "dispose",
+            "terminal.dispose",
+            json!({"session": session}),
+        )
+        .await["result"],
+        Value::Null
+    );
+    server.shutdown().await;
+}
+
+#[tokio::test]
+async fn only_heartbeat_requests_extend_the_socket_past_the_deadline() {
+    let server = TestServer::start_with_heartbeat_timeout(
+        "heartbeat",
+        std::time::Duration::from_millis(400),
+    )
+    .await;
+    let mut socket = authenticated(&server).await;
+
+    let started = std::time::Instant::now();
+    let mut closes_at = None;
+    while started.elapsed() < std::time::Duration::from_secs(4) {
+        let sent = socket
+            .send(Message::Text(
+                json!({
+                    "protocolVersion": 1,
+                    "type": "request",
+                    "requestId": "busy",
+                    "method": "session.describe",
+                    "params": {},
+                })
+                .to_string()
+                .into(),
+            ))
+            .await;
+        if sent.is_err() {
+            closes_at = Some(started.elapsed());
+            break;
+        }
+        match tokio::time::timeout(std::time::Duration::from_secs(2), socket.next()).await {
+            Ok(Some(Ok(Message::Text(_)))) => {}
+            Ok(Some(Ok(Message::Close(_)))) | Ok(Some(Err(_))) | Ok(None) => {
+                closes_at = Some(started.elapsed());
+                break;
+            }
+            other => panic!("unexpected socket outcome: {other:?}"),
+        }
+    }
+    let closes_at = closes_at.expect("a busy socket without heartbeats still closes");
+    assert!(
+        closes_at >= std::time::Duration::from_millis(400),
+        "the socket closed before its heartbeat deadline: {closes_at:?}"
+    );
+    assert!(
+        closes_at < std::time::Duration::from_secs(2),
+        "request traffic must not extend the heartbeat deadline: {closes_at:?}"
+    );
+
+    let mut kept = authenticated(&server).await;
+    for beat in 0..6 {
+        let response = request(
+            &mut kept,
+            &format!("beat-{beat}"),
+            "session.heartbeat",
+            json!({}),
+        )
+        .await;
+        assert_eq!(response["type"], "response");
+        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+    }
+    let alive = request(&mut kept, "alive", "session.describe", json!({})).await;
+    assert_eq!(alive["type"], "response");
+
     server.shutdown().await;
 }
 

@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use axum::extract::ws::{Message, WebSocket};
 use base64::engine::general_purpose::STANDARD;
@@ -15,7 +15,8 @@ use tokio::time::Sleep;
 use zd_host::file_tree_watch::{FileTreeWatchRequest, FileTreeWatchSignal};
 use zd_host::instrumentation::{DiagnosticOutcome, DiagnosticRecordInput};
 use zd_host::terminal::{
-    TerminalSessionHandle, TerminalStartRequest, TerminalViewport, MAX_INPUT_BYTES,
+    TerminalError, TerminalErrorKind, TerminalSessionHandle, TerminalStartRequest,
+    TerminalViewport, MAX_INPUT_BYTES,
 };
 use zd_host::{
     BoundedFileRead, ClipboardImageMediaType, ClipboardImageRequest, CreateThreadWorktreeRequest,
@@ -27,7 +28,7 @@ use zd_host::{
 
 use crate::session::{ControllerClaim, ControllerClaimEnd, ControllerClaimError};
 use crate::{
-    HostEvent, ReplayDecision, ResyncReason, SessionRuntime, HEARTBEAT_TIMEOUT, MAX_MESSAGE_BYTES,
+    HostEvent, ReplayDecision, ResyncReason, SessionRuntime, MAX_MESSAGE_BYTES,
     MAX_REPORTED_DURATION_MICROS, MAX_RESPONSE_MESSAGE_BYTES, PROTOCOL_VERSION,
 };
 
@@ -42,6 +43,7 @@ pub struct ProtocolState {
     pub secret: Arc<str>,
     pub runtime: Arc<SessionRuntime>,
     pub host_jobs: Arc<Semaphore>,
+    pub heartbeat_timeout: Duration,
 }
 
 impl ProtocolState {
@@ -267,7 +269,8 @@ pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState, browser_p
         session_epoch: epoch.as_ref(),
         sequence: state.runtime.current_sequence(),
     };
-    let initial_heartbeat_deadline = tokio::time::Instant::now() + HEARTBEAT_TIMEOUT;
+    let heartbeat_timeout = state.heartbeat_timeout;
+    let initial_heartbeat_deadline = tokio::time::Instant::now() + heartbeat_timeout;
     if send(&mut socket, &accepted).await.is_err() {
         return;
     }
@@ -422,7 +425,7 @@ pub async fn serve_socket(mut socket: WebSocket, state: ProtocolState, browser_p
         if valid_heartbeat {
             heartbeat_deadline
                 .as_mut()
-                .reset(tokio::time::Instant::now() + HEARTBEAT_TIMEOUT);
+                .reset(tokio::time::Instant::now() + heartbeat_timeout);
         }
     }
     drop(lease);
@@ -867,34 +870,32 @@ fn dispatch_host(
                         exit_runtime.publish(terminal_event(session, TerminalEventKind::Exited));
                     })),
                 )
-                .map_err(|_| terminal_failure())?;
+                .map_err(terminal_failure)?;
             result_value(session, "The terminal session could not be returned")
         }
         "terminal.reattach" => {
             let request = parse_params::<TerminalStartRequest>(params)?;
-            let session = host
-                .reattach_terminal(request)
-                .map_err(|_| terminal_failure())?;
+            let session = host.reattach_terminal(request).map_err(terminal_failure)?;
             result_value(session, "The terminal session could not be returned")
         }
         "terminal.write" => {
             let request = parse_params::<TerminalWriteParams>(params)?;
             let bytes = decode_bounded_base64(&request.bytes_base64, MAX_INPUT_BYTES)?;
             host.write_terminal(&request.session, &bytes)
-                .map_err(|_| terminal_failure())?;
+                .map_err(terminal_failure)?;
             Ok(Value::Null)
         }
         "terminal.resize" => {
             let request = parse_params::<TerminalResizeParams>(params)?;
             host.resize_terminal(&request.session, request.viewport)
-                .map_err(|_| terminal_failure())?;
+                .map_err(terminal_failure)?;
             Ok(Value::Null)
         }
         "terminal.read" => {
             let request = parse_params::<TerminalReadParams>(params)?;
             let batch = host
                 .read_terminal(&request.session, request.after_offset)
-                .map_err(|_| terminal_failure())?;
+                .map_err(terminal_failure)?;
             Ok(json!({
                 "session": request.session,
                 "offset": batch.offset,
@@ -907,20 +908,20 @@ fn dispatch_host(
             let request = parse_params::<TerminalSessionParams>(params)?;
             let exit = host
                 .poll_terminal_exit(&request.session)
-                .map_err(|_| terminal_failure())?;
+                .map_err(terminal_failure)?;
             result_value(exit, "The terminal exit state could not be returned")
         }
         "terminal.terminate" => {
             let request = parse_params::<TerminalSessionParams>(params)?;
             let exit = host
                 .terminate_terminal(&request.session)
-                .map_err(|_| terminal_failure())?;
+                .map_err(terminal_failure)?;
             result_value(exit, "The terminal exit state could not be returned")
         }
         "terminal.dispose" => {
             let request = parse_params::<TerminalSessionParams>(params)?;
             host.dispose_terminal(&request.session)
-                .map_err(|_| terminal_failure())?;
+                .map_err(terminal_failure)?;
             Ok(Value::Null)
         }
         "theme.list" => {
@@ -997,11 +998,30 @@ fn terminal_event(session: TerminalSessionHandle, kind: TerminalEventKind) -> Ho
     }
 }
 
-fn terminal_failure() -> ProtocolFailure {
-    ProtocolFailure {
-        code: "terminal-unavailable",
-        message: "The terminal operation is unavailable",
-    }
+fn terminal_failure(error: TerminalError) -> ProtocolFailure {
+    let (code, message) = match error.kind {
+        TerminalErrorKind::AlreadyExists => {
+            ("already-exists", "The terminal session already exists")
+        }
+        TerminalErrorKind::UnknownSession => ("not-found", "The terminal session is not found"),
+        TerminalErrorKind::InvalidScope => (
+            "project-missing",
+            "The terminal's project or worktree is unavailable",
+        ),
+        TerminalErrorKind::NotOwner => (
+            "terminal-locked",
+            "The terminal session is owned by another server",
+        ),
+        TerminalErrorKind::IncompatibleKeeper => (
+            "incompatible-keeper",
+            "The terminal keeper protocol is incompatible",
+        ),
+        _ => (
+            "terminal-unavailable",
+            "The terminal operation is unavailable",
+        ),
+    };
+    ProtocolFailure { code, message }
 }
 
 fn parse_params<T: for<'de> Deserialize<'de>>(params: Value) -> Result<T, ProtocolFailure> {

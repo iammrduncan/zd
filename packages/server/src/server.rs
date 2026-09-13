@@ -35,6 +35,7 @@ pub struct ServerConfig {
     bind: Ipv4Addr,
     port: u16,
     secret: Option<String>,
+    heartbeat_timeout: Duration,
 }
 
 impl ServerConfig {
@@ -51,7 +52,13 @@ impl ServerConfig {
             bind,
             port,
             secret,
+            heartbeat_timeout: crate::HEARTBEAT_TIMEOUT,
         }
+    }
+
+    pub fn with_heartbeat_timeout(mut self, timeout: Duration) -> Self {
+        self.heartbeat_timeout = timeout;
+        self
     }
 }
 
@@ -166,6 +173,7 @@ pub async fn start(host: Arc<HostService>, config: ServerConfig) -> Result<Runni
             secret: Arc::from(secret.as_str()),
             runtime: Arc::clone(&runtime),
             host_jobs: ProtocolState::host_jobs(),
+            heartbeat_timeout: config.heartbeat_timeout,
         },
     };
     let router = Router::new()

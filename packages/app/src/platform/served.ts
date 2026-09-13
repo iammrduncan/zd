@@ -15,12 +15,14 @@ import type {
   ServedHostEvent,
   ServedSessionSnapshot,
 } from "@/platform/served-client";
+import { ServedRequestError } from "@/platform/served-client";
 import {
   terminalSessionKey,
   type TerminalAdapter,
   type TerminalExitStatus,
   type TerminalOutputBatch,
   type TerminalSessionHandle,
+  type TerminalStartRequest,
 } from "@/terminal";
 import type { FileResource, LaunchRequest, ProjectGrant } from "@/workbench/resources";
 
@@ -513,6 +515,32 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
     compare: (request) => client.request("git.compare", request),
     diff: (request) => client.request("git.diff", request),
   };
+  const adoptTerminalSession = (
+    value: unknown,
+    request: TerminalStartRequest,
+  ): TerminalSessionHandle => {
+    const session = terminalHandle(value);
+    if (!session) throw new Error("the served terminal returned an invalid session handle");
+    if (
+      session.projectId !== request.projectId ||
+      session.worktreeId !== request.worktreeId ||
+      session.sessionId !== request.terminalId
+    ) {
+      throw new Error("the served terminal attached a different logical terminal or scope");
+    }
+    const sessionKey = terminalSessionKey(session);
+    activeTerminals.set(sessionKey, session);
+    if (!terminalRuntime.has(sessionKey)) {
+      terminalRuntime.set(sessionKey, {
+        session,
+        retainedFrom: 0,
+        nextOffset: 0,
+        availability: "running",
+        exit: null,
+      });
+    }
+    return session;
+  };
   const terminal: TerminalAdapter = {
     // WebSocket delivery and the host dispatcher both preserve request order.
     writeScheduling: "ordered-pipeline",
@@ -532,54 +560,28 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
     start: async (request) => {
       const snapshotProblem = await initialRuntimeSnapshot;
       if (snapshotProblem) throw snapshotProblem;
-      const session = terminalHandle(await client.request<unknown>("terminal.start", request));
-      if (!session) throw new Error("the served terminal returned an invalid session handle");
-      if (
-        session.projectId !== request.projectId ||
-        session.worktreeId !== request.worktreeId ||
-        session.sessionId !== request.terminalId
-      ) {
-        throw new Error("the served terminal attached a different logical terminal or scope");
+      let value: unknown;
+      try {
+        value = await client.request<unknown>("terminal.start", request);
+      } catch (cause) {
+        if (!(cause instanceof ServedRequestError && cause.code === "already-exists")) {
+          throw cause;
+        }
+        // A start acknowledgement can be lost to a disconnect while the keeper
+        // session it created keeps running; claim the surviving session.
+        value = await client.request<unknown>("terminal.reattach", request);
+        if (value === null) {
+          throw new Error("the served terminal exited before it could be reattached");
+        }
       }
-      const sessionKey = terminalSessionKey(session);
-      activeTerminals.set(sessionKey, session);
-      if (!terminalRuntime.has(sessionKey)) {
-        terminalRuntime.set(sessionKey, {
-          session,
-          retainedFrom: 0,
-          nextOffset: 0,
-          availability: "running",
-          exit: null,
-        });
-      }
-      return session;
+      return adoptTerminalSession(value, request);
     },
     reattach: async (request) => {
       const snapshotProblem = await initialRuntimeSnapshot;
       if (snapshotProblem) throw snapshotProblem;
       const value = await client.request<unknown>("terminal.reattach", request);
       if (value === null) return null;
-      const session = terminalHandle(value);
-      if (!session) throw new Error("the served terminal returned an invalid session handle");
-      if (
-        session.projectId !== request.projectId ||
-        session.worktreeId !== request.worktreeId ||
-        session.sessionId !== request.terminalId
-      ) {
-        throw new Error("the served terminal attached a different logical terminal or scope");
-      }
-      const sessionKey = terminalSessionKey(session);
-      activeTerminals.set(sessionKey, session);
-      if (!terminalRuntime.has(sessionKey)) {
-        terminalRuntime.set(sessionKey, {
-          session,
-          retainedFrom: 0,
-          nextOffset: 0,
-          availability: "running",
-          exit: null,
-        });
-      }
-      return session;
+      return adoptTerminalSession(value, request);
     },
     onOutputReady: (listener) => {
       outputListeners.add(listener);

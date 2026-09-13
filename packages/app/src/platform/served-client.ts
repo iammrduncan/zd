@@ -138,10 +138,20 @@ function messageObject(data: unknown, maxMessageBytes: number): Record<string, u
   }
 }
 
+export class ServedRequestError extends Error {
+  readonly code: string;
+
+  constructor(code: string, detail: string) {
+    super(`${code}: ${detail}`);
+    this.name = "ServedRequestError";
+    this.code = code;
+  }
+}
+
 function messageProblem(message: Record<string, unknown>): Error {
   const code = typeof message.code === "string" ? message.code : "protocol-error";
   const detail = typeof message.message === "string" ? message.message : "Host request failed";
-  return new Error(`${code}: ${detail}`);
+  return new ServedRequestError(code, detail);
 }
 
 function duration(value: unknown): number | null {
