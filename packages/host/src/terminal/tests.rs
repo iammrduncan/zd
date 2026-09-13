@@ -78,6 +78,33 @@ fn wait_for_exit(
     panic!("terminal did not exit before the test deadline");
 }
 
+/// `kill -0` reports unreaped zombies as alive, which lies on hosts whose
+/// init does not reap orphans. `/proc/<pid>/stat` reports the real state:
+/// a missing entry is gone and `Z` is dead-but-unreaped.
+#[cfg(unix)]
+fn unix_process_is_dead(pid: u32) -> bool {
+    match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
+        Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+        Ok(stat) => {
+            stat.rsplit_once(')')
+                .and_then(|(_, rest)| rest.trim_start().chars().next())
+                == Some('Z')
+        }
+    }
+}
+
+#[cfg(unix)]
+fn assert_process_dies(pid: u32, context: &str) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < deadline {
+        if unix_process_is_dead(pid) {
+            return;
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+    panic!("{context} process {pid} survived terminal disposal");
+}
+
 #[test]
 fn structured_start_wire_shape_cannot_supply_native_process_authority() {
     let request = TerminalStartRequest {
@@ -373,14 +400,51 @@ fn disposal_terminates_the_session_process_group_and_releases_the_handle() {
 
     assert_eq!(status.reason, TerminalExitReason::Terminated);
     assert!(!sessions.contains(&handle));
+    assert_process_dies(child_pid, "descendant");
+}
+
+/// Interactive shells run job-control children in their own process groups:
+/// a group signal alone cannot reach them. Disposal must kill the session's
+/// member set, not only the leader's group, and must release the record.
+#[cfg(unix)]
+#[test]
+fn disposal_terminates_interactive_job_control_children() {
+    let scratch = Scratch::new("job-control");
+    let mut sessions = TerminalSessions::with_output_limit(4 * 1024).unwrap();
+    let handle = sessions
+        .start_probe(scope(&scratch), viewport(24, 80), "/bin/bash", &["-i"])
+        .unwrap();
+    sessions
+        .write(
+            &handle,
+            b"sleep 30 & printf '__ZD_CHILD''__%s\\n' \"$!\"\n",
+        )
+        .unwrap();
+    let output = wait_for_output(&mut sessions, &handle, b"__ZD_CHILD__");
+    let child_pid = String::from_utf8_lossy(&output)
+        .split("__ZD_CHILD__")
+        .nth(1)
+        .and_then(|suffix| suffix.lines().next())
+        .map(str::trim)
+        .and_then(|pid| pid.parse::<u32>().ok())
+        .expect("the interactive shell reports its job-control child pid");
+    let mut outsider = Command::new("sleep")
+        .arg("30")
+        .spawn()
+        .expect("the unrelated control process starts");
+
+    sessions.terminate(&handle).unwrap();
+    sessions.dispose(&handle).unwrap();
+
+    assert!(!sessions.contains(&handle));
+    assert!(sessions.snapshot().is_empty());
+    assert_process_dies(child_pid, "job-control child");
+    let outsider_alive = outsider.try_wait().expect("control wait").is_none();
+    let _ = outsider.kill();
+    let _ = outsider.wait();
     assert!(
-        !Command::new("/bin/kill")
-            .args(["-0", &child_pid.to_string()])
-            .output()
-            .expect("kill is available on the native test host")
-            .status
-            .success(),
-        "descendant process {child_pid} survived terminal disposal"
+        outsider_alive,
+        "terminal disposal killed an unrelated process"
     );
 }
 

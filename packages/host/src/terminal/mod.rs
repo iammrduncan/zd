@@ -649,12 +649,16 @@ impl TerminalSessions {
         if session.handle != *handle {
             return Err(unknown_session(handle));
         }
-        self.sessions
+        let result = self
+            .sessions
             .get_mut(&handle.session_id)
             .expect("the checked terminal session exists")
-            .terminate(TerminalExitReason::Disposed)?;
+            .terminate(TerminalExitReason::Disposed)
+            .map(|_| ());
+        // Disposal always releases the record: a teardown error must not leave
+        // a ghost session the caller can reattach to but never close.
         self.sessions.remove(&handle.session_id);
-        Ok(())
+        result
     }
 
     /// Stop and release every process, reader, writer, and buffered byte owned by
@@ -778,7 +782,7 @@ impl TerminalSession {
             signal: status.signal().map(str::to_string),
         });
         if let Some(reader) = self.output_reader.take() {
-            reader.join()?;
+            reader.join_bounded();
         }
         Ok(())
     }

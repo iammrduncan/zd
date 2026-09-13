@@ -136,6 +136,18 @@ impl OutputReader {
             )
         })
     }
+
+    /// Bounded join for teardown: a descendant that still holds the slave can
+    /// keep the reader blocked past EOF. Wait briefly, then abandon the reader
+    /// rather than fail disposal and leak the session record.
+    pub(super) fn join_bounded(mut self) {
+        let Some(thread) = self.thread.take() else {
+            return;
+        };
+        if self.finished.recv_timeout(Duration::from_secs(2)).is_ok() {
+            let _ = thread.join();
+        }
+    }
 }
 
 fn signal_output(signal: &Option<TerminalOutputSignal>, session: &TerminalSessionHandle) {
@@ -291,18 +303,23 @@ where
     };
 
     match signal_group(process_group) {
-        Ok(()) => Ok(()),
-        Err(error) if error.raw_os_error() == Some(libc::ESRCH) => Ok(()),
+        Ok(()) => {}
+        Err(error) if error.raw_os_error() == Some(libc::ESRCH) => {}
         // macOS reports EPERM for the whole group when any one member cannot
-        // receive the signal. Fall back to the members that still belong to
-        // this PTY session so one inaccessible process does not strand all of
-        // the processes we can terminate.
-        Err(error) if error.raw_os_error() == Some(libc::EPERM) => signal_members(process_group),
-        Err(error) => Err(TerminalError::new(
-            TerminalErrorKind::Io,
-            format!("could not terminate terminal process group {process_group}: {error}"),
-        )),
+        // receive the signal; the member sweep still terminates the rest.
+        Err(error) if error.raw_os_error() == Some(libc::EPERM) => {}
+        Err(error) => {
+            return Err(TerminalError::new(
+                TerminalErrorKind::Io,
+                format!("could not terminate terminal process group {process_group}: {error}"),
+            ));
+        }
     }
+
+    // Job-control children lead their own process groups inside the same
+    // session, so the group signal alone cannot reach them. Always sweep the
+    // session's member set, not only when the group signal is refused.
+    signal_members(process_group)
 }
 
 #[cfg(unix)]
