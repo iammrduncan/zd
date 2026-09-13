@@ -4,7 +4,12 @@ import {
   type TerminalThreadInstrumentationEvent,
   type TerminalThreadSurface,
 } from "@/threads";
-import type { TerminalScope, TerminalSessionHandle, TerminalViewport } from "@/terminal";
+import type {
+  TerminalOutputHint,
+  TerminalScope,
+  TerminalSessionHandle,
+  TerminalViewport,
+} from "@/terminal";
 import type { Unmount, WorkbenchRuntimeContext } from "../runtime";
 import { registerCommandTarget } from "../shortcuts";
 import type { WorkbenchState } from "../state";
@@ -326,7 +331,7 @@ export function mountProjectTerminal(
     return true;
   };
 
-  const outputReady = (handle: TerminalSessionHandle): void => {
+  const outputReady = (handle: TerminalSessionHandle, output?: TerminalOutputHint): void => {
     const pane = [...groups.values()]
       .flatMap(({ panes }) => panes)
       .find(({ session }) => {
@@ -337,7 +342,7 @@ export function mountProjectTerminal(
           session.scope.worktreeId === handle.worktreeId
         );
       });
-    if (pane) void pane.session.refresh().then(() => pane.session.pollExit());
+    if (pane) void pane.session.refresh(output).then(() => pane.session.pollExit());
   };
 
   const stopOutput = context.platform.terminal.onOutputReady?.(outputReady) ?? (() => {});
