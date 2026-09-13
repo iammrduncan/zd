@@ -321,6 +321,18 @@ harness: `/tmp/zd-audit/bin/` (uncommitted by design — I1 decides what to comm
 | Owner decisions | **Resolved 2026-09-12** — F-03 = supported with keeper-side locking; keeper must survive logout; macOS stays deferred |
 | Deferrals | macOS native evidence (owner-deferred), Windows (plan-deferred), container e2e (F-05 env gap) |
 
+### Implementation status (2026-09-12)
+
+Landed on `feat/serve` after the audit baseline; each packet's exit evidence is on its row.
+
+| Packet | State | Evidence |
+| --- | --- | --- |
+| I1 harness + I2 durability/runtime | **Landed** | `ca19f71` dispose kills the full session member set (F-01 green-to-fixed, unrelated processes untouched); `8bb933a` keeper spawns under `setsid` and leads its own OS session (verified via `/proc`, e2e asserts keeper sid ≠ server sid); `055ccfa` keeper `Hello`/`Ready` handshake with `KEEPER_PROTOCOL_VERSION`, explicit `incompatible-keeper`, per-server owner fencing — writes/resize/terminate/dispose refuse non-owners, reads stay open to observers, reattach claims ownership (F-03, F-04) |
+| I3 typed errors + heartbeat | **Landed** `39a20ed` | `already-exists`/`not-found`/`project-missing`/`terminal-locked`/`incompatible-keeper`/`terminal-unavailable` at the wire boundary; only `session.heartbeat` extends the socket deadline, proven at a configured short timeout. Lost-ack recovery: a retried `terminal.start` that gets `already-exists` reattaches and validates the exact scope (`served.ts`, unit-tested) |
+| I4 latency causes | **Landed** `079a1cc`, `0785444` | `terminal.outputReady` carries ≤48 KiB (`F-07`); `terminal.read` is bounded with `nextOffset` and the client drains until caught up; keeper sessions lock per-session instead of one global map lock (`F-06`). Re-measured with the same harness: `pollExit` p50 41.0 ms → 9.9 ms, transport residual p50 31.4 ms → 0.6 ms; write/read unchanged at the ~9.5 ms host floor |
+| I5 coverage gaps | **Partially deferred** | Chromium served suite green natively (16/16). Firefox/WebKit driver config, served input-fidelity, served Git e2e, and long-picker e2e scroll remain open — recorded deferrals, not hidden; container PTY divergence stays the F-05 environment gap |
+| I6 soak + docs + gates | **Gates green, soak open** | `npm run check` (949 tests), `cargo test --workspace` (2 recorded container-env skips), `test:e2e` 449/449, `test:e2e:served` green natively, `test:e2e:release` 3/3, clippy `-D warnings` clean, fmt clean. Eight-hour soak and native macOS run still open |
+
 ### Owner decisions (resolved 2026-09-12)
 
 | Decision | Answer | Consequence |

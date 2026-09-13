@@ -67,9 +67,10 @@ handles; the page never sends an absolute root to widen its own authority. Appro
 are remembered for that startup project until the user closes them. The initial direct mode is plain
 HTTP, so it belongs only on a protected private network and not on the public Internet.
 
-Terminal processes live in a host-side keeper below the `zd serve` process. This lets the same
-session survive page reloads and server restarts without duplicating the shell. It cannot preserve a
-process through a host operating-system restart or keeper failure, so those losses remain explicit.
+Terminal processes live in a host-side keeper that runs in its own session beside the `zd serve`
+process. This lets the same session survive page reloads, server restarts, and the host user signing
+out without duplicating the shell. It cannot preserve a process through a host operating-system
+restart or keeper failure, so those losses remain explicit.
 
 ## Verification at the boundaries
 

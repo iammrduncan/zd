@@ -61,10 +61,12 @@ the host issued for the current **Open remote folder** dialog.
 
 ## Reconnect to live terminals
 
-A page reload or `zd serve` process restart reattaches each terminal to the same terminal process and
-session identity. Use the terminal or thread menu to terminate and remove a terminal when you intend
-to close it. A host operating-system restart or terminal-keeper failure cannot preserve the live
-process; the workbench then reports that the terminal is unavailable instead of starting a duplicate.
+A page reload, `zd serve` process restart, or signing out of the host account keeps each terminal
+alive in the terminal keeper, the same way a terminal multiplexer does. Reopen the page or start
+`zd serve` again and the workbench reattaches to the same terminal process and session identity. Use
+the terminal or thread menu to terminate and remove a terminal when you intend to close it. A host
+operating-system restart or terminal-keeper failure cannot preserve the live process; the workbench
+then reports that the terminal is unavailable instead of starting a duplicate.
 
 ## Use a fixed port
 
