@@ -306,7 +306,9 @@ fn keeper_refuses_an_incompatible_handshake_without_harming_sessions() {
 
     // The refused peer changed nothing: the session still runs and its owner
     // still operates it.
-    client.write(&handle, b"printf '__ZD_STILL_ALIVE__'\n").unwrap();
+    client
+        .write(&handle, b"printf '__ZD_STILL_ALIVE__'\n")
+        .unwrap();
     client.dispose(&handle).unwrap();
     assert!(client.snapshot().unwrap().is_empty());
 }
@@ -497,10 +499,7 @@ fn disposal_terminates_interactive_job_control_children() {
         .start_probe(scope(&scratch), viewport(24, 80), "/bin/bash", &["-i"])
         .unwrap();
     sessions
-        .write(
-            &handle,
-            b"sleep 30 & printf '__ZD_CHILD''__%s\\n' \"$!\"\n",
-        )
+        .write(&handle, b"sleep 30 & printf '__ZD_CHILD''__%s\\n' \"$!\"\n")
         .unwrap();
     let output = wait_for_output(&mut sessions, &handle, b"__ZD_CHILD__");
     let child_pid = String::from_utf8_lossy(&output)

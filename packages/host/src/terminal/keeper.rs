@@ -697,8 +697,8 @@ fn dispatch(request: KeeperRequest, state: &Mutex<KeeperState>, owner: &str) -> 
             .and_then(|()| sessions.terminate(&session))
             .map(|status| KeeperResponse::Terminated { status }),
         KeeperRequest::Dispose { session } => {
-            let result = check_owner(owners, &session, owner)
-                .and_then(|()| sessions.dispose(&session));
+            let result =
+                check_owner(owners, &session, owner).and_then(|()| sessions.dispose(&session));
             if result.is_ok() {
                 owners.remove(&session.session_id);
             }
