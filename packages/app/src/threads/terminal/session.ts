@@ -5,6 +5,7 @@ import {
   type TerminalAdapter,
   type TerminalExitStatus,
   type TerminalScope,
+  type TerminalOutputHint,
   type TerminalSessionHandle,
   type TerminalViewport,
 } from "@/terminal";
@@ -26,6 +27,7 @@ const MAX_WRITE_BYTES = 64 * 1_024;
 // half of the served client's request window for output reads and other work.
 const ORDERED_WRITE_CONCURRENCY = 16;
 const MAX_READ_BYTES = 16 * 1_024 * 1_024;
+const MAX_REFRESH_READS = 8;
 const OUTPUT_RENDER_CHUNK_BYTES = 64 * 1_024;
 const MAX_PENDING_EMULATOR_BYTES = 4 * 1_024 * 1_024;
 
@@ -70,6 +72,7 @@ export class TerminalThreadSession {
   #lifecycleRevision = 0;
   #nextOffset: number | null = null;
   #outputDeliveryTail: Promise<void> = Promise.resolve();
+  #outputHint: TerminalOutputHint | undefined;
   #pendingOutput: Uint8Array[] = [];
   #pendingOutputBytes = 0;
   #pollExitPromise: Promise<TerminalExitStatus | null> | null = null;
@@ -195,7 +198,8 @@ export class TerminalThreadSession {
     }
   }
 
-  refresh(): Promise<void> {
+  refresh(output?: TerminalOutputHint): Promise<void> {
+    if (output) this.#outputHint = output;
     if (this.#refreshPromise) {
       this.#refreshQueued = true;
       return this.#refreshPromise;
@@ -203,7 +207,9 @@ export class TerminalThreadSession {
     const run = async () => {
       do {
         this.#refreshQueued = false;
-        await this.#refresh();
+        const output = this.#outputHint;
+        this.#outputHint = undefined;
+        await this.#refresh(output);
       } while (this.#refreshQueued && !this.#disposed);
     };
     this.#refreshPromise = run().finally(() => {
@@ -212,44 +218,71 @@ export class TerminalThreadSession {
     return this.#refreshPromise;
   }
 
-  async #refresh(): Promise<void> {
+  async #refresh(output?: TerminalOutputHint): Promise<void> {
     const handle = this.#attachedHandle();
     try {
-      const batch = await this.adapter.read(handle, this.#nextOffset);
-      if (terminalSessionKey(batch.session) !== terminalSessionKey(handle)) {
-        throw new Error("native output belongs to a different terminal session");
-      }
-      assertBatchBytes(batch.bytes);
-      if (!Number.isSafeInteger(batch.offset) || batch.offset < 0) {
-        throw new RangeError("native terminal output offset is invalid");
-      }
-      if (this.#nextOffset !== null && batch.offset < this.#nextOffset) {
-        throw new Error("native terminal output arrived out of order");
-      }
-      const gap = this.#nextOffset === null ? 0 : batch.offset - this.#nextOffset;
-      this.#droppedBytes += Math.max(gap, batch.droppedBefore);
-      this.#nextOffset = batch.offset + batch.bytes.length;
-      for (let offset = 0; offset < batch.bytes.length; offset += OUTPUT_RENDER_CHUNK_BYTES) {
-        const end = Math.min(batch.bytes.length, offset + OUTPUT_RENDER_CHUNK_BYTES);
-        const chunk = Uint8Array.from(batch.bytes.slice(offset, end));
-        this.#transcript.append(chunk);
-        await this.#publishOutput(chunk);
-        this.#observeAgent(this.options.detector?.observeOutput(chunk) ?? null);
-        if (end < batch.bytes.length) {
+      if (output && output.droppedBefore === 0 && output.offset === (this.#nextOffset ?? 0)) {
+        await this.#applyOutput({
+          offset: output.offset,
+          droppedBefore: 0,
+          bytes: output.bytes,
+          readError: null,
+        });
+        if (output.nextOffset <= this.#nextOffset!) {
           this.#publish();
-          await (this.options.yieldForOutput ?? defaultYieldForOutput)();
+          return;
         }
       }
-      if (batch.readError) {
-        this.#readError = batch.readError;
-        this.#status = "failed";
-        this.#lifecycle("failed");
+      for (let reads = 0; reads < MAX_REFRESH_READS; reads += 1) {
+        const batch = await this.adapter.read(handle, this.#nextOffset);
+        if (terminalSessionKey(batch.session) !== terminalSessionKey(handle)) {
+          throw new Error("native output belongs to a different terminal session");
+        }
+        await this.#applyOutput(batch);
+        this.#record("terminal.read", batch.readError ? "failed" : "ok");
+        const end = batch.offset + batch.bytes.length;
+        if (batch.readError !== null || batch.nextOffset === undefined || batch.nextOffset <= end) {
+          break;
+        }
       }
-      this.#record("terminal.read", batch.readError ? "failed" : "ok");
       this.#publish();
     } catch (cause) {
       this.#record("terminal.read", "failed");
       throw cause;
+    }
+  }
+
+  async #applyOutput(batch: {
+    readonly offset: number;
+    readonly droppedBefore: number;
+    readonly bytes: readonly number[];
+    readonly readError: string | null;
+  }): Promise<void> {
+    assertBatchBytes(batch.bytes);
+    if (!Number.isSafeInteger(batch.offset) || batch.offset < 0) {
+      throw new RangeError("native terminal output offset is invalid");
+    }
+    if (this.#nextOffset !== null && batch.offset < this.#nextOffset) {
+      throw new Error("native terminal output arrived out of order");
+    }
+    const gap = this.#nextOffset === null ? 0 : batch.offset - this.#nextOffset;
+    this.#droppedBytes += Math.max(gap, batch.droppedBefore);
+    this.#nextOffset = batch.offset + batch.bytes.length;
+    for (let offset = 0; offset < batch.bytes.length; offset += OUTPUT_RENDER_CHUNK_BYTES) {
+      const end = Math.min(batch.bytes.length, offset + OUTPUT_RENDER_CHUNK_BYTES);
+      const chunk = Uint8Array.from(batch.bytes.slice(offset, end));
+      this.#transcript.append(chunk);
+      await this.#publishOutput(chunk);
+      this.#observeAgent(this.options.detector?.observeOutput(chunk) ?? null);
+      if (end < batch.bytes.length) {
+        this.#publish();
+        await (this.options.yieldForOutput ?? defaultYieldForOutput)();
+      }
+    }
+    if (batch.readError) {
+      this.#readError = batch.readError;
+      this.#status = "failed";
+      this.#lifecycle("failed");
     }
   }
 

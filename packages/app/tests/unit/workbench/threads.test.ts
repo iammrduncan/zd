@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { TerminalSessionHandle, TerminalStartRequest } from "@/terminal";
+import type { TerminalOutputHint, TerminalSessionHandle, TerminalStartRequest } from "@/terminal";
 import type { ThreadAttentionEventV1 } from "@/threads";
 import { mountActiveThread } from "@/workbench/features";
 import { runCommandTarget } from "@/workbench/shortcuts";
@@ -537,6 +537,86 @@ describe("the root Threads runtime adapter", () => {
     expect(runtime.session("thread-output")?.snapshot().rows).toEqual(["prompt"]);
     await runtime.dispose();
     expect(outputReady).toBeNull();
+  });
+
+  it("renders contiguous output carried inside the ready edge without a read", async () => {
+    const state = owner();
+    const native = terminalAdapter() as ReturnType<typeof terminalAdapter> & {
+      onOutputReady(
+        listener: (session: TerminalSessionHandle, output?: TerminalOutputHint) => void,
+      ): () => void;
+    };
+    let outputReady:
+      ((session: TerminalSessionHandle, output?: TerminalOutputHint) => void) | null = null;
+    native.onOutputReady = (listener) => {
+      outputReady = listener;
+      return () => {
+        outputReady = null;
+      };
+    };
+    const runtime = createRootThreadsAdapter(state, platform(native), {
+      createId: () => "thread-carried",
+    });
+    await runtime.createThread(existingRequest());
+    native.read.mockClear();
+    const handle = {
+      projectId: project.id,
+      worktreeId: "worktree-alpha",
+      sessionId: "terminal:thread-carried",
+    };
+
+    outputReady!(handle, {
+      offset: 0,
+      nextOffset: 7,
+      droppedBefore: 0,
+      bytes: [...new TextEncoder().encode("carried")],
+    });
+    await vi.waitFor(() =>
+      expect(runtime.session("thread-carried")?.snapshot().rows).toEqual(["carried"]),
+    );
+    expect(native.read).not.toHaveBeenCalled();
+
+    // A clipped edge carries a prefix and reads the remainder.
+    native.read.mockResolvedValueOnce({
+      session: handle,
+      offset: 9,
+      nextOffset: 13,
+      droppedBefore: 0,
+      bytes: [...new TextEncoder().encode("est!")],
+      readError: null,
+    });
+    outputReady!(handle, {
+      offset: 7,
+      nextOffset: 13,
+      droppedBefore: 0,
+      bytes: [...new TextEncoder().encode("-r")],
+    });
+    await vi.waitFor(() => expect(native.read).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(runtime.session("thread-carried")?.snapshot().rows).toEqual(["carried-rest!"]),
+    );
+
+    // A gapped edge ignores the hint and catches up through a read.
+    native.read.mockClear();
+    native.read.mockResolvedValueOnce({
+      session: handle,
+      offset: 13,
+      nextOffset: 14,
+      droppedBefore: 0,
+      bytes: [...new TextEncoder().encode("?")],
+      readError: null,
+    });
+    outputReady!(handle, {
+      offset: 40,
+      nextOffset: 41,
+      droppedBefore: 0,
+      bytes: [...new TextEncoder().encode("X")],
+    });
+    await vi.waitFor(() => expect(native.read).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(runtime.session("thread-carried")?.snapshot().rows).toEqual(["carried-rest!?"]),
+    );
+    await runtime.dispose();
   });
 
   it("routes one supported-agent busy-to-waiting control event into attention", async () => {

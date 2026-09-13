@@ -33,6 +33,9 @@ use crate::{
 };
 
 const MAX_CONCURRENT_HOST_JOBS: usize = 4;
+/// Default and maximum terminal bytes returned per `terminal.read`; a renderer
+/// that needs more follows `nextOffset` with another bounded read.
+const MAX_TERMINAL_READ_BYTES: u64 = 4 * 1024 * 1024;
 const HOST_DIAGNOSTIC_SPAN_ID: &str = "host-dispatch";
 
 const CONTROLLER_ID_TEXT_BYTES: usize = 32;
@@ -193,6 +196,7 @@ struct TerminalResizeParams {
 struct TerminalReadParams {
     session: TerminalSessionHandle,
     after_offset: Option<u64>,
+    max_bytes: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -894,11 +898,16 @@ fn dispatch_host(
         "terminal.read" => {
             let request = parse_params::<TerminalReadParams>(params)?;
             let batch = host
-                .read_terminal(&request.session, request.after_offset)
+                .read_terminal(
+                    &request.session,
+                    request.after_offset,
+                    request.max_bytes.unwrap_or(MAX_TERMINAL_READ_BYTES),
+                )
                 .map_err(terminal_failure)?;
             Ok(json!({
                 "session": request.session,
                 "offset": batch.offset,
+                "nextOffset": batch.next_offset,
                 "droppedBefore": batch.dropped_before,
                 "bytesBase64": STANDARD.encode(batch.bytes),
                 "readError": batch.read_error,
@@ -989,6 +998,7 @@ fn terminal_event(session: TerminalSessionHandle, kind: TerminalEventKind) -> Ho
             session_id,
             project_id,
             worktree_id,
+            output: None,
         },
         TerminalEventKind::Exited => HostEvent::TerminalExited {
             session_id,

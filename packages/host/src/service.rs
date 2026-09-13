@@ -17,6 +17,7 @@ use crate::terminal::{
     TerminalError, TerminalErrorKind, TerminalExitSignal, TerminalExitStatus, TerminalMode,
     TerminalOutputBatch, TerminalOutputSignal, TerminalRuntime, TerminalScope,
     TerminalSessionHandle, TerminalSessionSnapshot, TerminalStartRequest, TerminalViewport,
+    MAX_OUTPUT_LIMIT_BYTES,
 };
 use crate::{durable, identity};
 use crate::{
@@ -530,8 +531,13 @@ impl HostService {
         &self,
         session: &TerminalSessionHandle,
         after_offset: Option<u64>,
+        max_bytes: u64,
     ) -> Result<TerminalOutputBatch, TerminalError> {
-        self.terminals.read_from(session, after_offset)
+        self.terminals.read_from(
+            session,
+            after_offset,
+            max_bytes.min(MAX_OUTPUT_LIMIT_BYTES as u64),
+        )
     }
 
     pub fn poll_terminal_exit(

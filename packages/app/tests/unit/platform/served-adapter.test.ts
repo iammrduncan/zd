@@ -212,6 +212,7 @@ function client(
         return {
           session: params?.session,
           offset: 0,
+          nextOffset: 5,
           droppedBefore: 0,
           bytesBase64: "aGVsbG8=",
           readError: null,
@@ -395,6 +396,7 @@ describe("served WorkbenchHost", () => {
     await expect(served.terminal.read(session, null)).resolves.toEqual({
       session,
       offset: 0,
+      nextOffset: 5,
       droppedBefore: 0,
       bytes: [104, 101, 108, 108, 111],
       readError: null,
@@ -402,6 +404,7 @@ describe("served WorkbenchHost", () => {
     expect(hostClient.request).toHaveBeenCalledWith("terminal.read", {
       session,
       afterOffset: null,
+      maxBytes: 1048576,
     });
     hostClient.emitEvent({
       protocolVersion: 1,
@@ -413,6 +416,48 @@ describe("served WorkbenchHost", () => {
     });
     expect(output).toEqual(["session-started"]);
     stopOutput?.();
+  });
+
+  it("carries bounded output bytes inside output-ready edges", async () => {
+    const hostClient = client();
+    const served = createServedWorkbenchHost(hostClient);
+    const session = await served.terminal.start(terminalRequest("session-carried"));
+    const ready: Array<{ sessionId: string; bytes: number[] | undefined }> = [];
+    const stop = served.terminal.onOutputReady?.((handle, output) =>
+      ready.push({ sessionId: handle.sessionId, bytes: output ? [...output.bytes] : undefined }),
+    );
+
+    hostClient.emitEvent({
+      protocolVersion: 1,
+      type: "event",
+      sessionEpoch: "epoch-1",
+      sequence: 2,
+      event: "terminal.outputReady",
+      payload: {
+        session,
+        output: {
+          offset: 0,
+          nextOffset: 5,
+          droppedBefore: 0,
+          bytesBase64: "aGVsbG8=",
+        },
+      },
+    });
+    expect(ready).toEqual([{ sessionId: "session-carried", bytes: [104, 101, 108, 108, 111] }]);
+
+    hostClient.emitEvent({
+      protocolVersion: 1,
+      type: "event",
+      sessionEpoch: "epoch-1",
+      sequence: 3,
+      event: "terminal.outputReady",
+      payload: { session, output: { offset: "bogus" } },
+    });
+    expect(ready).toEqual([
+      { sessionId: "session-carried", bytes: [104, 101, 108, 108, 111] },
+      { sessionId: "session-carried", bytes: undefined },
+    ]);
+    stop?.();
   });
 
   it("lists every retained terminal in the requested approved scope", async () => {

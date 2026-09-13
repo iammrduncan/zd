@@ -7,7 +7,7 @@ use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     TerminalError, TerminalErrorKind, TerminalExitStatus, TerminalOutputBatch, TerminalScope,
     TerminalSessionHandle, TerminalSessionSnapshot, TerminalSessions, TerminalViewport,
-    MAX_INPUT_BYTES, TERMINAL_KEEPER_ARGUMENT,
+    MAX_INPUT_BYTES, MAX_OUTPUT_LIMIT_BYTES, TERMINAL_KEEPER_ARGUMENT,
 };
 
 const RUNTIME_DIRECTORY: &str = "terminal-keeper-v1";
@@ -90,6 +90,7 @@ enum KeeperRequest {
     Read {
         session: TerminalSessionHandle,
         after_offset: Option<u64>,
+        max_bytes: u64,
     },
     PollExit {
         session: TerminalSessionHandle,
@@ -127,6 +128,7 @@ enum KeeperResponse {
     Resized,
     Output {
         offset: u64,
+        next_offset: u64,
         dropped_before: u64,
         bytes_base64: String,
         read_error: Option<String>,
@@ -315,13 +317,16 @@ impl TerminalKeeperClient {
         &self,
         session: &TerminalSessionHandle,
         after_offset: Option<u64>,
+        max_bytes: u64,
     ) -> Result<TerminalOutputBatch, TerminalError> {
         match self.invoke(&KeeperRequest::Read {
             session: session.clone(),
             after_offset,
+            max_bytes,
         })? {
             KeeperResponse::Output {
                 offset,
+                next_offset,
                 dropped_before,
                 bytes_base64,
                 read_error,
@@ -334,6 +339,7 @@ impl TerminalKeeperClient {
                 })?;
                 Ok(TerminalOutputBatch {
                     offset,
+                    next_offset,
                     dropped_before,
                     bytes,
                     read_error,
@@ -481,7 +487,7 @@ fn run_terminal_keeper_with_idle(
         .set_nonblocking(true)
         .map_err(|_| "the terminal keeper socket could not become nonblocking".to_string())?;
     let _socket_cleanup = SocketCleanup(client.socket.clone());
-    let sessions = Arc::new(Mutex::new(KeeperState::default()));
+    let state = Arc::new(KeeperState::default());
     let stopping = Arc::new(AtomicBool::new(false));
     let active_clients = Arc::new(AtomicUsize::new(0));
     let mut last_request = Instant::now();
@@ -489,7 +495,7 @@ fn run_terminal_keeper_with_idle(
         match listener.accept() {
             Ok((stream, _)) => {
                 last_request = Instant::now();
-                let sessions = Arc::clone(&sessions);
+                let state = Arc::clone(&state);
                 let stopping = Arc::clone(&stopping);
                 let client_counter = Arc::clone(&active_clients);
                 active_clients.fetch_add(1, Ordering::AcqRel);
@@ -497,7 +503,7 @@ fn run_terminal_keeper_with_idle(
                     .name("zd-terminal-keeper-client".to_string())
                     .spawn(move || {
                         let _active = ActiveClient(client_counter);
-                        serve_connection(stream, sessions, stopping);
+                        serve_connection(stream, state, stopping);
                     })
                     .is_err()
                 {
@@ -505,10 +511,7 @@ fn run_terminal_keeper_with_idle(
                 }
             }
             Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
-                let empty = sessions
-                    .lock()
-                    .map(|state| state.sessions.is_empty())
-                    .unwrap_or(false);
+                let empty = state.sessions.is_empty();
                 if empty
                     && active_clients.load(Ordering::Acquire) == 0
                     && last_request.elapsed() >= empty_idle_timeout
@@ -537,18 +540,25 @@ impl Drop for ActiveClient {
 #[derive(Default)]
 struct KeeperState {
     sessions: TerminalSessions,
-    owners: std::collections::HashMap<String, String>,
+    owners: Mutex<std::collections::HashMap<String, String>>,
+}
+
+fn owners(state: &KeeperState) -> MutexGuard<'_, std::collections::HashMap<String, String>> {
+    state
+        .owners
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 /// Input and control are fenced to the owning server. A missing entry means
 /// the session predates tracking; the operation itself reports whether the
 /// session exists.
 fn check_owner(
-    owners: &std::collections::HashMap<String, String>,
+    state: &KeeperState,
     session: &TerminalSessionHandle,
     owner: &str,
 ) -> Result<(), TerminalError> {
-    match owners.get(&session.session_id) {
+    match owners(state).get(&session.session_id) {
         Some(holder) if holder != owner => Err(TerminalError::new(
             TerminalErrorKind::NotOwner,
             format!(
@@ -560,11 +570,7 @@ fn check_owner(
     }
 }
 
-fn serve_connection(
-    mut stream: UnixStream,
-    state: Arc<Mutex<KeeperState>>,
-    _stopping: Arc<AtomicBool>,
-) {
+fn serve_connection(mut stream: UnixStream, state: Arc<KeeperState>, _stopping: Arc<AtomicBool>) {
     // Every connection starts with the handshake. A client that predates it
     // gets an explicit refusal instead of silently breaking on a new wire.
     let owner = match read_frame::<KeeperRequest>(&mut stream, MAX_REQUEST_BYTES) {
@@ -627,19 +633,8 @@ fn serve_connection(
     let _ = write_frame(&mut stream, &response, MAX_RESPONSE_BYTES);
 }
 
-fn dispatch(request: KeeperRequest, state: &Mutex<KeeperState>, owner: &str) -> KeeperResponse {
-    let mut state = match state.lock() {
-        Ok(state) => state,
-        Err(_) => {
-            return KeeperResponse::Error {
-                kind: TerminalErrorKind::Io,
-                message: "terminal keeper state is unavailable".to_string(),
-            };
-        }
-    };
-    let state = &mut *state;
-    let sessions = &mut state.sessions;
-    let owners = &mut state.owners;
+fn dispatch(request: KeeperRequest, state: &KeeperState, owner: &str) -> KeeperResponse {
+    let sessions = &state.sessions;
     let result = match request {
         KeeperRequest::Start {
             scope,
@@ -649,7 +644,7 @@ fn dispatch(request: KeeperRequest, state: &Mutex<KeeperState>, owner: &str) -> 
             sessions
                 .start_shell_with_id(scope, terminal_id, viewport)
                 .map(|session| {
-                    owners.insert(session.session_id.clone(), owner.to_string());
+                    owners(state).insert(session.session_id.clone(), owner.to_string());
                     KeeperResponse::Started { session }
                 })
         }),
@@ -664,7 +659,7 @@ fn dispatch(request: KeeperRequest, state: &Mutex<KeeperState>, owner: &str) -> 
                     // Attaching claims the session: input follows the server
                     // that most recently attached, like tmux session steal.
                     if let Some(session) = &session {
-                        owners.insert(session.session_id.clone(), owner.to_string());
+                        owners(state).insert(session.session_id.clone(), owner.to_string());
                     }
                     KeeperResponse::Reattached { session }
                 })
@@ -672,20 +667,22 @@ fn dispatch(request: KeeperRequest, state: &Mutex<KeeperState>, owner: &str) -> 
         KeeperRequest::Write {
             session,
             bytes_base64,
-        } => check_owner(owners, &session, owner)
+        } => check_owner(state, &session, owner)
             .and_then(|()| decode_input(&bytes_base64))
             .and_then(|bytes| sessions.write(&session, &bytes))
             .map(|()| KeeperResponse::Written),
-        KeeperRequest::Resize { session, viewport } => check_owner(owners, &session, owner)
+        KeeperRequest::Resize { session, viewport } => check_owner(state, &session, owner)
             .and_then(|()| sessions.resize(&session, viewport))
             .map(|()| KeeperResponse::Resized),
         KeeperRequest::Read {
             session,
             after_offset,
+            max_bytes,
         } => sessions
-            .read_from(&session, after_offset)
+            .read_from(&session, after_offset, bounded_read_bytes(max_bytes))
             .map(|output| KeeperResponse::Output {
                 offset: output.offset,
+                next_offset: output.next_offset,
                 dropped_before: output.dropped_before,
                 bytes_base64: STANDARD.encode(output.bytes),
                 read_error: output.read_error,
@@ -693,14 +690,14 @@ fn dispatch(request: KeeperRequest, state: &Mutex<KeeperState>, owner: &str) -> 
         KeeperRequest::PollExit { session } => sessions
             .poll_exit(&session)
             .map(|status| KeeperResponse::Exit { status }),
-        KeeperRequest::Terminate { session } => check_owner(owners, &session, owner)
+        KeeperRequest::Terminate { session } => check_owner(state, &session, owner)
             .and_then(|()| sessions.terminate(&session))
             .map(|status| KeeperResponse::Terminated { status }),
         KeeperRequest::Dispose { session } => {
             let result =
-                check_owner(owners, &session, owner).and_then(|()| sessions.dispose(&session));
+                check_owner(state, &session, owner).and_then(|()| sessions.dispose(&session));
             if result.is_ok() {
-                owners.remove(&session.session_id);
+                owners(state).remove(&session.session_id);
             }
             result.map(|()| KeeperResponse::Disposed)
         }
@@ -713,6 +710,10 @@ fn dispatch(request: KeeperRequest, state: &Mutex<KeeperState>, owner: &str) -> 
         KeeperRequest::Shutdown => unreachable!("handled before dispatch"),
     };
     result.unwrap_or_else(KeeperResponse::from)
+}
+
+fn bounded_read_bytes(max_bytes: u64) -> usize {
+    usize::try_from(max_bytes.min(MAX_OUTPUT_LIMIT_BYTES as u64)).unwrap_or(usize::MAX)
 }
 
 fn decode_input(value: &str) -> Result<Vec<u8>, TerminalError> {

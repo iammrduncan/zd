@@ -119,14 +119,16 @@ impl TerminalRuntime {
         &self,
         session: &TerminalSessionHandle,
         after_offset: Option<u64>,
+        max_bytes: u64,
     ) -> Result<TerminalOutputBatch, TerminalError> {
         match self {
-            Self::Local(sessions) => sessions
-                .lock()
-                .map_err(|_| unavailable())?
-                .read_from(session, after_offset),
+            Self::Local(sessions) => sessions.lock().map_err(|_| unavailable())?.read_from(
+                session,
+                after_offset,
+                usize::try_from(max_bytes).unwrap_or(usize::MAX),
+            ),
             #[cfg(unix)]
-            Self::Keeper(keeper) => keeper.read_from(session, after_offset),
+            Self::Keeper(keeper) => keeper.read_from(session, after_offset, max_bytes),
         }
     }
 

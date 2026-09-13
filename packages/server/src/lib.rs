@@ -15,7 +15,7 @@ pub use server::{start, RunningServer, ServerConfig};
 #[doc(hidden)]
 pub use session::{
     EventEnvelope, HostEvent, JournalUsage, ReplayDecision, ResyncReason, SessionRuntime,
-    SessionSnapshot, CONTROLLER_DISCONNECT_GRACE, MAX_EVENT_JOURNAL_BYTES,
+    SessionSnapshot, TerminalOutputCarried, CONTROLLER_DISCONNECT_GRACE, MAX_EVENT_JOURNAL_BYTES,
     MAX_EVENT_JOURNAL_EVENTS,
 };
 pub use wrapper::{

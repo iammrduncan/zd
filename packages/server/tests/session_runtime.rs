@@ -59,6 +59,7 @@ fn events_are_closed_versioned_ordered_and_replayable() {
         session_id: "session-a".to_string(),
         project_id: "project-a".to_string(),
         worktree_id: "worktree-a".to_string(),
+        output: None,
     });
 
     let wire = serde_json::to_value(&first).unwrap();

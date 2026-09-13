@@ -25,7 +25,8 @@ use std::collections::HashMap;
 use std::fmt;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use output::BoundedOutput;
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
@@ -223,6 +224,7 @@ pub struct TerminalSessionHandle {
 #[serde(rename_all = "camelCase")]
 pub struct TerminalOutputBatch {
     pub offset: u64,
+    pub next_offset: u64,
     pub dropped_before: u64,
     pub bytes: Vec<u8>,
     pub read_error: Option<String>,
@@ -262,11 +264,14 @@ pub struct TerminalSessionSnapshot {
     pub exit: Option<TerminalExitStatus>,
 }
 
+/// Terminal session records. The map lock is held only to insert, remove, or
+/// borrow a session handle; per-session work runs under that session's own
+/// lock so one busy or wedged terminal never serializes the others.
 pub struct TerminalSessions {
-    next_identity: u64,
+    next_identity: AtomicU64,
     output_limit_bytes: usize,
     session_limit: usize,
-    sessions: HashMap<String, TerminalSession>,
+    sessions: Mutex<HashMap<String, Arc<Mutex<TerminalSession>>>>,
 }
 
 impl Default for TerminalSessions {
@@ -295,10 +300,10 @@ impl TerminalSessions {
             ));
         }
         Ok(Self {
-            next_identity: 1,
+            next_identity: AtomicU64::new(1),
             output_limit_bytes,
             session_limit,
-            sessions: HashMap::new(),
+            sessions: Mutex::new(HashMap::new()),
         })
     }
 
@@ -308,7 +313,7 @@ impl TerminalSessions {
     }
 
     pub fn start_shell(
-        &mut self,
+        &self,
         scope: TerminalScope,
         viewport: TerminalViewport,
     ) -> Result<TerminalSessionHandle, TerminalError> {
@@ -318,7 +323,7 @@ impl TerminalSessions {
     }
 
     pub fn start_shell_with_id(
-        &mut self,
+        &self,
         scope: TerminalScope,
         terminal_id: impl Into<String>,
         viewport: TerminalViewport,
@@ -329,7 +334,7 @@ impl TerminalSessions {
     }
 
     pub fn start_shell_with_output_signal(
-        &mut self,
+        &self,
         scope: TerminalScope,
         viewport: TerminalViewport,
         output_signal: TerminalOutputSignal,
@@ -347,7 +352,7 @@ impl TerminalSessions {
     }
 
     pub fn start_shell_with_signals(
-        &mut self,
+        &self,
         scope: TerminalScope,
         viewport: TerminalViewport,
         output_signal: Option<TerminalOutputSignal>,
@@ -366,7 +371,7 @@ impl TerminalSessions {
     }
 
     pub fn start_shell_with_id_and_signals(
-        &mut self,
+        &self,
         scope: TerminalScope,
         terminal_id: impl Into<String>,
         viewport: TerminalViewport,
@@ -387,7 +392,7 @@ impl TerminalSessions {
 
     #[cfg(test)]
     pub fn start_probe(
-        &mut self,
+        &self,
         scope: TerminalScope,
         viewport: TerminalViewport,
         program: &str,
@@ -400,7 +405,7 @@ impl TerminalSessions {
     }
 
     fn start_command(
-        &mut self,
+        &self,
         scope: TerminalScope,
         terminal_id: String,
         viewport: TerminalViewport,
@@ -408,17 +413,17 @@ impl TerminalSessions {
         output_signal: Option<TerminalOutputSignal>,
         exit_signal: Option<TerminalExitSignal>,
     ) -> Result<TerminalSessionHandle, TerminalError> {
-        if self.sessions.len() >= self.session_limit {
-            return Err(TerminalError::new(
-                TerminalErrorKind::InvalidInput,
-                format!("terminal sessions are limited to {}", self.session_limit),
-            ));
-        }
-        if self.sessions.contains_key(&terminal_id) {
-            return Err(TerminalError::new(
-                TerminalErrorKind::AlreadyExists,
-                format!("terminal identity {terminal_id} already exists"),
-            ));
+        {
+            let map = self.map();
+            if map.len() >= self.session_limit {
+                return Err(TerminalError::new(
+                    TerminalErrorKind::InvalidInput,
+                    format!("terminal sessions are limited to {}", self.session_limit),
+                ));
+            }
+            if map.contains_key(&terminal_id) {
+                return Err(already_exists(&terminal_id));
+            }
         }
         command.cwd(&scope.cwd);
         command.env("TERM", "xterm-256color");
@@ -477,32 +482,47 @@ impl TerminalSessions {
             }
         };
 
-        self.sessions.insert(
-            handle.session_id.clone(),
-            TerminalSession {
-                handle: handle.clone(),
-                master: Some(pair.master),
-                writer: Some(writer),
-                child: Some(child),
-                process_tree,
-                output,
-                output_reader: Some(output_reader),
-                exit: None,
-            },
-        );
+        let mut session = TerminalSession {
+            handle: handle.clone(),
+            master: Some(pair.master),
+            writer: Some(writer),
+            child: Some(child),
+            process_tree,
+            output,
+            output_reader: Some(output_reader),
+            exit: None,
+        };
+        {
+            let mut map = self.map();
+            if map.contains_key(&handle.session_id) {
+                drop(map);
+                let _ = session.terminate(TerminalExitReason::Disposed);
+                return Err(already_exists(&handle.session_id));
+            }
+            if map.len() >= self.session_limit {
+                drop(map);
+                let _ = session.terminate(TerminalExitReason::Disposed);
+                return Err(TerminalError::new(
+                    TerminalErrorKind::InvalidInput,
+                    format!("terminal sessions are limited to {}", self.session_limit),
+                ));
+            }
+            map.insert(handle.session_id.clone(), Arc::new(Mutex::new(session)));
+        }
         Ok(handle)
     }
 
     pub fn reattach(
-        &mut self,
+        &self,
         scope: &TerminalScope,
         terminal_id: &str,
         viewport: TerminalViewport,
     ) -> Result<Option<TerminalSessionHandle>, TerminalError> {
         let terminal_id = valid_terminal_identity(terminal_id.to_string())?;
-        let Some(session) = self.sessions.get_mut(&terminal_id) else {
+        let Some(session) = self.map().get(&terminal_id).cloned() else {
             return Ok(None);
         };
+        let mut session = lock_session(&session);
         if session.handle.project_id != scope.project_id
             || session.handle.worktree_id != scope.worktree_id
         {
@@ -526,10 +546,9 @@ impl TerminalSessions {
         Ok(Some(handle))
     }
 
-    fn next_terminal_identity(&mut self) -> String {
-        let identity = format!("session-{:016x}", self.next_identity);
-        self.next_identity = self.next_identity.saturating_add(1);
-        identity
+    fn next_terminal_identity(&self) -> String {
+        let identity = self.next_identity.fetch_add(1, Ordering::Relaxed);
+        format!("session-{identity:016x}")
     }
 
     pub fn contains(&self, handle: &TerminalSessionHandle) -> bool {
@@ -537,14 +556,15 @@ impl TerminalSessions {
     }
 
     fn is_empty(&self) -> bool {
-        self.sessions.is_empty()
+        self.map().is_empty()
     }
 
-    pub fn snapshot(&mut self) -> Vec<TerminalSessionSnapshot> {
-        let mut snapshot = self
-            .sessions
-            .values_mut()
+    pub fn snapshot(&self) -> Vec<TerminalSessionSnapshot> {
+        let sessions: Vec<Arc<Mutex<TerminalSession>>> = self.map().values().cloned().collect();
+        let mut snapshot = sessions
+            .iter()
             .map(|session| {
+                let mut session = lock_session(session);
                 let (availability, exit) = match session.poll_exit() {
                     Ok(Some(exit)) => (TerminalAvailability::Exited, Some(exit)),
                     Ok(None) => (TerminalAvailability::Running, None),
@@ -568,18 +588,15 @@ impl TerminalSessions {
         snapshot
     }
 
-    pub fn write(
-        &mut self,
-        handle: &TerminalSessionHandle,
-        bytes: &[u8],
-    ) -> Result<(), TerminalError> {
+    pub fn write(&self, handle: &TerminalSessionHandle, bytes: &[u8]) -> Result<(), TerminalError> {
         if bytes.len() > MAX_INPUT_BYTES {
             return Err(TerminalError::new(
                 TerminalErrorKind::InvalidInput,
                 format!("terminal input is limited to {MAX_INPUT_BYTES} bytes per write"),
             ));
         }
-        let session = self.session_mut(handle)?;
+        let session = self.session(handle)?;
+        let mut session = lock_session(&session);
         let writer = session.running_writer()?.as_mut();
         writer
             .write_all(bytes)
@@ -588,11 +605,12 @@ impl TerminalSessions {
     }
 
     pub fn resize(
-        &mut self,
+        &self,
         handle: &TerminalSessionHandle,
         viewport: TerminalViewport,
     ) -> Result<(), TerminalError> {
-        let session = self.session_mut(handle)?;
+        let session = self.session(handle)?;
+        let session = lock_session(&session);
         session
             .running_master()?
             .resize(viewport.pty_size())
@@ -605,10 +623,11 @@ impl TerminalSessions {
     }
 
     pub fn read(
-        &mut self,
+        &self,
         handle: &TerminalSessionHandle,
     ) -> Result<TerminalOutputBatch, TerminalError> {
-        let session = self.session_mut(handle)?;
+        let session = self.session(handle)?;
+        let session = lock_session(&session);
         let mut output = session
             .output
             .lock()
@@ -617,91 +636,110 @@ impl TerminalSessions {
     }
 
     pub fn read_from(
-        &mut self,
+        &self,
         handle: &TerminalSessionHandle,
         after_offset: Option<u64>,
+        limit: usize,
     ) -> Result<TerminalOutputBatch, TerminalError> {
-        let session = self.session_mut(handle)?;
+        let session = self.session(handle)?;
+        let session = lock_session(&session);
         let output = session
             .output
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        Ok(output.read_from(after_offset))
+        Ok(output.read_from(after_offset, limit))
     }
 
     pub fn poll_exit(
-        &mut self,
+        &self,
         handle: &TerminalSessionHandle,
     ) -> Result<Option<TerminalExitStatus>, TerminalError> {
-        let session = self.session_mut(handle)?;
+        let session = self.session(handle)?;
+        let mut session = lock_session(&session);
         session.poll_exit()
     }
 
     pub fn terminate(
-        &mut self,
+        &self,
         handle: &TerminalSessionHandle,
     ) -> Result<TerminalExitStatus, TerminalError> {
-        self.session_mut(handle)?
-            .terminate(TerminalExitReason::Terminated)
+        let session = self.session(handle)?;
+        let mut session = lock_session(&session);
+        session.terminate(TerminalExitReason::Terminated)
     }
 
-    pub fn dispose(&mut self, handle: &TerminalSessionHandle) -> Result<(), TerminalError> {
-        let Some(session) = self.sessions.get(&handle.session_id) else {
+    pub fn dispose(&self, handle: &TerminalSessionHandle) -> Result<(), TerminalError> {
+        let Some(session) = self.map().get(&handle.session_id).cloned() else {
             return Ok(());
         };
-        if session.handle != *handle {
+        if lock_session(&session).handle != *handle {
             return Err(unknown_session(handle));
         }
-        let result = self
-            .sessions
-            .get_mut(&handle.session_id)
-            .expect("the checked terminal session exists")
-            .terminate(TerminalExitReason::Disposed)
-            .map(|_| ());
         // Disposal always releases the record: a teardown error must not leave
         // a ghost session the caller can reattach to but never close.
-        self.sessions.remove(&handle.session_id);
-        result
+        self.map().remove(&handle.session_id);
+        let mut session = lock_session(&session);
+        session.terminate(TerminalExitReason::Disposed).map(|_| ())
     }
 
     /// Stop and release every process, reader, writer, and buffered byte owned by
     /// this manager. One failed session never strands the rest.
-    pub fn shutdown(&mut self) -> Result<(), TerminalError> {
+    pub fn shutdown(&self) -> Result<(), TerminalError> {
+        let sessions: Vec<Arc<Mutex<TerminalSession>>> =
+            self.map().drain().map(|(_, session)| session).collect();
         let mut first_error = None;
-        for session in self.sessions.values_mut() {
+        for session in sessions {
+            let mut session = lock_session(&session);
             if let Err(error) = session.terminate(TerminalExitReason::Disposed) {
                 first_error.get_or_insert(error);
             }
         }
-        self.sessions.clear();
         match first_error {
             Some(error) => Err(error),
             None => Ok(()),
         }
     }
 
-    fn session(&self, handle: &TerminalSessionHandle) -> Result<&TerminalSession, TerminalError> {
+    fn map(&self) -> MutexGuard<'_, HashMap<String, Arc<Mutex<TerminalSession>>>> {
         self.sessions
-            .get(&handle.session_id)
-            .filter(|session| session.handle == *handle)
-            .ok_or_else(|| unknown_session(handle))
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
-    fn session_mut(
-        &mut self,
+    fn session(
+        &self,
         handle: &TerminalSessionHandle,
-    ) -> Result<&mut TerminalSession, TerminalError> {
-        self.sessions
-            .get_mut(&handle.session_id)
-            .filter(|session| session.handle == *handle)
-            .ok_or_else(|| unknown_session(handle))
+    ) -> Result<Arc<Mutex<TerminalSession>>, TerminalError> {
+        let session = self
+            .map()
+            .get(&handle.session_id)
+            .cloned()
+            .ok_or_else(|| unknown_session(handle))?;
+        if lock_session(&session).handle == *handle {
+            Ok(session)
+        } else {
+            Err(unknown_session(handle))
+        }
     }
+}
+
+fn lock_session(session: &Arc<Mutex<TerminalSession>>) -> MutexGuard<'_, TerminalSession> {
+    session
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 impl Drop for TerminalSessions {
     fn drop(&mut self) {
         let _ = self.shutdown();
     }
+}
+
+fn already_exists(terminal_id: &str) -> TerminalError {
+    TerminalError::new(
+        TerminalErrorKind::AlreadyExists,
+        format!("terminal identity {terminal_id} already exists"),
+    )
 }
 
 fn unknown_session(handle: &TerminalSessionHandle) -> TerminalError {

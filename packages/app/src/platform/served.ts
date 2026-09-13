@@ -21,6 +21,7 @@ import {
   type TerminalAdapter,
   type TerminalExitStatus,
   type TerminalOutputBatch,
+  type TerminalOutputHint,
   type TerminalSessionHandle,
   type TerminalStartRequest,
 } from "@/terminal";
@@ -30,6 +31,7 @@ const EDITABLE_TEXT_BYTES = 8 * 1024 * 1024;
 const PROJECT_IMAGE_BYTES = 16 * 1024 * 1024;
 const TERMINAL_INPUT_BYTES = 64 * 1024;
 const TERMINAL_OUTPUT_BYTES = 16 * 1024 * 1024;
+const TERMINAL_READ_BYTES = 1024 * 1024;
 const BASE64_CHUNK_BYTES = 32 * 1024;
 
 interface SessionDescription {
@@ -81,6 +83,7 @@ interface ServedProjectImage {
 interface ServedTerminalOutput {
   readonly session: TerminalSessionHandle;
   readonly offset: number;
+  readonly nextOffset: number | null;
   readonly droppedBefore: number;
   readonly bytesBase64: string;
   readonly readError: string | null;
@@ -281,9 +284,42 @@ function terminalOutput(
   return {
     session,
     offset: Number(output.offset),
+    nextOffset:
+      Number.isSafeInteger(output.nextOffset) && Number(output.nextOffset) >= 0
+        ? Number(output.nextOffset)
+        : null,
     droppedBefore: Number(output.droppedBefore),
     bytesBase64: output.bytesBase64,
     readError: output.readError === null ? null : String(output.readError),
+  };
+}
+
+/** The output carried inside a `terminal.outputReady` edge, when the host attached it. */
+function terminalOutputHint(value: unknown): TerminalOutputHint | undefined {
+  const output = recordObject(value);
+  if (
+    !output ||
+    !Number.isSafeInteger(output.offset) ||
+    Number(output.offset) < 0 ||
+    !Number.isSafeInteger(output.nextOffset) ||
+    Number(output.nextOffset) < 0 ||
+    !Number.isSafeInteger(output.droppedBefore) ||
+    Number(output.droppedBefore) < 0 ||
+    typeof output.bytesBase64 !== "string"
+  ) {
+    return undefined;
+  }
+  let bytes: Uint8Array;
+  try {
+    bytes = decodeBase64(output.bytesBase64, TERMINAL_OUTPUT_BYTES);
+  } catch {
+    return undefined;
+  }
+  return {
+    offset: Number(output.offset),
+    nextOffset: Number(output.nextOffset),
+    droppedBefore: Number(output.droppedBefore),
+    bytes: Array.from(bytes),
   };
 }
 
@@ -326,7 +362,9 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
   });
   const readBoundedFile = async (resource: FileResource): Promise<BoundedFileRead> =>
     decodeFileRead(await client.request<ServedBoundedFileRead>("file.readBounded", resource));
-  const outputListeners = new Set<(session: TerminalSessionHandle) => void>();
+  const outputListeners = new Set<
+    (session: TerminalSessionHandle, output?: TerminalOutputHint) => void
+  >();
   const activeTerminals = new Map<string, TerminalSessionHandle>();
   const terminalRuntime = new Map<string, ServedTerminalSnapshot>();
   const watchListeners = new Map<
@@ -456,7 +494,12 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
     }
     if (event.event === "terminal.outputReady" || event.event === "terminal.exited") {
       const session = terminalHandle(event.payload.session);
-      if (session) for (const listener of outputListeners) listener(session);
+      if (!session) return;
+      const output =
+        event.event === "terminal.outputReady"
+          ? terminalOutputHint(event.payload.output)
+          : undefined;
+      for (const listener of outputListeners) listener(session, output);
     }
   });
   let launch: Promise<LaunchRequest> | null = null;
@@ -571,7 +614,9 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
         // session it created keeps running; claim the surviving session.
         value = await client.request<unknown>("terminal.reattach", request);
         if (value === null) {
-          throw new Error("the served terminal exited before it could be reattached");
+          throw new Error("the served terminal exited before it could be reattached", {
+            cause,
+          });
         }
       }
       return adoptTerminalSession(value, request);
@@ -612,7 +657,11 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
         };
       }
       const result = terminalOutput(
-        await client.request<unknown>("terminal.read", { session, afterOffset }),
+        await client.request<unknown>("terminal.read", {
+          session,
+          afterOffset,
+          maxBytes: TERMINAL_READ_BYTES,
+        }),
         session,
       );
       if (!result) throw new Error("the served terminal returned invalid output");
@@ -627,6 +676,7 @@ export function createServedWorkbenchHost(client: ServedHostClient): WorkbenchHo
       return {
         session: result.session,
         offset: result.offset,
+        nextOffset: result.nextOffset ?? undefined,
         droppedBefore: result.droppedBefore,
         bytes: Array.from(bytes),
         readError: result.readError,

@@ -1,6 +1,7 @@
 import type { InstrumentationClient } from "@/instrumentation";
 import type {
   TerminalAdapter,
+  TerminalOutputHint,
   TerminalScope,
   TerminalSessionHandle,
   TerminalViewport,
@@ -76,8 +77,9 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     this.#instrumentation = options.instrumentation;
     this.#scopes = new ThreadScopeResolver(owner, platform);
     this.#stopOutputReady =
-      platform.terminal.onOutputReady?.((session) => this.#handleOutputReady(session)) ??
-      (() => {});
+      platform.terminal.onOutputReady?.((session, output) =>
+        this.#handleOutputReady(session, output),
+      ) ?? (() => {});
     this.#stopProjectRemovalGuard = owner.registerProjectRemovalGuard({
       id: "workbench.threads",
       prepareRemoval: ({ projectId }) => this.#prepareProjectRemoval(projectId),
@@ -327,7 +329,7 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     this.#automaticNameTails.clear();
   }
 
-  #handleOutputReady(handle: TerminalSessionHandle): void {
+  #handleOutputReady(handle: TerminalSessionHandle, output?: TerminalOutputHint): void {
     const terminal = [...this.#sessions.values()].find((candidate) => {
       const snapshot = candidate.snapshot();
       return (
@@ -338,7 +340,7 @@ export class RootThreadsAdapter implements ThreadWorkbenchAdapter {
     });
     if (!terminal) return;
     void terminal
-      .refresh()
+      .refresh(output)
       .then(() => terminal.pollExit())
       .catch(() => undefined);
   }

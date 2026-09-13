@@ -38,10 +38,24 @@ export interface TerminalOutputBatch {
   readonly session: TerminalSessionHandle;
   /** Absolute byte offset of the first retained byte. */
   readonly offset: number;
+  /** Absolute offset just past the host's retained output, when reported. */
+  readonly nextOffset?: number;
   /** Bytes released before delivery because the native queue reached its limit. */
   readonly droppedBefore: number;
   readonly bytes: readonly number[];
   readonly readError: string | null;
+}
+
+/**
+ * Output bytes carried inside an output-ready edge. `offset` is the absolute
+ * position of `bytes[0]`; `nextOffset` is the host's retained end, which may
+ * exceed the carried bytes when the signal was clipped to its bound.
+ */
+export interface TerminalOutputHint {
+  readonly offset: number;
+  readonly nextOffset: number;
+  readonly droppedBefore: number;
+  readonly bytes: readonly number[];
 }
 
 export type TerminalExitReason = "exited" | "terminated" | "disposed";
@@ -66,7 +80,9 @@ export interface TerminalAdapter {
   /** Returns only the exact existing terminal, or null when it no longer exists. */
   reattach?(request: TerminalStartRequest): Promise<TerminalSessionHandle | null>;
   /** Native output/exit edge; consumers drain bytes only after this bounded signal. */
-  onOutputReady?(listener: (session: TerminalSessionHandle) => void): () => void;
+  onOutputReady?(
+    listener: (session: TerminalSessionHandle, output?: TerminalOutputHint) => void,
+  ): () => void;
   write(session: TerminalSessionHandle, bytes: readonly number[]): Promise<void>;
   resize(session: TerminalSessionHandle, viewport: TerminalViewport): Promise<void>;
   read(session: TerminalSessionHandle, afterOffset: number | null): Promise<TerminalOutputBatch>;

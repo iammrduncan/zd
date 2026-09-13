@@ -145,7 +145,7 @@ fn structured_start_wire_shape_cannot_supply_native_process_authority() {
 #[test]
 fn stable_identity_reattaches_only_the_exact_terminal_in_the_exact_scope() {
     let scratch = Scratch::new("reattach");
-    let mut sessions = TerminalSessions::with_output_limit(4 * 1024).unwrap();
+    let sessions = TerminalSessions::with_output_limit(4 * 1024).unwrap();
     let approved = scope(&scratch);
     let handle = sessions
         .start_shell_with_id(approved.clone(), "terminal-a", viewport(24, 80))
@@ -215,7 +215,7 @@ fn keeper_client_replacement_preserves_the_pty_until_explicit_disposal() {
             .windows(b"__ZD_KEEPER_SURVIVED__".len())
             .any(|bytes| bytes == b"__ZD_KEEPER_SURVIVED__")
     {
-        let batch = second.read_from(&handle, next_offset).unwrap();
+        let batch = second.read_from(&handle, next_offset, u64::MAX).unwrap();
         next_offset = Some(batch.offset + batch.bytes.len() as u64);
         output.extend(batch.bytes);
         thread::sleep(Duration::from_millis(10));
@@ -363,7 +363,7 @@ fn one_pty_starts_emits_accepts_input_resizes_and_exits() {
 #[test]
 fn output_arrival_signals_the_exact_session_without_polling() {
     let scratch = Scratch::new("output-signal");
-    let mut sessions = TerminalSessions::with_output_limit(4 * 1024).unwrap();
+    let sessions = TerminalSessions::with_output_limit(4 * 1024).unwrap();
     let (sender, signals) = mpsc::sync_channel(4);
     let handle = sessions
         .start_shell_with_output_signal(
@@ -445,12 +445,16 @@ fn cursor_reads_replay_retained_output_without_consuming_it() {
         .unwrap();
     wait_for_exit(&mut sessions, &handle);
 
-    let first = sessions.read_from(&handle, None).unwrap();
-    let replay = sessions.read_from(&handle, None).unwrap();
+    let first = sessions.read_from(&handle, None, usize::MAX).unwrap();
+    let replay = sessions.read_from(&handle, None, usize::MAX).unwrap();
     assert_eq!(replay, first);
     assert!(String::from_utf8_lossy(&first.bytes).contains("__ZD_REPLAY__"));
     let caught_up = sessions
-        .read_from(&handle, Some(first.offset + first.bytes.len() as u64))
+        .read_from(
+            &handle,
+            Some(first.offset + first.bytes.len() as u64),
+            usize::MAX,
+        )
         .unwrap();
     assert!(caught_up.bytes.is_empty());
     assert_eq!(caught_up.dropped_before, 0);
@@ -616,7 +620,7 @@ fn a_spawn_failure_releases_the_pty_and_leaves_the_manager_usable() {
 #[test]
 fn session_limit_refuses_new_processes_without_disturbing_the_owned_one() {
     let scratch = Scratch::new("session-limit");
-    let mut sessions = TerminalSessions::with_session_limit(1).unwrap();
+    let sessions = TerminalSessions::with_session_limit(1).unwrap();
     let first = sessions
         .start_shell(scope(&scratch), viewport(24, 80))
         .unwrap();

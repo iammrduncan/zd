@@ -14,19 +14,19 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{any, get, post};
 use axum::Router;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use base64::Engine;
 use serde::Deserialize;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
-use zd_host::terminal::{TerminalAvailability, TerminalSessionSnapshot};
+use zd_host::terminal::{TerminalAvailability, TerminalSessionHandle, TerminalSessionSnapshot};
 use zd_host::HostService;
 
 use crate::assets::Assets;
 use crate::pairing::BrowserPairing;
 use crate::protocol::{serve_socket, ProtocolState};
-use crate::{HostEvent, SessionRuntime, PROTOCOL_VERSION};
+use crate::{HostEvent, SessionRuntime, TerminalOutputCarried, PROTOCOL_VERSION};
 use crate::{MAX_MESSAGE_BYTES, MAX_RESPONSE_MESSAGE_BYTES};
 
 pub struct ServerConfig {
@@ -226,8 +226,8 @@ impl TerminalEventPump {
                 let mut observer = TerminalEventObserver::default();
                 while !worker_stop.load(Ordering::Acquire) {
                     if let Ok(snapshot) = host.terminal_snapshot() {
-                        for event in observer.observe(&snapshot) {
-                            runtime.publish(event);
+                        for observation in observer.observe(&snapshot) {
+                            runtime.publish(observation.event(&host));
                         }
                     }
                     thread::sleep(Duration::from_millis(16));
@@ -257,14 +257,69 @@ impl Drop for TerminalEventPump {
     }
 }
 
+/// Bytes carried inside one `terminal.outputReady` event. A keystroke echo
+/// fits entirely; a burst beyond this bound leaves the remainder to the
+/// client's normal `terminal.read` catch-up.
+const EVENT_OUTPUT_BYTES: u64 = 48 * 1024;
+
 #[derive(Default)]
 struct TerminalEventObserver {
     observed: HashMap<String, (u64, TerminalAvailability)>,
 }
 
+#[derive(Debug)]
+enum TerminalObservation {
+    OutputReady {
+        session: TerminalSessionHandle,
+        from_offset: u64,
+        next_offset: u64,
+    },
+    Exited {
+        session: TerminalSessionHandle,
+    },
+}
+
+impl TerminalObservation {
+    /// Carries up to [`EVENT_OUTPUT_BYTES`] of the new output inside the event
+    /// so an attached renderer appends it without a `terminal.read` round trip.
+    /// A failed or gapped read falls back to a bare signal; the client still
+    /// catches up through its normal read path.
+    fn event(self, host: &HostService) -> HostEvent {
+        match self {
+            Self::OutputReady {
+                session,
+                from_offset,
+                next_offset,
+            } => {
+                let output = host
+                    .read_terminal(&session, Some(from_offset), EVENT_OUTPUT_BYTES)
+                    .ok()
+                    .filter(|batch| !batch.bytes.is_empty())
+                    .map(|batch| TerminalOutputCarried {
+                        offset: batch.offset,
+                        next_offset,
+                        dropped_before: batch.dropped_before,
+                        bytes_base64: STANDARD.encode(&batch.bytes),
+                    });
+                HostEvent::TerminalOutputReady {
+                    session_id: session.session_id,
+                    project_id: session.project_id,
+                    worktree_id: session.worktree_id,
+                    output,
+                }
+            }
+            Self::Exited { session } => HostEvent::TerminalExited {
+                session_id: session.session_id,
+                project_id: session.project_id,
+                worktree_id: session.worktree_id,
+            },
+        }
+    }
+}
+
 impl TerminalEventObserver {
-    fn observe(&mut self, snapshot: &[TerminalSessionSnapshot]) -> Vec<HostEvent> {
-        let mut events = Vec::new();
+    fn observe(&mut self, snapshot: &[TerminalSessionSnapshot]) -> Vec<TerminalObservation> {
+        let mut observations = Vec::new();
         let mut present = std::collections::HashSet::new();
         for terminal in snapshot {
             let session = &terminal.session;
@@ -275,25 +330,23 @@ impl TerminalEventObserver {
             );
             let previous_offset = previous.map_or(terminal.retained_from, |value| value.0);
             if terminal.next_offset > previous_offset {
-                events.push(HostEvent::TerminalOutputReady {
-                    session_id: session.session_id.clone(),
-                    project_id: session.project_id.clone(),
-                    worktree_id: session.worktree_id.clone(),
+                observations.push(TerminalObservation::OutputReady {
+                    session: session.clone(),
+                    from_offset: previous_offset,
+                    next_offset: terminal.next_offset,
                 });
             }
             if terminal.availability == TerminalAvailability::Exited
                 && previous.is_none_or(|value| value.1 != TerminalAvailability::Exited)
             {
-                events.push(HostEvent::TerminalExited {
-                    session_id: session.session_id.clone(),
-                    project_id: session.project_id.clone(),
-                    worktree_id: session.worktree_id.clone(),
+                observations.push(TerminalObservation::Exited {
+                    session: session.clone(),
                 });
             }
         }
         self.observed
             .retain(|session_id, _| present.contains(session_id));
-        events
+        observations
     }
 }
 
@@ -430,24 +483,28 @@ mod tests {
         assert!(observer
             .observe(&[snapshot(0, TerminalAvailability::Running)])
             .is_empty());
-        assert_eq!(
-            observer.observe(&[snapshot(4, TerminalAvailability::Running)]),
-            vec![HostEvent::TerminalOutputReady {
-                session_id: "terminal-a".to_string(),
-                project_id: "project-a".to_string(),
-                worktree_id: "worktree-a".to_string(),
-            }]
+        let observations = observer.observe(&[snapshot(4, TerminalAvailability::Running)]);
+        assert!(
+            matches!(
+                observations.as_slice(),
+                [TerminalObservation::OutputReady {
+                    session,
+                    from_offset: 0,
+                    next_offset: 4,
+                }] if session.session_id == "terminal-a"
+            ),
+            "a grown offset emits one carried output edge: {observations:?}"
         );
         assert!(observer
             .observe(&[snapshot(4, TerminalAvailability::Running)])
             .is_empty());
-        assert_eq!(
-            observer.observe(&[snapshot(4, TerminalAvailability::Exited)]),
-            vec![HostEvent::TerminalExited {
-                session_id: "terminal-a".to_string(),
-                project_id: "project-a".to_string(),
-                worktree_id: "worktree-a".to_string(),
-            }]
+        let observations = observer.observe(&[snapshot(4, TerminalAvailability::Exited)]);
+        assert!(
+            matches!(
+                observations.as_slice(),
+                [TerminalObservation::Exited { session }] if session.session_id == "terminal-a"
+            ),
+            "an exit edge emits once: {observations:?}"
         );
         assert!(observer
             .observe(&[snapshot(4, TerminalAvailability::Exited)])

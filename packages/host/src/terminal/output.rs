@@ -59,22 +59,22 @@ impl BoundedOutput {
     }
 
     pub(super) fn drain(&mut self) -> TerminalOutputBatch {
-        let batch = self.read_from(Some(self.drain_offset));
+        let batch = self.read_from(Some(self.drain_offset), usize::MAX);
         self.drain_offset = self.next_offset;
         batch
     }
 
-    pub(super) fn read_from(&self, after_offset: Option<u64>) -> TerminalOutputBatch {
+    pub(super) fn read_from(&self, after_offset: Option<u64>, limit: usize) -> TerminalOutputBatch {
         let requested = after_offset.unwrap_or(self.first_offset);
         let offset = requested.clamp(self.first_offset, self.next_offset);
         let skip = offset.saturating_sub(self.first_offset) as usize;
-        let batch = TerminalOutputBatch {
+        TerminalOutputBatch {
             offset,
+            next_offset: self.next_offset,
             dropped_before: self.first_offset.saturating_sub(requested),
-            bytes: self.bytes.iter().skip(skip).copied().collect(),
+            bytes: self.bytes.iter().skip(skip).take(limit).copied().collect(),
             read_error: self.read_error.clone(),
-        };
-        batch
+        }
     }
 
     pub(super) fn offsets(&self) -> (u64, u64) {

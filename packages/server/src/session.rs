@@ -32,6 +32,16 @@ impl ResyncReason {
     }
 }
 
+/// Output bytes carried with `terminal.outputReady` so an attached renderer
+/// can append them without spending a round trip on `terminal.read`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TerminalOutputCarried {
+    pub offset: u64,
+    pub next_offset: u64,
+    pub dropped_before: u64,
+    pub bytes_base64: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HostEvent {
     FileTreeChanged {
@@ -48,6 +58,7 @@ pub enum HostEvent {
         session_id: String,
         project_id: String,
         worktree_id: String,
+        output: Option<TerminalOutputCarried>,
     },
     TerminalExited {
         session_id: String,
@@ -90,6 +101,7 @@ impl HostEvent {
                 session_id,
                 project_id,
                 worktree_id,
+                output,
             } => (
                 "terminal.outputReady",
                 json!({
@@ -98,6 +110,12 @@ impl HostEvent {
                         "projectId": project_id,
                         "worktreeId": worktree_id,
                     },
+                    "output": output.map(|output| json!({
+                        "offset": output.offset,
+                        "nextOffset": output.next_offset,
+                        "droppedBefore": output.dropped_before,
+                        "bytesBase64": output.bytes_base64,
+                    })),
                 }),
             ),
             Self::TerminalExited {
