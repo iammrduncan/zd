@@ -674,6 +674,34 @@ test("keeps every project terminal through a served-host process restart", async
   await closeAndDisposeTerminals(page, restarted.url, restarted.secret);
 });
 
+test("the terminal keeper leads its own session so logout cannot reach it", async ({
+  page,
+  servedHost,
+}) => {
+  test.skip(process.platform !== "linux", "session evidence is read from /proc");
+  await page.goto(servedHost.url);
+  await page.getByLabel("Process secret").fill(servedHost.secret);
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.locator(".zd-workbench")).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+j");
+  await expect(page.locator("[data-project-terminal]")).toBeVisible();
+
+  const sessionOf = async (pid: number): Promise<number> => {
+    const stat = await readFile(`/proc/${pid}/stat`, "utf8");
+    // Field 6 (session) follows the comm field, which may itself contain
+    // spaces and parentheses — parse after the final ")".
+    return Number(stat.slice(stat.lastIndexOf(")") + 1).trim().split(/\s+/u)[3]);
+  };
+  const keeperPid = await servedHost.terminalKeeperPid();
+  const hostPid = servedHost.hostProcessId;
+  if (hostPid === null) throw new Error("the served host process is unknown");
+
+  const keeperSession = await sessionOf(keeperPid);
+  expect(keeperSession).toBe(keeperPid);
+  expect(keeperSession).not.toBe(await sessionOf(hostPid));
+  await closeAndDisposeTerminals(page, servedHost.url, servedHost.secret);
+});
+
 test("hands a paired workbench to a new page without another secret", async ({
   page,
   servedHost,

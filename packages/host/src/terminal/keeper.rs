@@ -170,8 +170,19 @@ impl TerminalKeeperClient {
             .arg(&client.state_directory)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .process_group(0);
+            .stderr(Stdio::null());
+        // SAFETY: runs in the child between fork and exec. A fresh session
+        // with no controlling terminal keeps the keeper — and every terminal
+        // it owns — alive when the spawning process's session is torn down,
+        // including logout. `pre_exec` is only used for `setsid`.
+        unsafe {
+            command.pre_exec(|| {
+                if libc::setsid() == -1 {
+                    return Err(io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
         let mut child = command
             .spawn()
             .map_err(|_| "the terminal keeper process could not start".to_string())?;

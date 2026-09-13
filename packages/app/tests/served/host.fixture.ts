@@ -25,6 +25,8 @@ interface ServedHostFixture {
   readonly url: string;
   readonly secret: string;
   readonly secondProjectName: string;
+  readonly hostProcessId: number | null;
+  terminalKeeperPid(): Promise<number>;
   restart(options?: { failedThreadId: string }): Promise<Readiness>;
   createExternalFile(name?: string): Promise<void>;
   isProcessRunning(pid: number): boolean;
@@ -415,6 +417,20 @@ export const test = base.extend<object, { servedHost: ServedHostFixture }>({
             return readiness.secret;
           },
           secondProjectName: basename(secondProjectRoot),
+          get hostProcessId() {
+            return child?.pid ?? null;
+          },
+          terminalKeeperPid: async () => {
+            const lock = await readFile(
+              join(hostStateRoot, "terminal-keeper-v1", "keeper.lock"),
+              "utf8",
+            );
+            const pid = Number(lock.trim());
+            if (!Number.isInteger(pid) || pid <= 0) {
+              throw new Error(`the terminal keeper lock does not hold a pid: ${lock}`);
+            }
+            return pid;
+          },
           restart: async (options) => {
             if (!child || !readiness) throw new Error("the served host is not running");
             const oldPort = new URL(readiness.url).port;
