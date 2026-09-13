@@ -8,11 +8,11 @@
 
 ## Action needed from the owner
 
-| What needs owner input | Why the owner must decide | What it blocks |
+| What needed owner input | Decision | Consequence |
 | --- | --- | --- |
-| **F-03 — cross-server terminal input fencing.** Two `zd serve` processes on one state dir share the keeper, and both can write any session. Is same-user multi-serve a supported topology? | It's a product contract, not a bug an implementer can pick: supported → keeper-side fencing work; documented-unsafe → a doc line and no code. | Packet I2's scope in plan 05 |
-| **Native macOS evidence** — owner-deferred ("later, less priority on tauri"), so recorded as a gap rather than run | Only the owner can supply a native runner or formally accept the gap | I6's installed-lifecycle gates; the audit does not claim macOS behavior |
-| **The tmux-expectation boundary** — the keeper survives server death but shares the server's OS *session*; `kill -9` of the keeper or session teardown loses everything | The owner's "like tmux" phrasing may mean survive-ssh-logout, which the current design deliberately does not provide | The durability contract wording in ADR 0010's consequences and plan 05's lifecycle contract |
+| **F-03 — cross-server terminal input fencing.** Two `zd serve` processes on one state dir share the keeper, and both can write any session. Is same-user multi-serve a supported topology? | **Supported, with locking** (owner: "lock terminal") | I2 adds keeper-side session ownership: a terminal is locked to the server that created or claimed it; a second server must take ownership before writing |
+| **Native macOS evidence** — owner-deferred ("later, less priority on tauri") | **Deferred** (owner: "keep deferring") | Recorded gap stays; no macOS claims anywhere |
+| **The tmux-expectation boundary** — the keeper survives server death but shares the server's OS *session*; logout/session teardown loses everything | **Must survive logout** (owner: "like tmux, yeah it should survive logout") | I2 gives the keeper its own session (`setsid`) + detached stdio at spawn; durability contract widens to survive-logout, still not OS reboot or keeper kill |
 
 ## What was delivered
 

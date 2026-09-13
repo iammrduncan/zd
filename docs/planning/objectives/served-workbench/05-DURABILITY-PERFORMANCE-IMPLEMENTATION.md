@@ -166,9 +166,14 @@ What must change:
 - **F-04 (P3→P2 risk):** add a `Hello{protocolVersion}` handshake on the keeper socket before any
   op; mismatch returns an explicit `incompatible-keeper` error and never kills the keeper or its
   terminals. `deny_unknown_fields` on both enums makes any schema change fatal today.
-- **F-03 (P2, owner decision pending):** two serves on one state dir share the keeper and both can
-  write any session — input fencing is per-server only. Either add keeper-side session ownership
-  (epoch/owner field) or document same-user multi-serve as a single-writer convenience.
+- **F-03 (P2, decided 2026-09-12):** two serves on one state dir share the keeper and both can
+  write any session — input fencing is per-server only. Owner decision: multi-serve is supported
+  *with locking* — the keeper records a session owner and rejects input from a non-owner until
+  ownership is claimed or released.
+- **Survive-logout (decided 2026-09-12):** the keeper currently shares the spawning server's OS
+  session, so logout/session teardown kills it. Owner decision: it must survive logout like tmux —
+  spawn it with `setsid` (own session, no controlling terminal, detached stdio). Still not
+  guaranteed across OS reboot or an explicit keeper kill.
 - Lost-ack retry: a `terminal.start` retry after a lost ack must return a typed
   `already-exists` (→reattach) rather than the generic `terminal-unavailable` (F-02, runtime half
   here; wire surface in I3).
@@ -313,18 +318,20 @@ harness: `/tmp/zd-audit/bin/` (uncommitted by design — I1 decides what to comm
 | Attributed latency baseline | **Delivered** — report 05; host ~9–10 ms/op quiet, +~30 ms under output flow (F-06), second-RTT output cost (F-07) |
 | Fixed performance gates | **Set above** — echo gate blocked on F-07; all other gates pass on the measured release baseline |
 | Finding→packet map, ownership, tests | **Done** — packets I1–I5 carry finding IDs and file ownership |
-| Owner decisions | **One pending** — F-03 below |
+| Owner decisions | **Resolved 2026-09-12** — F-03 = supported with keeper-side locking; keeper must survive logout; macOS stays deferred |
 | Deferrals | macOS native evidence (owner-deferred), Windows (plan-deferred), container e2e (F-05 env gap) |
 
-### Owner decisions this plan cannot proceed past
+### Owner decisions (resolved 2026-09-12)
 
-| Decision | Why it blocks | Default if unanswered |
+| Decision | Answer | Consequence |
 | --- | --- | --- |
-| **F-03 — cross-server input fencing:** is same-user multi-serve sharing a supported topology? | Changes I2's scope — keeper-side fencing (new epoch/owner field) vs documenting single-writer. | Treat as supported + document "one writer at a time" (no fencing) — matches how the keeper is already shared. |
+| **F-03 — cross-server input fencing** | Supported, with locking | I2 adds keeper-side session ownership; a second server must claim a terminal before writing |
+| **Survive-logout** | Required ("like tmux") | I2 spawns the keeper in its own session (`setsid`), detached stdio; contract widens |
+| **Native macOS run** | Keep deferring | Recorded gap; no macOS claims |
 
 ### Remaining blockers (evidence, not decisions)
 
-1. **Native macOS run** — required by the original plan; owner-deferred for this audit. Implementation
+1. **Native macOS run** — owner-deferred again on 2026-09-12. Implementation
    gates on Linux evidence; macOS stays an open row until a native runner exists.
 2. **Firefox/WebKit served runs** — no driver config exists; I5 owns adding them.
 3. **F-01 fix must not regress normal dispose** — the session-member enumeration is the risky part;
