@@ -169,7 +169,7 @@ fn stable_identity_reattaches_only_the_exact_terminal_in_the_exact_scope() {
             .start_shell_with_id(approved.clone(), "terminal-a", viewport(24, 80))
             .unwrap_err()
             .kind,
-        TerminalErrorKind::InvalidInput
+        TerminalErrorKind::AlreadyExists
     );
     let other_scope =
         TerminalScope::from_approved_worktree("project-a", "worktree-other", scratch.path())
@@ -227,6 +227,88 @@ fn keeper_client_replacement_preserves_the_pty_until_explicit_disposal() {
     );
     second.dispose(&handle).unwrap();
     assert!(second.snapshot().unwrap().is_empty());
+}
+
+/// Two servers sharing one keeper get fenced input: the creator owns the
+/// session until another server claims it by attaching, then ownership moves.
+#[cfg(unix)]
+#[test]
+fn keeper_fences_terminal_input_to_the_owning_server() {
+    let project = Scratch::new("keeper-fence-project");
+    let state = Scratch::new("keeper-fence-state");
+    let keeper = super::keeper::TestKeeper::start(state.path()).unwrap();
+    let first = keeper.client();
+    let second = first.another_owner();
+    let approved = scope(&project);
+    let handle = first
+        .start(approved.clone(), "terminal-fenced", viewport(24, 80))
+        .unwrap();
+
+    assert_eq!(
+        second.write(&handle, b"exit 1\n").unwrap_err().kind,
+        TerminalErrorKind::NotOwner
+    );
+    assert_eq!(
+        second.terminate(&handle).unwrap_err().kind,
+        TerminalErrorKind::NotOwner
+    );
+    assert_eq!(
+        second.dispose(&handle).unwrap_err().kind,
+        TerminalErrorKind::NotOwner
+    );
+    // Observation is not fenced: any same-user server may watch output.
+    assert!(second.poll_exit(&handle).unwrap().is_none());
+    assert_eq!(second.snapshot().unwrap().len(), 1);
+
+    // Attaching claims the session — input follows the newest owner.
+    assert_eq!(
+        second
+            .reattach(&approved, "terminal-fenced", viewport(24, 80))
+            .unwrap(),
+        Some(handle.clone())
+    );
+    second.write(&handle, b"printf x\n").unwrap();
+    assert_eq!(
+        first.write(&handle, b"exit 1\n").unwrap_err().kind,
+        TerminalErrorKind::NotOwner
+    );
+
+    second.dispose(&handle).unwrap();
+    assert!(second.snapshot().unwrap().is_empty());
+}
+
+/// A client speaking another protocol revision is refused explicitly and the
+/// keeper's sessions are untouched by the failed handshake.
+#[cfg(unix)]
+#[test]
+fn keeper_refuses_an_incompatible_handshake_without_harming_sessions() {
+    let project = Scratch::new("keeper-version-project");
+    let state = Scratch::new("keeper-version-state");
+    let keeper = super::keeper::TestKeeper::start(state.path()).unwrap();
+    let client = keeper.client();
+    let approved = scope(&project);
+    let handle = client
+        .start(approved.clone(), "terminal-versioned", viewport(24, 80))
+        .unwrap();
+
+    let stale = client.at_protocol_version(999);
+    assert_eq!(
+        stale.poll_exit(&handle).unwrap_err().kind,
+        TerminalErrorKind::IncompatibleKeeper
+    );
+    assert_eq!(
+        stale
+            .start(approved.clone(), "terminal-other", viewport(24, 80))
+            .unwrap_err()
+            .kind,
+        TerminalErrorKind::IncompatibleKeeper
+    );
+
+    // The refused peer changed nothing: the session still runs and its owner
+    // still operates it.
+    client.write(&handle, b"printf '__ZD_STILL_ALIVE__'\n").unwrap();
+    client.dispose(&handle).unwrap();
+    assert!(client.snapshot().unwrap().is_empty());
 }
 
 #[cfg(unix)]

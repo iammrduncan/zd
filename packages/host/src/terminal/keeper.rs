@@ -25,6 +25,7 @@ use super::{
 const RUNTIME_DIRECTORY: &str = "terminal-keeper-v1";
 const SOCKET_FILE: &str = "control.sock";
 const LOCK_FILE: &str = "keeper.lock";
+const KEEPER_PROTOCOL_VERSION: u32 = 1;
 const MAX_REQUEST_BYTES: usize = 256 * 1024;
 const MAX_RESPONSE_BYTES: usize = 32 * 1024 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -63,6 +64,10 @@ impl KeeperScope {
     deny_unknown_fields
 )]
 enum KeeperRequest {
+    Hello {
+        protocol_version: u32,
+        owner: String,
+    },
     Ping,
     Start {
         scope: KeeperScope,
@@ -108,6 +113,9 @@ enum KeeperRequest {
     deny_unknown_fields
 )]
 enum KeeperResponse {
+    Ready {
+        protocol_version: u32,
+    },
     Pong,
     Started {
         session: TerminalSessionHandle,
@@ -154,13 +162,24 @@ impl From<TerminalError> for KeeperResponse {
 pub struct TerminalKeeperClient {
     state_directory: PathBuf,
     socket: PathBuf,
+    /// Identity this client presents in each connection handshake. One client
+    /// instance equals one server process, so the keeper can fence terminal
+    /// input to the server that owns the session.
+    owner: Arc<str>,
+    protocol_version: u32,
 }
 
 impl TerminalKeeperClient {
     pub fn connect_or_spawn(state_directory: &Path) -> Result<Self, String> {
         let client = Self::in_state(state_directory)?;
-        if client.ping().is_ok() {
-            return Ok(client);
+        match client.ping() {
+            Ok(()) => return Ok(client),
+            // A listening keeper that speaks another protocol is left alone:
+            // spawning beside it would split terminal ownership.
+            Err(error) if error.kind == TerminalErrorKind::IncompatibleKeeper => {
+                return Err(error.message);
+            }
+            Err(_) => {}
         }
         let executable = std::env::current_exe()
             .map_err(|_| "the terminal keeper executable is unavailable".to_string())?;
@@ -214,6 +233,8 @@ impl TerminalKeeperClient {
         Ok(Self {
             state_directory,
             socket: runtime.join(SOCKET_FILE),
+            owner: new_owner_identity()?,
+            protocol_version: KEEPER_PROTOCOL_VERSION,
         })
     }
 
@@ -370,6 +391,32 @@ impl TerminalKeeperClient {
         stream
             .set_write_timeout(Some(IO_TIMEOUT))
             .map_err(keeper_io)?;
+        write_frame(
+            &mut stream,
+            &KeeperRequest::Hello {
+                protocol_version: self.protocol_version,
+                owner: self.owner.to_string(),
+            },
+            MAX_REQUEST_BYTES,
+        )
+        .map_err(keeper_io)?;
+        match read_frame::<KeeperResponse>(&mut stream, MAX_RESPONSE_BYTES).map_err(keeper_io)? {
+            KeeperResponse::Ready { protocol_version }
+                if protocol_version == self.protocol_version => {}
+            KeeperResponse::Ready { protocol_version } => {
+                return Err(incompatible_keeper(protocol_version));
+            }
+            KeeperResponse::Error { kind, message } => {
+                // A keeper that predates the handshake cannot parse Hello at
+                // all; any error here means the wire is incompatible.
+                let _ = kind;
+                return Err(TerminalError::new(
+                    TerminalErrorKind::IncompatibleKeeper,
+                    format!("terminal keeper handshake failed: {message}"),
+                ));
+            }
+            response => return Err(unexpected_response(response)),
+        }
         write_frame(&mut stream, request, MAX_REQUEST_BYTES).map_err(keeper_io)?;
         let response =
             read_frame::<KeeperResponse>(&mut stream, MAX_RESPONSE_BYTES).map_err(keeper_io)?;
@@ -385,6 +432,22 @@ impl TerminalKeeperClient {
             KeeperResponse::Stopped => Ok(()),
             response => Err(unexpected_response(response)),
         }
+    }
+
+    /// A second server sharing this keeper is a second client identity.
+    #[cfg(test)]
+    pub(super) fn another_owner(&self) -> Self {
+        let mut client = self.clone();
+        client.owner = Arc::from("owner-another");
+        client
+    }
+
+    /// A client built against a different keeper protocol revision.
+    #[cfg(test)]
+    pub(super) fn at_protocol_version(&self, protocol_version: u32) -> Self {
+        let mut client = self.clone();
+        client.protocol_version = protocol_version;
+        client
     }
 }
 
@@ -418,7 +481,7 @@ fn run_terminal_keeper_with_idle(
         .set_nonblocking(true)
         .map_err(|_| "the terminal keeper socket could not become nonblocking".to_string())?;
     let _socket_cleanup = SocketCleanup(client.socket.clone());
-    let sessions = Arc::new(Mutex::new(TerminalSessions::default()));
+    let sessions = Arc::new(Mutex::new(KeeperState::default()));
     let stopping = Arc::new(AtomicBool::new(false));
     let active_clients = Arc::new(AtomicUsize::new(0));
     let mut last_request = Instant::now();
@@ -444,7 +507,7 @@ fn run_terminal_keeper_with_idle(
             Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
                 let empty = sessions
                     .lock()
-                    .map(|sessions| sessions.is_empty())
+                    .map(|state| state.sessions.is_empty())
                     .unwrap_or(false);
                 if empty
                     && active_clients.load(Ordering::Acquire) == 0
@@ -468,11 +531,86 @@ impl Drop for ActiveClient {
     }
 }
 
+/// Keeper-side state: the sessions plus which connected server owns each one.
+/// Ownership fences input and control to the server that created or last
+/// claimed the session; reads stay open so any server can observe.
+#[derive(Default)]
+struct KeeperState {
+    sessions: TerminalSessions,
+    owners: std::collections::HashMap<String, String>,
+}
+
+/// Input and control are fenced to the owning server. A missing entry means
+/// the session predates tracking; the operation itself reports whether the
+/// session exists.
+fn check_owner(
+    owners: &std::collections::HashMap<String, String>,
+    session: &TerminalSessionHandle,
+    owner: &str,
+) -> Result<(), TerminalError> {
+    match owners.get(&session.session_id) {
+        Some(holder) if holder != owner => Err(TerminalError::new(
+            TerminalErrorKind::NotOwner,
+            format!(
+                "terminal session {} is owned by another server",
+                session.session_id
+            ),
+        )),
+        _ => Ok(()),
+    }
+}
+
 fn serve_connection(
     mut stream: UnixStream,
-    sessions: Arc<Mutex<TerminalSessions>>,
+    state: Arc<Mutex<KeeperState>>,
     _stopping: Arc<AtomicBool>,
 ) {
+    // Every connection starts with the handshake. A client that predates it
+    // gets an explicit refusal instead of silently breaking on a new wire.
+    let owner = match read_frame::<KeeperRequest>(&mut stream, MAX_REQUEST_BYTES) {
+        Ok(KeeperRequest::Hello {
+            protocol_version,
+            owner,
+        }) => {
+            if protocol_version != KEEPER_PROTOCOL_VERSION {
+                let _ = write_frame(
+                    &mut stream,
+                    &KeeperResponse::Error {
+                        kind: TerminalErrorKind::IncompatibleKeeper,
+                        message: format!(
+                            "terminal keeper speaks protocol version {KEEPER_PROTOCOL_VERSION}"
+                        ),
+                    },
+                    MAX_RESPONSE_BYTES,
+                );
+                return;
+            }
+            if write_frame(
+                &mut stream,
+                &KeeperResponse::Ready {
+                    protocol_version: KEEPER_PROTOCOL_VERSION,
+                },
+                MAX_RESPONSE_BYTES,
+            )
+            .is_err()
+            {
+                return;
+            }
+            owner
+        }
+        Ok(_) => {
+            let _ = write_frame(
+                &mut stream,
+                &KeeperResponse::Error {
+                    kind: TerminalErrorKind::IncompatibleKeeper,
+                    message: "a terminal keeper handshake is required".to_string(),
+                },
+                MAX_RESPONSE_BYTES,
+            );
+            return;
+        }
+        Err(_) => return,
+    };
     let response = match read_frame::<KeeperRequest>(&mut stream, MAX_REQUEST_BYTES) {
         Ok(KeeperRequest::Ping) => KeeperResponse::Pong,
         #[cfg(test)]
@@ -480,7 +618,7 @@ fn serve_connection(
             _stopping.store(true, Ordering::Release);
             KeeperResponse::Stopped
         }
-        Ok(request) => dispatch(request, &sessions),
+        Ok(request) => dispatch(request, &state, &owner),
         Err(error) => KeeperResponse::Error {
             kind: TerminalErrorKind::InvalidInput,
             message: error.to_string(),
@@ -489,9 +627,9 @@ fn serve_connection(
     let _ = write_frame(&mut stream, &response, MAX_RESPONSE_BYTES);
 }
 
-fn dispatch(request: KeeperRequest, sessions: &Mutex<TerminalSessions>) -> KeeperResponse {
-    let mut sessions = match sessions.lock() {
-        Ok(sessions) => sessions,
+fn dispatch(request: KeeperRequest, state: &Mutex<KeeperState>, owner: &str) -> KeeperResponse {
+    let mut state = match state.lock() {
+        Ok(state) => state,
         Err(_) => {
             return KeeperResponse::Error {
                 kind: TerminalErrorKind::Io,
@@ -499,6 +637,9 @@ fn dispatch(request: KeeperRequest, sessions: &Mutex<TerminalSessions>) -> Keepe
             };
         }
     };
+    let state = &mut *state;
+    let sessions = &mut state.sessions;
+    let owners = &mut state.owners;
     let result = match request {
         KeeperRequest::Start {
             scope,
@@ -507,7 +648,10 @@ fn dispatch(request: KeeperRequest, sessions: &Mutex<TerminalSessions>) -> Keepe
         } => scope.approve().and_then(|scope| {
             sessions
                 .start_shell_with_id(scope, terminal_id, viewport)
-                .map(|session| KeeperResponse::Started { session })
+                .map(|session| {
+                    owners.insert(session.session_id.clone(), owner.to_string());
+                    KeeperResponse::Started { session }
+                })
         }),
         KeeperRequest::Reattach {
             scope,
@@ -516,16 +660,24 @@ fn dispatch(request: KeeperRequest, sessions: &Mutex<TerminalSessions>) -> Keepe
         } => scope.approve().and_then(|scope| {
             sessions
                 .reattach(&scope, &terminal_id, viewport)
-                .map(|session| KeeperResponse::Reattached { session })
+                .map(|session| {
+                    // Attaching claims the session: input follows the server
+                    // that most recently attached, like tmux session steal.
+                    if let Some(session) = &session {
+                        owners.insert(session.session_id.clone(), owner.to_string());
+                    }
+                    KeeperResponse::Reattached { session }
+                })
         }),
         KeeperRequest::Write {
             session,
             bytes_base64,
-        } => decode_input(&bytes_base64)
+        } => check_owner(owners, &session, owner)
+            .and_then(|()| decode_input(&bytes_base64))
             .and_then(|bytes| sessions.write(&session, &bytes))
             .map(|()| KeeperResponse::Written),
-        KeeperRequest::Resize { session, viewport } => sessions
-            .resize(&session, viewport)
+        KeeperRequest::Resize { session, viewport } => check_owner(owners, &session, owner)
+            .and_then(|()| sessions.resize(&session, viewport))
             .map(|()| KeeperResponse::Resized),
         KeeperRequest::Read {
             session,
@@ -541,15 +693,21 @@ fn dispatch(request: KeeperRequest, sessions: &Mutex<TerminalSessions>) -> Keepe
         KeeperRequest::PollExit { session } => sessions
             .poll_exit(&session)
             .map(|status| KeeperResponse::Exit { status }),
-        KeeperRequest::Terminate { session } => sessions
-            .terminate(&session)
+        KeeperRequest::Terminate { session } => check_owner(owners, &session, owner)
+            .and_then(|()| sessions.terminate(&session))
             .map(|status| KeeperResponse::Terminated { status }),
-        KeeperRequest::Dispose { session } => sessions
-            .dispose(&session)
-            .map(|()| KeeperResponse::Disposed),
+        KeeperRequest::Dispose { session } => {
+            let result = check_owner(owners, &session, owner)
+                .and_then(|()| sessions.dispose(&session));
+            if result.is_ok() {
+                owners.remove(&session.session_id);
+            }
+            result.map(|()| KeeperResponse::Disposed)
+        }
         KeeperRequest::Snapshot => Ok(KeeperResponse::Snapshot {
             sessions: sessions.snapshot(),
         }),
+        KeeperRequest::Hello { .. } => unreachable!("handled before dispatch"),
         KeeperRequest::Ping => unreachable!("handled before dispatch"),
         #[cfg(test)]
         KeeperRequest::Shutdown => unreachable!("handled before dispatch"),
@@ -667,6 +825,26 @@ fn keeper_io(error: io::Error) -> TerminalError {
         TerminalErrorKind::Io,
         format!("terminal keeper communication failed: {error}"),
     )
+}
+
+fn incompatible_keeper(their_version: u32) -> TerminalError {
+    TerminalError::new(
+        TerminalErrorKind::IncompatibleKeeper,
+        format!(
+            "terminal keeper protocol {their_version} is incompatible with {KEEPER_PROTOCOL_VERSION}"
+        ),
+    )
+}
+
+fn new_owner_identity() -> Result<Arc<str>, String> {
+    let mut random = [0_u8; 16];
+    getrandom::fill(&mut random)
+        .map_err(|_| "terminal keeper owner identity is unavailable".to_string())?;
+    let mut identity = String::from("owner-");
+    for byte in random {
+        identity.push_str(&format!("{byte:02x}"));
+    }
+    Ok(Arc::from(identity))
 }
 
 fn unexpected_response(response: KeeperResponse) -> TerminalError {

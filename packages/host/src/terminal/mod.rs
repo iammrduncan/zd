@@ -48,6 +48,9 @@ pub enum TerminalErrorKind {
     UnknownSession,
     Spawn,
     Io,
+    NotOwner,
+    IncompatibleKeeper,
+    AlreadyExists,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -413,7 +416,7 @@ impl TerminalSessions {
         }
         if self.sessions.contains_key(&terminal_id) {
             return Err(TerminalError::new(
-                TerminalErrorKind::InvalidInput,
+                TerminalErrorKind::AlreadyExists,
                 format!("terminal identity {terminal_id} already exists"),
             ));
         }
