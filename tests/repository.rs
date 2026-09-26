@@ -61,8 +61,27 @@ fn current_ci_builds_only_the_native_rust_product() {
             "current workflow contains retired surface {retired_surface}"
         );
     }
-    assert!(workflow.contains("cargo test --locked"));
+    assert!(workflow.contains("cargo test --all-targets --locked"));
     assert!(workflow.contains("cargo build --release --locked"));
+}
+
+#[test]
+fn documented_quality_gate_uses_executable_commands() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let contributing = fs::read_to_string(root.join("CONTRIBUTING.md"))
+        .expect("CONTRIBUTING.md should be readable");
+
+    for command in [
+        "scripts/dev-container.sh cargo fmt --all -- --check",
+        "scripts/dev-container.sh cargo clippy --all-targets --locked -- -D warnings",
+        "scripts/dev-container.sh cargo test --all-targets --locked",
+        "scripts/dev-container.sh cargo build --release --locked",
+    ] {
+        assert!(
+            contributing.contains(command),
+            "CONTRIBUTING.md should contain the executable quality-gate command: {command}"
+        );
+    }
 }
 
 #[test]

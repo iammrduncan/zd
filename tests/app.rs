@@ -270,3 +270,18 @@ fn bracketed_paste_targets_prompts_and_never_edits_behind_handoff_preview() {
     app.handle_paste("must not edit").unwrap();
     assert_eq!(app.document().unwrap().text(), before);
 }
+
+#[test]
+fn project_search_reports_when_the_visible_result_cap_is_reached() {
+    let fixture = tempdir().unwrap();
+    let path = fixture.path().join("many.txt");
+    fs::write(&path, "hit\n".repeat(10_001)).unwrap();
+    let mut app = App::open(path).unwrap();
+
+    app.handle_key(control('p')).unwrap();
+    type_text(&mut app, "hit");
+    app.handle_key(key(KeyCode::Enter)).unwrap();
+
+    assert_eq!(app.search_results().len(), 10_000);
+    assert!(app.status().contains("limit"));
+}

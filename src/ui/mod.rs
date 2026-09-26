@@ -80,9 +80,11 @@ fn draw_sidebar(frame: &mut Frame<'_>, area: Rect, app: &App) {
     let selected = app.sidebar_cursor();
     let content = sidebar_content_area(area);
     let offset = sidebar_row_offset(app, content.height);
+    let tree = (app.sidebar_mode() == SidebarMode::Tree).then(|| app.tree_view());
+    let tree_limited = tree.as_ref().is_some_and(|tree| tree.truncated);
     let items = match app.sidebar_mode() {
-        SidebarMode::Tree => app
-            .tree_view()
+        SidebarMode::Tree => tree
+            .expect("tree view exists in tree mode")
             .entries
             .into_iter()
             .enumerate()
@@ -135,6 +137,7 @@ fn draw_sidebar(frame: &mut Frame<'_>, area: Rect, app: &App) {
             .collect(),
     };
     let title = match app.sidebar_mode() {
+        SidebarMode::Tree if tree_limited => "Files (limit)",
         SidebarMode::Tree => "Files",
         SidebarMode::Search => "Search",
         SidebarMode::Review => "Reviews",

@@ -265,7 +265,14 @@ impl App {
         match prompt {
             Prompt::ProjectSearch(query) => {
                 let results = self.workspace.search(&query, false)?;
-                self.status = format!("{} matches", results.matches.len());
+                self.status = if results.truncated {
+                    format!(
+                        "result limit reached: showing {} matches",
+                        results.matches.len()
+                    )
+                } else {
+                    format!("{} matches", results.matches.len())
+                };
                 self.search_results = results.matches;
                 self.sidebar_mode = SidebarMode::Search;
                 self.sidebar_cursor = 0;

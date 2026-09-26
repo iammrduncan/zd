@@ -19,6 +19,6 @@ jobs:
       - name: Run strict Clippy
         run: cargo clippy --all-targets --locked -- -D warnings
       - name: Run tests
-        run: cargo test --locked
+        run: cargo test --all-targets --locked
       - name: Build release binary
         run: cargo build --release --locked
