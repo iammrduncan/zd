@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Goal 00](execute-goal-00.md) is complete. This goal needs the authoritative v1 Cargo
+- [Goal 00](_completed/execute-goal-00.md) is complete. This goal needs the authoritative v1 Cargo
   package, root docs, and inert v0 archive.
 - This goal owns core document/workspace source and tests. Goals 02–04 must not edit those files
   concurrently.

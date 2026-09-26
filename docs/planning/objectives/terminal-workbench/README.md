@@ -31,9 +31,9 @@ handoff; do not own PTYs, shells, sessions, or serving.
 
 ## Phase
 
-Research and planning are complete. Five serialized execution goals are open:
+Research and planning are complete. Goal 00 is complete and Goal 01 is next:
 
-1. [Archive v0 and make the Rust TUI root authoritative](goals/execute-goal-00.md).
+1. [Archive v0 and make the Rust TUI root authoritative](goals/_completed/summary-goal-00.md) — complete.
 2. [Own document editing and workspace navigation](goals/execute-goal-01.md).
 3. [Deliver the terminal editor and Markdown reader](goals/execute-goal-02.md).
 4. [Connect source review, Herdr handoff, and image paste](goals/execute-goal-03.md).

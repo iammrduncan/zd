@@ -15,7 +15,7 @@ Nothing. The owner explicitly required the old product under `v0/` and the new p
 
 ## `/goal` objective
 
-This goal delivers Phase 0 from [`02-DELIVERY-PLAN.md:8-21`](../02-DELIVERY-PLAN.md#phase-0--cut-over-authority-and-repository-root).
+This goal delivers Phase 0 from [`02-DELIVERY-PLAN.md:8-21`](../../02-DELIVERY-PLAN.md#phase-0--cut-over-authority-and-repository-root).
 
 Move the browser/Tauri product into a self-contained historical island and prevent any v1 tag,
 build, or current document from resolving to it. Leave a locked `zd` 1.0.1 Rust skeleton at the root
@@ -94,4 +94,3 @@ root workflow can publish the old product.
 If tracked moves cannot preserve both the active terminal objective and a coherent v0 snapshot, stop
 and report the exact path conflict. Do not leave a mixed root or silently drop historical evidence;
 every later goal depends on this boundary being unmistakable.
-

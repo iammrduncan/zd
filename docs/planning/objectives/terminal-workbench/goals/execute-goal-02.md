@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Goal 00](execute-goal-00.md) is complete and supplies the v1 root/runtime.
+- [Goal 00](_completed/execute-goal-00.md) is complete and supplies the v1 root/runtime.
 - [Goal 01](execute-goal-01.md) is complete and supplies authoritative documents,
   workspace tree, search results, and coordinate conversions.
 - This goal owns the app state, terminal lifecycle, UI, Markdown projection, command bindings, and
