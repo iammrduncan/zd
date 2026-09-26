@@ -124,3 +124,23 @@ fn review_storage_refuses_a_symlinked_control_directory() {
     assert!(ReviewStore::open(fixture.path()).is_err());
     assert!(fs::read_dir(outside.path()).unwrap().next().is_none());
 }
+
+#[test]
+fn multibyte_context_stays_within_the_persisted_byte_bound() {
+    let fixture = tempdir().unwrap();
+    let text = format!("{}target{}", "界".repeat(50), "界".repeat(50));
+    let mut document = Document::new(&text);
+    document.select(SourceRange::new(150, 156)).unwrap();
+    let mut store = ReviewStore::open(fixture.path()).unwrap();
+    store
+        .add_comment(Path::new("notes.md"), &document, "bounded context")
+        .unwrap();
+    store.save().unwrap();
+
+    let reopened = ReviewStore::open(fixture.path()).unwrap();
+    assert_eq!(reopened.comments().len(), 1);
+    assert_eq!(
+        reopened.resolve(&reopened.comments()[0], &document),
+        AnchorState::Attached(SourceRange::new(150, 156))
+    );
+}

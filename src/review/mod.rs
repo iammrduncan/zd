@@ -120,8 +120,8 @@ impl ReviewStore {
             return Err(ReviewError::InvalidData);
         }
         let id = next_id(&self.file.comments);
-        let prefix_start = floor_char_boundary(&text, range.start.saturating_sub(CONTEXT_BYTES));
-        let suffix_end = ceil_char_boundary(
+        let prefix_start = ceil_char_boundary(&text, range.start.saturating_sub(CONTEXT_BYTES));
+        let suffix_end = floor_char_boundary(
             &text,
             range.end.saturating_add(CONTEXT_BYTES).min(text.len()),
         );
