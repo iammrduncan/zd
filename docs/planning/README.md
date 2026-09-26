@@ -18,6 +18,8 @@ The current product expansion is coordinated by the
 
 ## Active objectives
 
+- [Terminal workbench](objectives/terminal-workbench/objective.md) — rethink `zd` as a native Rust
+  TUI for file navigation, search, editing, Markdown reading, review, agent handoff, and image paste.
 - [Served workbench](objectives/served-workbench/README.md) — one host backend for browser and Tauri
   clients. The next planned follow-up is an
   [audit of durability, performance, and feature behavior](objectives/served-workbench/04-DURABILITY-PERFORMANCE-AUDIT.md),
