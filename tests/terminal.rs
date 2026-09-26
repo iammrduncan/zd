@@ -175,3 +175,101 @@ fn mouse(kind: MouseEventKind, column: u16, row: u16) -> Event {
         modifiers: KeyModifiers::NONE,
     })
 }
+
+#[cfg(unix)]
+#[test]
+fn pty_workflow_exercises_edit_review_fake_handoff_and_unavailable_image() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let fixture = tempdir().unwrap();
+    let document = fixture.path().join("README.md");
+    fs::write(&document, "alpha").unwrap();
+    let fake_bin = fixture.path().join("bin");
+    fs::create_dir(&fake_bin).unwrap();
+    let fake_herdr = fake_bin.join("herdr");
+    let capture = fixture.path().join("handoff-capture");
+    fs::write(
+        &fake_herdr,
+        format!(
+            "#!/bin/sh\n\
+             if [ \"$1:$2\" = \"agent:list\" ]; then\n\
+               printf '%s' '{{\"result\":{{\"agents\":[{{\"agent\":\"fake\",\"pane_id\":\"pane-1\",\"focused\":true}}]}}}}'\n\
+               exit 0\n\
+             fi\n\
+             printf '%s\\0' \"$@\" > '{}'\n",
+            capture.display()
+        ),
+    )
+    .unwrap();
+    fs::set_permissions(&fake_herdr, fs::Permissions::from_mode(0o700)).unwrap();
+
+    let pair = NativePtySystem::default()
+        .openpty(PtySize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .unwrap();
+    let original_termios = pair.master.get_termios().unwrap();
+    let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_zd"));
+    command.arg(&document);
+    command.env("TERM", "xterm-256color");
+    command.env(
+        "PATH",
+        format!(
+            "{}:{}",
+            fake_bin.display(),
+            std::env::var("PATH").unwrap_or_default()
+        ),
+    );
+    command.env_remove("DISPLAY");
+    command.env_remove("WAYLAND_DISPLAY");
+    let mut child = pair.slave.spawn_command(command).unwrap();
+    drop(pair.slave);
+    let mut reader = pair.master.try_clone_reader().unwrap();
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut output = Vec::new();
+        reader.read_to_end(&mut output).unwrap();
+        tx.send(output).unwrap();
+    });
+    let mut writer = pair.master.take_writer().unwrap();
+    std::thread::sleep(Duration::from_millis(100));
+    writer
+        .write_all(
+            b"\x02\x02\x1b[F edited\x13\x06alpha\r\x0enote\r\x12\x12\x05alpha\romega\r\x13\x06omega\r\x07explain\r\r\r\x15diagram\r\x11",
+        )
+        .unwrap();
+    writer.flush().unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            child.kill().unwrap();
+            panic!("zd did not finish the PTY feature workflow");
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let restored_termios = pair.master.get_termios().unwrap();
+    drop(writer);
+    drop(pair.master);
+    let output = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+
+    assert!(status.success());
+    assert_eq!(restored_termios, original_termios);
+    assert_eq!(fs::read_to_string(&document).unwrap(), "omega edited");
+    assert!(
+        fs::read_to_string(fixture.path().join(".zd/review-v1.json"))
+            .unwrap()
+            .contains("note")
+    );
+    let submitted = fs::read(&capture).unwrap();
+    assert!(submitted.windows(6).any(|window| window == b"pane-1"));
+    assert!(submitted.windows(5).any(|window| window == b"omega"));
+    assert!(!fixture.path().join("zd-images").exists());
+    assert_terminal_sequences(&output);
+}

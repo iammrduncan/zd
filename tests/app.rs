@@ -82,7 +82,7 @@ fn keyboard_workflow_covers_tree_search_edit_find_replace_save_modes_and_quit() 
     app.handle_key(key(KeyCode::Enter)).unwrap();
     assert_eq!(app.document().unwrap().selection().start, 0);
 
-    app.handle_key(control('h')).unwrap();
+    app.handle_key(control('e')).unwrap();
     type_text(&mut app, "alpha");
     app.handle_key(key(KeyCode::Enter)).unwrap();
     type_text(&mut app, "omega");

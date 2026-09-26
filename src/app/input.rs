@@ -43,7 +43,7 @@ static BINDINGS: [Binding; 14] = [
     },
     Binding {
         label: "replace",
-        key: "Ctrl-H",
+        key: "Ctrl-E",
     },
     Binding {
         label: "read/edit",
@@ -167,7 +167,7 @@ impl App {
             KeyCode::Char('b') => self.toggle_tree(),
             KeyCode::Char('p') => self.prompt = Some(Prompt::ProjectSearch(String::new())),
             KeyCode::Char('f') => self.prompt = Some(Prompt::Find(String::new())),
-            KeyCode::Char('h') => self.prompt = Some(Prompt::ReplaceFind(String::new())),
+            KeyCode::Char('e') => self.prompt = Some(Prompt::ReplaceFind(String::new())),
             KeyCode::Char('s') => {
                 if let Some(document) = self.document.as_mut() {
                     document.save()?;
