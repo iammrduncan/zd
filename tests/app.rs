@@ -185,6 +185,13 @@ fn review_handoff_and_image_commands_share_the_active_source_selection() {
         app.active_comments()[0].state,
         AnchorState::Attached(zd::document::SourceRange::new(0, 5))
     );
+    app.handle_key(control('r')).unwrap();
+    app.pointer_document(0, 0, false, 40).unwrap();
+    app.handle_key(control('n')).unwrap();
+    type_text(&mut app, "read-mode comment");
+    app.handle_key(key(KeyCode::Enter)).unwrap();
+    assert_eq!(app.active_comments().len(), 2);
+    app.handle_key(control('r')).unwrap();
     assert!(fixture.path().join(".zd/review-v1.json").exists());
     app.handle_key(control('l')).unwrap();
     assert_eq!(app.sidebar_mode(), SidebarMode::Review);
