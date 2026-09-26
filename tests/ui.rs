@@ -158,3 +158,36 @@ fn review_sidebar_marks_detached_comments_visibly() {
     assert!(rendered.contains("detached"));
     assert!(rendered.contains("needs attention"));
 }
+
+#[test]
+fn document_and_tree_viewports_follow_the_active_row() {
+    let fixture = tempdir().unwrap();
+    let document_text = (0..30)
+        .map(|line| format!("line-{line:02}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(fixture.path().join("README.md"), &document_text).unwrap();
+    for index in 0..20 {
+        fs::write(fixture.path().join(format!("file-{index:02}.txt")), "file").unwrap();
+    }
+    let mut app = App::open(fixture.path().join("README.md")).unwrap();
+    app.pointer_document(29, 0, false, 40).unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(40, 12)).unwrap();
+    terminal.draw(|frame| draw(frame, &app)).unwrap();
+    assert!(buffer_text(&terminal).contains("line-29"));
+
+    app.handle_key(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Tab,
+        crossterm::event::KeyModifiers::NONE,
+    ))
+    .unwrap();
+    for _ in 0..15 {
+        app.handle_key(crossterm::event::KeyEvent::new(
+            crossterm::event::KeyCode::Down,
+            crossterm::event::KeyModifiers::NONE,
+        ))
+        .unwrap();
+    }
+    terminal.draw(|frame| draw(frame, &app)).unwrap();
+    assert!(buffer_text(&terminal).contains("file-15.txt"));
+}

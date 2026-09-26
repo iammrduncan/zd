@@ -167,6 +167,40 @@ fn constructed_mouse_press_drag_and_release_use_content_coordinates() {
     assert_eq!(app.document().unwrap().selection().end, 4);
 }
 
+#[test]
+fn mouse_hit_mapping_includes_the_derived_document_viewport() {
+    let fixture = tempdir().unwrap();
+    let text = (0..20)
+        .map(|line| format!("line-{line:02}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(fixture.path().join("notes.md"), text).unwrap();
+    let mut app = App::open(fixture.path().join("notes.md")).unwrap();
+    app.pointer_document(19, 0, false, 40).unwrap();
+    let area = Rect::new(0, 0, 80, 8);
+    let content = document_content_area(layout(area, &app).document);
+
+    handle_event(
+        mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            content.x,
+            content.y,
+        ),
+        area,
+        &mut app,
+    )
+    .unwrap();
+
+    assert_eq!(
+        app.document()
+            .unwrap()
+            .point_at(app.document().unwrap().cursor())
+            .unwrap()
+            .line,
+        15
+    );
+}
+
 fn mouse(kind: MouseEventKind, column: u16, row: u16) -> Event {
     Event::Mouse(MouseEvent {
         kind,

@@ -17,6 +17,12 @@ pub struct Areas {
     pub overlay: Option<Rect>,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DocumentViewport {
+    pub row_offset: usize,
+    pub cell_offset: usize,
+}
+
 pub fn layout(area: Rect, app: &App) -> Areas {
     let vertical = Layout::default()
         .direction(Direction::Vertical)
@@ -72,6 +78,8 @@ pub fn draw(frame: &mut Frame<'_>, app: &App) {
 
 fn draw_sidebar(frame: &mut Frame<'_>, area: Rect, app: &App) {
     let selected = app.sidebar_cursor();
+    let content = sidebar_content_area(area);
+    let offset = sidebar_row_offset(app, content.height);
     let items = match app.sidebar_mode() {
         SidebarMode::Tree => app
             .tree_view()
@@ -87,6 +95,8 @@ fn draw_sidebar(frame: &mut Frame<'_>, area: Rect, app: &App) {
                 let prefix = "  ".repeat(entry.depth);
                 sidebar_item(format!("{prefix}{marker}{}", entry.name), index == selected)
             })
+            .skip(offset)
+            .take(usize::from(content.height))
             .collect::<Vec<_>>(),
         SidebarMode::Search => app
             .search_results()
@@ -103,6 +113,8 @@ fn draw_sidebar(frame: &mut Frame<'_>, area: Rect, app: &App) {
                     index == selected,
                 )
             })
+            .skip(offset)
+            .take(usize::from(content.height))
             .collect(),
         SidebarMode::Review => app
             .active_comments()
@@ -118,6 +130,8 @@ fn draw_sidebar(frame: &mut Frame<'_>, area: Rect, app: &App) {
                     index == selected,
                 )
             })
+            .skip(offset)
+            .take(usize::from(content.height))
             .collect(),
     };
     let title = match app.sidebar_mode() {
@@ -193,19 +207,29 @@ fn draw_document(frame: &mut Frame<'_>, area: Rect, app: &App) {
         frame.render_widget(Paragraph::new("Open a file from the tree"), inner);
         return;
     };
+    let viewport = document_viewport(app, inner);
     match app.mode() {
         Mode::Edit => {
-            let lines = edit_lines(&document.text(), document.selection());
-            frame.render_widget(Paragraph::new(lines), inner);
+            let lines = edit_lines(&document.text(), document.selection())
+                .into_iter()
+                .skip(viewport.row_offset)
+                .take(usize::from(inner.height))
+                .collect::<Vec<_>>();
+            frame.render_widget(
+                Paragraph::new(lines).scroll((0, viewport.cell_offset as u16)),
+                inner,
+            );
             if app.focus() == Focus::Document
                 && app.prompt().is_none()
                 && let Ok(point) = document.point_at(document.cursor())
-                && point.line < usize::from(inner.height)
-                && point.cell_column < usize::from(inner.width)
+                && point.line >= viewport.row_offset
+                && point.line - viewport.row_offset < usize::from(inner.height)
+                && point.cell_column >= viewport.cell_offset
+                && point.cell_column - viewport.cell_offset < usize::from(inner.width)
             {
                 frame.set_cursor_position((
-                    inner.x + point.cell_column as u16,
-                    inner.y + point.line as u16,
+                    inner.x + (point.cell_column - viewport.cell_offset) as u16,
+                    inner.y + (point.line - viewport.row_offset) as u16,
                 ));
             }
         }
@@ -215,6 +239,8 @@ fn draw_document(frame: &mut Frame<'_>, area: Rect, app: &App) {
             let lines = plan
                 .rows
                 .into_iter()
+                .skip(viewport.row_offset)
+                .take(usize::from(inner.height))
                 .map(|row| {
                     Line::from(
                         row.spans
@@ -244,11 +270,54 @@ pub fn document_content_area(area: Rect) -> Rect {
         .inner(area)
 }
 
+pub fn document_viewport(app: &App, area: Rect) -> DocumentViewport {
+    let Some(document) = app.document() else {
+        return DocumentViewport::default();
+    };
+    match app.mode() {
+        Mode::Edit => document.point_at(document.cursor()).map_or_else(
+            |_| DocumentViewport::default(),
+            |point| DocumentViewport {
+                row_offset: point
+                    .line
+                    .saturating_sub(usize::from(area.height.saturating_sub(1))),
+                cell_offset: point
+                    .cell_column
+                    .saturating_sub(usize::from(area.width.saturating_sub(1))),
+            },
+        ),
+        Mode::Read => {
+            let cursor = document.cursor();
+            let plan = MarkdownView::render(&document.text(), document.revision(), area.width);
+            let row = plan
+                .rows
+                .iter()
+                .position(|row| {
+                    row.spans.iter().any(|span| {
+                        span.source.is_some_and(|source| {
+                            source.range.start <= cursor && cursor <= source.range.end
+                        })
+                    })
+                })
+                .unwrap_or(0);
+            DocumentViewport {
+                row_offset: row.saturating_sub(usize::from(area.height.saturating_sub(1))),
+                cell_offset: 0,
+            }
+        }
+    }
+}
+
 pub fn sidebar_content_area(area: Rect) -> Rect {
     Block::default()
         .title("sidebar")
         .borders(Borders::RIGHT)
         .inner(area)
+}
+
+pub fn sidebar_row_offset(app: &App, height: u16) -> usize {
+    app.sidebar_cursor()
+        .saturating_sub(usize::from(height.saturating_sub(1)))
 }
 
 fn edit_lines(text: &str, selection: SourceRange) -> Vec<Line<'static>> {

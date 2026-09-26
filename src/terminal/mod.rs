@@ -17,7 +17,10 @@ use ratatui::layout::Rect;
 use thiserror::Error;
 
 use crate::app::{App, AppError};
-use crate::ui::{Areas, document_content_area, draw, layout, sidebar_content_area};
+use crate::ui::{
+    Areas, document_content_area, document_viewport, draw, layout, sidebar_content_area,
+    sidebar_row_offset,
+};
 
 #[derive(Debug, Error)]
 pub enum TerminalError {
@@ -69,15 +72,18 @@ fn dispatch_mouse(mouse: MouseEvent, areas: Areas, app: &mut App) -> Result<(), 
     {
         let tree = sidebar_content_area(tree);
         if contains(tree, mouse.column, mouse.row) {
-            app.pointer_tree(usize::from(mouse.row.saturating_sub(tree.y)))?;
+            let row = sidebar_row_offset(app, tree.height)
+                + usize::from(mouse.row.saturating_sub(tree.y));
+            app.pointer_tree(row)?;
         }
         return Ok(());
     }
     let document = document_content_area(areas.document);
     if contains(document, mouse.column, mouse.row) {
+        let viewport = document_viewport(app, document);
         app.pointer_document(
-            usize::from(mouse.row.saturating_sub(document.y)),
-            usize::from(mouse.column.saturating_sub(document.x)),
+            viewport.row_offset + usize::from(mouse.row.saturating_sub(document.y)),
+            viewport.cell_offset + usize::from(mouse.column.saturating_sub(document.x)),
             extend,
             document.width,
         )?;
