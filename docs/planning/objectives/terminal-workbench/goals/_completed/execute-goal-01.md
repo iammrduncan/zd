@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Goal 00](_completed/execute-goal-00.md) is complete. This goal needs the authoritative v1 Cargo
+- [Goal 00](execute-goal-00.md) is complete. This goal needs the authoritative v1 Cargo
   package, root docs, and inert v0 archive.
 - This goal owns core document/workspace source and tests. Goals 02–04 must not edit those files
   concurrently.
@@ -14,7 +14,7 @@ Nothing. The source model, bounds, and safe defaults are defined in the plan.
 
 ## `/goal` objective
 
-This goal delivers Phase 1 from [`02-DELIVERY-PLAN.md:23-37`](../02-DELIVERY-PLAN.md#phase-1--own-documents-and-workspace-truth).
+This goal delivers Phase 1 from [`02-DELIVERY-PLAN.md:23-37`](../../02-DELIVERY-PLAN.md#phase-1--own-documents-and-workspace-truth).
 
 Create the two authoritative data modules before widgets can become accidental state owners. Later
 Markdown selection, mouse behavior, comments, image insertion, and Herdr handoff must all consume

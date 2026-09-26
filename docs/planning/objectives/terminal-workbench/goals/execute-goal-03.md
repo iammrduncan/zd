@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Goal 01](execute-goal-01.md) is complete and supplies document revisions, source
+- [Goal 01](_completed/execute-goal-01.md) is complete and supplies document revisions, source
   ranges, edit transactions, and safe project paths.
 - [Goal 02](execute-goal-02.md) is complete and supplies visible selection, overlays,
   commands, and Markdown Read/Edit modes.

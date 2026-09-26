@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Goal 00](_completed/execute-goal-00.md), [Goal 01](execute-goal-01.md),
+- [Goal 00](_completed/execute-goal-00.md), [Goal 01](_completed/execute-goal-01.md),
   [Goal 02](execute-goal-02.md), and [Goal 03](execute-goal-03.md) are complete.
   This goal needs the full release binary and all automated feature tests.
 - This goal owns final user docs, acceptance records, workflow tightening, and fixes found by the
