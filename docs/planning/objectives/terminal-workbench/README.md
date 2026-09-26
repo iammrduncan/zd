@@ -1,6 +1,6 @@
 # Terminal workbench objective
 
-Status: **planned; ready to cut goals**
+Status: **executing**
 
 Started: 2026-09-26
 
@@ -31,7 +31,16 @@ handoff; do not own PTYs, shells, sessions, or serving.
 
 ## Phase
 
-Research and planning are complete. Goals have not yet been cut.
+Research and planning are complete. Five serialized execution goals are open:
+
+1. [Archive v0 and make the Rust TUI root authoritative](goals/execute-goal-00.md).
+2. [Own document editing and workspace navigation](goals/execute-goal-01.md).
+3. [Deliver the terminal editor and Markdown reader](goals/execute-goal-02.md).
+4. [Connect source review, Herdr handoff, and image paste](goals/execute-goal-03.md).
+5. [Verify and hand off the v1.0.1 prototype](goals/execute-goal-04.md).
+
+They are serialized because each later goal consumes shared root state and app/core files from the
+previous one. None needs owner input before starting.
 
 ## Needs the owner
 
