@@ -1,90 +1,35 @@
-[Website](https://getzensuite.com) &nbsp;·&nbsp; [docs](https://getzensuite.com/docs) &nbsp;·&nbsp; [Discord](https://discord.gg/3Qs2uejUf9)
-
-> `zd` is under heavy development. Expect fast changes while the workbench settles.
-
 # zd
 
-ZenSuite’s `zd` is an intentionally minimal, local Markdown and agent workbench. It began with the
-rendered Markdown reader/editor I wanted for my own daily work, then grew projects, terminal threads,
-files, and Git around that surface. It purposefully matches how I build and may not fit everyone.
+`zd` 1.0.1 is a native Rust terminal workbench for navigating, reading, editing, and reviewing the
+files in a project. It is designed to run inside the terminal and agent session the user already
+owns. It does not serve a web application or own shells, PTYs, or multiplexer sessions.
 
-![The zd workbench with project threads on the left, an editable file in the centre, and the compact file tree on the right](docs/user-facing-docs/assets/zd-workbench.png)
+The v1.0.1 prototype is under active construction. The current root is a tested command skeleton;
+the document, workspace, terminal UI, Markdown, review, handoff, and image workflows land in the
+ordered goals under [the active objective](docs/planning/objectives/terminal-workbench/README.md).
 
-## Install
+## Build and verify
 
-Download the Apple Silicon or Intel DMG, or the Linux x86_64 Debian package, and its matching
-SHA-256 checksum from the [latest release](https://github.com/iammrduncan/zd/releases/latest).
-
-Current macOS builds are ad-hoc signed but not Developer ID signed or notarized. If macOS shows
-**“zd” Not Opened** after the checksum passes, choose **Done**, then use System Settings → Privacy &
-Security → **Open Anyway**. The [macOS installation guide](docs/user-facing-docs/how-to/install-macos.md#if-macos-says-zd-not-opened)
-has the complete recovery path. See the
-[Linux installation guide](docs/user-facing-docs/how-to/install-linux.md) for the Debian package.
-
-## Start a workbench
+The repository pins Rust in `rust-toolchain.toml`. If Rust is not installed but Podman is available,
+the helper uses a minimal Rust container.
 
 ```sh
-zd                 # open the workbench
-zd .               # open the current folder as a project
-zd README.md       # open one file and approve its parent project
-zd serve . --bind <protected-network-ip>  # open this host from a browser
+scripts/dev-container.sh cargo test --locked
+scripts/dev-container.sh cargo clippy --all-targets --locked -- -D warnings
+scripts/dev-container.sh cargo build --release --locked
 ```
 
-Relative paths resolve from the directory where you run the command. A named file may be new; `zd`
-creates it on the first successful save.
-
-For a remote machine, [serve a workbench](docs/user-facing-docs/how-to/serve-a-workbench.md). The
-viewing computer needs only a browser and protected-network access to the host.
-
-## What is available
-
-- Rendered, directly editable Markdown with document typography, local images, tables, fenced code,
-  Mermaid diagrams, Find/Replace, Raw Mode, Focus Mode, and Typewriter Mode.
-- Selected-text comments that stay beside the Markdown and regenerate a worktree-root
-  `zd-feedback.txt` handoff for a person or coding agent.
-- Clipboard image paste that saves the screenshot below `docs/screenshots` and inserts its relative
-  link into the current Markdown or plain-text file.
-- Several approved projects and Git worktrees, with shortcuts to switch projects and the current
-  thread/file without stopping inactive terminal sessions.
-- Project-scoped terminal threads for a shell, Codex, Claude Code, or OpenCode workflow.
-- A compact file tree, common code/configuration editing, and bounded large-file states.
-- Read-only Git status, commit history, revision comparison, and file diffs.
-- Current Light, Dark, Dracula, Homebrew, validated local theme files, and per-surface overrides.
-- A global quick-access shortcut that reuses the running workbench.
-- Optional local diagnostics. Desktop completion notifications and sounds are opt-in and currently
-  available on macOS.
-
-Hold `Cmd+.` on macOS or `Ctrl+.` elsewhere for the live shortcut reference. Focus Mode, completion
-sound, desktop notifications, and local diagnostics are off by default.
-
-## Documentation
-
-| If you want to… | Start here |
-| --- | --- |
-| Learn the core project, thread, file, and Git loop | [Start your first workbench](docs/user-facing-docs/tutorials/first-workbench.md) |
-| Learn to read, edit, and review rendered Markdown | [Read and review Markdown](docs/user-facing-docs/tutorials/read-and-review-markdown.md) |
-| Leave a precise Markdown review handoff | [Review Markdown with comments](docs/user-facing-docs/how-to/review-markdown-with-comments.md) |
-| Paste a clipboard image into a document | [Paste a screenshot](docs/user-facing-docs/how-to/paste-screenshots.md) |
-| Organize projects and terminal threads | [Manage projects and threads](docs/user-facing-docs/how-to/manage-projects-and-threads.md) |
-| Review working-tree or historical changes | [Inspect Git changes](docs/user-facing-docs/how-to/inspect-changes.md) |
-| Install or update on macOS | [Install on macOS](docs/user-facing-docs/how-to/install-macos.md) |
-| Install or update on Linux | [Install on Linux](docs/user-facing-docs/how-to/install-linux.md) |
-| Open a remote host in a browser | [Serve a workbench](docs/user-facing-docs/how-to/serve-a-workbench.md) |
-| Look up launch behavior | [CLI reference](docs/user-facing-docs/reference/cli.md) |
-| Understand the security boundaries | [Architecture](docs/user-facing-docs/explanation/architecture.md) |
-| Browse every document type | [Documentation map](docs/README.md) |
-
-## Develop
+Run the current prototype against a project path:
 
 ```sh
-npm ci
-npm run app
-npm run dev:website
-npm run check
+scripts/dev-container.sh cargo run --locked -- .
 ```
 
-See [Develop zd](docs/user-facing-docs/how-to/develop.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
-The canonical design contract is [DESIGN.md](docs/DESIGN.md).
+Use `cargo run --locked -- --help` for the current command surface.
 
-Licensed under the [MIT License](LICENSE). File-tree glyphs use Microsoft
-[Codicons](https://github.com/microsoft/vscode-codicons), licensed under CC BY 4.0.
+## Repository map
+
+- [`src/`](src/) contains the native v1 application.
+- [`docs/`](docs/) contains current product and engineering authority.
+- [`v0/`](v0/) is the runnable historical browser/Tauri product. It is not part of the v1 build.
+- [`LICENSE`](LICENSE) applies to the repository unless a nested third-party notice says otherwise.

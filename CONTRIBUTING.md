@@ -1,40 +1,17 @@
-# Contributing to zd
+# Contributing
 
-Contributions to `zd` are welcome. Keep changes focused enough that a reviewer can understand the
-user need, decision, implementation, and verification together.
+Read [`AGENTS.md`](AGENTS.md), [`docs/GOOD_ENGINEERING_H.md`](docs/GOOD_ENGINEERING_H.md), and
+[`docs/DESIGN.md`](docs/DESIGN.md) before changing the v1 application.
 
-## Rules
-
-1. File an issue for a bug, question, or small improvement that needs discussion.
-2. For a meaningful product, process, governance, or architecture change, open a pull request that
-   submits a [ZSIP](docs/zsip/README.md). Small fixes that touch one behavior and a few files can go
-   directly to a pull request without a ZSIP.
-3. Follow accepted [ADRs](docs/adr/README.md). When an accepted ZSIP creates an architecture
-   decision, maintainers record that decision as an ADR.
-4. Use the [documentation map](docs/README.md), [app source map](packages/app/src/README.md),
-   [host source map](packages/host/README.md), and [native source map](packages/tauri/src/README.md)
-   before choosing an implementation owner.
-5. Read [AGENTS.md](AGENTS.md) for repository engineering rules.
-6. Follow [Develop zd](docs/user-facing-docs/how-to/develop.md) to install dependencies and run the
-   app.
-7. Follow the [user-documentation instructions](docs/user-facing-docs/AGENTS.md) when a change
-   affects product guidance.
-
-## Tests and commits
-
-Add or update tests with every code change. A bug fix must start with a failing regression test.
-
-Run the checks that cover your change:
+Every code change must include or update tests. Run the complete local gate before committing:
 
 ```sh
-npm run check
-npm run test:e2e
-cd packages/tauri && cargo test && cargo clippy --all-targets -- -D warnings
+scripts/dev-container.sh cargo fmt --all --check
+scripts/dev-container.sh cargo clippy --all-targets --locked -- -D warnings
+scripts/dev-container.sh cargo test --locked
+scripts/dev-container.sh cargo build --release --locked
 ```
 
-Run `npm run format:check` before submitting. Keep commits small and use short imperative subjects.
-Do not add generated output, local logs, credentials, or environment files.
-
-## Security issues
-
-Follow [SECURITY.md](docs/SECURITY.md) instead of opening a public issue for a vulnerability.
+Keep commits focused and use short one-line commit messages. Do not add generated build output. The
+historical product under `v0/` is inactive; change it only when repairing its archived build or
+documentation integrity.

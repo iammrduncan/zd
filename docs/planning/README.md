@@ -1,45 +1,11 @@
 # Planning
 
-`docs/planning/` is the sole active planning root for `zd`.
+Planning records sequence work but do not override the product vision, accepted ADRs, or design
+contract.
 
-Planning records sequence or inform work. They never override current human direction,
-[`VISION.md`](../VISION.md), accepted [ADRs](../adr/README.md), or [`DESIGN.md`](../DESIGN.md).
+## Active objective
 
-## Areas
+- [Terminal workbench v1.0.1](objectives/terminal-workbench/README.md)
 
-| Area | Ownership |
-| --- | --- |
-| [Goals](goals/) | Active cross-objective execution contracts and dependency plans |
-| [Objectives](objectives/) | Executable work queues, bounded work groups, workflow state, and completion records |
-| [Ideas](ideas.md) | Non-authoritative research, alternatives, and product exploration |
-
-The current product expansion is coordinated by the
-[expanded-scope execution plan](goals/expanded-scope/goal.md).
-
-## Active objectives
-
-- [Terminal workbench](objectives/terminal-workbench/objective.md) — rethink `zd` as a native Rust
-  TUI for file navigation, search, editing, Markdown reading, review, agent handoff, and image paste.
-- [Served workbench](objectives/served-workbench/README.md) — one host backend for browser and Tauri
-  clients. The next planned follow-up is an
-  [audit of durability, performance, and feature behavior](objectives/served-workbench/04-DURABILITY-PERFORMANCE-AUDIT.md),
-  followed by an [implementation plan](objectives/served-workbench/05-DURABILITY-PERFORMANCE-IMPLEMENTATION.md)
-  that the audit must revise before execution. Neither follow-up has started.
-
-## Historical snapshots
-
-- The [prototype wrap-up goals](objectives/_completed/summary-wrap-up.md) are summarized superseded
-  planning records.
-- The [early application-surface ideas](objectives/_completed/summary-mini-apps.md) are summarized
-  superseded exploration.
-
-Both summaries point back to the current workbench plan and must not be used as execution queues.
-
-## Rules
-
-- A goal states an outcome, dependencies, verification, and a real terminal condition.
-- Objective workflow tools read and write only `docs/planning/objectives/`.
-- Ideas must identify themselves as non-authoritative and link current authority when relevant.
-- Completed and historical records remain available but do not direct new implementation.
-- Moving a planning path requires updating scripts, tests, contributor guidance, and release tooling
-  in the same change.
+Completed goal contracts and summaries move together into the objective's `_completed/` directory.
+The browser/Tauri planning history is archived under [`v0/docs/planning/`](../../v0/docs/planning/).

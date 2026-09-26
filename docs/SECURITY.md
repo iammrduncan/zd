@@ -1,15 +1,16 @@
-# Security policy
+# Security boundary
 
-## Supported versions
+`zd` opens one canonical project selected by the user. File traversal, search, review storage, and
+image installation stay beneath that root and do not follow symlinks. Text and external output are
+bounded and terminal control characters are sanitized before display.
 
-`zd` has not published a stable release yet. Security fixes are applied to the latest code on
-`main` while `0.1.0` is being prepared.
+Markdown is untrusted data. Raw HTML does not execute and remote images are not fetched. Agent
+handoff uses separated process arguments and never interpolates selected text into a shell command.
+Submission requires an explicit target and confirmation.
 
-## Reporting a vulnerability
+Clipboard image access is local and capability-gated. Unsupported, headless, or remote sessions fail
+without changing the document. `zd` does not offer network listeners, browser endpoints, shell/PTY
+hosting, or agent-session control.
 
-Please use GitHub's private vulnerability reporting flow from the repository's **Security** tab.
-Do not open a public issue or include credentials, private documents, or exploit details in logs.
-
-Include the affected commit or version, operating system, reproduction steps, impact, and any
-suggested mitigation. You should receive an acknowledgement within seven days. A coordinated
-disclosure date will be agreed after the report is reproduced and a fix is available.
+Report vulnerabilities privately to the repository owner. Do not include secrets or private project
+content in a public issue.
