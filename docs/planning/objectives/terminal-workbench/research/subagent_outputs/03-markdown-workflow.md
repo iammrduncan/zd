@@ -138,7 +138,8 @@ For image paste, provide a named `Paste Image` command in editable Markdown:
 5. Create/open only the literal `zd-images` child; reject it if it is a symlink for predictable ownership.
 6. Name the file from a full content hash, for example `image-<blake3>.png`.
 7. Use capability-relative `create_new`; if the same hash already exists, verify identical content and reuse it. Never overwrite.
-8. Insert a document-relative, URI-safe `![Screenshot](../../zd-images/image-….png)` as one undoable transaction only after the write succeeds.
+8. Insert a document-relative, URI-safe Markdown image reference under `../../zd-images/` as one
+   undoable transaction only after the write succeeds.
 9. Failure leaves the buffer unchanged and reports a local error.
 
 Keep the originating buffer and insertion anchor pending during the operation. Prevent that buffer from closing until completion, while allowing unrelated UI work.

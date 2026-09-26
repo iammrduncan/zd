@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- [Goal 00](_completed/execute-goal-00.md) is complete. This goal needs the authoritative v1 Cargo
+- [Goal 00](execute-goal-00.md) is complete. This goal needs the authoritative v1 Cargo
   package, root docs, and inert v0 archive.
 - This goal owns core document/workspace source and tests. Goals 02–04 must not edit those files
   concurrently.
@@ -87,4 +87,3 @@ the project, visibly report caps, and pass the full root Rust gates.
 If grapheme-safe edits cannot be reconciled with byte-stable review ranges through one conversion
 owner, stop and report the mismatch. Do not redefine selection as terminal cells or defer the
 coordinate invariant; Goal 02 and Goal 03 depend on it.
-

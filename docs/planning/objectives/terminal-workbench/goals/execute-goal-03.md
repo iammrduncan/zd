@@ -2,9 +2,9 @@
 
 ## Prerequisites
 
-- [Goal 01](_completed/execute-goal-01.md) is complete and supplies document revisions, source
+- [Goal 01](execute-goal-01.md) is complete and supplies document revisions, source
   ranges, edit transactions, and safe project paths.
-- [Goal 02](_completed/execute-goal-02.md) is complete and supplies visible selection, overlays,
+- [Goal 02](execute-goal-02.md) is complete and supplies visible selection, overlays,
   commands, and Markdown Read/Edit modes.
 - This goal owns review, handoff, image modules and the app/UI wiring for them. Goal 04 must not edit
   the same command/help/docs paths concurrently.
@@ -90,4 +90,3 @@ the full automated gates pass without touching a live agent.
 If the local clipboard API cannot compile or operate safely on a supported build target, keep image
 paste capability-gated and report the platform evidence. Do not weaken validation, intercept ordinary
 paste, or claim remote image support to preserve the checklist.
-

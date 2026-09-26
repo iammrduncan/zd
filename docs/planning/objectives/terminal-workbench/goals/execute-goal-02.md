@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- [Goal 00](_completed/execute-goal-00.md) is complete and supplies the v1 root/runtime.
-- [Goal 01](_completed/execute-goal-01.md) is complete and supplies authoritative documents,
+- [Goal 00](execute-goal-00.md) is complete and supplies the v1 root/runtime.
+- [Goal 01](execute-goal-01.md) is complete and supplies authoritative documents,
   workspace tree, search results, and coordinate conversions.
 - This goal owns the app state, terminal lifecycle, UI, Markdown projection, command bindings, and
   their tests. Goal 03 must not edit those files concurrently.
@@ -83,4 +83,3 @@ review, agent, clipboard-image, PTY, or IDE surface leaked into the change.
 If Read-mode hit mapping cannot preserve exact source ranges for a construct, mark that construct
 non-selectable or whole-node and report it. Do not fabricate cell-precise offsets to satisfy a visual
 test; Goal 03 depends on selections being truthful.
-
