@@ -1,5 +1,8 @@
 //! Core entry contract for the `zd` terminal workbench.
 
+pub mod document;
+pub mod workspace;
+
 use std::ffi::OsString;
 use std::path::PathBuf;
 

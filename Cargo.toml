@@ -6,6 +6,17 @@ license = "MIT"
 description = "A native terminal workbench for reading, editing, and reviewing project files"
 repository = "https://github.com/mbox01/zd"
 
+[dependencies]
+ignore = "0.4.32"
+regex = "1.13.1"
+ropey = "1.6.1"
+thiserror = "2.0.19"
+unicode-segmentation = "1.13.3"
+unicode-width = "0.2.2"
+
+[dev-dependencies]
+tempfile = "3.27.0"
+
 [lib]
 path = "src/lib.rs"
 
