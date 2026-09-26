@@ -106,16 +106,17 @@ fn wait_for_exit(child: &mut Child) {
 
 fn wait_for_contents(path: &Path, expected: &str) {
     let deadline = Instant::now() + Duration::from_secs(2);
+    let mut observed = String::new();
     loop {
         match fs::read_to_string(path) {
             Ok(contents) if contents == expected => return,
-            Ok(_) => {}
+            Ok(contents) => observed = contents,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => panic!("read desktop arguments: {error}"),
         }
         assert!(
             Instant::now() < deadline,
-            "desktop arguments did not finish writing"
+            "desktop arguments did not finish writing; expected {expected:?}, observed {observed:?}"
         );
         std::thread::sleep(Duration::from_millis(10));
     }
@@ -158,6 +159,7 @@ fn ordinary_zd_launches_the_desktop_role_and_returns() {
     let output = Command::new(env!("CARGO_BIN_EXE_zd"))
         .arg("project/notes.md")
         .current_dir(&invocation)
+        .env_remove("ZD_CWD")
         .env("ZD_TEST_DESKTOP_EXECUTABLE", &desktop)
         .env("ZD_TEST_DESKTOP_RECORD", &record)
         .output()
