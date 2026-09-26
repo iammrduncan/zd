@@ -23,6 +23,7 @@ fn pty_quit_restores_every_enabled_terminal_mode() {
             pixel_height: 0,
         })
         .unwrap();
+    let original_termios = pair.master.get_termios().unwrap();
     let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_zd"));
     command.arg(fixture.path().join("README.md"));
     command.env("TERM", "xterm-256color");
@@ -53,11 +54,47 @@ fn pty_quit_restores_every_enabled_terminal_mode() {
         }
         std::thread::sleep(Duration::from_millis(20));
     };
+    let restored_termios = pair.master.get_termios().unwrap();
     drop(writer);
     drop(pair.master);
     let output = rx.recv_timeout(Duration::from_secs(1)).unwrap();
 
     assert!(status.success());
+    assert_eq!(restored_termios, original_termios);
+    assert_terminal_sequences(&output);
+}
+
+#[test]
+fn pty_startup_error_restores_terminal_modes() {
+    let fixture = tempdir().unwrap();
+    let pair = NativePtySystem::default()
+        .openpty(PtySize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .unwrap();
+    let original_termios = pair.master.get_termios().unwrap();
+    let mut command = CommandBuilder::new(env!("CARGO_BIN_EXE_zd"));
+    command.arg(fixture.path().join("missing.md"));
+    command.env("TERM", "xterm-256color");
+    let mut child = pair.slave.spawn_command(command).unwrap();
+    drop(pair.slave);
+    let mut reader = pair.master.try_clone_reader().unwrap();
+
+    let status = child.wait().unwrap();
+    let restored_termios = pair.master.get_termios().unwrap();
+    drop(pair.master);
+    let mut output = Vec::new();
+    reader.read_to_end(&mut output).unwrap();
+
+    assert!(!status.success());
+    assert_eq!(restored_termios, original_termios);
+    assert_terminal_sequences(&output);
+}
+
+fn assert_terminal_sequences(output: &[u8]) {
     for sequence in [
         b"\x1b[?1049h".as_slice(),
         b"\x1b[?1049l".as_slice(),
