@@ -1,6 +1,6 @@
 # Terminal workbench objective
 
-Status: **executing**
+Status: **complete**
 
 Started: 2026-09-26
 
@@ -31,18 +31,19 @@ handoff; do not own PTYs, shells, sessions, or serving.
 
 ## Phase
 
-Research and planning are complete. Goals 00–03 are complete and Goal 04 is next:
+Research, planning, and all five execution goals are complete:
 
 1. [Archive v0 and make the Rust TUI root authoritative](goals/_completed/summary-goal-00.md) — complete.
 2. [Own document editing and workspace navigation](goals/_completed/summary-goal-01.md) — complete.
 3. [Deliver the terminal editor and Markdown reader](goals/_completed/summary-goal-02.md) — complete.
 4. [Connect source review, Herdr handoff, and image paste](goals/_completed/summary-goal-03.md) — complete.
-5. [Verify and hand off the v1.0.1 prototype](goals/execute-goal-04.md).
+5. [Verify and hand off the v1.0.1 prototype](goals/_completed/summary-goal-04.md) — complete.
 
-They are serialized because each later goal consumes shared root state and app/core files from the
-previous one. None needs owner input before starting.
+They were serialized because each later goal consumed shared root state and app/core files from the
+previous one.
 
 ## Needs the owner
 
-Nothing before goals or implementation. The final Ghostty/Herdr experience and same-host clipboard
-image behavior require owner-side acceptance after the automated and Linux/Herdr gates pass.
+Run the final Ghostty/Herdr and same-host clipboard checklist on macOS. Automated, Linux, and
+read-only live Herdr evidence is complete; the platform-specific observation remains explicitly
+open.

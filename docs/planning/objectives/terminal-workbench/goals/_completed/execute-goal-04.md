@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- [Goal 00](_completed/execute-goal-00.md), [Goal 01](_completed/execute-goal-01.md),
-  [Goal 02](_completed/execute-goal-02.md), and [Goal 03](_completed/execute-goal-03.md) are complete.
+- [Goal 00](execute-goal-00.md), [Goal 01](execute-goal-01.md),
+  [Goal 02](execute-goal-02.md), and [Goal 03](execute-goal-03.md) are complete.
   This goal needs the full release binary and all automated feature tests.
 - This goal owns final user docs, acceptance records, workflow tightening, and fixes found by the
   release/Herdr checks. No other goal may commit concurrently.
@@ -15,8 +15,8 @@ checklist; that follow-up is an acceptance item, not permission needed to prepar
 
 ## `/goal` objective
 
-This goal delivers Phase 4 from [`02-DELIVERY-PLAN.md:64-74`](../02-DELIVERY-PLAN.md#phase-4--make-the-prototype-testable-by-the-owner)
-and the handoff contract at [`04-ACCEPTANCE-PLAN.md:27-49`](../04-ACCEPTANCE-PLAN.md#live-environment-evidence).
+This goal delivers Phase 4 from [`02-DELIVERY-PLAN.md:64-74`](../../02-DELIVERY-PLAN.md#phase-4--make-the-prototype-testable-by-the-owner)
+and the handoff contract at [`04-ACCEPTANCE-PLAN.md:27-49`](../../04-ACCEPTANCE-PLAN.md#live-environment-evidence).
 
 Turn the implemented slice into something the owner can build, launch, understand, and test without
 reverse-engineering the repository or mistaking an unavailable platform capability for a bug.
@@ -48,7 +48,7 @@ When the work is complete, the repository must have:
 
 ## Required tests and evidence
 
-At minimum, prove every row at [`04-ACCEPTANCE-PLAN.md:10-22`](../04-ACCEPTANCE-PLAN.md#automated-release-blocking-evidence)
+At minimum, prove every row at [`04-ACCEPTANCE-PLAN.md:10-22`](../../04-ACCEPTANCE-PLAN.md#automated-release-blocking-evidence)
 and record every observation at lines 29–42. Also prove:
 
 - a clean checkout can follow the documented build/test/run path without Node, WebKit, Tauri, or an
