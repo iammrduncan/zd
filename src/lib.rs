@@ -3,6 +3,7 @@
 pub mod app;
 pub mod document;
 pub mod markdown;
+pub mod terminal;
 pub mod ui;
 pub mod workspace;
 
@@ -11,7 +12,7 @@ use std::path::PathBuf;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub const HELP: &str = "zd — native terminal workbench\n\nUsage: zd [PATH]\n       zd --help\n       zd --version\n\nOpen PATH, or the current directory when PATH is omitted.";
+pub const HELP: &str = "zd — native terminal workbench\n\nUsage: zd [PATH]\n       zd --help\n       zd --version\n\nOpen PATH, or the current directory when PATH is omitted.\n\nKeys:\n  Tab        Focus files/document\n  Ctrl-B     Show or hide files\n  Ctrl-P     Search the project\n  Ctrl-F/H   Find or replace\n  Ctrl-S     Save\n  Ctrl-Z/Y   Undo or redo\n  Ctrl-R     Read or edit Markdown\n  Ctrl-Q     Quit";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Invocation {
