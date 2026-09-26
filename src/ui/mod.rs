@@ -4,7 +4,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, Paragraph};
 
-use crate::app::{App, Focus, Mode, SidebarMode};
+use crate::app::{App, Focus, HandoffStage, Mode, SidebarMode};
 use crate::document::SourceRange;
 use crate::markdown::{MarkdownView, RenderStyle};
 use crate::workspace::EntryKind;
@@ -38,7 +38,11 @@ pub fn layout(area: Rect, app: &App) -> Areas {
             .split(body);
         (Some(horizontal[0]), horizontal[1])
     };
-    let overlay = app.prompt().map(|_| centered(area, 70, 3));
+    let overlay = if app.handoff_stage().is_some() {
+        Some(centered(area, 80, area.height.saturating_sub(4).max(5)))
+    } else {
+        app.prompt().map(|_| centered(area, 70, 3))
+    };
     Areas {
         tree,
         document,
@@ -61,6 +65,8 @@ pub fn draw(frame: &mut Frame<'_>, app: &App) {
             Paragraph::new(text).block(Block::default().borders(Borders::ALL).title("Command")),
             area,
         );
+    } else if let (Some(area), Some(stage)) = (areas.overlay, app.handoff_stage()) {
+        draw_handoff(frame, area, app, stage);
     }
 }
 
@@ -98,15 +104,70 @@ fn draw_sidebar(frame: &mut Frame<'_>, area: Rect, app: &App) {
                 )
             })
             .collect(),
+        SidebarMode::Review => app
+            .active_comments()
+            .into_iter()
+            .enumerate()
+            .map(|(index, review)| {
+                let state = match review.state {
+                    crate::review::AnchorState::Attached(_) => "attached",
+                    crate::review::AnchorState::Detached => "detached",
+                };
+                sidebar_item(
+                    format!("{state} {}", review.comment.comment),
+                    index == selected,
+                )
+            })
+            .collect(),
     };
     let title = match app.sidebar_mode() {
         SidebarMode::Tree => "Files",
         SidebarMode::Search => "Search",
+        SidebarMode::Review => "Reviews",
     };
     frame.render_widget(
         List::new(items).block(Block::default().borders(Borders::RIGHT).title(title)),
         area,
     );
+}
+
+fn draw_handoff(frame: &mut Frame<'_>, area: Rect, app: &App, stage: HandoffStage) {
+    frame.render_widget(Clear, area);
+    match stage {
+        HandoffStage::Targets => {
+            let items = app
+                .handoff_targets()
+                .iter()
+                .enumerate()
+                .map(|(index, target)| {
+                    sidebar_item(target.label.clone(), index == app.handoff_cursor())
+                })
+                .collect::<Vec<_>>();
+            frame.render_widget(
+                List::new(items).block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title("Choose agent — Enter previews, Esc cancels"),
+                ),
+                area,
+            );
+        }
+        HandoffStage::Preview => {
+            let target = app.handoff_target().map_or(
+                "manual delivery — Herdr target unavailable".to_string(),
+                |target| format!("target {target} — Enter submits, Esc cancels"),
+            );
+            let text = app
+                .prepared_handoff()
+                .map_or_else(String::new, |prepared| sanitize(&prepared.text));
+            frame.render_widget(
+                Paragraph::new(text)
+                    .wrap(ratatui::widgets::Wrap { trim: false })
+                    .block(Block::default().borders(Borders::ALL).title(target)),
+                area,
+            );
+        }
+    }
 }
 
 fn sidebar_item(text: String, selected: bool) -> ListItem<'static> {

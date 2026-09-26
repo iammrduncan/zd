@@ -47,7 +47,7 @@ pub fn handle_event(event: Event, area: Rect, app: &mut App) -> Result<(), AppEr
         Event::Key(key) if matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) => {
             app.handle_key(key)?;
         }
-        Event::Paste(text) => app.insert_text(&text)?,
+        Event::Paste(text) => app.handle_paste(&text)?,
         Event::Mouse(mouse) => dispatch_mouse(mouse, layout(area, app), app)?,
         Event::FocusGained | Event::FocusLost | Event::Resize(_, _) => {}
         _ => {}

@@ -1,4 +1,5 @@
 mod input;
+mod workflows;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -6,7 +7,10 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 use crate::document::{Document, DocumentError, SourceRange};
+use crate::handoff::{AgentTarget, HandoffError, PreparedHandoff};
+use crate::image::ImageError;
 use crate::markdown::MarkdownView;
+use crate::review::{AnchorState, ReviewComment, ReviewError, ReviewStore};
 use crate::workspace::{EntryKind, SearchResult, TreeView, Workspace, WorkspaceError};
 
 pub use input::{Binding, bindings};
@@ -27,6 +31,7 @@ pub enum Mode {
 pub enum SidebarMode {
     Tree,
     Search,
+    Review,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,6 +40,9 @@ pub enum Prompt {
     Find(String),
     ReplaceFind(String),
     ReplaceWith { query: String, value: String },
+    Comment(String),
+    HandoffInstruction(String),
+    ImageAlt(String),
 }
 
 impl Prompt {
@@ -44,15 +52,44 @@ impl Prompt {
             Self::Find(_) => "Find",
             Self::ReplaceFind(_) => "Replace",
             Self::ReplaceWith { .. } => "With",
+            Self::Comment(_) => "Comment",
+            Self::HandoffInstruction(_) => "Agent instruction",
+            Self::ImageAlt(_) => "Image alt text",
         }
     }
 
     pub fn value(&self) -> &str {
         match self {
-            Self::ProjectSearch(value) | Self::Find(value) | Self::ReplaceFind(value) => value,
+            Self::ProjectSearch(value)
+            | Self::Find(value)
+            | Self::ReplaceFind(value)
+            | Self::Comment(value)
+            | Self::HandoffInstruction(value)
+            | Self::ImageAlt(value) => value,
             Self::ReplaceWith { value, .. } => value,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HandoffStage {
+    Targets,
+    Preview,
+}
+
+#[derive(Debug, Clone)]
+struct HandoffState {
+    stage: HandoffStage,
+    prepared: PreparedHandoff,
+    targets: Vec<AgentTarget>,
+    cursor: usize,
+    selected_target: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ActiveComment<'a> {
+    pub comment: &'a ReviewComment,
+    pub state: AnchorState,
 }
 
 #[derive(Debug, Error)]
@@ -63,10 +100,18 @@ pub enum AppError {
     Workspace(#[from] WorkspaceError),
     #[error("application I/O failed: {0}")]
     Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Review(#[from] ReviewError),
+    #[error(transparent)]
+    Handoff(#[from] HandoffError),
+    #[error(transparent)]
+    Image(#[from] ImageError),
     #[error("the path has no parent directory")]
     MissingParent,
     #[error("the active file is outside the workspace")]
     OutsideWorkspace,
+    #[error("the command requires an active editable document")]
+    NotEditable,
 }
 
 #[derive(Debug)]
@@ -85,6 +130,9 @@ pub struct App {
     should_quit: bool,
     drag_anchor: Option<usize>,
     vertical_cell: Option<usize>,
+    review: ReviewStore,
+    herdr_executable: PathBuf,
+    handoff: Option<HandoffState>,
 }
 
 impl App {
@@ -101,6 +149,7 @@ impl App {
             (root, Some(relative))
         };
         let workspace = Workspace::open(root)?;
+        let review = ReviewStore::open(workspace.root())?;
         let mut app = Self {
             workspace,
             document: None,
@@ -116,6 +165,9 @@ impl App {
             should_quit: false,
             drag_anchor: None,
             vertical_cell: None,
+            review,
+            herdr_executable: PathBuf::from("herdr"),
+            handoff: None,
         };
         if let Some(initial) = initial {
             app.open_file(&initial)?;
@@ -169,6 +221,49 @@ impl App {
 
     pub fn prompt(&self) -> Option<&Prompt> {
         self.prompt.as_ref()
+    }
+
+    pub fn handoff_stage(&self) -> Option<HandoffStage> {
+        self.handoff.as_ref().map(|handoff| handoff.stage)
+    }
+
+    pub fn prepared_handoff(&self) -> Option<&PreparedHandoff> {
+        self.handoff.as_ref().map(|handoff| &handoff.prepared)
+    }
+
+    pub fn handoff_targets(&self) -> &[AgentTarget] {
+        self.handoff
+            .as_ref()
+            .map_or(&[], |handoff| handoff.targets.as_slice())
+    }
+
+    pub fn handoff_cursor(&self) -> usize {
+        self.handoff.as_ref().map_or(0, |handoff| handoff.cursor)
+    }
+
+    pub fn handoff_target(&self) -> Option<&str> {
+        self.handoff
+            .as_ref()
+            .and_then(|handoff| handoff.selected_target.as_deref())
+    }
+
+    pub fn active_comments(&self) -> Vec<ActiveComment<'_>> {
+        let (Some(path), Some(document)) = (self.active_path.as_ref(), self.document.as_ref())
+        else {
+            return Vec::new();
+        };
+        let Some(path) = path.to_str() else {
+            return Vec::new();
+        };
+        self.review
+            .comments()
+            .iter()
+            .filter(|comment| comment.path == path)
+            .map(|comment| ActiveComment {
+                comment,
+                state: self.review.resolve(comment, document),
+            })
+            .collect()
     }
 
     pub fn status(&self) -> &str {
@@ -273,6 +368,27 @@ impl App {
                 self.open_file(&result.path)?;
                 if let Some(document) = self.document.as_mut() {
                     document.select(result.range)?;
+                }
+            }
+            SidebarMode::Review => {
+                let selected = self
+                    .active_comments()
+                    .get(self.sidebar_cursor)
+                    .map(|review| (review.state, review.comment.id.clone()));
+                let Some((state, id)) = selected else {
+                    return Ok(());
+                };
+                match state {
+                    AnchorState::Attached(range) => {
+                        if let Some(document) = self.document.as_mut() {
+                            document.select(range)?;
+                            self.focus = Focus::Document;
+                            self.status = format!("selected {id}");
+                        }
+                    }
+                    AnchorState::Detached => {
+                        self.status = format!("{id} is detached");
+                    }
                 }
             }
         }

@@ -46,7 +46,7 @@ struct ReviewFile {
     comments: Vec<ReviewComment>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReviewStore {
     root: PathBuf,
     file: ReviewFile,

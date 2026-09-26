@@ -6,6 +6,8 @@ use ratatui::layout::Rect;
 use ratatui::style::Color;
 use tempfile::tempdir;
 use zd::app::App;
+use zd::document::{Document, SourceRange};
+use zd::review::ReviewStore;
 use zd::ui::{document_content_area, draw, layout};
 
 fn buffer_text(terminal: &Terminal<TestBackend>) -> String {
@@ -123,4 +125,36 @@ fn source_selection_is_visible_in_edit_and_read_modes() {
         terminal.backend().buffer()[(document_area.x, document_area.y)].bg,
         Color::Blue
     );
+}
+
+#[test]
+fn review_sidebar_marks_detached_comments_visibly() {
+    let fixture = tempdir().unwrap();
+    let path = fixture.path().join("README.md");
+    fs::write(&path, "original").unwrap();
+    let mut source = Document::new("original");
+    source.select(SourceRange::new(0, 8)).unwrap();
+    let mut reviews = ReviewStore::open(fixture.path()).unwrap();
+    reviews
+        .add_comment(
+            std::path::Path::new("README.md"),
+            &source,
+            "needs attention",
+        )
+        .unwrap();
+    reviews.save().unwrap();
+    fs::write(&path, "changed").unwrap();
+
+    let mut app = App::open(path).unwrap();
+    app.handle_key(crossterm::event::KeyEvent::new(
+        crossterm::event::KeyCode::Char('l'),
+        crossterm::event::KeyModifiers::CONTROL,
+    ))
+    .unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+    terminal.draw(|frame| draw(frame, &app)).unwrap();
+    let rendered = buffer_text(&terminal);
+
+    assert!(rendered.contains("detached"));
+    assert!(rendered.contains("needs attention"));
 }

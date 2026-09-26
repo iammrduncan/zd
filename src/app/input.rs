@@ -4,13 +4,15 @@ use crate::document::{FindDirection, FindQuery, MoveDirection};
 
 use super::{App, AppError, Focus, Mode, Prompt, SidebarMode};
 
+const MAX_PROMPT_BYTES: usize = 32 * 1024;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Binding {
     pub label: &'static str,
     pub key: &'static str,
 }
 
-static BINDINGS: [Binding; 10] = [
+static BINDINGS: [Binding; 14] = [
     Binding {
         label: "focus",
         key: "Tab",
@@ -48,6 +50,22 @@ static BINDINGS: [Binding; 10] = [
         key: "Ctrl-R",
     },
     Binding {
+        label: "comment",
+        key: "Ctrl-N",
+    },
+    Binding {
+        label: "reviews",
+        key: "Ctrl-L",
+    },
+    Binding {
+        label: "agent handoff",
+        key: "Ctrl-G",
+    },
+    Binding {
+        label: "paste image",
+        key: "Ctrl-U",
+    },
+    Binding {
         label: "quit",
         key: "Ctrl-Q",
     },
@@ -61,6 +79,10 @@ impl App {
     pub fn handle_key(&mut self, key: KeyEvent) -> Result<(), AppError> {
         if self.prompt.is_some() {
             return self.handle_prompt_key(key);
+        }
+        if self.handoff.is_some() {
+            self.handle_handoff_key(key);
+            return Ok(());
         }
         if key.modifiers.contains(KeyModifiers::CONTROL) {
             return self.handle_control(key.code);
@@ -127,6 +149,18 @@ impl App {
         Ok(())
     }
 
+    pub fn handle_paste(&mut self, text: &str) -> Result<(), AppError> {
+        if self.handoff.is_some() {
+            self.status = "paste ignored while handoff confirmation is open".to_string();
+            return Ok(());
+        }
+        if self.prompt.is_some() {
+            self.append_prompt_text(text);
+            return Ok(());
+        }
+        self.insert_text(text)
+    }
+
     fn handle_control(&mut self, code: KeyCode) -> Result<(), AppError> {
         match code {
             KeyCode::Char('q') => self.should_quit = true,
@@ -161,6 +195,12 @@ impl App {
                 }
             }
             KeyCode::Char('r') => self.toggle_mode(),
+            KeyCode::Char('n') => self.prompt = Some(Prompt::Comment(String::new())),
+            KeyCode::Char('l') => self.show_reviews(),
+            KeyCode::Char('g') => {
+                self.prompt = Some(Prompt::HandoffInstruction(String::new()));
+            }
+            KeyCode::Char('u') => self.prompt = Some(Prompt::ImageAlt(String::new())),
             _ => {}
         }
         Ok(())
@@ -175,6 +215,9 @@ impl App {
                         Prompt::ProjectSearch(value)
                         | Prompt::Find(value)
                         | Prompt::ReplaceFind(value)
+                        | Prompt::Comment(value)
+                        | Prompt::HandoffInstruction(value)
+                        | Prompt::ImageAlt(value)
                         | Prompt::ReplaceWith { value, .. } => {
                             value.pop();
                         }
@@ -182,19 +225,37 @@ impl App {
                 }
             }
             KeyCode::Char(character) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
-                if let Some(prompt) = self.prompt.as_mut() {
-                    match prompt {
-                        Prompt::ProjectSearch(value)
-                        | Prompt::Find(value)
-                        | Prompt::ReplaceFind(value)
-                        | Prompt::ReplaceWith { value, .. } => value.push(character),
-                    }
-                }
+                let mut encoded = [0; 4];
+                self.append_prompt_text(character.encode_utf8(&mut encoded));
             }
             KeyCode::Enter => self.submit_prompt()?,
             _ => {}
         }
         Ok(())
+    }
+
+    fn append_prompt_text(&mut self, text: &str) {
+        let Some(prompt) = self.prompt.as_mut() else {
+            return;
+        };
+        let value = match prompt {
+            Prompt::ProjectSearch(value)
+            | Prompt::Find(value)
+            | Prompt::ReplaceFind(value)
+            | Prompt::Comment(value)
+            | Prompt::HandoffInstruction(value)
+            | Prompt::ImageAlt(value)
+            | Prompt::ReplaceWith { value, .. } => value,
+        };
+        let remaining = MAX_PROMPT_BYTES.saturating_sub(value.len());
+        let mut end = remaining.min(text.len());
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        value.push_str(&text[..end]);
+        if end < text.len() {
+            self.status = "prompt input reached its size limit".to_string();
+        }
     }
 
     fn submit_prompt(&mut self) -> Result<(), AppError> {
@@ -235,6 +296,11 @@ impl App {
                     self.status = format!("replaced {count} matches");
                 }
             }
+            Prompt::Comment(comment) => self.save_comment_from_prompt(&comment),
+            Prompt::HandoffInstruction(instruction) => {
+                self.start_handoff_from_prompt(&instruction);
+            }
+            Prompt::ImageAlt(alt_text) => self.paste_system_image(&alt_text),
         }
         Ok(())
     }
@@ -305,6 +371,7 @@ impl App {
         match self.sidebar_mode {
             SidebarMode::Tree => self.workspace.tree().entries.len(),
             SidebarMode::Search => self.search_results.len(),
+            SidebarMode::Review => self.active_comments().len(),
         }
     }
 }

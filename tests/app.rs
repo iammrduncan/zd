@@ -1,8 +1,11 @@
 use std::fs;
+use std::path::Path;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tempfile::tempdir;
-use zd::app::{App, Focus, Mode, SidebarMode, bindings};
+use zd::app::{App, Focus, HandoffStage, Mode, SidebarMode, bindings};
+use zd::image::{ClipboardImage, ImageError, RgbaImage};
+use zd::review::AnchorState;
 
 fn key(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::NONE)
@@ -40,6 +43,10 @@ fn keyboard_workflow_covers_tree_search_edit_find_replace_save_modes_and_quit() 
         "find",
         "replace",
         "read/edit",
+        "comment",
+        "reviews",
+        "agent handoff",
+        "paste image",
         "quit",
     ] {
         assert!(labels.contains(&required), "missing binding {required}");
@@ -127,4 +134,132 @@ fn vertical_keyboard_movement_preserves_a_display_cell_column() {
     assert_eq!(app.document().unwrap().cursor(), 14);
     app.handle_key(key(KeyCode::Up)).unwrap();
     assert_eq!(app.document().unwrap().cursor(), 8);
+}
+
+struct FakeImage;
+
+impl ClipboardImage for FakeImage {
+    fn read_image(&mut self) -> Result<RgbaImage, ImageError> {
+        Ok(RgbaImage {
+            width: 1,
+            height: 1,
+            pixels: vec![1, 2, 3, 255],
+        })
+    }
+}
+
+#[cfg(unix)]
+fn fake_herdr(directory: &Path) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+
+    let path = directory.join("herdr-fake");
+    fs::write(
+        &path,
+        "#!/bin/sh\n\
+         if [ \"$1:$2\" = \"agent:list\" ]; then\n\
+           printf '%s' '{\"result\":{\"agents\":[{\"agent\":\"codex\",\"pane_id\":\"pane-1\",\"focused\":true}]}}'\n\
+           exit 0\n\
+         fi\n\
+         printf '%s\\0' \"$@\" > \"$(dirname \"$0\")/capture\"\n",
+    )
+    .unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+    path
+}
+
+#[cfg(unix)]
+#[test]
+fn review_handoff_and_image_commands_share_the_active_source_selection() {
+    let fixture = tempdir().unwrap();
+    let path = fixture.path().join("notes.md");
+    fs::write(&path, "alpha beta\n").unwrap();
+    let mut app = App::open(&path).unwrap();
+    app.pointer_document(0, 0, false, 40).unwrap();
+    app.pointer_document(0, 5, true, 40).unwrap();
+
+    app.handle_key(control('n')).unwrap();
+    type_text(&mut app, "review this");
+    app.handle_key(key(KeyCode::Enter)).unwrap();
+    assert_eq!(app.active_comments().len(), 1);
+    assert_eq!(
+        app.active_comments()[0].state,
+        AnchorState::Attached(zd::document::SourceRange::new(0, 5))
+    );
+    assert!(fixture.path().join(".zd/review-v1.json").exists());
+    app.handle_key(control('l')).unwrap();
+    assert_eq!(app.sidebar_mode(), SidebarMode::Review);
+
+    let mut reopened = App::open(&path).unwrap();
+    reopened.pointer_document(0, 0, false, 40).unwrap();
+    reopened.pointer_document(0, 5, true, 40).unwrap();
+    let executable = fake_herdr(fixture.path());
+    reopened.set_herdr_executable(&executable);
+    reopened.handle_key(control('g')).unwrap();
+    type_text(&mut reopened, "explain this");
+    reopened.handle_key(key(KeyCode::Enter)).unwrap();
+    assert_eq!(reopened.handoff_stage(), Some(HandoffStage::Targets));
+    assert!(!fixture.path().join("capture").exists());
+    reopened.handle_key(key(KeyCode::Enter)).unwrap();
+    assert_eq!(reopened.handoff_stage(), Some(HandoffStage::Preview));
+    assert!(reopened.prepared_handoff().unwrap().text.contains("alpha"));
+    assert!(!fixture.path().join("capture").exists());
+    reopened.handle_key(key(KeyCode::Enter)).unwrap();
+    assert!(fixture.path().join("capture").exists());
+    assert_eq!(reopened.handoff_stage(), None);
+
+    reopened.pointer_document(0, 10, false, 40).unwrap();
+    reopened
+        .paste_image_from(&mut FakeImage, "architecture")
+        .unwrap();
+    assert!(
+        reopened
+            .document()
+            .unwrap()
+            .text()
+            .contains("![architecture]")
+    );
+}
+
+#[test]
+fn unavailable_herdr_keeps_a_manual_prepared_prompt_without_submitting() {
+    let fixture = tempdir().unwrap();
+    let path = fixture.path().join("notes.md");
+    fs::write(&path, "selection").unwrap();
+    let mut app = App::open(path).unwrap();
+    app.pointer_document(0, 0, false, 40).unwrap();
+    app.pointer_document(0, 9, true, 40).unwrap();
+    app.set_herdr_executable(fixture.path().join("missing-herdr"));
+
+    app.handle_key(control('g')).unwrap();
+    type_text(&mut app, "inspect");
+    app.handle_key(key(KeyCode::Enter)).unwrap();
+
+    assert_eq!(app.handoff_stage(), Some(HandoffStage::Preview));
+    assert!(app.handoff_target().is_none());
+    assert!(app.prepared_handoff().unwrap().text.contains("selection"));
+    assert!(app.status().contains("manual delivery"));
+}
+
+#[test]
+fn bracketed_paste_targets_prompts_and_never_edits_behind_handoff_preview() {
+    let fixture = tempdir().unwrap();
+    let path = fixture.path().join("notes.md");
+    fs::write(&path, "alpha").unwrap();
+    let mut app = App::open(path).unwrap();
+    app.pointer_document(0, 0, false, 40).unwrap();
+    app.pointer_document(0, 5, true, 40).unwrap();
+
+    app.handle_key(control('f')).unwrap();
+    app.handle_paste("alpha").unwrap();
+    app.handle_key(key(KeyCode::Enter)).unwrap();
+    assert_eq!(app.document().unwrap().selection().start, 0);
+
+    app.set_herdr_executable(fixture.path().join("missing-herdr"));
+    app.handle_key(control('g')).unwrap();
+    app.handle_paste("inspect").unwrap();
+    app.handle_key(key(KeyCode::Enter)).unwrap();
+    assert_eq!(app.handoff_stage(), Some(HandoffStage::Preview));
+    let before = app.document().unwrap().text();
+    app.handle_paste("must not edit").unwrap();
+    assert_eq!(app.document().unwrap().text(), before);
 }
