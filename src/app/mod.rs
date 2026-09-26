@@ -84,6 +84,7 @@ pub struct App {
     status: String,
     should_quit: bool,
     drag_anchor: Option<usize>,
+    vertical_cell: Option<usize>,
 }
 
 impl App {
@@ -114,6 +115,7 @@ impl App {
             status: "ready".to_string(),
             should_quit: false,
             drag_anchor: None,
+            vertical_cell: None,
         };
         if let Some(initial) = initial {
             app.open_file(&initial)?;
@@ -195,6 +197,7 @@ impl App {
         self.mode = Mode::Edit;
         self.focus = Focus::Document;
         self.drag_anchor = None;
+        self.vertical_cell = None;
         self.status = format!("opened {}", relative.display());
         Ok(())
     }
@@ -232,6 +235,7 @@ impl App {
             }
             return Ok(());
         }
+        self.vertical_cell = None;
         if extend {
             let anchor = self.drag_anchor.unwrap_or(document.cursor());
             document.select(SourceRange::new(anchor.min(byte), anchor.max(byte)))?;

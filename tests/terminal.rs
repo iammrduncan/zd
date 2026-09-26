@@ -3,8 +3,13 @@ use std::io::{Read, Write};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+use crossterm::event::{Event, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use ratatui::layout::Rect;
 use tempfile::tempdir;
+use zd::app::App;
+use zd::terminal::handle_event;
+use zd::ui::{document_content_area, layout, sidebar_content_area};
 
 #[test]
 fn pty_quit_restores_every_enabled_terminal_mode() {
@@ -70,4 +75,66 @@ fn pty_quit_restores_every_enabled_terminal_mode() {
             "missing terminal sequence {sequence:?} in {output:?}"
         );
     }
+}
+
+#[test]
+fn constructed_mouse_press_drag_and_release_use_content_coordinates() {
+    let fixture = tempdir().unwrap();
+    fs::write(fixture.path().join("a.md"), "a界b\n").unwrap();
+    fs::write(fixture.path().join("b.md"), "second\n").unwrap();
+    let mut app = App::open(fixture.path().join("b.md")).unwrap();
+    let area = Rect::new(0, 0, 80, 24);
+    let regions = layout(area, &app);
+    let tree = sidebar_content_area(regions.tree.unwrap());
+
+    handle_event(
+        mouse(MouseEventKind::Down(MouseButton::Left), tree.x, tree.y),
+        area,
+        &mut app,
+    )
+    .unwrap();
+    assert_eq!(app.active_path().unwrap().to_string_lossy(), "a.md");
+
+    let document = document_content_area(layout(area, &app).document);
+    handle_event(
+        mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            document.x + 1,
+            document.y,
+        ),
+        area,
+        &mut app,
+    )
+    .unwrap();
+    handle_event(
+        mouse(
+            MouseEventKind::Drag(MouseButton::Left),
+            document.x + 3,
+            document.y,
+        ),
+        area,
+        &mut app,
+    )
+    .unwrap();
+    handle_event(
+        mouse(
+            MouseEventKind::Up(MouseButton::Left),
+            document.x + 3,
+            document.y,
+        ),
+        area,
+        &mut app,
+    )
+    .unwrap();
+    assert_eq!(app.document().unwrap().selection().start, 1);
+    assert_eq!(app.document().unwrap().selection().end, 4);
+}
+
+fn mouse(kind: MouseEventKind, column: u16, row: u16) -> Event {
+    Event::Mouse(MouseEvent {
+        kind,
+        column,
+        row,
+        modifiers: KeyModifiers::NONE,
+    })
 }

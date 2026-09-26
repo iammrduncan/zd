@@ -113,3 +113,18 @@ fn mouse_tree_and_document_actions_use_source_coordinates() {
     app.pointer_document(0, 0, false, 40).unwrap();
     assert!(!app.document().unwrap().selection().is_empty());
 }
+
+#[test]
+fn vertical_keyboard_movement_preserves_a_display_cell_column() {
+    let fixture = tempdir().unwrap();
+    fs::write(fixture.path().join("lines.txt"), "ab界d\nx\nab界d\n").unwrap();
+    let mut app = App::open(fixture.path().join("lines.txt")).unwrap();
+
+    app.pointer_document(0, 4, false, 40).unwrap();
+    app.handle_key(key(KeyCode::Down)).unwrap();
+    assert_eq!(app.document().unwrap().cursor(), 8);
+    app.handle_key(key(KeyCode::Down)).unwrap();
+    assert_eq!(app.document().unwrap().cursor(), 14);
+    app.handle_key(key(KeyCode::Up)).unwrap();
+    assert_eq!(app.document().unwrap().cursor(), 8);
+}

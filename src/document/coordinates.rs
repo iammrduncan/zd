@@ -49,5 +49,5 @@ pub(super) fn byte_at_cell(rope: &Rope, wanted_line: usize, cell_column: usize) 
         }
         occupied = next;
     }
-    (cell_column == occupied).then_some(start + line.len())
+    Some(start + line.len())
 }

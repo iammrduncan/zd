@@ -17,7 +17,7 @@ use ratatui::layout::Rect;
 use thiserror::Error;
 
 use crate::app::{App, AppError};
-use crate::ui::{Areas, draw, layout};
+use crate::ui::{Areas, document_content_area, draw, layout, sidebar_content_area};
 
 #[derive(Debug, Error)]
 pub enum TerminalError {
@@ -37,12 +37,12 @@ pub fn run(path: &Path) -> Result<(), TerminalError> {
         terminal.draw(|frame| draw(frame, &app))?;
         let size = terminal.size()?;
         let area = Rect::new(0, 0, size.width, size.height);
-        dispatch(event::read()?, area, &mut app)?;
+        handle_event(event::read()?, area, &mut app)?;
     }
     Ok(())
 }
 
-fn dispatch(event: Event, area: Rect, app: &mut App) -> Result<(), AppError> {
+pub fn handle_event(event: Event, area: Rect, app: &mut App) -> Result<(), AppError> {
     match event {
         Event::Key(key) if matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) => {
             app.handle_key(key)?;
@@ -67,10 +67,13 @@ fn dispatch_mouse(mouse: MouseEvent, areas: Areas, app: &mut App) -> Result<(), 
     if let Some(tree) = areas.tree
         && contains(tree, mouse.column, mouse.row)
     {
-        app.pointer_tree(usize::from(mouse.row.saturating_sub(tree.y)))?;
+        let tree = sidebar_content_area(tree);
+        if contains(tree, mouse.column, mouse.row) {
+            app.pointer_tree(usize::from(mouse.row.saturating_sub(tree.y)))?;
+        }
         return Ok(());
     }
-    let document = areas.document;
+    let document = document_content_area(areas.document);
     if contains(document, mouse.column, mouse.row) {
         app.pointer_document(
             usize::from(mouse.row.saturating_sub(document.y)),

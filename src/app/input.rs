@@ -87,15 +87,19 @@ impl App {
             }
             KeyCode::Left => self.move_document(MoveDirection::Previous, key.modifiers)?,
             KeyCode::Right => self.move_document(MoveDirection::Next, key.modifiers)?,
+            KeyCode::Up => self.move_document_vertical(-1, key.modifiers)?,
+            KeyCode::Down => self.move_document_vertical(1, key.modifiers)?,
             KeyCode::Home => {
                 if let Some(document) = self.document.as_mut() {
                     document.set_cursor(0)?;
                 }
+                self.vertical_cell = None;
             }
             KeyCode::End => {
                 if let Some(document) = self.document.as_mut() {
                     document.set_cursor(document.len_bytes())?;
                 }
+                self.vertical_cell = None;
             }
             KeyCode::Backspace if self.mode == Mode::Edit => {
                 if let Some(document) = self.document.as_mut() {
@@ -117,6 +121,7 @@ impl App {
             && let Some(document) = self.document.as_mut()
         {
             document.insert(text)?;
+            self.vertical_cell = None;
             self.status = "edited".to_string();
         }
         Ok(())
@@ -243,6 +248,34 @@ impl App {
             && let Some(document) = self.document.as_mut()
         {
             document.move_cursor(direction, modifiers.contains(KeyModifiers::SHIFT));
+            self.vertical_cell = None;
+        }
+        Ok(())
+    }
+
+    fn move_document_vertical(
+        &mut self,
+        line_delta: isize,
+        modifiers: KeyModifiers,
+    ) -> Result<(), AppError> {
+        if self.focus != Focus::Document {
+            return Ok(());
+        }
+        let Some(document) = self.document.as_mut() else {
+            return Ok(());
+        };
+        let point = document.point_at(document.cursor())?;
+        let target_line = if line_delta < 0 {
+            point.line.checked_sub(line_delta.unsigned_abs())
+        } else {
+            point.line.checked_add(line_delta as usize)
+        };
+        let Some(target_line) = target_line else {
+            return Ok(());
+        };
+        let cell = *self.vertical_cell.get_or_insert(point.cell_column);
+        if let Some(byte) = document.byte_at_cell(target_line, cell) {
+            document.set_cursor_with_selection(byte, modifiers.contains(KeyModifiers::SHIFT))?;
         }
         Ok(())
     }

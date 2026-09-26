@@ -5,6 +5,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, Paragraph};
 
 use crate::app::{App, Focus, Mode, SidebarMode};
+use crate::document::SourceRange;
 use crate::markdown::{MarkdownView, RenderStyle};
 use crate::workspace::EntryKind;
 
@@ -27,7 +28,7 @@ pub fn layout(area: Rect, app: &App) -> Areas {
         (None, body)
     } else if area.width < 50 {
         match app.focus() {
-            Focus::Tree => (Some(body), body),
+            Focus::Tree => (Some(body), Rect::new(body.x, body.y, 0, 0)),
             Focus::Document => (None, body),
         }
     } else {
@@ -120,11 +121,12 @@ fn sidebar_item(text: String, selected: bool) -> ListItem<'static> {
 }
 
 fn draw_document(frame: &mut Frame<'_>, area: Rect, app: &App) {
-    let title = app
-        .active_path()
-        .map_or_else(|| "No file".to_string(), |path| path.display().to_string());
+    let title = sanitize(
+        &app.active_path()
+            .map_or_else(|| "No file".to_string(), |path| path.display().to_string()),
+    );
     let block = Block::default().title(title).borders(Borders::BOTTOM);
-    let inner = block.inner(area);
+    let inner = document_content_area(area);
     frame.render_widget(block, area);
     let Some(document) = app.document() else {
         frame.render_widget(Paragraph::new("Open a file from the tree"), inner);
@@ -132,11 +134,7 @@ fn draw_document(frame: &mut Frame<'_>, area: Rect, app: &App) {
     };
     match app.mode() {
         Mode::Edit => {
-            let lines = document
-                .text()
-                .lines()
-                .map(|line| Line::raw(sanitize(line)))
-                .collect::<Vec<_>>();
+            let lines = edit_lines(&document.text(), document.selection());
             frame.render_widget(Paragraph::new(lines), inner);
             if app.focus() == Focus::Document
                 && app.prompt().is_none()
@@ -152,6 +150,7 @@ fn draw_document(frame: &mut Frame<'_>, area: Rect, app: &App) {
         }
         Mode::Read => {
             let plan = MarkdownView::render(&document.text(), document.revision(), inner.width);
+            let selection = document.selection();
             let lines = plan
                 .rows
                 .into_iter()
@@ -159,13 +158,74 @@ fn draw_document(frame: &mut Frame<'_>, area: Rect, app: &App) {
                     Line::from(
                         row.spans
                             .into_iter()
-                            .map(|span| Span::styled(sanitize(&span.text), read_style(span.style)))
+                            .map(|span| {
+                                let selected = span.source.is_some_and(|source| {
+                                    intersects(source.range, selection) && !selection.is_empty()
+                                });
+                                Span::styled(
+                                    sanitize(&span.text),
+                                    selected_style(read_style(span.style), selected),
+                                )
+                            })
                             .collect::<Vec<_>>(),
                     )
                 })
                 .collect::<Vec<_>>();
             frame.render_widget(Paragraph::new(lines), inner);
         }
+    }
+}
+
+pub fn document_content_area(area: Rect) -> Rect {
+    Block::default()
+        .title("file")
+        .borders(Borders::BOTTOM)
+        .inner(area)
+}
+
+pub fn sidebar_content_area(area: Rect) -> Rect {
+    Block::default()
+        .title("sidebar")
+        .borders(Borders::RIGHT)
+        .inner(area)
+}
+
+fn edit_lines(text: &str, selection: SourceRange) -> Vec<Line<'static>> {
+    let mut offset = 0;
+    let mut lines = Vec::new();
+    for raw_line in text.split_inclusive('\n') {
+        let line = raw_line.trim_end_matches(['\r', '\n']);
+        let line_range = SourceRange::new(offset, offset + line.len());
+        let selected_start = selection.start.max(line_range.start).min(line_range.end);
+        let selected_end = selection.end.max(line_range.start).min(line_range.end);
+        let relative_start = selected_start - line_range.start;
+        let relative_end = selected_end - line_range.start;
+        let spans = vec![
+            Span::raw(sanitize(&line[..relative_start])),
+            Span::styled(
+                sanitize(&line[relative_start..relative_end]),
+                selected_style(Style::default(), relative_start < relative_end),
+            ),
+            Span::raw(sanitize(&line[relative_end..])),
+        ];
+        lines.push(Line::from(spans));
+        offset += raw_line.len();
+    }
+    if lines.is_empty() {
+        lines.push(Line::default());
+    }
+    lines
+}
+
+const fn intersects(left: SourceRange, right: SourceRange) -> bool {
+    left.start < right.end && right.start < left.end
+}
+
+fn selected_style(style: Style, selected: bool) -> Style {
+    if selected {
+        style.fg(Color::White).bg(Color::Blue)
+    } else {
+        style
     }
 }
 
@@ -180,8 +240,11 @@ fn draw_status(frame: &mut Frame<'_>, area: Rect, app: &App) {
         .map_or_else(|| "no file".to_string(), |path| path.display().to_string());
     let marker = if dirty { " [+]" } else { "" };
     frame.render_widget(
-        Paragraph::new(format!(" {mode}  {path}{marker}  {}", app.status()))
-            .style(Style::default().fg(Color::Black).bg(Color::Gray)),
+        Paragraph::new(sanitize(&format!(
+            " {mode}  {path}{marker}  {}",
+            app.status()
+        )))
+        .style(Style::default().fg(Color::Black).bg(Color::Gray)),
         area,
     );
 }

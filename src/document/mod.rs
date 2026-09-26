@@ -146,8 +146,18 @@ impl Document {
     }
 
     pub fn set_cursor(&mut self, byte: usize) -> Result<(), DocumentError> {
+        self.set_cursor_with_selection(byte, false)
+    }
+
+    pub fn set_cursor_with_selection(
+        &mut self,
+        byte: usize,
+        extend: bool,
+    ) -> Result<(), DocumentError> {
         self.validate_position(byte)?;
-        self.anchor = byte;
+        if !extend {
+            self.anchor = byte;
+        }
         self.cursor = byte;
         Ok(())
     }
