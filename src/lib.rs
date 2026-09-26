@@ -3,6 +3,7 @@
 pub mod app;
 pub mod document;
 pub mod handoff;
+pub mod image;
 pub mod markdown;
 pub mod review;
 pub mod terminal;
