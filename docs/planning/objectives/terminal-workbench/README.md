@@ -31,12 +31,12 @@ handoff; do not own PTYs, shells, sessions, or serving.
 
 ## Phase
 
-Research and planning are complete. Goals 00–02 are complete and Goal 03 is next:
+Research and planning are complete. Goals 00–03 are complete and Goal 04 is next:
 
 1. [Archive v0 and make the Rust TUI root authoritative](goals/_completed/summary-goal-00.md) — complete.
 2. [Own document editing and workspace navigation](goals/_completed/summary-goal-01.md) — complete.
 3. [Deliver the terminal editor and Markdown reader](goals/_completed/summary-goal-02.md) — complete.
-4. [Connect source review, Herdr handoff, and image paste](goals/execute-goal-03.md).
+4. [Connect source review, Herdr handoff, and image paste](goals/_completed/summary-goal-03.md) — complete.
 5. [Verify and hand off the v1.0.1 prototype](goals/execute-goal-04.md).
 
 They are serialized because each later goal consumes shared root state and app/core files from the

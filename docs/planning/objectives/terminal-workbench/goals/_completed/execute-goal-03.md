@@ -2,9 +2,9 @@
 
 ## Prerequisites
 
-- [Goal 01](_completed/execute-goal-01.md) is complete and supplies document revisions, source
+- [Goal 01](execute-goal-01.md) is complete and supplies document revisions, source
   ranges, edit transactions, and safe project paths.
-- [Goal 02](_completed/execute-goal-02.md) is complete and supplies visible selection, overlays,
+- [Goal 02](execute-goal-02.md) is complete and supplies visible selection, overlays,
   commands, and Markdown Read/Edit modes.
 - This goal owns review, handoff, image modules and the app/UI wiring for them. Goal 04 must not edit
   the same command/help/docs paths concurrently.
@@ -16,7 +16,7 @@ approval; automated evidence uses a fake target.
 
 ## `/goal` objective
 
-This goal delivers Phase 3 from [`02-DELIVERY-PLAN.md:52-62`](../02-DELIVERY-PLAN.md#phase-3--add-review-herdr-handoff-and-image-paste).
+This goal delivers Phase 3 from [`02-DELIVERY-PLAN.md:52-62`](../../02-DELIVERY-PLAN.md#phase-3--add-review-herdr-handoff-and-image-paste).
 
 Use the one source selection for the three differentiating workflows: persistent comments, an
 explicit agent handoff, and transactional image-link insertion.
@@ -48,7 +48,7 @@ When the work is complete, the repository must have:
 ## Required tests and evidence
 
 At minimum, prove the Review, Handoff, Image, and Clipboard unavailable rows at
-[`04-ACCEPTANCE-PLAN.md:18-20`](../04-ACCEPTANCE-PLAN.md#automated-release-blocking-evidence), including:
+[`04-ACCEPTANCE-PLAN.md:18-20`](../../04-ACCEPTANCE-PLAN.md#automated-release-blocking-evidence), including:
 
 - same-revision, shifted-exact, unique-context, unique-exact, ambiguous, deleted, malformed, oversize,
   and project-escape review cases;
