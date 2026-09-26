@@ -7,12 +7,15 @@ description = "A native terminal workbench for reading, editing, and reviewing p
 repository = "https://github.com/mbox01/zd"
 
 [dependencies]
+blake3 = "1.8.2"
 crossterm = "0.28.1"
 ignore = "0.4.32"
 pulldown-cmark = "0.13.0"
 ratatui = "0.29.0"
 regex = "1.13.1"
 ropey = "1.6.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
 thiserror = "2.0.19"
 unicode-segmentation = "1.13.3"
 unicode-width = "0.2.0"

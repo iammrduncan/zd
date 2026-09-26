@@ -3,6 +3,7 @@
 pub mod app;
 pub mod document;
 pub mod markdown;
+pub mod review;
 pub mod terminal;
 pub mod ui;
 pub mod workspace;
