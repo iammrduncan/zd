@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- [Goal 00](_completed/execute-goal-00.md) is complete and supplies the v1 root/runtime.
-- [Goal 01](_completed/execute-goal-01.md) is complete and supplies authoritative documents,
+- [Goal 00](execute-goal-00.md) is complete and supplies the v1 root/runtime.
+- [Goal 01](execute-goal-01.md) is complete and supplies authoritative documents,
   workspace tree, search results, and coordinate conversions.
 - This goal owns the app state, terminal lifecycle, UI, Markdown projection, command bindings, and
   their tests. Goal 03 must not edit those files concurrently.
@@ -14,7 +14,7 @@ Nothing. Final taste and Ghostty acceptance occur after the automated interactio
 
 ## `/goal` objective
 
-This goal delivers Phase 2 from [`02-DELIVERY-PLAN.md:39-50`](../02-DELIVERY-PLAN.md#phase-2--deliver-the-terminal-workbench-and-markdown-read-mode).
+This goal delivers Phase 2 from [`02-DELIVERY-PLAN.md:39-50`](../../02-DELIVERY-PLAN.md#phase-2--deliver-the-terminal-workbench-and-markdown-read-mode).
 
 Produce the usable local workbench: open the project, navigate/collapse the tree, search files,
 edit code with keyboard and mouse, find/replace, and read Markdown through a source-mapped calm view.
@@ -44,7 +44,7 @@ When the work is complete, the repository must have:
 ## Required tests and evidence
 
 At minimum, prove the Document, Workspace, Markdown, Layout, Mouse, Terminal lifecycle, and relevant
-Quality rows at [`04-ACCEPTANCE-PLAN.md:12-22`](../04-ACCEPTANCE-PLAN.md#automated-release-blocking-evidence), including:
+Quality rows at [`04-ACCEPTANCE-PLAN.md:12-22`](../../04-ACCEPTANCE-PLAN.md#automated-release-blocking-evidence), including:
 
 - TestBackend output at 40×12, 80×24, and 160×50;
 - collapsing the tree reallocates all available width without changing the document selection;
