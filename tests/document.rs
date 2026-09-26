@@ -89,6 +89,17 @@ fn find_wraps_in_both_directions_and_replace_all_is_one_edit() {
     assert_eq!(document.text(), "Alpha alpha\naba");
     assert!(document.redo());
     assert_eq!(document.text(), "word word\naba");
+
+    let mut captures = Document::new("name: Ada");
+    let capture_query = FindQuery::regex(r"name: (\w+)");
+    assert!(
+        captures
+            .replace_next(&capture_query, "$1", 0, FindDirection::Next)
+            .unwrap()
+    );
+    assert_eq!(captures.text(), "Ada");
+    assert!(captures.undo());
+    assert_eq!(captures.text(), "name: Ada");
 }
 
 #[test]

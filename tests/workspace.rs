@@ -86,6 +86,18 @@ fn search_shares_scope_policy_skips_unsupported_content_and_sanitizes_preview() 
     .unwrap();
 
     let workspace = Workspace::open(fixture.path()).unwrap();
+    let tree_paths = workspace
+        .tree()
+        .entries
+        .iter()
+        .map(|entry| entry.path.to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
+    assert!(tree_paths.contains(&"binary.bin".to_string()));
+    assert!(tree_paths.contains(&"invalid.txt".to_string()));
+    assert!(tree_paths.contains(&"oversize.txt".to_string()));
+    assert!(!tree_paths.iter().any(|path| path.contains("ignored")));
+    assert!(!tree_paths.iter().any(|path| path.contains("linked-src")));
+
     let results = workspace.search_with_limit("needle", true, 20).unwrap();
     assert_eq!(
         results
