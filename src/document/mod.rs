@@ -244,6 +244,10 @@ impl Document {
         coordinates::byte_at(&self.text, line, grapheme_column)
     }
 
+    pub fn byte_at_cell(&self, line: usize, cell_column: usize) -> Option<usize> {
+        coordinates::byte_at_cell(&self.text, line, cell_column)
+    }
+
     pub fn save(&mut self) -> Result<(), DocumentError> {
         let path = self.path.clone().ok_or(DocumentError::NoPath)?;
         self.save_to(path)

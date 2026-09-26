@@ -12,6 +12,11 @@ fn movement_and_backspace_follow_graphemes_while_cells_follow_display_width() {
         document.point_at(document.len_bytes()).unwrap().cell_column,
         5
     );
+    assert_eq!(document.byte_at_cell(0, 0), Some(0));
+    assert_eq!(document.byte_at_cell(0, 1), Some(3));
+    assert_eq!(document.byte_at_cell(0, 2), Some(3));
+    assert_eq!(document.byte_at_cell(0, 3), Some(14));
+    assert_eq!(document.byte_at_cell(0, 5), Some(17));
     document.move_cursor(MoveDirection::Previous, false);
     assert_eq!(document.cursor(), 14);
     document.move_cursor(MoveDirection::Previous, false);

@@ -33,3 +33,21 @@ pub(super) fn byte_at(rope: &Rope, wanted_line: usize, grapheme_column: usize) -
         .nth(grapheme_column)
         .map(|(offset, _)| start + offset)
 }
+
+pub(super) fn byte_at_cell(rope: &Rope, wanted_line: usize, cell_column: usize) -> Option<usize> {
+    let start = rope.try_line_to_byte(wanted_line).ok()?;
+    let line = rope.get_line(wanted_line)?.to_string();
+    let line = line.trim_end_matches(['\r', '\n']);
+    let mut occupied = 0;
+    for (offset, grapheme) in line.grapheme_indices(true) {
+        if cell_column <= occupied {
+            return Some(start + offset);
+        }
+        let next = occupied + UnicodeWidthStr::width(grapheme);
+        if cell_column < next {
+            return Some(start + offset);
+        }
+        occupied = next;
+    }
+    (cell_column == occupied).then_some(start + line.len())
+}

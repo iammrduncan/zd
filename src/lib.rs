@@ -1,7 +1,9 @@
 //! Core entry contract for the `zd` terminal workbench.
 
+pub mod app;
 pub mod document;
 pub mod markdown;
+pub mod ui;
 pub mod workspace;
 
 use std::ffi::OsString;
