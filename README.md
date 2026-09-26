@@ -51,7 +51,7 @@ Pass a file to open its parent as the project, or pass a directory to open that 
 | Test in Ghostty and Herdr | [Owner acceptance checklist](docs/acceptance/GHOSTTY-HERDR.md) |
 | Inspect Linux and automated evidence | [v1.0.1 acceptance record](docs/acceptance/V1.0.1-LINUX.md) |
 | Understand the architecture | [Design](docs/DESIGN.md) and [ADRs](docs/adr/README.md) |
-| Follow the implementation history | [Terminal workbench objective](docs/planning/objectives/terminal-workbench/README.md) |
+| Follow the implementation history | [Terminal workbench archive](docs/planning/objectives/_archives/terminal-workbench-summary.md) |
 
 ## Verify it
 
